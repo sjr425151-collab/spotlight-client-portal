@@ -60,7 +60,7 @@ select is(public.accept_invitation(((select v from vars where k = 'inv_other')::
 reset role;
 select is((select failed_attempts from public.invitations where id = ((select v from vars where k = 'inv_other')::jsonb ->> 'invitation_id')::uuid), 0,
   'A tokenless email mismatch is not counted as a token guess (no lockout of the real invitee)');
-select is((select count(*)::int from public.audit_events where action = 'invitation.accept_failed' and summary ->> 'via' = 'portal'), 1,
+select is((select count(*)::int from public.audit_events where occurred_at >= now() and action = 'invitation.accept_failed' and summary ->> 'via' = 'portal'), 1,
   'The rejected tokenless attempt is audited');
 
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000b1');

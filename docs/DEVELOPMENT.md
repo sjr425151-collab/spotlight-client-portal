@@ -206,7 +206,7 @@ The artwork itself is not modified, and a unit test pins the master's SHA-256. A
 | Item | Reason | When |
 |---|---|---|
 | Phase 2 implementation notes (**OI-53**) | Spike refinements listed in 03 §18.1 await Owner confirmation | Before the Phase 2 PR merges |
-| Marking expired invitations (**OI-54**) | Expiry is enforced; a reporting job needs a scheduler | Owner decision |
+| Marking expired invitations (**OI-54**, decided) | Deferred on condition: expired invitations must stay rejected at every boundary regardless of cleanup status (`supabase/tests/045_expired_invitations.test.sql`) | Phase 5 |
 | Invitation emails to existing users | Supabase cannot email confirmed users (03A S-06); they accept in the portal. Notification email needs Resend. | Phase 4 |
 | Add CI jobs as required status checks | GitHub ruleset change (Owner) | After the Phase 1 PR's first successful run |
 | ESLint 10 upgrade | Waiting on plugin peer support | When `eslint-config-next` dependencies support it |

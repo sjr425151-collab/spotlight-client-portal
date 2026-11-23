@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.9.0 (draft for owner review) |
+| Version | 0.9.1 (draft for owner review) |
 | Status | Draft |
 | Next unused issue ID | **OI-56** |
 | Next unused dependency ID | **DEP-15** |
@@ -17,7 +17,7 @@ Rules:
 
 ## Part 1 — Decided issues (OI-01 to OI-46)
 
-All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46-oi-48oi-49-oi-55).
+All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46-oi-48oi-49-oi-54oi-55).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -69,13 +69,14 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 | OI-46 | Involuntary subscription cancellation | Decided | DEP-03, DEP-06 |
 | OI-48 | Theme mode: dark-only MVP | Decided (2026-11-23) | DEP-08 (light variant, future) |
 | OI-49 | Temporary logo compositing treatment | Decided (2026-11-23) | DEP-08 |
+| OI-54 | Marking expired invitations: cleanup job deferred to Phase 5, on condition | Decided (2026-11-23) | — |
 | OI-55 | Adjusted final-balance collection vehicle (option A) | Decided (2026-11-23) | DEP-06 |
 
 ---
 
 ## Part 2 — Open issues requiring Owner decision
 
-OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. OI-55 (adjusted final-balance collection vehicle) was approved on 2026-11-23 (option A), and collection on the final-balance invoice is authorized; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice. Phase 2 implementation raised **OI-53 and OI-54** (2026-11-23).
+OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. OI-55 (adjusted final-balance collection vehicle) was approved on 2026-11-23 (option A), and collection on the final-balance invoice is authorized; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice. Phase 2 implementation raised **OI-53 and OI-54** (2026-11-23). OI-54 was decided on 2026-11-23 (deferred to Phase 5, on condition); see 08.
 
 | ID | Title | Earliest phase | Status |
 |---|---|---|---|
@@ -84,7 +85,6 @@ OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains
 | OI-51 | Custom SMTP provider for Supabase Auth email | 2 (hosted only) | Open |
 | OI-52 | CAPTCHA on OTP requests | 2 | Open |
 | OI-53 | Confirm the Phase 2 implementation notes (03 §18.1) | 2 | Open (Owner confirmation) |
-| OI-54 | Marking expired invitations (`invitation.expired`) | 2 (reporting only) | Open |
 
 ### OI-53 — Confirm the Phase 2 implementation notes (03 §18.1)
 
@@ -101,18 +101,6 @@ OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains
 - **Recommendation:** A. Each note keeps or tightens the approved control.
 - **Impacted documents:** 03 §6.1, §6.2, §7, §9.2, §17; 03A §5.
 - **Owner decision required:** Yes, before the Phase 2 pull request merges.
-- **Status:** Open.
-
-### OI-54 — Marking expired invitations
-
-- **Description:** Spec 03 §6.1 says an invitation's expiry is computed and that "a job marks it for reporting", with the audit event `invitation.expired`. Expiry is computed and enforced everywhere in Phase 2, so an expired invitation can never be accepted. No job marks rows yet, because Phase 2 has no scheduler.
-- **Options:**
-  - A. Enable `pg_cron` (a Postgres extension, available locally and on hosted Supabase) for a daily job that marks rows and writes `invitation.expired`.
-  - B. Mark rows lazily when staff view invitations.
-  - C. Defer to Phase 5 (reporting and hardening).
-- **Recommendation:** C. Expiry is already enforced, and the job affects reporting only.
-- **Impacted documents:** 03 §6.1, §11.
-- **Owner decision required:** Yes. The choice adds a component (A) or changes the timing (C).
 - **Status:** Open.
 
 ### OI-50 — Supabase plan for hosted environments

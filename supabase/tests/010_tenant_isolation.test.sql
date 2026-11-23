@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(25);
+select plan(26);
 
 -- Impersonation helper: real session row + JWT claims, then SET LOCAL ROLE.
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
@@ -47,9 +47,12 @@ select results_eq($$ select id from public.projects $$,
 select results_eq($$ select id from public.client_businesses $$,
   $$ values ('10000000-0000-4000-8000-0000000000a0'::uuid) $$,
   'T-TEN-01: client A sees only Business A in client_businesses');
-select is((select count(*)::int from public.project_memberships where project_id = '20000000-0000-4000-8000-0000000000b0'), 0,
-  'T-TEN-01: client A sees no Project B memberships');
-select is((select count(*)::int from public.project_memberships), 1, 'T-TEN-01: client A sees only their own membership');
+-- Assertions test the isolation property, not seed counts, so they hold on a used database.
+select is((select count(*)::int from public.project_memberships
+  where project_id = '20000000-0000-4000-8000-0000000000b0' and user_id <> '00000000-0000-4000-8000-0000000000a1'), 0,
+  'T-TEN-01: client A sees no other user''s Project B memberships');
+select is((select count(*)::int from public.project_memberships where user_id <> '00000000-0000-4000-8000-0000000000a1'), 0,
+  'T-TEN-01: client A sees only their own membership rows');
 select is((select count(*)::int from public.profiles where id = '00000000-0000-4000-8000-0000000000b1'), 0,
   'T-TEN-01: client A cannot read client B profile');
 select is((select count(*)::int from public.staff_roles), 0, 'T-TEN-01: client A sees no staff roles');
@@ -57,9 +60,11 @@ select is((select count(*)::int from public.invitations), 0, 'T-TEN-01: client A
 select is((select count(*)::int from public.audit_events), 0, 'T-TEN-01: client A sees no audit events');
 
 -- T-TEN-03: storage
-select results_eq($$ select name from storage.objects where bucket_id = 'project-assets' $$,
-  $$ values ('20000000-0000-4000-8000-0000000000a0/brand/logo.png'::text) $$,
+select is((select count(*)::int from storage.objects where bucket_id = 'project-assets'
+  and name not like '20000000-0000-4000-8000-0000000000a0/%'), 0,
   'T-TEN-03: client A lists only Project A objects (malformed paths denied, not errors)');
+select ok(exists(select 1 from storage.objects where name = '20000000-0000-4000-8000-0000000000a0/brand/logo.png'),
+  'T-TEN-03: client A can read their own Project A object');
 select throws_ok($$ insert into storage.objects (bucket_id, name) values ('project-assets', '20000000-0000-4000-8000-0000000000b0/x.png') $$,
   '42501', null, 'T-TEN-03: client A cannot write objects (no upload policy in Phase 2)');
 
@@ -89,8 +94,8 @@ select is((select display_name from public.client_businesses where id = '1000000
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000b1');
 select results_eq($$ select id from public.projects $$,
   $$ values ('20000000-0000-4000-8000-0000000000b0'::uuid) $$, 'T-TEN-01: client B sees only Project B');
-select results_eq($$ select name from storage.objects where bucket_id = 'project-assets' $$,
-  $$ values ('20000000-0000-4000-8000-0000000000b0/brand/logo.png'::text) $$, 'T-TEN-03: client B lists only Project B objects');
+select is((select count(*)::int from storage.objects where bucket_id = 'project-assets'
+  and name not like '20000000-0000-4000-8000-0000000000b0/%'), 0, 'T-TEN-03: client B lists only Project B objects');
 reset role;
 
 -- T-AUTH-03: membership revocation takes effect on the next query with the same, unexpired JWT.

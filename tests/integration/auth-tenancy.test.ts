@@ -108,6 +108,44 @@ describe("invitation-only sign-up (T-AUTH-01, T-AUTH-12)", () => {
   });
 });
 
+describe("expired invitations with no cleanup job (OI-54 condition)", () => {
+  it("rejects an expired invitation at Auth provisioning, the link check, and acceptance", async () => {
+    const email = `expired.${RUN}@example.test`;
+    const invitation = await createClientInvitation(email);
+    await withDb((db) =>
+      db.query(
+        "update public.invitations set expires_at = now() - interval '1 second' where id = $1",
+        [invitation.invitation_id],
+      ),
+    );
+
+    // Supabase Auth: the before-user-created hook refuses to create the user.
+    const invite = await adminClient().auth.admin.inviteUserByEmail(email, {
+      redirectTo: `http://localhost:3100/invite/accept?id=${invitation.invitation_id}&t=${invitation.token}`,
+    });
+    expect(invite.error).not.toBeNull();
+    const users = await withDb((db) =>
+      db.query("select count(*)::int as n from auth.users where email = $1", [email]),
+    );
+    expect(users.rows[0].n).toBe(0);
+    expect(await messageCount(email)).toBe(0);
+
+    // The server-side link check used by the page, code entry, and "send me a new code".
+    const { checkInvitationLink } = await import("@/server/services/invitations");
+    expect(
+      await checkInvitationLink(invitation.invitation_id, invitation.token, "203.0.113.30"),
+    ).toEqual({
+      ok: false,
+    });
+
+    // The row is still `pending`: rejection does not depend on cleanup.
+    const row = await withDb((db) =>
+      db.query("select status from public.invitations where id = $1", [invitation.invitation_id]),
+    );
+    expect(row.rows[0].status).toBe("pending");
+  });
+});
+
 describe("invitation acceptance (T-AUTH-02, T-AUTH-06, T-AUTH-07, T-AUTH-08)", () => {
   it("lets exactly one of two concurrent acceptances win (T-AUTH-06)", async () => {
     const email = `concurrent.${RUN}@example.test`;

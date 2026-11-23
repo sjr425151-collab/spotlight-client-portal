@@ -63,8 +63,10 @@ select throws_ok($$ insert into public.client_businesses (legal_name, display_na
 select is(public.create_invitation('client', 'y@example.test', 'Y', '20000000-0000-4000-8000-0000000000a0') ->> 'error', 'forbidden',
   'T-AUTH-04: an Admin at aal1 cannot invite');
 reset role;
+create temp table project_total as select count(*)::int as n from public.projects;
+grant select on project_total to authenticated;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2', interval '1 minute');
-select is((select count(*)::int from public.projects), 2, 'T-AUTH-04: an Admin at aal2 reads all projects');
+select is((select count(*)::int from public.projects), (select n from project_total), 'T-AUTH-04: an Admin at aal2 reads all projects');
 select lives_ok($$ insert into public.client_businesses (legal_name, display_name) values ('aal2 LLC', 'aal2') $$,
   'T-AUTH-04: an Admin at aal2 can create a business');
 
@@ -103,7 +105,7 @@ select is(public.set_staff_role('00000000-0000-4000-8000-000000000002', 'fulfill
 select is(public.create_invitation('staff', 'ful@example.test', 'Ful', null, 'fulfillment') ->> 'error', 'role_not_assignable',
   'T-ROLE-03: inviting as Fulfillment is rejected');
 reset role;
-select is((select count(*)::int from public.audit_events where action = 'staff_role.fulfillment_assignment_attempted'), 2,
+select is((select count(*)::int from public.audit_events where occurred_at >= now() and action = 'staff_role.fulfillment_assignment_attempted'), 2,
   'T-ROLE-03: both Fulfillment attempts are audited');
 select throws_ok($$ insert into public.staff_roles (user_id, role) values ('00000000-0000-4000-8000-0000000000a1', 'fulfillment') $$,
   '23514', null, 'T-ROLE-03: the database check constraint rejects Fulfillment even for the table owner');
@@ -116,7 +118,7 @@ select is(public.set_staff_role('00000000-0000-4000-8000-000000000001', 'admin',
   'T-ROLE-08: the last Owner cannot be demoted');
 select is(public.set_user_status('00000000-0000-4000-8000-000000000001', 'deactivated', 'self') ->> 'error', 'last_owner',
   'T-ROLE-08: the last Owner cannot be deactivated');
-select is((select count(*)::int from public.audit_events where action = 'staff_role.last_owner_protected'), 3,
+select is((select count(*)::int from public.audit_events where occurred_at >= now() and action = 'staff_role.last_owner_protected'), 3,
   'T-ROLE-08: each blocked last-Owner change is audited (spec 03 §11)');
 select is(public.set_staff_role('00000000-0000-4000-8000-000000000002', 'owner', 'second owner') ->> 'ok', 'true',
   'T-ROLE-08: a second Owner can be appointed');

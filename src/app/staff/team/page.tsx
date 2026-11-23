@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
+import { isInvitationExpired } from "@/lib/invitations";
 import { messageFor } from "@/lib/messages";
 import { requireStaff } from "@/server/auth/guards";
 import { createUserClient } from "@/server/supabase/clients";
@@ -132,6 +133,9 @@ export default async function TeamPage({ searchParams }: { searchParams: Search 
                 <Card className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-5">
                   <p className="text-sm text-fg-muted">
                     {invitation.full_name} · {invitation.email} · {invitation.intended_role}
+                    {isInvitationExpired(invitation.expires_at) ? (
+                      <span className="text-warning"> · Expired (can no longer be used)</span>
+                    ) : null}
                   </p>
                   <form action={revokeInvitationAction}>
                     <input type="hidden" name="id" value={invitation.id} />

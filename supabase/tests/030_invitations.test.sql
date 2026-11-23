@@ -134,7 +134,7 @@ reset role;
 select is((select count(*)::int from public.project_memberships
   where user_id in (((select v from vars where k = 'u_late'))::uuid, ((select v from vars where k = 'u_gone'))::uuid)), 0,
   'T-AUTH-02: no membership for expired or revoked invitations');
-select is((select count(*)::int from public.audit_events where action = 'invitation.accept_failed'
+select is((select count(*)::int from public.audit_events where occurred_at >= now() and action = 'invitation.accept_failed'
   and summary ->> 'reason' in ('expired', 'revoked', 'email_mismatch', 'token_mismatch', 'already_accepted')), 5,
   'T-AUTH-02/06/07/08: every failed acceptance is audited with its reason');
 

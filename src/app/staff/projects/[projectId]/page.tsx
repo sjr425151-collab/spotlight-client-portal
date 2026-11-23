@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
+import { isInvitationExpired } from "@/lib/invitations";
 import { messageFor } from "@/lib/messages";
 import { requireProjectAccess, type StaffContext } from "@/server/auth/guards";
 import { createUserClient } from "@/server/supabase/clients";
@@ -125,10 +126,17 @@ export default async function StaffProjectPage({ params, searchParams }: Props) 
                 <div>
                   <p className="font-medium text-fg">{invitation.full_name}</p>
                   <p className="text-sm text-fg-muted">
-                    {invitation.email} · expires{" "}
-                    {new Date(invitation.expires_at).toLocaleDateString("en-US", {
-                      dateStyle: "medium",
-                    })}
+                    {invitation.email} ·{" "}
+                    {isInvitationExpired(invitation.expires_at) ? (
+                      <span className="text-warning">Expired (can no longer be used)</span>
+                    ) : (
+                      <>
+                        expires{" "}
+                        {new Date(invitation.expires_at).toLocaleDateString("en-US", {
+                          dateStyle: "medium",
+                        })}
+                      </>
+                    )}
                   </p>
                 </div>
                 <form action={revokeInvitationAction}>

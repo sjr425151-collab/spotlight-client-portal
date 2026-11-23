@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.1 |
-| Status | **Draft — pending owner sign-off** |
+| Version | 0.3.2 |
+| Status | **Draft — pending owner sign-off.** v0.3.2: final approval authorizes the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). |
 | Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
@@ -21,7 +21,7 @@ Each lifecycle dimension has its **own** state, derived from authoritative recor
 | Intake | `locked → open → submitted → accepted_by_staff` (+ `changes_requested`) | Intake records |
 | Development | `not_started → in_progress → ready_for_preview` (+ `paused`) | Staff-recorded milestones (informational, never a gate) |
 | Preview approval | Per release: `released → approved` / `superseded` / `withdrawn` | Preview release and approval records (§6–§7) |
-| Final balance | `not_due → due → pending → verified` (+ `failed`, `refunded`, `disputed`, `settled_by_adjustment` **[APPROVED OI-27]**, meaning paid + Owner-authorized adjustments = owed, never a fabricated payment) | Webhook-derived ledger |
+| Final balance | `not_due → due → pending → verified` (+ `failed`, `refunded`, `disputed`, `settled_by_adjustment` **[APPROVED OI-27]**, meaning paid + Owner-authorized adjustments = owed, never a fabricated payment). **[APPROVED OI-17, revised 2026-11-23]** `due` on the client's final approval (§7); `pending` once the automatic charge is attempted; `failed` → `pending` when the client completes payment on the Stripe-hosted page for the same invoice (04 §10). | Webhook-derived ledger |
 | Holds | Zero or more active holds (billing and fulfillment holds are distinct types) | Hold records (04 §14) **[APPROVED OI-25, OI-26, OI-37, OI-45]** |
 | Service termination | `none → under_owner_review → termination_authorized → effective → maintenance_ceased → offboarded / transferred` (+ `withdrawn`). Independent of the Stripe subscription status. | Owner-authorized termination records (04 §9.1.1) **[APPROVED OI-46]** |
 | Publication | `not_eligible → eligible → authorized → deploying → live_unverified → live_verified` (+ `failed`, `rolled_back`) | Gate evaluation and deployment records (06) |
@@ -128,8 +128,9 @@ Rules:
 |---|---|
 | Actors | Client with active membership on the project |
 | Preconditions | A release in `released` state is the project's current release |
-| Inputs | Explicit approval action on that release ID, plus an optional comment |
-| Records | `preview_approvals` (release ID, user ID, timestamp, IP/UA **[PROPOSED]**) — insert-only |
+| Inputs | Explicit approval action on that release ID, plus an optional comment. The action is labeled **Approve Website & Authorize Final Payment** **[APPROVED OI-17, revised 2026-11-23]**. |
+| Payment authorization **[APPROVED OI-17, revised 2026-11-23]** | The approval also authorizes automatic collection of the previously disclosed outstanding balance (04 §3.1, §10). **[PROPOSED]** The approval screen shows that amount from the order summary snapshot before the client confirms. Approving an already-approved release, or approving after the balance is pending, verified, or settled, never starts a second charge. |
+| Records | `preview_approvals` (release ID, user ID, timestamp, IP/UA **[PROPOSED]**) — insert-only. The final-balance charge record references the approval ID (04 §10). |
 | Gate rule | The approval gate passes only if an approval exists **for the current released release ID** |
 | Silence | **Never** treated as approval. No timer converts silence into approval. **[APPROVED OI-18, OI-25]** |
 | Nonresponsive client | §7.1 **[APPROVED OI-25]** |
@@ -214,7 +215,7 @@ Queues are **computed** from authoritative state. They are never maintained by h
 
 ## 10. Client notification triggers
 
-The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-catalog-proposed). Lifecycle triggers: deposit verified, intake changes requested, preview released, approval reminders, final payment due, final payment verified, publication live.
+The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-catalog-proposed). Lifecycle triggers: deposit verified, intake changes requested, preview released, approval reminders, final payment action required (failed charge or authentication needed), final payment verified, publication live.
 
 ## 11. Acceptance tests **[PROPOSED]**
 
@@ -229,6 +230,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-LC-07 | An unreleased internal draft does not supersede the current approval |
 | T-LC-08 | No scheduled job or timer creates an approval |
 | T-LC-09 | Staff cannot create an approval record |
+| T-LC-14 | The approval action is labeled "Approve Website & Authorize Final Payment". Approving the current release starts exactly one final-balance charge (04 T-PAY-13). Approving a superseded release starts none. |
 | T-UP-01 | Each category rejects files over its size limit and disallowed types |
 | T-UP-02 | Renamed executables, extension/MIME mismatches, and polyglots are rejected |
 | T-UP-03 | Malicious SVG (script, `onload`, external `href`) is sanitized. The sanitized output contains no active content. |

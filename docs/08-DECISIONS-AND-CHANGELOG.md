@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.7.0 (draft for owner review) |
+| Version | 0.8.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -189,14 +189,20 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Decision:**
   - The initial Checkout uses subscription mode with one one-time 20% deposit price and one recurring $99/month maintenance price.
   - The initial payment charges exactly the deposit plus one $99 maintenance payment (not deposit plus $198). The first maintenance period is included in the initial subscription invoice, and billing is monthly after that.
-  - The remaining 80% is collected in a separate payment-mode Checkout.
+  - ~~The remaining 80% is collected in a separate payment-mode Checkout.~~ **Revised (2026-11-23, Owner instruction):** the remaining 80% is collected automatically, with no separate checkout:
+    - At the initial Checkout, Stripe securely saves the payment method for future off-session collection. The client authorizes this explicitly through the legal-adviser-approved *Authorization for Final Payment* clause in the agreement (04 §3.1).
+    - The client's explicit final approval of the completed website (**Approve Website & Authorize Final Payment**) authorizes collection of the previously disclosed outstanding balance. Stripe automatically charges the saved payment method and generates the invoice and payment receipt.
+    - A verified Stripe payment is required before publication. If the charge fails or needs additional authentication, the client is given a secure Stripe-hosted payment completion option. The site is not published until payment succeeds.
+    - Idempotency and payment-state controls prevent duplicate charges. If publication fails after a successful payment, the paid status is retained and the publication is flagged for recovery, without charging again.
   - Require signature-verified webhooks, idempotent processing, financial reconciliation, audit history, failed-payment handling, billing holds, and server-side payment verification.
   - A successful redirect is never proof of payment.
   - Refund, cancellation, tax, and dispute policies remain pending.
 - **Status:** Approved with deferrals.
 - **Provenance:** Owner-provided baseline.
 - **Deferrals:** Billing hold rules (OI-26); Stripe Customer Portal (OI-29); OI-35, OI-36, OI-37.
-- **Affected sections:** 04 §8–§14.
+- **Revision provenance:** Owner instruction "Targeted Documentation Amendment: Authorized Final Balance Collection", 2026-11-23. The clause text is legal-adviser-approved per the Owner and is incorporated verbatim.
+- **Related open item:** OI-55 (collection vehicle for OI-44 adjusted balances).
+- **Affected sections:** 04 §3.1, §8–§14; 05 §2, §7; 06 §2, §8.1; 07 §4; 01 §3; 03 §4.
 
 ### OI-18 — Preview approval
 
@@ -204,6 +210,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Status:** Approved with deferrals.
 - **Provenance:** Owner-provided baseline.
 - **Deferrals:** Nonresponsive client procedure (OI-25).
+- **Related:** since the OI-17 revision (2026-11-23), the explicit approval also authorizes the automatic final-balance charge (05 §7). The approval rules above are unchanged.
 - **Affected sections:** 05 §6–§7; 06 §2.
 
 ### OI-19 — Administrative overrides
@@ -524,7 +531,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Status:** Approved.
 - **Provenance:** Owner final reconciliation instructions, 2026-11-23.
 - **Dependencies:** DEP-06 (Stripe discount capability), DEP-03 (disclosure).
-- **Related open item:** OI-47 (deposit-stage adjustments, which OI-44 does not cover).
+- **Related open item:** OI-47 (deposit-stage adjustments, which OI-44 does not cover). **OI-55:** after the OI-17 revision removed the separate final checkout, whether this discount mechanism carries over to the automatic final-balance invoice needs Owner confirmation. The decision text above is unchanged.
 - **Affected sections:** 04 §10–§10.1, §12; 03 §4, §12; 06 §2.
 
 ### OI-45 — Day-21 preview approval hold
@@ -602,7 +609,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-14 | Stripe catalog | Approved with deferrals | 3 / Prod | 04 §5 | DEP-02 | Provider (live IDs) |
 | OI-15 | Payment calculations | Approved | 3 | 04 §7, §12 | DEP-04 | — |
 | OI-16 | Maintenance subscription | Approved with deferrals | 3 | 04 §8–§9 | DEP-03 | Legal |
-| OI-17 | Stripe payment workflow | Approved with deferrals | 3 | 04 §8–§14 | DEP-01 | Provider (Stripe) |
+| OI-17 | Stripe payment workflow (revised 2026-11-23) | Approved with deferrals | 3 | 04 §3.1, §8–§14 | DEP-01, DEP-03 | Provider (Stripe) |
 | OI-18 | Preview approval | Approved | 4 | 05 §6–§7 | — | — |
 | OI-19 | Administrative overrides | Approved | 2–4 | 03 §12 | — | — |
 | OI-20 | Uploads | Approved | 4 | 05 §4–§5 | DEP-07 | Provider (Supabase Storage) |
@@ -660,6 +667,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.5.0 | 2026-11-23 | Recorded the Owner's final approval of 01 v0.3.2, 02 v0.4.0, and CLAUDE.md, and the Phase 1 authorization. Status lines only; approved spec content unchanged. Phase 1 foundation delivered on branch `phase-1/foundation-ci`. DEP-11 complete. OI-48 (theme mode) opened. | Claude Code | Owner (Owner's written Phase 1 authorization, 2026-11-23) |
 | 0.6.0 | 2026-11-23 | Final Phase 1 refinements. OI-48 approved (dark-only MVP, light-theme compatibility preserved). OI-49 approved (temporary logo compositing; master preserved). The CSP `'unsafe-inline'` limitation is tracked as the Phase 2 security requirement DEP-13 / T-SEC-03. Production gating test added. | Claude Code | Owner (Owner instruction, 2026-11-23 (final Phase 1 refinements)) |
 | 0.7.0 | 2026-11-23 | Phase 2 security specification finalization (documentation only): spec 03 v0.4.0 drafted for Owner sign-off, with Supabase and Next.js provider verification evidence in the new 03A. **No Owner decision changed.** All new design detail is [PROPOSED]. Opened OI-50 to OI-52; added DEP-14; DEP-13 designed. | Claude Code | Pending owner review |
+| 0.8.0 | 2026-11-23 | **OI-17 revised (Owner instruction): automatic final-balance collection.** The payment method is saved at the initial Checkout under the legal-adviser-approved *Authorization for Final Payment* clause (04 §3.1, verbatim). The client's final approval (**Approve Website & Authorize Final Payment**) authorizes an automatic charge, with Stripe invoice and receipt, a Stripe-hosted completion option on failure, no publication before verified payment, duplicate-charge controls, and recovery without recharging. The separate final Checkout is removed from 01, 03, 04, 05, 06, 07 and README. Opened OI-55 (OI-44 collection vehicle). Documentation only. | Claude Code | Owner (instruction, 2026-11-23); OI-55 pending |
 
 ## 6. Change-control rules
 

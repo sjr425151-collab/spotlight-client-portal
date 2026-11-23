@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.0 |
-| Status | **Draft — pending owner sign-off** |
+| Version | 0.5.0 |
+| Status | **Draft — pending owner sign-off.** v0.5.0: automatic final-balance collection (Owner instruction, 2026-11-23; OI-17 revised). |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46 |
-| Open issues | OI-47 |
+| Open issues | OI-47, OI-55 |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
 > Nothing in this document authorizes any Stripe operation. No Stripe products, prices, customers, subscriptions, or Checkout configurations were created, queried, or modified in preparing it.
@@ -61,6 +61,7 @@ Rules **[PROPOSED]**:
 | Acceptance timestamp (server UTC) | Server |
 | IP address, user agent, request ID | Server request **[PROPOSED]** |
 | Checkbox state was unchecked by default, then affirmatively checked | UI contract and server validation |
+| The accepted agreement version contains the **Authorization for Final Payment** clause (§3.1) | Version record (the clause is part of the hashed canonical text) **[APPROVED OI-17, revised 2026-11-23]** |
 
 **Workflow: accept agreement**
 
@@ -76,6 +77,23 @@ Rules **[PROPOSED]**:
 | Idempotency | One acceptance per (order summary, signer). A resubmission returns the existing record. |
 | Audit | `agreement.accepted` |
 | Negative tests | Pre-checked or missing checkbox value rejected; acceptance for another project rejected; acceptance of a superseded summary rejected |
+
+### 3.1 Authorization for Final Payment clause **[APPROVED OI-17, revised 2026-11-23]**
+
+The following clause is **legal-adviser-approved** (Owner instruction, 2026-11-23). It is incorporated into the Website Development & Maintenance Services Agreement, in the section covering payment terms, **verbatim**. Its wording must not be edited, paraphrased, or reformatted in meaning (CLAUDE.md §7). Accepting the agreement (§3) and submitting the initial deposit (§8) constitute the client's authorization under this clause.
+
+> **Authorization for Final Payment**
+>
+> By accepting this agreement and submitting the initial deposit, I authorize Spotlight Marketing LLC to securely retain my payment method through Stripe for the purpose of collecting the remaining project balance.
+>
+> I understand that the outstanding balance, as specified in my accepted order, will become due upon my final approval of the completed website.
+>
+> Upon my explicit approval, I authorize Spotlight Marketing LLC to automatically charge the outstanding balance to my saved payment method without requiring a separate checkout.
+>
+> I understand that publication of the website is contingent upon successful payment. An itemized invoice and payment receipt will be provided electronically.
+
+- The rest of the agreement remains subject to qualified legal review before production (DEP-03, OI-34).
+- The outstanding balance is the balance in the accepted order summary snapshot (§4, §5.1), adjusted only as §10.1 allows.
 
 ## 4. Order summaries and reacceptance
 
@@ -176,6 +194,7 @@ Phase 3 cannot begin implementation until these IDs are recorded and verified to
 | First invoice total | **deposit + 9900 cents**: one deposit charge plus **one** maintenance period. Never deposit + 19800. |
 | Subsequent billing | 9900 cents monthly from the subscription billing anchor (purchase date) |
 | Discounts | **None.** No discount is applied to the initial Checkout. Deposit-stage adjustments are unsupported until OI-47 is decided **[PENDING OI-47]**. |
+| Payment method for the final balance **[APPROVED OI-17, revised 2026-11-23]** | Stripe securely saves the payment method on the client business's Stripe Customer for later **off-session** collection of the final balance (§10), under the client's explicit authorization in the accepted agreement (§3.1). The portal never stores card data. |
 
 Expected initial totals:
 
@@ -188,6 +207,8 @@ Expected initial totals:
 | Prestige | 99900 | 9900 | **109800 ($1,098.00)** |
 
 **[VERIFY-PROVIDER]** One-time prices in subscription-mode Checkout are added to the first invoice only. Confirm this against current Stripe documentation in Phase 3.
+
+**[VERIFY-PROVIDER]** Confirm in Phase 3 how subscription-mode Checkout saves the payment method for a later off-session, one-off charge (for example, as the Customer's default invoice payment method), and whether any Checkout consent setting or displayed terms are needed alongside §3.1 (DEP-06).
 
 **Workflow: start initial Checkout**
 
@@ -263,27 +284,38 @@ The hosted Stripe Customer Portal is **in the MVP**.
 - Customer Portal configuration is a Stripe change, so it is made in test mode only, under Phase 3 authorization.
 - The draft agreement §7 refers to cancelling "through the designated billing portal". Because self-service cancellation is disabled, that wording must be aligned with §15.1 (DEP-03).
 
-## 10. Final Checkout **[APPROVED OI-17]**
+## 10. Final balance collection (authorized automatic charge) **[APPROVED OI-17, revised 2026-11-23]**
+
+The remaining 80% balance is **not** collected through a separate checkout. The client's explicit final approval of the completed website (05 §7), labeled **Approve Website & Authorize Final Payment**, authorizes collection of the previously disclosed outstanding balance. The server then has Stripe charge it automatically to the payment method saved at the initial Checkout (§8), under the authorization in §3.1.
 
 | Attribute | Value |
 |---|---|
-| Mode | `payment` |
-| Line item | Package **balance** Price ID (one-time), quantity 1 |
-| Amount | Balance from the order summary snapshot (§5.1) |
-| Preconditions **[PROPOSED]** | Agreement `effective`. Deposit verified. The approval gate is satisfied for the current released preview (05 §7). No open final session. Balance not already settled. |
-| Records | `checkout_sessions` (type `final`) |
-| Idempotency, concurrency, audit | As in §8 |
+| Trigger | The client's explicit approval of the current released preview (05 §7). Never a timer, staff action, or silence (OI-18). |
+| Stripe object **[PROPOSED; VERIFY-PROVIDER]** | A one-off Stripe **invoice** for the client business's Customer with a single line item, the package **balance** Price ID (one-time), quantity 1. It is charged automatically to the saved payment method. The maintenance subscription is never part of this invoice. |
+| Amount | Balance from the order summary snapshot (§5.1), or the adjusted amount due under §10.1 |
+| Invoice and receipt | Stripe generates the itemized invoice and the payment receipt, delivered electronically (§3.1; 07 §4) |
+| Preconditions **[PROPOSED]** | Agreement `effective`. Deposit verified. An approval exists for the current released preview (05 §7). Balance `due` (not already pending, verified, or settled). No open final-balance invoice for the project. |
+| Records | `final_balance_charges` **[PROPOSED]** (project, order summary, approval ID, Stripe invoice ID, amount, status) |
+| Idempotency and concurrency **[PROPOSED]** | At most one final-balance invoice per project and order summary (unique constraint). The Stripe idempotency key is derived from `order_summary_id` and the approval ID. A repeated approval, a double click, or a retried job returns the existing invoice and never creates a second charge. Retries pay the **same** invoice. |
+| Audit | `balance.collection_authorized` (with the approval ID), `balance.charge_attempted`, `balance.charge_succeeded` / `balance.charge_failed`, `balance.action_required` |
 
-Whether final payment may be requested *before* client approval is not specified by the baseline. **[PROPOSED]** It may not, matching the draft agreement §3, which says the review comes before the final payment request.
+Whether final payment may be requested *before* client approval is not specified by the baseline. **[PROPOSED]** It may not, matching the draft agreement §3, which says the review comes before the final payment request. Approval is also the event that makes the balance due (§3.1).
+
+**Payment failure or additional authentication [APPROVED OI-17, revised 2026-11-23]:**
+- If the automatic charge fails, the payment method requires additional authentication (for example 3-D Secure), or no usable saved payment method remains, the client is given a **secure Stripe-hosted payment completion option** for the **same** invoice (for example, its Stripe-hosted invoice page) **[VERIFY-PROVIDER]**. No new invoice is created and nothing is charged twice.
+- The balance stays unverified, and the website is **not published**, until the payment succeeds and is verified by webhook (§11; 06 G4).
+- The portal never collects card details itself, and a redirect or client-side signal is never proof of payment (§11 rule 4).
 
 **Adjusted balances [APPROVED OI-27]:**
 - When an Owner-authorized discount, credit, or partial waiver reduces the amount owed, the **remaining amount still requires verified payment**.
 - The standard Stripe balance prices remain unchanged.
-- The adjusted amount is collected through **Stripe Checkout with an Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices.
-- A fully waived balance requires no Checkout. It is recorded as a `waiver` ledger entry (§12).
+- The adjusted amount is collected with an **Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices. OI-44 specifies Stripe Checkout as the vehicle; applying the same discount to the automatic final-balance invoice instead is **[PENDING OI-55]**.
+- A fully waived balance requires no charge. It is recorded as a `waiver` ledger entry (§12), and approval triggers no Stripe invoice.
 - **Deposit-stage adjustments:** OI-44 covers the final balance only. Adjustments to the initial deposit Checkout are **[PENDING OI-47]**.
 
-### 10.1 Adjusted final-balance Checkout **[APPROVED OI-44]**
+### 10.1 Adjusted final-balance payment **[APPROVED OI-44; collection vehicle PENDING OI-55]**
+
+OI-44 was approved for a separate final Checkout. With the final balance now collected automatically on approval (§10), the requirements below are unchanged. Whether row 12 and the mechanism constraints carry over to the final-balance invoice, as written in brackets, needs Owner confirmation **[PENDING OI-55]**. Until then, no adjusted final balance may be collected.
 
 | # | Requirement |
 |---|---|
@@ -294,14 +326,14 @@ Whether final payment may be requested *before* client approval is not specified
 | 9 | Revised order summary and client re-acceptance where the change is materially necessary (§4) |
 | 10 | Publication requires verified payment of the adjusted amount or an authorized settlement (G4, 06 §2) |
 | 11 | A successful Stripe payment is never fabricated |
-| 12 | The discount applies **only** to the intended final-balance Checkout Session |
+| 12 | The discount applies **only** to the intended final-balance Checkout Session [OI-55: the intended final-balance invoice] |
 | 13 | The recurring **$99 maintenance subscription is never discounted** |
 | 14 | Stripe's actual support for the mechanism is verified before implementation (DEP-06) |
 
 Mechanism constraints **[PROPOSED; VERIFY-PROVIDER]**:
-- The final Checkout is `payment` mode with a single line item: the standard balance Price ID. The maintenance subscription is never part of this session, so a session-level discount cannot reach it.
-- The discount is applied at the **Checkout Session** level only. It is restricted to the balance product, limited to a single redemption, and linked to the `balance_adjustments` record in metadata. It is **never** attached to the Stripe Customer or the subscription.
-- Webhook verification (§11): the session's total must equal the adjusted amount due, and the discount must equal the authorized discount. Any mismatch quarantines the event, and payment is not verified.
+- The final Checkout is `payment` mode with a single line item: the standard balance Price ID. The maintenance subscription is never part of this session, so a session-level discount cannot reach it. [OI-55: the final-balance invoice has this single line item and excludes the subscription.]
+- The discount is applied at the **Checkout Session** level only. It is restricted to the balance product, limited to a single redemption, and linked to the `balance_adjustments` record in metadata. It is **never** attached to the Stripe Customer or the subscription. [OI-55: applied to the final-balance invoice only.]
+- Webhook verification (§11): the session's total must equal the adjusted amount due, and the discount must equal the authorized discount. Any mismatch quarantines the event, and payment is not verified. [OI-55: the invoice's total and discount.]
 - Creating discount objects (for example coupons) is a Stripe change. This document authorizes none. Test-mode creation requires Phase 3 authorization; live creation requires production authorization.
 - If Stripe cannot meet these constraints, **escalate to the Owner**. No inline pricing or alternative mechanism may be substituted silently.
 
@@ -319,10 +351,11 @@ Rules:
 
 | Event | Effect |
 |---|---|
-| `checkout.session.completed` | Record completion. Deposit or balance verified only if `payment_status = paid`. |
+| `checkout.session.completed` | Record completion of the initial Checkout. Deposit verified only if `payment_status = paid`. |
 | `checkout.session.async_payment_succeeded` / `_failed` | Delayed payment methods |
-| `invoice.paid` | Ledger: deposit and first maintenance (initial); maintenance renewals |
-| `invoice.payment_failed` | Failed payment record; hold evaluation (OI-26) |
+| `invoice.paid` | Ledger: deposit and first maintenance (initial); maintenance renewals; **final balance** (the final-balance invoice, §10). The balance is verified only when the invoice is paid and its amount matches the snapshot or the authorized adjusted amount. |
+| `invoice.payment_failed` | Failed payment record; hold evaluation (OI-26). For the final-balance invoice: balance `failed`, and the client is offered the Stripe-hosted completion option (§10). |
+| `invoice.payment_action_required` | Final-balance invoice needs additional authentication: the client is offered the Stripe-hosted completion option (§10) |
 | `customer.subscription.created` / `updated` / `deleted` | Subscription state mirror. A `deleted` event that matches no authorized termination creates an Owner exception review item. It never starts the transition and never removes a site. **[APPROVED OI-46]** |
 | `charge.refunded` / `refund.*` | Refund ledger entries |
 | `charge.dispute.created` / `closed` | Dispute ledger entries and holds (OI-37) |
@@ -489,10 +522,13 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-PAY-06 | Out-of-order delivery (`invoice.paid` before `checkout.session.completed`) produces the correct final state |
 | T-PAY-07 | An event whose amount differs from the snapshot is quarantined and never verifies payment |
 | T-PAY-08 | A `livemode` mismatch for the environment is rejected |
-| T-PAY-09 | Final Checkout cannot be created before deposit verification and current-release approval |
+| T-PAY-09 | The final-balance charge cannot be created before deposit verification and the client's approval of the current released preview. No final Checkout Session is ever created. |
 | T-PAY-10 | No API or UI path exists that records a payment as received without a Stripe event (code search plus negative API test) |
 | T-PAY-11 | A client cannot create a Checkout Session for another project (cross-tenant) |
-| T-PAY-12 | Price verification mismatch blocks Checkout creation |
+| T-PAY-12 | Price verification mismatch blocks Checkout creation and final-balance invoice creation |
+| T-PAY-13 | Approval (**Approve Website & Authorize Final Payment**) creates exactly one final-balance invoice for the snapshot balance, charged to the saved payment method. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice or charge. |
+| T-PAY-14 | A failed charge or a required authentication leaves the balance unverified, offers the Stripe-hosted completion option for the same invoice, and blocks publication until a verified `invoice.paid` |
+| T-PAY-15 | The accepted agreement version contains the §3.1 clause verbatim (text hash check) |
 | T-AGR-01 | The acceptance checkbox renders unchecked. The server rejects acceptance without an explicit true value. |
 | T-AGR-02 | Initial Checkout cannot be created without a current acceptance |
 | T-AGR-03 | Acceptance evidence includes every §3 field. The stored hash matches the version text. |
@@ -510,7 +546,7 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-08 | No automated process cancels, deletes, or lets lapse a client-owned domain |
 | T-BIL-09 | A dispute webhook notifies the Owner, records the deadline, and triggers no takedown (OI-37) |
 | T-BIL-10 | Ledger entries carry a service category. Tax collection is disabled outside authorized production configuration. (OI-36) |
-| T-BIL-11 | The adjusted final Checkout has only the balance line item. The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
+| T-BIL-11 | The adjusted final payment (vehicle per OI-55) has only the balance line item. The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
 | T-BIL-12 | After an adjusted final payment, no discount is attached to the customer or subscription, and the next maintenance renewal invoice is exactly 9900 cents |
 | T-BIL-13 | The adjustment record contains every §10.1 field. An Admin attempt is rejected and audited. |
 | T-BIL-14 | Through day 7 of recovery: no hold, no termination state, no discontinuation or deactivation request. After the period: the hold is placed and an Owner review item exists. (OI-46) |

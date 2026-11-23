@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.7.0 (draft for owner review) |
+| Version | 0.8.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-53** |
+| Next unused issue ID | **OI-56** (OI-53 and OI-54 are allocated in the open Phase 2 pull request #4) |
 | Next unused dependency ID | **DEP-15** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -82,6 +82,20 @@ OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains
 | OI-50 | Supabase plan for hosted environments | 2 (hosted only; local work unaffected) | Open |
 | OI-51 | Custom SMTP provider for Supabase Auth email | 2 (hosted only) | Open |
 | OI-52 | CAPTCHA on OTP requests | 2 | Open |
+| OI-55 | Collection vehicle for adjusted final balances after the OI-17 revision | 3 | Open |
+
+### OI-55 — Collection vehicle for adjusted final balances (after the OI-17 revision)
+
+- **Description:** On 2026-11-23 the Owner revised OI-17: the final balance is charged automatically to the saved payment method when the client approves the website, with no separate checkout (04 §10). OI-44 (approved) still says an adjusted balance is collected through **Stripe Checkout** with an Owner-authorized discount on the standard balance price. Without a final Checkout, OI-44's vehicle no longer exists. Changing it would change an approved decision, so it is not done silently.
+- **Options:**
+  - A. Carry OI-44 over unchanged in substance. Apply the Owner-authorized discount to the automatic final-balance **invoice** only: a single line item (the standard balance price), restricted to the balance product, single redemption, never attached to the Customer or the subscription, and the invoice total verified against the adjusted amount. The bracketed text in 04 §10.1 shows this.
+  - B. Keep a separate Stripe Checkout only for adjusted balances.
+  - C. Another mechanism chosen by the Owner.
+- **Recommendation:** A. It keeps every OI-44 safeguard and removes the only remaining manual checkout. It needs Stripe verification (DEP-06).
+- **Interim rule:** no adjusted final balance is collected until this is decided (04 §10.1). Standard balances and full waivers are unaffected.
+- **Impacted documents:** 04 §10–§10.1, §16 (T-BIL-11); 03 §4; 08 OI-44.
+- **Owner decision required:** Yes, before Phase 3 implements adjustments.
+- **Status:** Open.
 
 ### OI-50 — Supabase plan for hosted environments
 
@@ -185,6 +199,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 ### DEP-06 detail — provider verification items added by OI-43 to OI-46
 
 - **Stripe:** a Checkout Session-level discount restricted to the balance product with a single redemption, which must never attach to the customer or subscription (OI-44).
+- **Stripe (OI-17 revised, 2026-11-23):** saving the payment method in subscription-mode Checkout for a later off-session, one-off charge; an automatically charged one-off invoice using the standard balance Price ID; the events for failed charges and required authentication; the Stripe-hosted page for completing the same invoice; idempotency keys; and, for OI-55 option A, an invoice-level discount restricted to the balance product.
 - **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
 - **Domain registrar (to be selected; revised OI-35):** registration date and expiry data, auto-renew settings, the transfer (auth code) process, and confirmation that hosting deactivation cannot affect a registration.

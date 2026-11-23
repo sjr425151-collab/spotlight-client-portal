@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.3.0 (draft for owner review) |
+| Version | 0.3.1 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -565,7 +565,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-07 | Portal URL | Approved | 1 / Prod | 01 §1; 02 §2 | DEP-09 | — |
 | OI-08 | Authentication | Approved | 2 | 03 §5–§7 | — | Provider (Supabase) |
 | OI-09 | Tenancy | Approved | 2 | 03 §8–§10 | — | — |
-| OI-10 | Hosting and delivery | Approved with deferrals | 1 | 02 §4–§8 | DEP-09, DEP-10 | Provider (Vercel) |
+| OI-10 | Hosting and delivery | Approved with deferrals | 1 | 02 §4–§8 | DEP-09 (DEP-10 complete) | Provider (Vercel) |
 | OI-11 | Toolchain | Approved | 1 | 02 §3 | DEP-11 | — |
 | OI-12 | Design system | Approved with deferrals | 1 | 07 §10–§12 | DEP-08 | — |
 | OI-13 | Agreement | Approved with deferrals | 3 | 04 §1–§4 | DEP-03 | Legal |
@@ -621,6 +621,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.1.0 | 2026-11-22 | Initial transcription of OI-01–OI-24. Specifications 01–07, README, CLAUDE.md, and OPEN-ISSUES.md created. The prior read-only audit's Stripe catalog concern was corrected per the owner: separate deposit and balance prices exist. | Claude Code (documentation author) | Pending owner review |
 | 0.2.0 | 2026-11-23 | Transcribed approved decisions OI-25–OI-41 and added the §3A traceability matrix. Reconciled specs 01–07, README, CLAUDE.md, and OPEN-ISSUES. Moved OI-25–OI-41 to decided. Opened OI-42–OI-46 from the cross-document audit. Created the dependency register DEP-01–DEP-12. Recorded the official logo candidate (07 §10.1). Recorded the Stripe test-catalog creation as blocked (DEP-01). | Claude Code (documentation author) | Pending owner review |
 | 0.3.0 | 2026-11-23 | Transcribed approved decisions OI-42–OI-46. Extended the §3A matrix to 46 decisions. Added the shared deadline calendar (02 §13), adjusted final-balance Checkout (04 §10.1), the failed-payment-to-termination lifecycle (04 §9.1.1), the day-21 approval hold (05 §7.2), and used/unused retention with the closure event (07 §6). Opened OI-47 (deposit-stage adjustments). Reassessed dependency phases. Recorded the Stripe test-catalog action as suspended. | Claude Code (documentation author) | Pending owner review |
+| 0.3.1 | 2026-11-23 | DEP-10 marked complete. The Owner created the active ruleset `protect-main` on the default branch: pull request required with 0 approvals (Owner decision, sole developer), force pushes blocked, deletions restricted, no status checks. The GitHub API confirms `main` is protected. Rule details are Owner-attested. | Claude Code (documentation author) | Pending owner review |
 
 ## 6. Change-control rules
 

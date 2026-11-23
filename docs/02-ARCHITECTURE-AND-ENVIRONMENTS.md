@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.0 |
+| Version | 0.3.1 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-07, OI-10, OI-11, OI-22, OI-23, OI-29, OI-32, OI-39, OI-41, OI-43 |
-| Dependencies | DEP-06, DEP-09, DEP-10, DEP-11, DEP-12 |
+| Dependencies | DEP-06, DEP-09, DEP-11, DEP-12 (DEP-10 complete) |
 
 ## 1. Application architecture
 
@@ -99,7 +99,7 @@ Rules:
 | Preview deployment per PR | Vercel |
 | Staging deployment from `main` | Vercel **[PROPOSED]** |
 | Production promotion | Vercel. **Owner-initiated only.** **[APPROVED OI-10]** |
-| Required status checks before merge | GitHub. Branch protection is configured by the Owner, not by an agent. |
+| Required status checks before merge | GitHub. Branch protection is configured by the Owner, not by an agent. The ruleset `protect-main` is active (DEP-10). Phase 1 CI checks are added as required status checks once they exist. |
 
 ## 6. Deployment and rollback architecture (portal)
 
@@ -199,7 +199,7 @@ None of P-1 to P-9 is complete. Documenting this architecture does **not** autho
 | Provider verification | DEP-06 |
 | Malware scanning vendor | DEP-07 |
 | Production infrastructure and DNS | DEP-09 |
-| Branch protection on `main` (Owner action) | DEP-10 |
+| Branch protection on `main` (Owner action) | DEP-10: **complete** |
 | Toolchain version pins | DEP-11 |
 | Monitoring vendor | DEP-12 |
 

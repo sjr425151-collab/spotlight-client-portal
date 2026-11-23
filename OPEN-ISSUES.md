@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.0 (draft for owner review) |
+| Version | 0.3.1 (draft for owner review) |
 | Status | Draft |
 | Next unused issue ID | **OI-48** |
 | Next unused dependency ID | **DEP-13** |
@@ -30,7 +30,7 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 | OI-07 | Portal URL | Decided | DEP-09 |
 | OI-08 | Authentication | Decided | DEP-06 |
 | OI-09 | Tenancy | Decided | — |
-| OI-10 | Hosting and delivery | Decided | DEP-06, DEP-09, DEP-10 |
+| OI-10 | Hosting and delivery | Decided | DEP-06, DEP-09 (DEP-10 complete) |
 | OI-11 | Toolchain | Decided | DEP-11 |
 | OI-12 | Design system | Decided | DEP-08 |
 | OI-13 | Agreement | Decided | DEP-03 |
@@ -111,7 +111,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 | DEP-07 | Malware scanning **vendor selection** after provider and cost verification (OI-31) | Owner (selection) | Phase 4 | Not started |
 | DEP-08 | **Brand assets**: Owner confirmation of the official logo master (Phase 1); vector and variant assets and final visual approval (Prod) | Owner | Phase 1 (confirmation); Prod (final approval) | Candidate identified; **not confirmed** |
 | DEP-09 | **Production infrastructure** prerequisites P-1–P-9 (02 §11) | Owner + implementer | Phase 5 (Prod) | Not started |
-| DEP-10 | **Branch protection** on `main` (required PR review and status checks) | Owner (GitHub settings) | Phase 1 | Not started; `main` is unprotected as of 2026-11-22 |
+| DEP-10 | **Branch protection** on `main` | Owner (GitHub settings) | Phase 1 | **Complete (2026-11-23)**. See detail below. |
 | DEP-11 | Toolchain **version pins** verified against official sources (OI-11) | Implementer | Phase 1 | Not started |
 | DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 5 (required); may be proposed earlier | Not started |
 
@@ -155,3 +155,23 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
   - transparent and light-background variants
   - a favicon and app icon
   - Owner approval of the palette, typography, email branding, and final visual design
+
+### DEP-10 detail — branch protection (complete)
+
+The Owner created the GitHub repository ruleset `protect-main` on 2026-11-23:
+
+| Setting | Value | Evidence |
+|---|---|---|
+| Enforcement | Active | Owner-attested |
+| Target | Default branch (`main`) | Owner-attested. The GitHub API reports `main` as `protected: true` and the documentation branch as `protected: false` (checked 2026-11-23). |
+| Require a pull request before merging | Enabled. Direct pushes to `main` are blocked. | Owner-attested |
+| Required approvals | **0**. This is an Owner decision while the Owner is the sole developer. It replaces the earlier recommendation of 1 approval plus an admin bypass. | Owner-attested |
+| Block force pushes | Enabled | Owner-attested |
+| Restrict deletions | Enabled | Owner-attested |
+| Required status checks | None, because no CI exists yet | Owner-attested |
+
+**Verification limits:** the session's GitHub tools can confirm the branch's protected status, but cannot read ruleset rule details. The individual rules above are recorded from the Owner's confirmation, and they have not been tested with a write attempt against `main`.
+
+**Follow-ups [PROPOSED]:**
+- Add the Phase 1 CI checks as required status checks once they exist (Phase 1 exit).
+- Raise required approvals to 1 when a second reviewer joins.

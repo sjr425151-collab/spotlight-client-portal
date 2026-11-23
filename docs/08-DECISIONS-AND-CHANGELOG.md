@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.12.2 (draft for owner review) |
+| Version | 0.12.3 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -672,7 +672,16 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-01; DEP-04 (tax settings deliberately left unset).
 - **Affected sections:** 04 §6.1–§6.3.
 
-## 3A. Traceability matrix (OI-01–OI-49, OI-53–OI-55, OI-63–OI-65)
+### OI-66 — `Stripe-Should-Retry: false` on a successful response
+
+- **Decision:** `Stripe-Should-Retry: false` prohibits retrying the request it accompanies. On a successful HTTP 200 response with a valid, expected object that passes every check, the header alone does not constitute a failure. On any HTTP error, network failure, ambiguous response, unexpected object, or failed verification, execution stops. No automatic retry is permitted. All existing idempotency, conflict-detection, sandbox, and request-budget safeguards are unchanged.
+- **Background:** catalog run `dep01-20261123T142608Z-0295d87d` stopped after Stripe returned the header on a successful HTTP 200 product creation. A read-only reconciliation confirmed the created product matches the manifest and has no price (OPEN-ISSUES DEP-01).
+- **Status:** Approved.
+- **Provenance:** Owner instruction, 2026-11-23 ("DEP-01 — OI-66 Safety Rule Correction and Reconciliation").
+- **Dependencies:** DEP-01.
+- **Affected sections:** 04 §6.4.
+
+## 3A. Traceability matrix (OI-01–OI-49, OI-53–OI-55, OI-63–OI-66)
 
 Phase = the earliest OI-02 phase whose implementation the decision governs. "Prod" = production launch.
 
@@ -732,6 +741,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-63 | Webhook testing strategy (hybrid) | Approved | 3 | 04 §11, §16 | DEP-01, DEP-15 | Provider (Stripe test mode) |
 | OI-64 | Stripe test-mode catalog structure (11 products, 11 prices) | Approved | 3 | 04 §6.1 | DEP-01, DEP-02 | Provider (Stripe test mode) |
 | OI-65 | Stripe test-mode catalog naming, metadata, keys, versioning | Approved | 3 | 04 §6.1–§6.3 | DEP-01, DEP-04 | Provider (Stripe test mode) |
+| OI-66 | `Stripe-Should-Retry: false` on a successful, verified response | Approved | 3 | 04 §6.4 | DEP-01 | Provider (Stripe test mode) |
 | OI-46 | Involuntary subscription cancellation | Approved | 3 | 04 §9.1.1; 06 §8.4 | DEP-03, DEP-06 | Legal; provider (Stripe `past_due` behavior) |
 
 ## 4. Current authorization status
@@ -769,11 +779,12 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.12.0 | 2026-11-23 | **OI-64 approved** (test-mode catalog of 11 products and 11 prices). **OI-65 approved** (naming, metadata, catalog keys, lookup keys, and versioning, provided no existing test-mode object conflicts). 04 v0.7.0 adds the catalog manifest, conflict rules, and execution constraints (§6.1–§6.3). DEP-01 remains **blocked**; its environment reference now names `spotlight-client-portal-dev`, and its credential permissions are listed. Stale Phase 2 status references corrected (CLAUDE.md §1, README, 01 §8 stage table, DEP-13). Owner confirmed that the maintenance product's `package_key` stays unset. The 04 §6.3 test-mode preflight now fails closed and does not rely on an unverified Balance `livemode` field: it requires Owner attestation of an `rk_test_` key, prior documentation confirmation, and an explicit `livemode: false` on every response. Catalog-design approvals only: no Stripe request, no credential, and no Phase 3 work. | Claude Code | Owner (decisions, 2026-11-23) |
 | 0.12.1 | 2026-11-23 | **Provider verification recorded (DEP-06, Stripe):** Stripe's official OpenAPI specification (`2026-09-30.endive`, commit `2dcbcfb`) defines `livemode` as a required boolean on the Balance, Product, and Price objects, so 04 §6.3 preflight step 2 is satisfied. 04 §6.1 clarifies that a price's `tax_behavior` cannot be changed once set to `inclusive` or `exclusive`. 04 v0.7.1. The fail-closed preflight, the catalog values, and all restrictions are unchanged. Restricted-key permission scope and idempotency-key retention remain unverified, because `docs.stripe.com` is not reachable from the session environment. Documentation only; DEP-01 remains blocked. | Claude Code | Owner (documentation-correction authorization, 2026-11-23) |
 | 0.12.2 | 2026-11-23 | **Stripe provider verification and retry safety (DEP-01, DEP-06; documentation only).** Recorded from Stripe's public documentation (`docs.stripe.com/keys/restricted-api-keys`, `/keys`, `/api/idempotent_requests`, `/error-low-level`): restricted-key permissions are None, Read, or Write, and Write includes Read; minimum catalog permissions are Balance Read (inferred from the documented `GET` rule, to be confirmed at key creation), Products Write, and Prices Write; idempotency keys are kept for at least 24 hours, an expired key may execute a new request, identical retries can return a saved HTTP 500, and `Stripe-Should-Retry: false` prohibits retrying; sandbox terminology, with one sandbox used for the catalog and all later test-mode development. 04 v0.7.2 strengthens §6.2–§6.3 and adds §6.4 (failure handling, reconciliation, no automatic retry of ambiguous creates, no replacement after HTTP 500, no concurrent runs) and §6.5 (credential and sandbox). The 60-request ceiling, previously stated only in the proposed execution authorization, is recorded in §6.3. The fail-closed `livemode` preflight and every catalog value are unchanged. DEP-01 remains blocked. | Claude Code | Owner (documentation-update authorization, 2026-11-23) |
+| 0.12.3 | 2026-11-23 | **OI-66 approved:** `Stripe-Should-Retry: false` prohibits retrying; on a successful HTTP 200 with a valid, expected, verified object it is not by itself a failure; any error, ambiguity, unexpected object, or failed verification still stops the run; no automatic retry. 04 v0.7.3 (§6.4). DEP-01 history records run `dep01-20261123T142608Z-0295d87d` (stopped at request 6 of 60 after one product creation) and read-only reconciliation `dep01-reconcile-20261123T143019Z-defd3b34` (product `prod_VgKrmaWefVnWy1` matches the manifest; no price). No other decision or safeguard changed. DEP-01 remains blocked pending a resumed-run authorization. | Claude Code | Owner (OI-66 and reconciliation authorization, 2026-11-23) |
 
 ## 6. Change-control rules
 
 1. **Decision changes.** A change to an OI-01–OI-46 decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
-2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-66 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-16 onward). When the owner resolves one, it is recorded in this register under that same ID.
+2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-67 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-16 onward). When the owner resolves one, it is recorded in this register under that same ID.
 3. **Specification changes.** Changes to specifications 01–07 go through a pull request. Each spec carries a version and status header. A spec moves from *Draft* to *Approved* only on owner sign-off recorded in §5.
 4. **Precedence.** (a) Owner-approved decisions in this register. (b) Approved specifications 01–07. (c) CLAUDE.md for operating procedure. (d) README. A lower-precedence document must never be used to override a higher one.
 5. **Conflicts.** Any conflict between documents, or between a document and an owner decision, is **escalated** to the owner as an open issue. It is never silently resolved by an author or agent.

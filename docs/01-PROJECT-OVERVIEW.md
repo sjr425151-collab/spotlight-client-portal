@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.1 |
-| Status | **Draft — pending owner sign-off** |
+| Version | 0.3.2 |
+| Status | **Owner-approved baseline v0.3.1** ([sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md), 2026-11-22, conditional). v0.3.2 is a status-only update. **Pending Owner final confirmation.** |
 | Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
@@ -97,7 +97,7 @@ Each phase requires **separate written owner authorization**. None is currently 
 
 | Phase | Scope | Entry criteria **[PROPOSED]** | Exit criteria **[PROPOSED]** |
 |---|---|---|---|
-| 1. Foundation and CI | Repository tooling, CI, environments, design tokens scaffold | Specs 01, 02 and CLAUDE.md approved; DEP-10 (branch protection) complete; DEP-11 (version pins) planned; Phase 1 authorized | CI green on lint, typecheck, unit and e2e smoke; environments documented |
+| 1. Foundation and CI | Repository tooling, CI, environments, design tokens scaffold | Specs 01, 02 and CLAUDE.md approved (sign-off 2026-11-22) with the mandatory reconciliation confirmed; DEP-10 (branch protection) and DEP-08 logo confirmation complete; DEP-11 (version pins) planned; Phase 1 authorized | CI green on lint, typecheck, unit and e2e smoke; environments documented |
 | 2. Auth, security, tenant isolation | Supabase Auth, memberships, RLS, audit log, MFA | Spec 03 approved; Phase 1 exited; Supabase items of DEP-06 verified; Phase 2 authorized | All 03 §13 tests pass |
 | 3. Agreement and Stripe test-mode billing | Agreement acceptance, initial Checkout, Customer Portal (test), webhooks, ledger, holds, adjustments | Spec 04 approved; DEP-01 (test catalog) complete; OI-47 decided; Stripe items of DEP-06 verified, including the OI-44 discount restriction and the OI-46 `past_due` behavior; Phase 3 authorized | All 04 §16 tests pass in test mode |
 | 4. Intake, fulfillment, previews, final payment, publishing | 05, 06, 07 workflows | Specs 05–07 approved; DEP-07 (scanner) selected; Vercel/Resend items of DEP-06 verified; Phase 4 authorized | All 05, 06, 07 acceptance tests pass |
@@ -110,7 +110,7 @@ Each phase requires **separate written owner authorization**. None is currently 
 | Stage | Status |
 |---|---|
 | 1. Architecture approval | Approved |
-| 2. Specification reconciliation | In progress (documentation only) |
+| 2. Specification reconciliation | Specs 01, 02 and CLAUDE.md: Owner-approved (conditional; mandatory reconciliation applied, final confirmation pending). Specs 03–08: in review. |
 | 3. Implementation authorization | **Not authorized** |
 | 4. Production launch authorization | **Not authorized** |
 

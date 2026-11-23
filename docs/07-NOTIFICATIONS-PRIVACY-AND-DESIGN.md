@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.1 |
+| Version | 0.3.2 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46 |
 | Open issues | None |
@@ -34,7 +34,7 @@
 - **[PROPOSED]** The idempotency key is `event_type + subject_id + version`, for example `preview.released:<release_id>`. The key is passed to Resend as an idempotency key **[VERIFY-PROVIDER]**.
 - **[PROPOSED]** Exponential backoff (1 min, 5 min, 30 min, 2 h, 12 h), then `dead`, which raises an Admin queue item.
 - A duplicate enqueue with the same key is a no-op.
-- **Scheduling [APPROVED OI-43]:** deadline-driven notifications (preview reminders, payment recovery, transition, dispute deadlines) take their due times from the shared deadline calendar (02 §13) in America/Detroit. Due times and `next_attempt_at` are stored in UTC. Retries never move a contractual or administrative deadline.
+- **Scheduling [APPROVED OI-43]:** deadline-driven notifications (preview reminders, payment recovery, cancellation milestones M1 and M2, dispute deadlines) take their due times from the shared deadline calendar (02 §13) in America/Detroit. Due times and `next_attempt_at` are stored in UTC. Retries never move a contractual or administrative deadline.
 - Bounces and complaints from provider webhooks are recorded **[PROPOSED]**.
 
 ## 4. Event catalog **[PROPOSED]**
@@ -60,15 +60,17 @@
 | Hold placed / cleared | Client (payment holds), Owner | Resend |
 | Upload rejected: failed scan or invalid type, with actionable re-upload guidance (OI-31) | Client, Staff | Resend |
 | Cancellation request received / confirmed (OI-35) | Client, Owner | Resend |
-| Transition deadline and responsibilities notice (OI-35) | Client | Resend |
-| Transition deadline approaching / passed (OI-35) | Client, Owner | Resend |
+| Cancellation milestones (M1, M2) and responsibilities notice (OI-35) | Client | Resend |
+| M1 reached: maintenance cessation (OI-35) | Client, Owner | Resend |
+| M2 approaching (required notices, per final agreement) / passed (OI-35) | Client, Owner | Resend |
+| Domain initial term approaching expiry (Spotlight-registered domains) **[PROPOSED]** | Client, Owner | Resend |
 | Dispute opened: **immediate** (OI-37) | Owner | Resend |
 | Dispute evidence deadline reminders (OI-37) | Owner | Resend |
 | Approval hold placed / cleared (OI-45) | Client, Owner, Admin | Resend |
 | Client responded during approval hold (OI-45) | Admin, Owner | Resend |
 | Billing hold Owner review required (OI-46) | Owner | Resend |
 | Unexpected Stripe cancellation exception (OI-46) | Owner | Resend |
-| Service termination authorized / effective, with transition deadline (OI-46) | Client, Owner | Resend |
+| Service termination authorized / effective, with M1 and M2 dates (OI-46) | Client, Owner | Resend |
 | Publication live | Client, Owner | Resend |
 | Publication / verification failed | Owner | Resend |
 | Service inquiry received | Staff | Resend |
@@ -109,7 +111,7 @@
 
 - **[APPROVED OI-40]** Subscription cancellation and account closure do **not** automatically delete legally required records.
 - **Project closure event.** **[APPROVED OI-42]** requires a defined closure event; the definition below is **[PROPOSED]**. Retention clocks start at an explicit, audited `project.closed` event recorded by the Owner or an Admin. It may be recorded only when no development work remains outstanding, and either:
-  - (a) for a project with a maintenance subscription: the 12-business-day transition deadline has passed (04 §15.1), or the client has completed transfer; or
+  - (a) for a project with a maintenance subscription: the 60-calendar-day offboarding deadline (M2) has passed (04 §15.1), or the client has completed transfer; or
   - (b) for a project cancelled before publication: the cancellation is effective and cancellation accounting is complete.
 
   Subscription cancellation alone is not closure.

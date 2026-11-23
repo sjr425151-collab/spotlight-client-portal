@@ -10,7 +10,7 @@ A secure client portal for Spotlight Marketing LLC. It takes each website client
 | Stage | Status |
 |---|---|
 | Architecture approval | Approved: decisions OI-01–OI-46 (register pending owner verification) |
-| Specification reconciliation | **In progress.** Documentation only. |
+| Specification reconciliation | Specs 01, 02 and CLAUDE.md **Owner-approved** ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md), conditional; final confirmation pending). Specs 03–08 in review. Documentation only. |
 | Implementation | **Not authorized.** No phase may begin without separate written owner authorization. |
 | Production launch | **Not authorized** |
 | Stripe test-mode catalog (narrow exception, OI-30) | Authorized but **suspended**: no Stripe API requests until the Owner authorizes a verified test-mode credential workflow (DEP-01) |
@@ -27,7 +27,7 @@ This repository currently contains **documentation only**. See [CLAUDE.md](CLAUD
 6. A separate Checkout for the remaining 80% balance.
 7. Owner-authorized publication behind server-enforced gates, followed by live verification.
 8. Publication confirmation, with optional, inquiry-only service offers.
-9. Billing self-service through the hosted Stripe Customer Portal: payment methods, invoices, and subscription details. Self-service cancellation is disabled; cancellation is handled by request, with a 12-business-day hosting transition.
+9. Billing self-service through the hosted Stripe Customer Portal: payment methods, invoices, and subscription details. Self-service cancellation is disabled. Cancellation is handled by request, with two milestones from the effective cancellation date: maintenance cessation at 12 business days, and the final transfer and offboarding deadline at 60 calendar days.
 
 **Not in the MVP:** a full client dashboard, AI agents, Google Sheets/Drive or CRM integrations, marketing automation, automatic upsell purchases, and multi-agency tenancy. See [01 §4](docs/01-PROJECT-OVERVIEW.md#4-exclusions-and-future-roadmap).
 

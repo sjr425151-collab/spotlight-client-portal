@@ -7,7 +7,7 @@ These instructions apply to every contributor and AI agent working in this repos
 | Stage (OI-01) | Status |
 |---|---|
 | Architecture | Approved |
-| Specification reconciliation | Documentation-only changes authorized |
+| Specification reconciliation | Documentation-only changes authorized. Specs 01, 02 and this file are Owner-approved ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md), conditional; final confirmation pending). |
 | Stripe test-mode catalog (OI-30) | Narrow exception, **currently suspended**; see §5 |
 | **Implementation** | **NOT AUTHORIZED** |
 | **Production launch** | **NOT AUTHORIZED** |
@@ -81,3 +81,4 @@ Each phase requires separate written owner authorization. Work only within the a
 - All changes go through a branch and a pull request. Never push directly to `main`, and never merge your own PR without Owner approval.
 - Update the version and status header of each changed spec, and add a row to 08 §5.
 - Never reuse or renumber issue IDs.
+- Never draft or invent legal text. Legal documents are incorporated only from the final counsel-approved publication copy (Owner sign-off, 2026-11-22).

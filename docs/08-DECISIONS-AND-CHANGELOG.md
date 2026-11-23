@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.3.2 (draft for owner review) |
+| Version | 0.4.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -40,6 +40,8 @@ All specifications in this repository use these labels:
 The status column uses:
 - **Approved** — the decision is complete at the architectural level.
 - **Approved with deferrals** — the architecture is decided, but named sub-items remain open or deferred.
+
+Note on **OI-35 (revised 2026-11-23):** wherever any decision entry refers to the "12-business-day transition", that now means milestone **M1** (maintenance cessation). The final transfer and offboarding deadline is milestone **M2** (60 calendar days). See the OI-35 revision below.
 
 Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where they name OI-25 to OI-41 as deferrals or open items, those items have since been decided (below). Their remaining dependencies are tracked in §3A.
 
@@ -387,7 +389,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-03.
 - **Affected sections:** 04 §1–§4.
 
-### OI-35 — Cancellation, refunds, and 12-business-day transition
+### OI-35 — Cancellation, refunds, and post-cancellation milestones
 
 - **Decision:** When a client cancels the $99/month hosting and maintenance subscription, the client assumes responsibility for hosting and other ongoing website services within 12 business days.
 - **Procedure:**
@@ -404,10 +406,17 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - Legal responsibilities do not disappear automatically. Records are preserved.
   - Legal review is required before enforcement.
 - **Also covered:** development-deposit refunds, remaining-balance obligations, discretionary refund authority, and cancellation accounting.
+- **Revised (2026-11-23).** This revision supersedes the single "12-business-day transition" above. Source: the Owner sign-off record (`docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md`) and the Owner's written instruction of 2026-11-23.
+  - **M1:** 12 business days after the effective cancellation date. Spotlight may discontinue active maintenance and designated recurring database/infrastructure expenditures, subject to contractual obligations.
+  - **M2:** 60 calendar days after the effective cancellation date. This is the final website transfer and offboarding deadline. After the required notices, Spotlight may deactivate the remaining agency-managed services, which may make the website unavailable.
+  - **Domain:** the initial domain registration is for one year from its actual purchase or registration date. Registration is separate from hosting. Cancellation must not automatically cancel a client-owned domain.
+  - Continued website functionality is not guaranteed once required infrastructure has been discontinued. Intentional website degradation is not implemented.
+  - The $99/month maintenance model is commercially reasonable, with no guaranteed uptime percentages or fixed response times.
+  - Contract wording is incorporated only from the final counsel-approved agreement.
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
 - **Related decisions:** OI-43 and OI-46, both approved. **Dependencies:** DEP-03.
-- **Affected sections:** 04 §15.1–§15.2; 06 §8.4; 07 §4, §6; 03 §4.
+- **Affected sections:** 04 §9, §9.1.1, §15.1–§15.2, §16; 06 §5, §8.4; 07 §3, §4, §6; 03 §4, §7, §12; 05 §2, §9; 02 §8, §10, §13.3.
 
 ### OI-36 — Tax readiness
 
@@ -590,7 +599,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-32 | Client hosting | Approved | 4 | 02 §2; 06 §4, §8.4 | DEP-03 | Provider (Vercel limits, cost); legal (ownership) |
 | OI-33 | Publishing QA | Approved | 4 | 06 §2, §6–§7 | — | — |
 | OI-34 | Agreement versioning | Approved | 3 | 04 §1–§4 | DEP-03 | Legal |
-| OI-35 | Cancellation and transition | Approved | 3–4 | 04 §15.1–§15.2; 06 §8.4 | DEP-03 | Legal (before enforcement) |
+| OI-35 | Cancellation and post-cancellation milestones (revised 2026-11-23) | Approved | 3–4 | 04 §15.1–§15.2; 06 §5, §8.4; 02 §13.3 | DEP-03, DEP-06 | Legal (before enforcement); provider (registrar, infrastructure) |
 | OI-36 | Tax readiness | Approved | 3 / Prod | 04 §12, §15.3 | DEP-04 | Tax review; provider (Stripe Tax) |
 | OI-37 | Disputes | Approved | 3 | 04 §15.4 | DEP-03 | Legal |
 | OI-38 | Branding | Approved | 1 / Prod | 07 §10–§12 | DEP-08 (logo confirmed; production assets pending) | Owner final visual approval |
@@ -609,6 +618,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 |---|---|---|
 | 1. Architecture approval | **Approved** (per owner-provided baseline; pending verification of this register) | §1 |
 | 2. Specification reconciliation | **In progress.** Documentation-only changes authorized. This change set is under owner review. | Draft PR for branch `docs/architecture-specification-reconciliation` |
+| Foundation specs 01, 02 and CLAUDE.md | **Owner-approved (conditional)** at v0.3.1 on 2026-11-22. The mandatory reconciliation is applied (02 v0.4.0, 01 v0.3.2, CLAUDE.md). **Awaiting Owner final confirmation.** | [Sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) |
 | 3. Implementation authorization | **Not authorized** for any phase | — |
 | 4. Production launch authorization | **Not authorized** | — |
 | Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked and suspended**: there is no valid test-mode credential, and the Owner has instructed that no Stripe API requests be made until a verified test-mode credential workflow is separately authorized (DEP-01). | Owner instructions, 2026-11-23 |
@@ -623,6 +633,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.3.0 | 2026-11-23 | Transcribed approved decisions OI-42–OI-46. Extended the §3A matrix to 46 decisions. Added the shared deadline calendar (02 §13), adjusted final-balance Checkout (04 §10.1), the failed-payment-to-termination lifecycle (04 §9.1.1), the day-21 approval hold (05 §7.2), and used/unused retention with the closure event (07 §6). Opened OI-47 (deposit-stage adjustments). Reassessed dependency phases. Recorded the Stripe test-catalog action as suspended. | Claude Code (documentation author) | Pending owner review |
 | 0.3.1 | 2026-11-23 | DEP-10 marked complete. The Owner created the active ruleset `protect-main` on the default branch: pull request required with 0 approvals (Owner decision, sole developer), force pushes blocked, deletions restricted, no status checks. The GitHub API confirms `main` is protected. Rule details are Owner-attested. | Claude Code (documentation author) | Pending owner review |
 | 0.3.2 | 2026-11-23 | Recorded the Owner's confirmation that the SLM folder logo (Drive file ID `13-UmtqYfcweEZUCwCcYiIsHiTy9RMTKX`, SHA-256 `6cc6edb3…b2bd3c`) is the official master. DEP-08 Phase 1 part complete; production asset variants and final visual approval remain outstanding. | Claude Code (documentation author) | Owner (logo confirmation only) |
+| 0.4.0 | 2026-11-23 | Recorded the Owner sign-off of specs 01, 02 and CLAUDE.md (conditional, `OWNER-SIGNOFF-FOUNDATION-2026-11-22.md`). Applied the mandatory reconciliation: OI-35 revised into M1 (12 business days, maintenance and designated infrastructure cessation) and M2 (60 calendar days, final transfer and offboarding), a one-year initial domain term separate from hosting, no guaranteed functionality after discontinuation, no intentional degradation, and a commercially reasonable $99 model with no uptime or response-time guarantees. Updated specs 01–07, tests, README, CLAUDE.md, and OPEN-ISSUES. | Claude Code (documentation author) | Owner (sign-off record; final confirmation pending) |
 
 ## 6. Change-control rules
 

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46 |
 | Open issues | OI-47 |
@@ -206,6 +206,7 @@ Expected initial totals:
 
 - The subscription starts at initial purchase and bills during development. The agreement must accurately disclose prelaunch and postlaunch services. **[APPROVED OI-16]**
 - Renewal outcomes are recorded from webhooks only. **Stripe payment status is authoritative.** **[APPROVED OI-26]**
+- **Service model [APPROVED, Owner instruction 2026-11-23]:** the $99/month Website Care & Maintenance subscription is provided on a **commercially reasonable** basis. The specifications define **no guaranteed uptime percentage and no fixed response times**. Monitoring signals (02 §8) and internal queue targets are operational tools, not client commitments.
 - **[APPROVED OI-21]** Closing a portal account does **not** cancel the Stripe subscription. Cancellation is a separate, explicit billing action (§15).
 
 ### 9.1 Failed maintenance payment recovery **[APPROVED OI-26]**
@@ -232,18 +233,18 @@ A failed maintenance payment **never** removes a website by itself.
 | 2. Recovery period | Seven full calendar days | Notifications. Payment-method updates through the Customer Portal (§9.2). Stripe retries. | Online |
 | 3. Billing hold | Recovery period ends without verified recovery | `maintenance_payment_hold`. New publishing and nonessential maintenance are paused. | Online. **Never** taken offline automatically. |
 | 4. Owner review | Hold placed. An Owner review queue item is created. | The Owner chooses to: continue collection and recovery; authorize a documented exception; or initiate documented service termination | Online |
-| 5. Authorized termination | The Owner records the termination, with reason and reauthentication | The effective cancellation date is documented. The 12-business-day transition (§15.1) begins on it, subject to the final agreement. | Online until the transition deadline. After that, only per 06 §8.4. |
+| 5. Authorized termination | The Owner records the termination, with reason and reauthentication | The effective cancellation date is documented. The post-cancellation milestones (§15.1) are computed from it: **M1** at 12 business days and **M2** at 60 calendar days, subject to the final agreement. | Not deliberately taken offline. Maintenance may cease after M1. Remaining services may be deactivated only after M2 and the required notices (06 §8.4). |
 
 Stripe configuration **[APPROVED OI-46; VERIFY-PROVIDER, DEP-06]**:
 - Prefer a recoverable `past_due` or `unpaid` subscription state over automatic cancellation after retries, where supported.
 - Verify Stripe Billing's actual behavior before implementation.
 
 Internal service-termination state **[APPROVED OI-46; states PROPOSED]**:
-- This state is separate from the Stripe subscription status: `none → under_owner_review → termination_authorized → effective → transition_complete | decommissioned`, plus `withdrawn` before `effective`.
+- This state is separate from the Stripe subscription status: `none → under_owner_review → termination_authorized → effective → maintenance_ceased → offboarded | transferred`, plus `withdrawn` before `effective`.
 - An **unexpected** `customer.subscription.deleted`, meaning one that matches no authorized termination, creates a `stripe_cancellation_exception` Owner review item. It is **not** authorization to start the transition or remove a website.
 - Duplicate or contradictory transitions are prevented. At most one active termination is allowed per project (unique constraint). Repeated events are idempotent. A conflicting event, such as a recovery payment after termination was authorized, goes to Owner review.
 - Billing and termination audit history is complete (03 §11).
-- Final termination and transition terms require legal review (DEP-03).
+- Final termination, milestone, and notice terms require legal review (DEP-03).
 
 ### 9.2 Stripe Customer Portal **[APPROVED OI-29]**
 
@@ -388,31 +389,46 @@ System holds (Stripe-derived) clear only when the underlying Stripe state resolv
 
 ## 15. Cancellation, refunds, tax, and disputes
 
-### 15.1 Subscription cancellation and the 12-business-day transition **[APPROVED OI-35]**
+### 15.1 Subscription cancellation and post-cancellation milestones **[APPROVED OI-35, revised 2026-11-23]**
 
-**Approved policy.** When a client cancels the $99/month hosting and maintenance subscription, the client assumes responsibility for hosting and other ongoing website services within **12 business days**.
+**Approved policy (revised 2026-11-23; see the [Owner sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md)).** Two distinct milestones follow cancellation of the $99/month hosting and maintenance subscription. Both are counted from the **effective cancellation date**.
+
+| Milestone | Deadline (02 §13) | Spotlight may, subject to contractual obligations and required notices | This milestone does **not** mean |
+|---|---|---|---|
+| **M1: maintenance cessation** | **12 business days** after the effective cancellation date | Discontinue active maintenance, and discontinue **designated recurring database/infrastructure expenditures**, subject to contractual and security obligations | It is not the transfer deadline. The website is not deliberately taken offline, and there is no intentional degradation. |
+| **M2: final transfer and offboarding** | **60 calendar days** after the effective cancellation date | After the required notices, deactivate the remaining agency-managed services. This may make the website unavailable. | It does not cancel a client-owned domain registration, and it does not end obligations that survive termination. |
 
 | Term | Definition |
 |---|---|
 | Cancellation request date | When the client's cancellation request is received and recorded (portal form or written notice, §15.1.1) |
 | Effective cancellation date | When the subscription actually ends. **[PROPOSED]** This is the end of the current paid billing period, matching draft agreement §7, pending legal review (DEP-03). |
-| Transition deadline | **12 business days after the effective cancellation date**, unless the final approved agreement explicitly says otherwise **[APPROVED OI-35]** |
-| Business day | Monday–Friday, excluding U.S. federal holidays, evaluated in America/Detroit. The deadline is 23:59:59 America/Detroit on the 12th business day after the effective cancellation date. The trigger date is excluded, subject to legal confirmation. **[APPROVED OI-43]** (02 §13) |
+| M1 deadline | 23:59:59 America/Detroit on the 12th business day after the effective cancellation date. The trigger date is excluded, subject to legal confirmation. **[APPROVED OI-35, OI-43]** |
+| M2 deadline | 23:59:59 America/Detroit on the 60th calendar day after the effective cancellation date. The trigger date is excluded, subject to legal confirmation. **[APPROVED OI-35 (revised), OI-43]** |
+| Designated recurring database/infrastructure expenditures | Which resources are designated is defined by the final agreement (DEP-03). **[PROPOSED]** Each project records its designated resources in an inventory. Nothing is treated as designated for a production client until counsel-approved text exists. |
 
-**Procedure [APPROVED OI-35]:**
+**Website availability between M1 and M2 [APPROVED, Owner instruction 2026-11-23]:**
+- The website may keep running on the remaining agency-managed services. **Continued functionality is not guaranteed** once required infrastructure has been discontinued.
+- Spotlight does **not** implement intentional website degradation. **[PROPOSED examples]** No deliberate disabling, throttling, warning banners, or feature removal designed to pressure the client.
+
+**Procedure [APPROVED OI-35, revised]:**
 1. Record the request date and the effective cancellation date, as separate fields.
-2. Notify the client of the transition deadline and the responsibilities that pass to them: **hosting, domain registration and renewals, DNS, website security, maintenance, backups, monitoring, and other ongoing operational services**.
-3. Allow 12 business days for the client to move to replacement hosting and related services.
-4. Provide the contractually required transfer materials and reasonable transition assistance (draft agreement §8).
-5. After the deadline, the agency **may** discontinue managed hosting and remove the website from its infrastructure, subject to the final agreement and applicable law. This is an Owner-authorized, audited decommissioning action (06 §8.4), never automatic deletion.
-6. The agency's ongoing service obligations end at the deadline, **except** obligations that survive termination legally or contractually.
+2. At the effective cancellation date, notify the client of the M1 and M2 dates and the responsibilities that pass to them: **hosting, domain registration and renewals, DNS, website security, maintenance, backups, monitoring, and other ongoing operational services**.
+3. Provide the contractually required transfer materials and reasonable transition assistance up to M2 (draft agreement §8).
+4. On or after M1: Owner-authorized, audited discontinuation of maintenance and designated recurring expenditures (06 §8.4).
+5. Send the required notices before M2. Their content and timing follow the final agreement (DEP-03). **[PROPOSED]** Reminders at M1, 30 days before M2, and 7 days before M2.
+6. After M2, and only once the required notices are recorded: Owner-authorized, audited deactivation of the remaining agency-managed services (06 §8.4). This is never automatic deletion.
+7. The agency's ongoing service obligations end as the final agreement provides. Obligations that survive termination legally or contractually remain.
+
+**Domain registration [APPROVED, Owner instruction 2026-11-23]:**
+- Where a domain is registered for a client, the **initial registration term is one year from its actual purchase or registration date**. The registration date and the registrar-reported expiry are recorded **[PROPOSED]**. Neither is derived from project or cancellation dates.
+- **Domain registration is separate from hosting.** A registration does not guarantee hosting or website functionality, and deactivating hosting does not affect the registration.
+- Cancellation **never** automatically cancels, deletes, transfers, or lets lapse a client-owned domain. Renewal responsibility after the initial term, ownership, and transfer mechanics follow the final agreement (DEP-03). Registrar behavior is verified under DEP-06.
 
 **Safeguards [APPROVED OI-35]:**
-- A client-owned domain is **never** cancelled, deleted, or allowed to lapse automatically. Domain ownership and transfer rights require explicit contractual treatment (DEP-03).
 - Legal responsibilities are **not** described as disappearing automatically.
 - Applicable records are retained (07 §6), and legal holds apply.
-- **Enforcement of this policy requires legal review** (DEP-03). Until the final agreement includes it, the transition period is not enforced against production clients.
-- **[APPROVED OI-46]** A failed payment never starts the transition. Only an Owner-authorized, documented service termination (§9.1.1, stage 5) or a confirmed client cancellation starts it, on the documented effective cancellation date. A Stripe cancellation webhook alone is never authorization to remove a website.
+- **Enforcement requires legal review** (DEP-03). The milestone terms are incorporated only from the final counsel-approved agreement; this specification does not draft contract wording. Until that agreement exists, M1 and M2 are not enforced against production clients.
+- **[APPROVED OI-46]** A failed payment never starts the milestones. Only an Owner-authorized, documented service termination (§9.1.1, stage 5) or a confirmed client cancellation does, from the documented effective cancellation date. A Stripe cancellation webhook alone is never authorization to discontinue services or remove a website.
 
 #### 15.1.1 Cancellation request handling **[APPROVED OI-29, OI-35; workflow PROPOSED]**
 
@@ -421,10 +437,10 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | Element | Specification |
 |---|---|
 | Channels | An authenticated portal cancellation request form, or written notice to the Provider (draft agreement §7) recorded by staff |
-| Records | `cancellation_requests`: requester, channel, request date, effective cancellation date, transition deadline, status |
-| States | `received → confirmed → scheduled (cancel at period end in Stripe) → effective → transition_complete / decommissioned` |
+| Records | `cancellation_requests`: requester, channel, request date, effective cancellation date, M1 deadline, M2 deadline, notices sent, status |
+| States | `received → confirmed → scheduled (cancel at period end in Stripe) → effective → maintenance_ceased (on or after M1) → offboarded (on or after M2, after notices) / transferred` |
 | Stripe action | The Owner or an authorized process sets the subscription to cancel at period end. This happens in production only under production authorization. |
-| Audit | `cancellation.requested`, `cancellation.confirmed`, `cancellation.effective`, `transition.deadline_notified`, `transition.decommissioned` |
+| Audit | `cancellation.requested`, `cancellation.confirmed`, `cancellation.effective`, `cancellation.milestones_notified`, `cancellation.notice_sent`, `cancellation.maintenance_ceased`, `cancellation.services_deactivated`, `cancellation.transferred` |
 | Independence | Cancelling the subscription does not cancel an outstanding development agreement or remove development payment obligations (draft agreement §7) |
 
 ### 15.2 Refunds and cancellation accounting **[APPROVED OI-35; amounts DEFERRED to legal review]**
@@ -457,7 +473,7 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 
 | Item | Dependency |
 |---|---|
-| Final agreement text, including signer authority wording, notice terms, refund terms, domain transfer, and the transition clause | DEP-03 |
+| Final agreement text, including signer authority wording, notice terms, refund terms, domain initial term and transfer, the M1 (12 business days) and M2 (60 calendar days) milestone clauses, and the definition of designated infrastructure | DEP-03 |
 | Tax determination and Stripe Tax production configuration | DEP-04 |
 | Live Price ID verification | DEP-02 |
 
@@ -490,13 +506,16 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-04 | The Customer Portal session opens only for the caller's own customer. Cancellation is not offered in the portal configuration. (OI-29) |
 | T-BIL-05 | A full waiver creates a `waiver` entry, creates no Stripe payment, and satisfies G4 with the disclosure flag (OI-27) |
 | T-BIL-06 | Adjustments require Owner, reauthentication, and a reason. Admin attempts are rejected and audited. |
-| T-BIL-07 | Cancellation records hold a request date and an effective date separately. The transition deadline is computed 12 business days after the effective date using the approved calendar (OI-35, OI-43). |
+| T-BIL-07 | Cancellation records hold a request date and an effective date separately. M1 is computed 12 business days, and M2 60 calendar days, after the effective date using the approved calendar (OI-35, OI-43). |
 | T-BIL-08 | No automated process cancels, deletes, or lets lapse a client-owned domain |
 | T-BIL-09 | A dispute webhook notifies the Owner, records the deadline, and triggers no takedown (OI-37) |
 | T-BIL-10 | Ledger entries carry a service category. Tax collection is disabled outside authorized production configuration. (OI-36) |
 | T-BIL-11 | The adjusted final Checkout has only the balance line item. The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
 | T-BIL-12 | After an adjusted final payment, no discount is attached to the customer or subscription, and the next maintenance renewal invoice is exactly 9900 cents |
 | T-BIL-13 | The adjustment record contains every §10.1 field. An Admin attempt is rejected and audited. |
-| T-BIL-14 | Through day 7 of recovery: no hold, no termination state, no decommissioning request. After the period: the hold is placed and an Owner review item exists. (OI-46) |
+| T-BIL-14 | Through day 7 of recovery: no hold, no termination state, no discontinuation or deactivation request. After the period: the hold is placed and an Owner review item exists. (OI-46) |
 | T-BIL-15 | An unexpected `customer.subscription.deleted` creates an exception review. No transition starts, and the site is unaffected. |
-| T-BIL-16 | Duplicate termination authorizations or duplicate webhooks produce exactly one termination and one transition deadline |
+| T-BIL-16 | Duplicate termination authorizations or duplicate webhooks produce exactly one termination and one set of M1 and M2 deadlines |
+| T-BIL-17 | Maintenance discontinuation is rejected before M1. Deactivating remaining services is rejected before M2 or without the required notices recorded. (OI-35) |
+| T-BIL-18 | No code path or configuration deliberately degrades a client website (code review checklist and negative test) |
+| T-BIL-19 | Domain expiry is taken from the actual registration date and registrar record. Cancellation, M1, and M2 make no registrar call that cancels, deletes, or transfers the domain. |

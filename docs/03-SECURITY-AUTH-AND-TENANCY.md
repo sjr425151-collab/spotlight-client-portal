@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.0 |
+| Version | 0.3.1 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-46 |
 | Open issues | OI-47 |
@@ -71,7 +71,8 @@ Key: ✅ allowed · ❌ denied · **M** = only for projects where the client hol
 | Open Stripe Customer Portal for own billing **[APPROVED OI-29]** | ❌ | ❌ | M (billing contact) | ❌ |
 | Submit subscription cancellation request **[APPROVED OI-35]** | ❌ | ❌ | M | ❌ |
 | Confirm cancellation / schedule it in Stripe | ✅ | ❌ **[PROPOSED]** | ❌ | ❌ |
-| Decommission a client site after the transition deadline | ✅ (reauthentication) | ❌ | ❌ | ❌ |
+| Discontinue maintenance and designated recurring infrastructure after M1 (12 business days) **[APPROVED OI-35, revised]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
+| Deactivate remaining agency-managed services after M2 (60 calendar days) and the required notices **[APPROVED OI-35, revised]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
 | Submit / edit intake | ❌ | ✅ (correct on client's behalf, audited) **[PROPOSED]** | M | ❌ |
 | Upload assets | ✅ | ✅ | M | ❌ |
 | Approve non-standard file types / quota exceptions | ✅ | ✅ (within approved rules) | ❌ | ❌ |
@@ -126,7 +127,7 @@ Owner and Admin **cannot** approve a preview on a client's behalf, accept an agr
   - financial adjustment (discount, credit, waiver) **[APPROVED OI-27]**
   - discretionary refund, dispute response or settlement
   - hold exception
-  - site decommissioning
+  - maintenance discontinuation (M1) and service deactivation (M2)
   - staff role change
   - deletion execution
   - billing hold clearance where manual clearance is allowed
@@ -193,7 +194,7 @@ Minimum event catalog **[PROPOSED]**:
 | Discounts, credits, and partial or full waivers are Owner-only ledger entries, with reason, reauthentication, and audit. A full waiver is recorded as a waiver, never as a Stripe payment. | **Approved (OI-27, OI-44)**. Mechanism: an Owner-authorized discount on the standard final-balance price in Checkout (04 §10.1). Deposit-stage adjustments: **[PENDING OI-47]**. |
 | The only permitted QA exception is a documented, Owner-approved performance exception. Security, payment/settlement, and client approval cannot be bypassed. | **Approved (OI-33)** |
 | Dispute evidence is compiled from authoritative records only. No fabricated evidence and no automatic concession. | **Approved (OI-37)** |
-| No website is decommissioned solely because a payment failed or because Stripe cancelled a subscription. Only an Owner-authorized, documented termination starts the transition. | **Approved (OI-46)** |
+| No service is discontinued or deactivated, and no website is removed, solely because a payment failed or because Stripe cancelled a subscription. Only an Owner-authorized, documented termination starts the post-cancellation milestones. | **Approved (OI-46)** |
 | An approval hold never represents approval. Admin cannot clear it without a qualifying client response. | **Approved (OI-45)** |
 | An Owner may *add* holds or *block* publication at any time | **[PROPOSED]** |
 

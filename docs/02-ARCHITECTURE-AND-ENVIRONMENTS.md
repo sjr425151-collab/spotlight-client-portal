@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.1 |
-| Status | **Draft — pending owner sign-off** |
+| Version | 0.4.0 |
+| Status | **Owner-approved baseline v0.3.1** ([sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md), 2026-11-22, conditional). v0.4.0 applies the mandatory reconciliation. **Pending Owner final confirmation.** |
 | Decisions | OI-07, OI-10, OI-11, OI-22, OI-23, OI-29, OI-32, OI-39, OI-41, OI-43 |
 | Dependencies | DEP-06, DEP-09, DEP-11, DEP-12 (DEP-10 complete) |
 
@@ -129,7 +129,7 @@ Release policy **[APPROVED OI-23]**:
 
 **[PROPOSED]** Minimum signals:
 - Error tracking (server and client).
-- Uptime checks on the portal and the webhook endpoint.
+- Uptime checks on the portal and the webhook endpoint. These are internal operational signals. **No guaranteed uptime percentage or fixed response time** is offered to clients (04 §9).
 - Webhook processing lag and failures.
 - Outbox backlog and failed sends.
 - Reconciliation mismatches (04 §13).
@@ -166,6 +166,8 @@ This applies to Stripe, Supabase, Vercel, Resend, and any future Google integrat
 | Supabase | Email OTP and custom SMTP; disabling sign-ups; MFA/AAL2; RLS on Storage; resumable uploads and the 250 MB object limit; PITR/backup retention versus 30 days |
 | Vercel | Protected previews; separate environments; instant rollback; per-client project and domain limits; team separation; costs at scale |
 | Resend | Domain verification per environment; idempotency keys; bounce and complaint webhooks |
+| Domain registrar (to be selected) | Registration date and expiry data; auto-renew settings; transfer (auth code) process; ensuring hosting deactivation cannot affect the registration (04 §15.1) |
+| Vercel / infrastructure providers | Discontinuing designated per-client resources independently of the remaining hosting (M1) |
 
 ## 11. Production infrastructure **[APPROVED OI-41]**
 
@@ -253,7 +255,9 @@ This one calendar is shared by notifications, billing, fulfillment, and administ
 
 | Rule | Day type | Spec |
 |---|---|---|
-| 12-business-day post-cancellation website transition | Business days | 04 §15.1 |
+| **M1:** 12 business days after effective cancellation. Maintenance cessation and discontinuation of designated recurring infrastructure. Not a transfer or website-removal deadline. | Business days | 04 §15.1 |
+| **M2:** 60 calendar days after effective cancellation. Final website transfer and offboarding deadline. | Calendar days | 04 §15.1 |
+| Initial domain registration term: one year from the actual registration date. The authoritative expiry is the registrar-reported date. | Registrar record | 04 §15.1 |
 | Seven-full-calendar-day failed-payment recovery (**never** business days) | Calendar days | 04 §9.1 |
 | Preview follow-up days 3, 7, 14, 21 | Calendar days | 05 §7.1 |
 | Contractual business-day obligations (for example the draft agreement's five-business-day review) | Business days | 05 §7 |
@@ -270,3 +274,4 @@ Final contractual wording for all of these remains subject to legal review (DEP-
 | T-CAL-03 | Observed holidays (for example July 4 on a Saturday) are treated as non-business days |
 | T-CAL-04 | All stored deadlines are UTC, and each records its calendar version. Notification, billing, and fulfillment read the same stored deadline. |
 | T-CAL-05 | No code path computes deadlines by adding 24-hour multiples (code search and unit tests) |
+| T-CAL-06 | M2 counts 60 calendar days including weekends and holidays, and ends at 23:59:59 America/Detroit. M1 and M2 computed from the same effective date are both stored. |

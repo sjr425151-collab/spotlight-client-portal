@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.0 |
+| Version | 0.3.1 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46 |
 | Open issues | None |
@@ -23,7 +23,7 @@ Each lifecycle dimension has its **own** state, derived from authoritative recor
 | Preview approval | Per release: `released → approved` / `superseded` / `withdrawn` | Preview release and approval records (§6–§7) |
 | Final balance | `not_due → due → pending → verified` (+ `failed`, `refunded`, `disputed`, `settled_by_adjustment` **[APPROVED OI-27]**, meaning paid + Owner-authorized adjustments = owed, never a fabricated payment) | Webhook-derived ledger |
 | Holds | Zero or more active holds (billing and fulfillment holds are distinct types) | Hold records (04 §14) **[APPROVED OI-25, OI-26, OI-37, OI-45]** |
-| Service termination | `none → under_owner_review → termination_authorized → effective → transition_complete / decommissioned` (+ `withdrawn`). Independent of the Stripe subscription status. | Owner-authorized termination records (04 §9.1.1) **[APPROVED OI-46]** |
+| Service termination | `none → under_owner_review → termination_authorized → effective → maintenance_ceased → offboarded / transferred` (+ `withdrawn`). Independent of the Stripe subscription status. | Owner-authorized termination records (04 §9.1.1) **[APPROVED OI-46]** |
 | Publication | `not_eligible → eligible → authorized → deploying → live_unverified → live_verified` (+ `failed`, `rolled_back`) | Gate evaluation and deployment records (06) |
 
 ```mermaid
@@ -197,7 +197,8 @@ Queues are **computed** from authoritative state. They are never maintained by h
 | Approval follow-up due | Current release unapproved at day 14 with no recorded personal follow-up (OI-25) |
 | Approval hold eligible | Current release unapproved at day 21+ with documented outreach (OI-25) |
 | Payment recovery | Failed maintenance renewal within the 7-day recovery period (OI-26) |
-| Cancellation transitions | Effective cancellations with transition deadlines approaching or passed (OI-35) |
+| Cancellation milestones | Effective cancellations with M1 (12 business days) or M2 (60 calendar days) approaching or passed, or required notices due (OI-35) |
+| Domain expiries | Spotlight-registered domains approaching the end of their initial one-year term **[PROPOSED]** |
 | Disputes | Open disputes, ordered by evidence due date (OI-37) |
 | Approval hold review | A client responded while `approval_nonresponsive_hold` is active (OI-45) |
 | Billing hold Owner review | `maintenance_payment_hold` is active and no Owner decision is recorded (OI-46) |

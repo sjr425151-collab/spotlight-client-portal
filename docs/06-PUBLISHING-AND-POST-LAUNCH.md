@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46 |
 | Open issues | None |
@@ -73,6 +73,7 @@ Checks:
 - TLS certificate issued and valid.
 - `www`/apex redirect policy configured.
 - The domain registrant record is in the client's name where feasible (draft agreement §5).
+- Where Spotlight registered the domain: the actual registration date and the registrar-reported expiry are recorded. The initial term is one year from actual registration (04 §15.1). Domain registration is tracked separately from hosting.
 - Third-party domain charges are disclosed and approved.
 
 Results are recorded with timestamps. **[PROPOSED]** Freshness window: 24 hours.
@@ -143,7 +144,7 @@ Critical security failures always block publication. No exception exists.
 - An incident record is kept with timeline and resolution.
 - The client is notified when the client-facing impact warrants it.
 
-### 8.4 Live-site continuity and decommissioning
+### 8.4 Live-site continuity, discontinuation, and deactivation
 
 | Situation | Effect on an already-published website |
 |---|---|
@@ -151,15 +152,17 @@ Critical security failures always block publication. No exception exists.
 | Stripe subscription cancelled with no authorized termination | **None.** An Owner exception review is created and no transition starts. **[APPROVED OI-46]** |
 | Open dispute or `dispute_risk_hold` | **None.** No takedown merely because a dispute exists. **[APPROVED OI-37]** |
 | `approval_nonresponsive_hold` | **None.** Already-published websites are unaffected. **[APPROVED OI-45]** |
-| Confirmed client cancellation, or Owner-authorized termination effective, with the transition deadline not yet reached | Site stays online. Transition assistance continues. **[APPROVED OI-35, OI-46]** |
-| Transition deadline passed (04 §15.1) | The agency **may** discontinue managed hosting and remove the site, subject to the final agreement and applicable law (DEP-03). |
+| Effective cancellation (confirmed client cancellation or Owner-authorized termination), before M1 | Site stays online. Maintenance and transition assistance continue. **[APPROVED OI-35, OI-46]** |
+| Between M1 (12 business days) and M2 (60 calendar days) | Maintenance and designated recurring infrastructure **may** be discontinued. The site is not deliberately taken offline, but **continued functionality is not guaranteed**. No intentional degradation. **[APPROVED OI-35, revised]** |
+| After M2, once the required notices are recorded | The agency **may** deactivate the remaining agency-managed services, which may make the site unavailable, subject to the final agreement and applicable law (DEP-03). The domain registration is unaffected. |
 
-Decommissioning **[PROPOSED]**:
-- An Owner-authorized action with reauthentication and an audit event.
-- It checks that the transition deadline has passed and that no legal hold applies.
+Discontinuation (M1) and deactivation (M2) actions **[PROPOSED]**:
+- Each is an Owner-authorized action with reauthentication and an audit event.
+- Maintenance and designated-infrastructure discontinuation checks that M1 has passed. Deactivating the remaining services checks that M2 has passed **and** that the required notices are recorded. Both check that no legal hold applies.
 - It requires a confirmed client cancellation or an Owner-authorized termination record. A failed payment or a Stripe cancellation webhook **alone never qualifies**. **[APPROVED OI-46]**
-- It confirms that the transfer materials were provided.
-- It **never** changes or cancels a client-owned domain registration.
+- Deactivation confirms that the transfer materials were provided.
+- Neither action ever changes, cancels, or transfers a client-owned domain registration.
+- Neither action ever applies intentional degradation.
 - Records are retained per 07 §6.
 
 ## 9. Live verification **[APPROVED OI-22]**
@@ -208,9 +211,9 @@ After `live_verified`, the client receives a confirmation notification and in-po
 | T-PUB-11 | A performance exception is accepted only from the Owner, with a release ID and reason. No exception mechanism exists for security, payment, or approval items. (OI-33) |
 | T-PUB-12 | QA results attach to one release ID. A new release requires new QA evidence. |
 | T-PUB-13 | No billing hold, dispute, or approval hold triggers any undeploy or domain change on a live site (OI-26, OI-37) |
-| T-PUB-14 | Decommissioning is rejected before the transition deadline, under a legal hold, or by anyone but the Owner (OI-35) |
+| T-PUB-14 | Maintenance discontinuation is rejected before M1. Deactivating remaining services is rejected before M2, without recorded notices, under a legal hold, or by anyone but the Owner. (OI-35) |
 | T-PUB-15 | Each client site deploys to its own project. Environment variables of one client project are not readable from another. (OI-32) |
-| T-PUB-16 | Decommissioning is rejected when the only basis is a payment failure or a Stripe cancellation event (OI-46) |
+| T-PUB-16 | Discontinuation and deactivation are rejected when the only basis is a payment failure or a Stripe cancellation event (OI-46) |
 | T-PUB-17 | While an approval hold is active, publication is blocked by G8, and the gate output identifies it as a fulfillment hold, not a billing hold (OI-45) |
 | T-INQ-01 | Inquiry options appear only after `live_verified` |
 | T-INQ-02 | Submitting an inquiry creates a queue entry and notifications and creates no Stripe objects (asserted with a Stripe mock showing no calls) |

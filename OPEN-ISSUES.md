@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.2 (draft for owner review) |
+| Version | 0.4.0 (draft for owner review) |
 | Status | Draft |
 | Next unused issue ID | **OI-48** |
 | Next unused dependency ID | **DEP-13** |
@@ -55,7 +55,7 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 | OI-32 | Client hosting | Decided | DEP-03, DEP-06 |
 | OI-33 | Mandatory publishing QA | Decided | — |
 | OI-34 | Agreement versioning | Decided | DEP-03 |
-| OI-35 | Cancellation, refunds, 12-business-day transition | Decided | DEP-03 |
+| OI-35 | Cancellation, refunds, post-cancellation milestones (revised 2026-11-23) | Decided | DEP-03, DEP-06 |
 | OI-36 | Tax readiness | Decided | DEP-04 |
 | OI-37 | Disputes and chargebacks | Decided | DEP-03 |
 | OI-38 | Branding | Decided | DEP-08 |
@@ -134,7 +134,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 - Final agreement text and versioning (OI-34) and signer authority wording (OI-28).
 - Payment-hold notice terms (draft §12 vs OI-26) and the Owner-authorized termination path after failed payment (OI-46).
 - Draft §7 "designated billing portal" wording vs disabled self-service cancellation (OI-29).
-- Draft §7 "discontinue hosting after the current paid period" vs the 12-business-day transition (OI-35), and the definition of the effective cancellation date.
+- Draft §7 "discontinue hosting after the current paid period" vs the revised OI-35 milestones: M1 (12 business days, maintenance and designated infrastructure cessation) and M2 (60 calendar days, final transfer and offboarding). Also: the definition of the effective cancellation date, the definition of designated recurring infrastructure, the required notices before M2, and the one-year initial domain term with renewal responsibility. Incorporate only from the final counsel-approved copy.
 - The calendar convention, including trigger-date exclusion (OI-43).
 - Disclosure of adjusted final balances (OI-44).
 - Refund terms (OI-35), domain ownership and transfer, IP ownership (OI-32; draft §5, §8), and dispute terms (OI-37).
@@ -145,6 +145,8 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 - **Stripe:** a Checkout Session-level discount restricted to the balance product with a single redemption, which must never attach to the customer or subscription (OI-44).
 - **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
+- **Domain registrar (to be selected; revised OI-35):** registration date and expiry data, auto-renew settings, the transfer (auth code) process, and confirmation that hosting deactivation cannot affect a registration.
+- **Vercel / infrastructure (revised OI-35):** discontinuing designated per-client resources at M1 independently of the remaining hosting.
 
 ### DEP-08 detail — brand assets
 

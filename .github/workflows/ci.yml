@@ -58,6 +58,8 @@ jobs:
       - run: pnpm build
       - name: Client bundle secret check (T-SEC-01)
         run: pnpm check:bundle
+      - name: Production-mode build for gating tests (never deployed)
+        run: pnpm build:production-check
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
       - name: Upload Playwright report

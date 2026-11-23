@@ -67,7 +67,8 @@ Playwright needs a browser: run `pnpm exec playwright install chromium` once. If
 | `pnpm typecheck` | Strict TypeScript, no emit |
 | `pnpm format` / `pnpm format:check` | Prettier write / verify |
 | `pnpm test` | Vitest unit and component tests |
-| `pnpm test:e2e` | Playwright smoke tests against the production build (run `pnpm build` first) |
+| `pnpm build:production-check` | Builds a production-mode copy (`APP_ENV=production`) into `.next-production/`, used only by the gating tests and never deployed |
+| `pnpm test:e2e` | Playwright: smoke tests against the test build and production-gating tests against the production-mode build (run both builds first) |
 | `pnpm check:bundle` | Scans browser-delivered build output for secrets (T-SEC-01) |
 | `pnpm lhci` | Lighthouse CI with the spec 02 §7 budgets (run `pnpm build` first) |
 | `pnpm verify` | Everything above, except Lighthouse, in CI order |
@@ -105,7 +106,7 @@ Each environment gets its own credentials, set in the hosting provider's secret 
 | Job | Checks |
 |---|---|
 | Lint, types, format, unit tests | Frozen-lockfile install, ESLint, `tsc`, Prettier, Vitest |
-| Build, client bundle check, Playwright smoke tests | Production build, secret scan of `.next/static`, Playwright on desktop and mobile Chromium, including axe WCAG 2.2 AA, security headers, logo aspect ratio, reduced motion, responsive overflow |
+| Build, client bundle check, Playwright smoke tests | Test build, secret scan of `.next/static`, production-mode build, Playwright on desktop and mobile Chromium (axe WCAG 2.2 AA, security headers, logo aspect ratio, reduced motion, responsive overflow), and production gating (`/design-system` returns HTTP 404 when `APP_ENV=production`) |
 | Lighthouse budgets | 3 mobile runs. Median must reach Performance ≥ 0.90, Accessibility ≥ 0.95, Best Practices ≥ 0.95, SEO ≥ 0.90. Reports kept as a run artifact only. |
 | Dependency audit | `pnpm audit --audit-level=high` |
 | Secret scan | gitleaks over full git history (checksum-verified binary) |
@@ -145,11 +146,13 @@ scripts/          CI helper scripts
 
 **Design tokens.** `src/design/tokens.ts` is the source of truth. `src/app/globals.css` mirrors it in the Tailwind `@theme` block. `tests/unit/tokens.test.ts` fails if the two drift, or if any approved text pair drops below 4.5:1 or any UI pair below 3:1.
 
-**Logo handling.** The Owner-confirmed master (`public/brand/spotlight-marketing-logo.jpg`, SHA-256 `6cc6edb3…b2bd3c`) is a JPEG on a black field. It is rendered at its intrinsic 597:335 ratio and composited with:
+**Theme.** Dark-only for the MVP (OI-48). Components use semantic token utilities only. `tests/unit/brand.test.ts` rejects hard-coded color literals in `src/app` and `src/components`, so a light theme can later be added by redefining token values.
+
+**Logo handling (OI-49, temporary).** The Owner-confirmed master (`public/brand/spotlight-marketing-logo.jpg`, SHA-256 `6cc6edb3…b2bd3c`) is a JPEG on a black field. It is rendered at its intrinsic 597:335 ratio and composited with:
 - `mix-blend-mode: screen`, so the black field takes the page color
 - a horizontal edge fade over the outer 4–5% of the width, which hides the master's cropped glow edge
 
-The artwork itself is not modified. An Owner-approved transparent and vector master (DEP-08) would remove the need for both treatments.
+The artwork itself is not modified, and a unit test pins the master's SHA-256. An Owner-approved transparent and vector master (DEP-08) would remove the need for both treatments.
 
 ## 7. Future integration boundaries
 
@@ -164,9 +167,10 @@ The artwork itself is not modified. An Owner-approved transparent and vector mas
 
 | Item | Reason | When |
 |---|---|---|
-| Nonce-based Content-Security-Policy | Next.js inline bootstrap scripts currently need `'unsafe-inline'`. A nonce policy needs per-request handling. | Phase 2 |
+| Nonce-based Content-Security-Policy (**DEP-13**, T-SEC-03) | Next.js inline bootstrap scripts currently need `'unsafe-inline'`. A nonce policy needs per-request handling. No partial nonce implementation is shipped in Phase 1. | **Phase 2, required** |
 | Add CI jobs as required status checks | GitHub ruleset change (Owner) | After the Phase 1 PR's first successful run |
 | ESLint 10 upgrade | Waiting on plugin peer support | When `eslint-config-next` dependencies support it |
 | Favicon and app icons | No Owner-approved icon asset. The page declares an empty icon to avoid 404s. | DEP-08 |
-| Light theme | Only the dark theme is implemented; the logo master exists only on a black field | OI-48 (Owner decision) |
+| Light theme | Dark-only for the MVP (**OI-48 approved**). Token-only colors keep a future light theme possible. | Needs an approved logo variant (DEP-08) |
+| Logo compositing | Temporary treatment (**OI-49 approved**). Remove when a transparent or vector master exists. | DEP-08 |
 | Monitoring and RUM vendor | Spec 02 §8 | DEP-12 |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.2 |
+| Version | 0.3.3 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46 |
 | Open issues | None |
@@ -169,6 +169,7 @@ DPAs and subprocessor terms must be reviewed before production (DEP-05).
 | Format | JPEG, 597 × 335 px, 72 dpi, RGB. No transparency. |
 | SHA-256 (as downloaded) | `6cc6edb39da3a8a6e5412d14989c590039632aff85e4114812c21a2ce8b2bd3c` |
 | Visual description | White "SPOTLIGHT" wordmark (bold, italic, geometric sans), with "MARKETING" below in widely letter-spaced capitals. Both sit within a glowing white/blue-white crescent ("eclipse") arc, on a solid black background. |
+| Presentation | Temporary compositing (screen blend plus a narrow edge fade) **[APPROVED OI-49]**. The master file is never modified, and its checksum is pinned by a test. |
 | Status | **Confirmed by the Owner as the official logo master (2026-11-23).** The Owner confirmed in writing in the documentation session; no signed record exists. The confirmation applies to the file identified by the Drive file ID and SHA-256 above. |
 
 Rules **[APPROVED OI-38]**:
@@ -187,7 +188,7 @@ The Owner must supply or approve these. The JPEG is not committed to this reposi
 
 - Centralized design tokens (color, typography, spacing, radius, elevation, motion) are the single source for the portal UI and the email templates **[PROPOSED]**.
 - Brand assets (logos, imagery, fonts) are replaceable through configuration, without code changes to components **[APPROVED OI-12]**.
-- Responsive layouts from 320 px upward. Light theme required. Dark theme optional **[PROPOSED]**.
+- Responsive layouts from 320 px upward. **Dark-only theme for the MVP [APPROVED OI-48].** Light-theme compatibility is preserved through semantic tokens; a light theme requires an approved logo variant (DEP-08).
 - Components cover the full client journey (01 §3) with consistent states: loading, empty, error, success, and "payment processing."
 
 ## 11. Accessibility and performance **[APPROVED OI-12, OI-23]**

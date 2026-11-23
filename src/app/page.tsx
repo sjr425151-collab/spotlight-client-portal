@@ -93,7 +93,7 @@ function EclipseGlow() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
       <div className="absolute -top-56 -right-40 size-[38rem] rounded-full border border-accent/25 shadow-glow motion-safe:animate-eclipse sm:-top-64 sm:-right-24 sm:size-[46rem]" />
-      <div className="absolute -top-56 -right-40 size-[38rem] rounded-full bg-[radial-gradient(circle_at_30%_70%,rgb(138_180_255/0.12),transparent_60%)] sm:-top-64 sm:-right-24 sm:size-[46rem]" />
+      <div className="absolute -top-56 -right-40 size-[38rem] rounded-full bg-[radial-gradient(circle_at_30%_70%,color-mix(in_srgb,var(--color-accent)_12%,transparent),transparent_60%)] sm:-top-64 sm:-right-24 sm:size-[46rem]" />
     </div>
   );
 }

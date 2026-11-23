@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.0 (draft for owner review) |
+| Version | 0.6.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-49** |
-| Next unused dependency ID | **DEP-13** |
+| Next unused issue ID | **OI-50** |
+| Next unused dependency ID | **DEP-14** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
 Rules:
@@ -17,7 +17,7 @@ Rules:
 
 ## Part 1 — Decided issues (OI-01 to OI-46)
 
-All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46).
+All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46-oi-48oi-49).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -67,32 +67,18 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 | OI-44 | Adjusted final-balance payments | Decided | DEP-03, DEP-06 |
 | OI-45 | Day-21 preview approval hold | Decided | — |
 | OI-46 | Involuntary subscription cancellation | Decided | DEP-03, DEP-06 |
+| OI-48 | Theme mode: dark-only MVP | Decided (2026-11-23) | DEP-08 (light variant, future) |
+| OI-49 | Temporary logo compositing treatment | Decided (2026-11-23) | DEP-08 |
 
 ---
 
 ## Part 2 — Open issues requiring Owner decision
 
-OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. Two genuine gaps remain open: OI-47 (the approved decisions do not say how to adjust the deposit stage) and OI-48 (theme mode, raised during Phase 1).
+OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. One genuine gap remains open: OI-47 (the approved decisions do not say how to adjust the deposit stage). OI-48 (theme mode) was raised in Phase 1 and approved on 2026-11-23; see 08.
 
 | ID | Title | Earliest phase | Status |
 |---|---|---|---|
 | OI-47 | Adjustments to the initial deposit Checkout | 3 | Open |
-| OI-48 | Theme mode: dark-only vs a required light theme | 1 (does not block Phase 1) | Open |
-
-### OI-48 — Theme mode: dark-only vs a required light theme
-
-- **Description:**
-  - Spec 07 §10 (in review, not yet approved) proposes "Light theme required. Dark theme optional".
-  - The Owner-confirmed logo master exists only on a black field (07 §10.1), and no light-background variant exists (DEP-08).
-  - Phase 1 therefore implements a **dark theme only**, derived from the logo.
-- **Options:**
-  - A. Dark-only for the MVP; revise 07 §10 accordingly.
-  - B. Add a light theme once a transparent or light-background logo variant is approved.
-  - C. Light theme required now, with the logo shown on a dark header band.
-- **Recommendation:** A for the MVP, with B as a later enhancement.
-- **Impacted documents:** 07 §10–§12; `src/design/tokens.ts`.
-- **Owner decision required:** Yes. This does not block Phase 1.
-- **Status:** Open.
 
 ### OI-47 — Adjustments to the initial deposit Checkout
 
@@ -130,6 +116,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 | DEP-10 | **Branch protection** on `main` | Owner (GitHub settings) | Phase 1 | **Complete (2026-11-23)**. See detail below. |
 | DEP-11 | Toolchain **version pins** verified against official sources (OI-11) | Implementer | Phase 1 | **Complete (2026-11-23).** See [docs/DEVELOPMENT.md §1](docs/DEVELOPMENT.md#1-toolchain). |
 | DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 5 (required); may be proposed earlier | Not started |
+| DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | Not started. Phase 1 intentionally keeps the documented limitation. |
 
 ### DEP-01 detail — Stripe test-mode catalog
 

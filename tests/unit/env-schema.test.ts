@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { EnvValidationError, isDesignSystemEnabled, parseServerEnv } from "@/config/env-schema";
+import {
+  APP_ENVIRONMENTS,
+  EnvValidationError,
+  isDesignSystemEnabled,
+  parseServerEnv,
+} from "@/config/env-schema";
 
 const valid = { APP_ENV: "test", NEXT_PUBLIC_SITE_URL: "http://localhost:3000" };
 
@@ -70,9 +75,14 @@ describe("parseServerEnv", () => {
 });
 
 describe("isDesignSystemEnabled", () => {
-  it("is disabled only in production", () => {
+  it("is disabled in production", () => {
     expect(isDesignSystemEnabled("production")).toBe(false);
-    expect(isDesignSystemEnabled("staging")).toBe(true);
-    expect(isDesignSystemEnabled("test")).toBe(true);
   });
+
+  it.each(APP_ENVIRONMENTS.filter((appEnv) => appEnv !== "production"))(
+    "remains available in non-production environment %s",
+    (appEnv) => {
+      expect(isDesignSystemEnabled(appEnv)).toBe(true);
+    },
+  );
 });

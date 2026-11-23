@@ -17,8 +17,13 @@ import { cn } from "@/lib/cn";
  * line. A narrow horizontal edge fade (outer 4-5% of the width, clear of the wordmark and
  * of the arc, whose outermost point is about 92% across) hides that crop line. The artwork
  * itself is unchanged.
+ *
+ * OI-49 (Owner-approved 2026-11-23): the blend and edge fade are a TEMPORARY presentation
+ * treatment. The master file must never be edited; tests/unit/brand.test.ts pins its
+ * SHA-256. Remove both treatments when an approved transparent/vector master exists (DEP-08).
  */
-const edgeFade = "linear-gradient(to right, transparent 0%, #000 4%, #000 95%, transparent 100%)";
+// Mask gradients use alpha only; `black` here means "fully visible", not a page color.
+const edgeFade = "linear-gradient(to right, transparent 0%, black 4%, black 95%, transparent 100%)";
 export const LOGO_WIDTH = 597;
 export const LOGO_HEIGHT = 335;
 

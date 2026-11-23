@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
+    "build:production-check": "APP_ENV=production NEXT_PUBLIC_SITE_URL=http://localhost:3101 NEXT_DIST_DIR=.next-production next build",
     "start": "next start --port 3000",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -22,7 +23,7 @@
     "test:e2e": "playwright test",
     "check:bundle": "node scripts/check-client-bundle.mjs",
     "lhci": "lhci autorun",
-    "verify": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm test && pnpm build && pnpm check:bundle && pnpm test:e2e"
+    "verify": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm test && pnpm build && pnpm check:bundle && pnpm build:production-check && pnpm test:e2e"
   },
   "dependencies": {
     "next": "16.4.6",

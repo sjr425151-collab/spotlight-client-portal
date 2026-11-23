@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.7.1 |
-| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value; v0.7.1 records provider verification of the `livemode` field and clarifies `tax_behavior` (§6.1, §6.3), with no change to any catalog value or procedure. |
+| Version | 0.7.2 |
+| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value; v0.7.1 records provider verification of the `livemode` field and clarifies `tax_behavior` (§6.1, §6.3), with no change to any catalog value or procedure; v0.7.2 records verified Stripe key, sandbox, and idempotency behavior and strengthens execution safety (§6.2–§6.4), with no change to any catalog value. |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63, OI-64, OI-65 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
@@ -231,7 +231,7 @@ The machine-readable form of this manifest (used to drive and check the creation
 
 ### 6.2 Duplicate detection, conflicts, and idempotency **[APPROVED OI-65 (conflict proviso); procedure PROPOSED]**
 
-The run reads and classifies **all 11 entries before any write**. If any entry is a conflict, it stops with no write at all.
+**Every execution, including any resumed or repeated run, begins with a complete read and classification of all 11 approved entries before any write.** If any entry is a conflict, or its classification is ambiguous, the run stops with no write at all.
 
 | Class | Condition | Action |
 |---|---|---|
@@ -241,9 +241,14 @@ The run reads and classifies **all 11 entries before any write**. If any entry i
 | **Conflict** | Anything else, including: the `lookup_key` exists with any difference, on another product, or archived; the `catalog_key` exists with any difference, archived, or on more than one product; a product with the entry's exact name exists without a matching `catalog_key` | **Stop the whole run before any write and report to the Owner.** No update, archive, or workaround. |
 
 Idempotency:
-- Each write sends an `Idempotency-Key`: `dep01-v1-<catalog_key>-product` or `dep01-v1-<catalog_key>-price`. Keys are deterministic, so a retried request within Stripe's key-retention window returns the original object instead of creating a second one **[VERIFY-PROVIDER: retention window]**.
-- A Stripe idempotency error (the same key with different parameters) stops the run.
-- Duplicate prevention does not rely on idempotency keys alone. A rerun repeats the full read-and-classify step, so objects created earlier are reused as matches.
+- Each create request sends the approved fixed `Idempotency-Key`: `dep01-v1-<catalog_key>-product` or `dep01-v1-<catalog_key>-price`. The keys are never changed, and no other key is ever used for the same object.
+- **Provider-verified (2026-11-23)** ([Idempotent requests](https://docs.stripe.com/api/idempotent_requests); [Low-level error handling: Idempotency](https://docs.stripe.com/error-low-level#idempotency)):
+  - Stripe retains idempotency keys for **at least 24 hours** and may remove them afterward. Reusing a key after it has been removed **may execute a new request**.
+  - Stripe saves the status code and body of the first request with a key once endpoint execution begins. Identical retries with the same key return that saved response, **including HTTP 500**.
+  - A request with the same key but different parameters returns an error.
+  - A `Stripe-Should-Retry: false` response header means the request must not be retried.
+- A Stripe idempotency error stops the run.
+- **An idempotency key is never assumed to prevent duplicates after it may have expired.** Duplicate prevention relies on the complete read and classification at the start of every run, not on idempotency keys.
 - Price `lookup_key` values are expected to be unique per account and mode, which gives a further guard **[VERIFY-PROVIDER]**.
 
 ### 6.3 Execution constraints **[PROPOSED]**
@@ -255,7 +260,23 @@ Idempotency:
   3. **First request:** `GET /v1/balance`. The run continues only if the response is HTTP 200 **and** `livemode` is present **and** is exactly the boolean `false`. A missing field, `null`, `true`, any other value, or any error aborts the run before any other request.
   4. **Every later response:** each returned product or price must carry `livemode` exactly `false`, under the same rule. List responses are checked object by object. A list with no objects proves nothing about the mode and does not replace step 3.
 - Only list, retrieve, and create requests on products and prices are made. No object is updated, archived, or deleted.
+- **Request ceiling:** a run makes **at most 60 Stripe requests** in total, counting the preflight, reads, creates, and verification reads. A run that would exceed the ceiling stops before the next request.
 - After creation, each product and price is retrieved and compared against §6.1. Any difference stops the run and is reported. It is not repaired.
+
+### 6.4 Failure handling, reconciliation, and concurrency **[PROPOSED]**
+
+- **Stop and report.** On a network error, a timeout, any HTTP error (4xx or 5xx), a `Stripe-Should-Retry: false` header, an uncertain or unexpected response, or a failed verification, the run stops immediately and reports to the Owner. It makes no further request.
+- **No automatic retry of a create request.** A create request whose outcome is ambiguous is never retried automatically, with the same key or a new one.
+- **Reconcile before resuming.** Before any later run, the affected object is reconciled against Stripe's actual catalog: by the read-only list and retrieve requests of the next run's complete classification (§6.2), and, where that is not conclusive, by the Owner checking the Dashboard request logs. A run resumes only when every entry classifies unambiguously.
+- **No replacement after HTTP 500.** A replacement object is never created merely because an earlier request returned HTTP 500. Within the key-retention window, the same key returns the saved 500; after it, the request might execute again. In both cases the entry is reconciled first and is created only if the complete classification shows it is **missing**.
+- **No concurrent runs.** Only one catalog run may be in progress at a time, from one session, with one credential. Before starting, the operator confirms with the Owner that no other run is in progress, and records a run identifier and its start and end times in the result PR. A second run is never started while an earlier run's outcome is unreconciled.
+- **Preserved:** the fail-closed `livemode` preflight (§6.3), the 60-request ceiling, and the approved catalog values (§6.1).
+
+### 6.5 Credential and sandbox **[PROPOSED; provider facts verified]**
+
+- **Restricted-key model (verified 2026-11-23, [Restricted API keys](https://docs.stripe.com/keys/restricted-api-keys)):** each resource's permission is **None**, **Read**, or **Write**. **Write includes Read**: "any key that can write an API resource can also read that resource." `GET` requests need Read, and `POST` and `DELETE` requests need Write. Restricted keys begin `rk_test_` (sandbox) or `rk_live_` (live mode).
+- **Minimum catalog permissions:** **Balance: Read**, **Products: Write**, **Prices: Write**; every other resource **None** (OPEN-ISSUES DEP-01). Balance Read is **inferred** from the documented `GET` rule, because the documentation does not name the Balance resource. It must be confirmed on the Dashboard when the key is created.
+- **Sandbox (verified 2026-11-23, [API keys](https://docs.stripe.com/keys)):** Stripe calls its test environments **sandboxes**, and sandbox keys begin `pk_test_`, `rk_test_`, and `sk_test_`. The catalog is created in **one** Owner-chosen sandbox, whose name (not a secret) is recorded in the result PR. **The same sandbox is used for catalog verification and for all subsequent test-mode development**, because objects in one sandbox are not visible from another.
 - Only the resulting nonsecret Product and Price IDs are recorded, in the table below, through a documentation pull request.
 
 | # | `catalog_key` | Test Product ID | Test Price ID | Verified |

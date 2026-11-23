@@ -151,7 +151,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 ### DEP-01 detail — Stripe test-mode catalog
 
 - **Authorized scope:** create only the missing test-mode products and prices matching 04 §5.1, following 04 §6.
-- **Catalog design (approved 2026-11-23):** 11 products and 11 prices (OI-64), with the naming, metadata, catalog keys, lookup keys, and versioning in 04 §6.1 (OI-65). Conflict handling and idempotency: 04 §6.2. Execution constraints: 04 §6.3. This is a design approval only.
+- **Catalog design (approved 2026-11-23):** 11 products and 11 prices (OI-64), with the naming, metadata, catalog keys, lookup keys, and versioning in 04 §6.1 (OI-65). Conflict handling and idempotency: 04 §6.2. Execution constraints: 04 §6.3. Failure handling, reconciliation, and concurrency: 04 §6.4. Credential and sandbox: 04 §6.5. This is a design approval only.
 - **History (2026-11-23):**
   1. `api.stripe.com` was first blocked by the session network policy.
   2. A credential was then saved to the session environment. A single read-only verification request showed it was a **live-mode** key, and Stripe rejected it as invalid.
@@ -160,24 +160,25 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
   - The Owner has chosen to leave the environment configuration unchanged for now, so the live-mode credential remains saved for `api.stripe.com` on that environment.
   - The Owner has instructed that **no Stripe API requests** be made until a verified test-mode credential workflow is separately authorized.
   - **Re-checked 2026-11-23 (read-only, no Stripe request):** the earlier session environment (`chris-pribyl`, a personal environment shared with other projects) still holds one network secret for `api.stripe.com` (`Authorization` header). Its value is not visible, and nothing indicates that the credential previously identified as live-mode was replaced. **That environment must not be used for this repository.** **[PROPOSED]** The Owner removes that secret in the environment's settings.
-  - **Environment for DEP-01 (2026-11-23):** this repository now uses the dedicated personal environment `spotlight-client-portal-dev`. A read-only check on 2026-11-23 showed it holds **no network secret**, and its allowlist does not include `api.stripe.com`. No Stripe credential has been requested or saved there.
+  - **Environment for DEP-01 (2026-11-23):** this repository now uses the dedicated personal environment `spotlight-client-portal-dev`. A read-only check on 2026-11-23 showed it holds **no network secret**, and its allowlist does not include `api.stripe.com`. No Stripe credential has been requested or saved there. Its allowlist includes `docs.stripe.com` (public documentation only, added by the Owner on 2026-11-23).
 - **To unblock (Owner instruction, 2026-11-23):**
   1. Confirm that the environment used contains **only** an appropriate Stripe test-mode credential (`sk_test_…`, or a restricted test key with write access to Products and Prices only). The live-mode credential must be removed from it. **[PROPOSED]** Use a dedicated environment for this repository rather than the shared personal one.
   2. The Owner gives a **separate, narrowly scoped** written authorization for the catalog creation.
   3. Before any write, the creation action itself verifies `livemode: false` and aborts on a live key (04 §6). It then runs as a separately identifiable action.
-- **Credential permissions [PROPOSED; VERIFY-PROVIDER at key creation]:** a restricted test-mode key (`rk_test_…`) created by the Owner in the Stripe Dashboard in test mode:
+- **Credential permissions [PROPOSED; provider model verified 2026-11-23]:** a restricted sandbox key (`rk_test_…`) created by the Owner in the Stripe Dashboard, in the one sandbox chosen for DEP-01 and all later test-mode development (04 §6.5). Per [Restricted API keys](https://docs.stripe.com/keys/restricted-api-keys), each permission is None, Read, or Write, and **Write includes Read**:
 
   | Resource | Level | Needed for |
   |---|---|---|
-  | Balance | Read | `GET /v1/balance`, the fail-closed `livemode: false` check before any other request (04 §6.3). The field was confirmed in Stripe's OpenAPI specification (`2026-09-30.endive`, commit `2dcbcfb`) on 2026-11-23, and the Owner attests the `rk_test_` key; the run does not rely on this response alone. |
-  | Products | Write | list, retrieve, and create products. In Stripe's restricted-key model, Write includes Read, so no separate Products Read setting is needed. |
-  | Prices | Write | list (including by `lookup_keys`), retrieve, and create prices. Write includes Read. |
+  | Balance | Read | `GET /v1/balance`, the fail-closed `livemode: false` check before any other request (04 §6.3). The field was confirmed in Stripe's OpenAPI specification (`2026-09-30.endive`, commit `2dcbcfb`) on 2026-11-23, and the Owner attests the `rk_test_` key; the run does not rely on this response alone. **Inferred** from Stripe's documented rule that `GET` requests need Read; the documentation does not name the Balance resource, so it must be confirmed on the Dashboard when the key is created. |
+  | Products | Write | list, retrieve, and create products. Write includes Read (verified), so no separate Products Read setting is needed. |
+  | Prices | Write | list (including by `lookup_keys`), retrieve, and create prices. Write includes Read (verified). |
   | Every other resource | None | — |
 
   - If the Dashboard groups prices under the Products resource, that single resource is set to Write.
   - If the Dashboard offers Read and Write as separate options, both Read and Write are granted for Products and Prices.
   - The search endpoints (`/v1/products/search`, `/v1/prices/search`) are not used. List endpoints are used instead.
   - A permission error during the run aborts it. The key is never broadened mid-run.
+  - **Idempotency (verified 2026-11-23):** Stripe keeps keys for at least 24 hours and may remove them afterward; a reused expired key may execute a new request; identical retries can return the saved response, including HTTP 500; `Stripe-Should-Retry: false` prohibits retrying. The run therefore never retries an ambiguous create automatically, reconciles before resuming, and never runs concurrently (04 §6.4).
   - The key is entered by the Owner only through the secure credential form for `api.stripe.com` on `spotlight-client-portal-dev`. It is never pasted in chat, committed, or logged. The Owner revokes it after the IDs are recorded.
 
 ### DEP-03 detail — legal review scope

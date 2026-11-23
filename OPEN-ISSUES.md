@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.12.0 (draft for owner review) |
+| Version | 0.13.0 (draft for owner review) |
 | Status | Draft |
 | Next unused issue ID | **OI-66** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-16** |
@@ -17,7 +17,7 @@ Rules:
 
 ## Part 1 — Decided issues (OI-01 to OI-49, OI-53 to OI-55, OI-63 to OI-65)
 
-All 55 issues listed here are decided at the architectural level (OI-50 to OI-52 remain open in Part 2). The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-49-oi-53oi-55-oi-63oi-65).
+All 55 issues listed here are decided at the architectural level (OI-50 to OI-52, and the proposed OI-56 to OI-62, remain open in Part 2). The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-49-oi-53oi-55-oi-63oi-65).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -88,6 +88,42 @@ OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 (deposi
 | OI-50 | Supabase plan for hosted environments | 2 (hosted only; local work unaffected) | Open |
 | OI-51 | Custom SMTP provider for Supabase Auth email | 2 (hosted only) | Open |
 | OI-52 | CAPTCHA on OTP requests | 2 | Open |
+| OI-56 | AI operations extension: scope and roadmap placement | Post-MVP (proposal) | Open |
+| OI-57 | LLM provider, contract, data categories, retention, and geography | Post-MVP (proposal) | Open |
+| OI-58 | AI worker execution substrate | Post-MVP (proposal) | Open |
+| OI-59 | AI budgets, model per agent, and refusal-fallback policy | Post-MVP (proposal) | Open |
+| OI-60 | AI-drafted client communications: approval rules and disclosure | Post-MVP (proposal) | Open |
+| OI-61 | Retention of AI task, run, and output records | Post-MVP (proposal) | Open |
+| OI-62 | AI worker database identity | Post-MVP (proposal) | Open |
+
+### OI-56 to OI-62 — AI operations extension (proposal)
+
+These issues come from the **proposed** architecture in [docs/proposals/ai-operations/AI-OPERATIONS-ARCHITECTURE.md](docs/proposals/ai-operations/AI-OPERATIONS-ARCHITECTURE.md) (v0.1.0, not approved). None of them authorizes implementation. Each needs an Owner decision before any AI stage can be authorized.
+
+- **OI-56 — Scope and roadmap placement.**
+  - *Conflict:* 01 §4 and the README exclude "Autonomous AI agents" from the MVP, and OI-02 defines five phases with no AI stage.
+  - *Options:* A. Approve a human-in-the-loop AI track after the MVP phases that supply its data (proposal §13). B. Defer entirely. C. Approve a narrower subset (for example, Project Intelligence only).
+  - *Recommendation:* A. The track has no autonomous external actions. AI-1 starts only after Phase 3 is merged, and each agent is enabled only when its data exists.
+  - *Impacted:* 01 §4, OI-02, CLAUDE.md §1/§3.
+- **OI-57 — LLM provider and data handling.**
+  - *Conflict:* no LLM vendor is in the stack (02 §3, OI-11) or the vendor inventory (07 §8).
+  - *Decide:* the provider (recommended: the Anthropic API), the DPA and subprocessor review (DEP-05), the data categories sent (proposal §3.2, §8.2), the retention and zero-data-retention configuration, and inference geography. All **[VERIFY-PROVIDER]**.
+  - *Impacted:* 07 §8, §6; OI-21, OI-40.
+- **OI-58 — Worker execution substrate.**
+  - *Conflict:* the request mentioned Render, which the repository does not reference; approved hosting is Vercel (OI-10).
+  - *Options:* A. Vercel Cron and functions draining a Postgres queue. B. A separate always-on worker host (new vendor). C. `pg_cron` plus `pg_net` (new extensions).
+  - *Recommendation:* A, if the verified plan limits on function duration and cron frequency fit the measured run times.
+- **OI-59 — Budgets and model choice.**
+  - *Decide:* global, per-agent, and per-tenant monthly and daily ceilings; the model per agent, chosen from evaluation results; and whether server-side refusal fallbacks are allowed. With fallbacks, the served model can differ from the requested one.
+  - *Recommendation:* the Owner sets ceilings before AI-2; fallbacks off by default.
+- **OI-60 — AI-drafted client communications.**
+  - *Decide:* who may approve (Owner only, or Owner and Admin, at aal2); whether fresh MFA is needed; the approval expiry (proposed 72 hours); and whether and how AI assistance is disclosed to clients, which needs legal input (DEP-03).
+- **OI-61 — Retention of AI records.**
+  - *Proposed:* tasks, runs, and usage kept 12 months; redacted tool arguments and output content kept 90 days, then hashes only; raw prompts not stored (proposal §5.3). Needs the legal review under OI-40.
+- **OI-62 — AI worker database identity.**
+  - *Conflict:* the Phase 2 secret-key boundary (03 §9.1 rule 6; OI-53 N-8).
+  - *Options:* A. A dedicated `ai_worker` Postgres role with `EXECUTE` on specific functions only (pooler support **[VERIFY-PROVIDER]**). B. `service_role` with a code boundary.
+  - *Recommendation:* A.
 
 ### OI-50 — Supabase plan for hosted environments
 

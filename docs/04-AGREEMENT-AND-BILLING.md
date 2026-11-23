@@ -249,7 +249,11 @@ Idempotency:
 ### 6.3 Execution constraints **[PROPOSED]**
 
 - The credential is a restricted **test-mode** key limited to the permissions in [OPEN-ISSUES.md DEP-01](../OPEN-ISSUES.md#dep-01-detail--stripe-test-mode-catalog).
-- The first request is `GET /v1/balance`. Anything other than `livemode: false` aborts the run. Every later response must also show `livemode: false`.
+- **Test-mode preflight (fail closed).** The presence of a `livemode` field on the Balance object has **not** been verified against current Stripe documentation in this repository **[VERIFY-PROVIDER, DEP-06]**. The preflight therefore never treats a missing or unexpected field as a pass:
+  1. **Before the run:** the Owner attests, from the Stripe Dashboard, that the key was created in **test mode** and begins `rk_test_`. The agent cannot see the key, because the proxy injects it.
+  2. **Before the run:** the Balance object's `livemode` field, and the `livemode` field on Product and Price objects, are confirmed in the current official Stripe API reference and recorded (DEP-06). If any of them cannot be confirmed, the run does not start, and the preflight is escalated to the Owner.
+  3. **First request:** `GET /v1/balance`. The run continues only if the response is HTTP 200 **and** `livemode` is present **and** is exactly the boolean `false`. A missing field, `null`, `true`, any other value, or any error aborts the run before any other request.
+  4. **Every later response:** each returned product or price must carry `livemode` exactly `false`, under the same rule. List responses are checked object by object. A list with no objects proves nothing about the mode and does not replace step 3.
 - Only list, retrieve, and create requests on products and prices are made. No object is updated, archived, or deleted.
 - After creation, each product and price is retrieved and compared against §6.1. Any difference stops the run and is reported. It is not repaired.
 - Only the resulting nonsecret Product and Price IDs are recorded, in the table below, through a documentation pull request.

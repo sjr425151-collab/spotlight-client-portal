@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.2 |
-| Status | **Approved (final): v0.3.2.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.3.2 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). Stage table updated for the Phase 2 authorization (status line only; 08 §5 v0.8.0). |
+| Version | 0.3.3 |
+| Status | **Approved (final): v0.3.2.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.3.2 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). v0.3.3 amends journey steps 5, 10 and 11 for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). Stage table updated for the Phase 2 authorization (status line only; 08 §5 v0.9.0). |
 | Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
@@ -39,13 +39,13 @@ The MVP covers the following client journey **[APPROVED baseline]**:
 | 2 | Client authenticates with passwordless email OTP | Supabase Auth session and auth audit event | 03 §5 |
 | 3 | Client reviews the versioned agreement and project-specific order summary | Agreement version and order summary snapshot | 04 §1–§4 |
 | 4 | Client affirmatively accepts (unchecked checkbox) | Acceptance evidence record | 04 §3 |
-| 5 | Client completes Stripe Checkout for deposit + first $99 maintenance | Verified webhook and ledger entries | 04 §8 |
+| 5 | Client completes Stripe Checkout for deposit + first $99 maintenance. Stripe securely saves the payment method for the final balance, as authorized in the agreement. | Verified webhook and ledger entries | 04 §3.1, §8 |
 | 6 | Verified payment unlocks the branded onboarding intake | Deposit state = `verified` | 05 §3 |
 | 7 | Client submits business details, logos, service areas, photos, contact info, and preferences | Intake submission and asset records | 05 §3–§5 |
 | 8 | Project enters development | Development state | 05 §2 |
 | 9 | Client reviews an immutable, versioned website preview | Preview release record | 05 §6 |
-| 10 | Client explicitly approves the current released preview | Approval record bound to the release ID | 05 §7 |
-| 11 | Client completes the remaining 80% balance | Verified webhook and ledger entries | 04 §10 |
+| 10 | Client explicitly approves the current released preview (**Approve Website & Authorize Final Payment**) | Approval record bound to the release ID | 05 §7 |
+| 11 | Stripe automatically charges the remaining 80% balance to the saved payment method and issues the invoice and receipt. If the charge fails or needs authentication, the client completes it on a secure Stripe-hosted page. | Verified webhook and ledger entries | 04 §10 |
 | 12 | Owner authorizes publication after all gates pass | Gate evaluation and Owner authorization record | 06 §2–§3 |
 | 13 | System verifies the live deployment | Verification record | 06 §9 |
 | 14 | Client receives confirmation and may optionally inquire about more services | Notification and inquiry record | 06 §10–§11 |
@@ -58,7 +58,7 @@ flowchart LR
   C -->|accept| D[Initial Checkout]
   D -->|verified webhook| E[Intake]
   E --> F[Development] --> G[Released preview]
-  G -->|explicit approval| H[Final Checkout]
+  G -->|explicit approval| H[Automatic final-balance charge]
   H -->|verified webhook| I{All gates pass?}
   I -->|Owner authorizes| J[Publish] --> K[Live verification] --> L[Confirmation + optional inquiry]
 ```

@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.3 |
-| Status | **Draft — pending owner sign-off** |
+| Version | 0.3.4 |
+| Status | **Draft — pending owner sign-off.** v0.3.4: final-payment notifications for the automatic charge (Owner instruction, 2026-11-23; OI-17 revised). |
 | Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46 |
 | Open issues | None |
 | Dependencies | DEP-05, DEP-07, DEP-08 |
@@ -53,8 +53,8 @@
 | Approval pending: Admin notification, day 7 (OI-25) | Admin | Resend |
 | Approval personal follow-up due, day 14 (OI-25) | Staff | Resend |
 | Preview approved | Staff | Resend |
-| Final payment due | Client | Resend |
-| Final payment receipt | Client | Stripe |
+| Final payment action required: the automatic charge failed or needs authentication, with the secure Stripe-hosted payment link (04 §10) | Client | Resend |
+| Final balance itemized invoice and payment receipt | Client | Stripe |
 | Final payment verified | Client, Staff | Resend |
 | Maintenance payment failed and recovery reminders during the 7-day period | Client, Owner | Stripe and/or Resend (OI-26) |
 | Hold placed / cleared | Client (payment holds), Owner | Resend |

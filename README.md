@@ -24,7 +24,7 @@ This repository contains the approved specifications, the Phase 1 application fo
 3. Stripe Checkout for the 20% development deposit plus the first $99 monthly maintenance payment.
 4. Onboarding intake and secure asset uploads, unlocked by verified payment.
 5. Immutable versioned previews with explicit client approval.
-6. A separate Checkout for the remaining 80% balance.
+6. Final approval of the website authorizes an automatic charge of the remaining 80% balance to the payment method saved at the initial Checkout. Stripe issues the invoice and receipt; a failed or authentication-required charge is completed on a secure Stripe-hosted page.
 7. Owner-authorized publication behind server-enforced gates, followed by live verification.
 8. Publication confirmation, with optional, inquiry-only service offers.
 9. Billing self-service through the hosted Stripe Customer Portal: payment methods, invoices, and subscription details. Self-service cancellation is disabled. Cancellation is handled by request, with two milestones from the effective cancellation date: maintenance cessation at 12 business days, and the final transfer and offboarding deadline at 60 calendar days.

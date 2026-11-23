@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.1 |
-| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 adds only §18.1, implementation notes **pending Owner confirmation**; no approved text or value is changed. |
+| Version | 0.4.2 |
+| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). v0.4.2 adds only §18.1, implementation notes **pending Owner confirmation**; no approved text or value is changed. |
 | Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-46 |
 | Open issues | OI-47; OI-50, OI-51, OI-52; new OI-53, OI-54 |
 | Dependencies | DEP-06, DEP-13, DEP-14 |
@@ -92,7 +92,8 @@ Key: ✅ allowed · ❌ denied · **M** = only for projects where the client hol
 | Prepare order summary (package selection) | ✅ | ✅ | ❌ | ❌ | 3 |
 | View agreement and order summary | ✅ | ✅ | M | ❌ | 3 |
 | Accept agreement | ❌ | ❌ | M (authorized signer) | ❌ | 3 |
-| Start initial / final Checkout | ❌ | ❌ | M | ❌ | 3 |
+| Start initial Checkout | ❌ | ❌ | M | ❌ | 3 |
+| Approve the website and authorize the final payment (automatic charge, 04 §10), or complete a failed or authentication-required final payment on the Stripe-hosted page **[APPROVED OI-17, revised 2026-11-23]** | ❌ | ❌ | M | ❌ | 3–4 |
 | View payments and ledger | ✅ | ✅ (read) | M (own invoices) | ❌ | 3 |
 | Discount, credit, partial waiver, or full waiver **[APPROVED OI-27]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
 | Hold exceptions (clear a system hold) **[APPROVED OI-26]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
@@ -101,7 +102,7 @@ Key: ✅ allowed · ❌ denied · **M** = only for projects where the client hol
 | Clear `approval_nonresponsive_hold` **without** a client response **[APPROVED OI-45]** | ✅ (reason required) | ❌ | ❌ | ❌ | 4 |
 | Clear `approval_nonresponsive_hold` after a qualifying client response **[APPROVED OI-45]** | ✅ | ✅ | ❌ | ❌ | 4 |
 | Approve or request revisions on a held preview **[APPROVED OI-45]** | ❌ | ❌ | M | ❌ | 4 |
-| Authorize a final-balance discount (adjusted Checkout) **[APPROVED OI-44]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
+| Authorize a final-balance discount (applied to the automatic final-balance invoice) **[APPROVED OI-44, OI-55]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
 | Billing hold Owner review: continue collection, authorize exception, or initiate documented service termination **[APPROVED OI-46]** | ✅ (reauthentication for exception or termination) | ❌ | ❌ | ❌ | 3 |
 | Resolve an unexpected Stripe cancellation exception **[APPROVED OI-46]** | ✅ | ❌ | ❌ | ❌ | 3 |
 | Record personal follow-up outreach (OI-25) | ✅ | ✅ | ❌ | ❌ | 4 |
@@ -549,7 +550,7 @@ Before any user-facing flow is built, a local-only spike resolves:
 
 Results are recorded in 03A. Any result that contradicts this specification is **escalated to the Owner** before implementation continues. Specification wording is never changed silently.
 
-### 18.1 Spike outcomes and implementation notes (v0.4.1) **[PENDING Owner confirmation, OI-53]**
+### 18.1 Spike outcomes and implementation notes (v0.4.2) **[PENDING Owner confirmation, OI-53]**
 
 The spike ran on 2026-11-23 (03A §5). **No result contradicts an approved decision or an approved value.** The approved text above is unchanged. These notes record how the implementation meets it where the provider behaved differently from the assumption, or where the text gave no number. Each is listed for Owner confirmation under OI-53:
 

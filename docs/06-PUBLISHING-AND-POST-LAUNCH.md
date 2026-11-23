@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.0 |
-| Status | **Draft — pending owner sign-off** |
+| Version | 0.4.1 |
+| Status | **Draft — pending owner sign-off.** v0.4.1: publication after the automatic final payment, and recovery without recharging (Owner instruction, 2026-11-23; OI-17 revised). |
 | Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46 |
 | Open issues | None |
 | Dependencies | DEP-03, DEP-06, DEP-09 |
@@ -21,7 +21,7 @@ Gates are evaluated **on the server** by a single gate evaluator, at authorizati
 | G1 | Valid agreement | Agreement state `effective` for the current order summary; no `reacceptance_required` | 04 §1 |
 | G2 | Verified deposit | Deposit `verified` (webhook-derived ledger entry) and not fully refunded | 04 §11–§12 |
 | G3 | Current-version client approval | A client approval exists for the **current** released preview, and that release is the artifact being published | 05 §6–§7 |
-| G4 | Verified final balance (no unresolved contractual balance) | Balance `verified` via webhook, **or** `settled_by_adjustment`: verified payments + Owner-authorized discounts, credits, or waivers = owed **[APPROVED OI-27, OI-44]**. The gate output always discloses an adjustment. | 04 §10, §12 |
+| G4 | Verified final balance (no unresolved contractual balance) | Balance `verified` via webhook (the automatic final-balance charge or its Stripe-hosted completion, 04 §10), **or** `settled_by_adjustment`: verified payments + Owner-authorized discounts, credits, or waivers = owed **[APPROVED OI-27, OI-44]**. The gate output always discloses an adjustment. | 04 §10, §12 |
 | G5 | QA passed | A recorded, release-specific QA result for this release ID (§6), all blocking items passed **[APPROVED OI-33]** | §6 |
 | G6 | Domain readiness | The domain readiness check for this project passed within the freshness window | §5 |
 | G7 | Security checks passed | A recorded security result for this release ID, no critical failures **[APPROVED OI-33]** | §7 |
@@ -131,6 +131,8 @@ Critical security failures always block publication. No exception exists.
 4. Record the deployment ID, `deployment.succeeded` or `deployment.failed`.
 5. Run live verification (§9).
 
+**Publication failure after successful payment [APPROVED OI-17, revised 2026-11-23]:** if deployment or live verification fails after the final balance is `verified`, the balance **keeps its paid status**. The publication is flagged for recovery (state `failed`, an Owner queue item, and an incident record, §9). Recovery re-runs the gates and the deployment with no new charge: publication never creates, retries, or re-attempts a Stripe payment.
+
 ### 8.2 Rollback **[APPROVED OI-22, OI-32; detail PROPOSED]**
 - Owner-initiated, with reauthentication.
 - Target is the previous `live_verified` release for that project.
@@ -215,6 +217,7 @@ After `live_verified`, the client receives a confirmation notification and in-po
 | T-PUB-15 | Each client site deploys to its own project. Environment variables of one client project are not readable from another. (OI-32) |
 | T-PUB-16 | Discontinuation and deactivation are rejected when the only basis is a payment failure or a Stripe cancellation event (OI-46) |
 | T-PUB-17 | While an approval hold is active, publication is blocked by G8, and the gate output identifies it as a fulfillment hold, not a billing hold (OI-45) |
+| T-PUB-18 | A deployment failure after a verified final payment leaves the balance `verified`, flags the publication for recovery, and creates no Stripe invoice or charge on recovery (asserted with a Stripe mock) |
 | T-INQ-01 | Inquiry options appear only after `live_verified` |
 | T-INQ-02 | Submitting an inquiry creates a queue entry and notifications and creates no Stripe objects (asserted with a Stripe mock showing no calls) |
 | T-INQ-03 | Client A cannot submit or view inquiries for project B |

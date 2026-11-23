@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.7.0 (draft for owner review) |
+| Version | 0.8.1 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-53** |
+| Next unused issue ID | **OI-56** (OI-53 and OI-54 are allocated in the open Phase 2 pull request #4) |
 | Next unused dependency ID | **DEP-15** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -17,7 +17,7 @@ Rules:
 
 ## Part 1 — Decided issues (OI-01 to OI-46)
 
-All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46-oi-48oi-49).
+All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46-oi-48oi-49-oi-55).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -69,12 +69,13 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 | OI-46 | Involuntary subscription cancellation | Decided | DEP-03, DEP-06 |
 | OI-48 | Theme mode: dark-only MVP | Decided (2026-11-23) | DEP-08 (light variant, future) |
 | OI-49 | Temporary logo compositing treatment | Decided (2026-11-23) | DEP-08 |
+| OI-55 | Adjusted final-balance collection vehicle (option A) | Decided (2026-11-23) | DEP-06 |
 
 ---
 
 ## Part 2 — Open issues requiring Owner decision
 
-OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice.
+OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. OI-55 (adjusted final-balance collection vehicle) was approved on 2026-11-23 (option A), and collection on the final-balance invoice is authorized; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice.
 
 | ID | Title | Earliest phase | Status |
 |---|---|---|---|
@@ -185,6 +186,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 ### DEP-06 detail — provider verification items added by OI-43 to OI-46
 
 - **Stripe:** a Checkout Session-level discount restricted to the balance product with a single redemption, which must never attach to the customer or subscription (OI-44).
+- **Stripe (OI-17 revised, 2026-11-23):** saving the payment method in subscription-mode Checkout for a later off-session, one-off charge; an automatically charged one-off invoice using the standard balance Price ID; the events for failed charges and required authentication; the Stripe-hosted page for completing the same invoice; idempotency keys; and, for OI-55 (approved, option A), an invoice-level discount restricted to the balance product.
 - **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
 - **Domain registrar (to be selected; revised OI-35):** registration date and expiry data, auto-renew settings, the transfer (auth code) process, and confirmation that hosting deactivation cannot affect a registration.

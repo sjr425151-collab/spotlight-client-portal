@@ -4,7 +4,7 @@
 |---|---|
 | Version | 0.12.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-66** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-67** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-16** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-49, OI-53 to OI-55, OI-63 to OI-65)
+## Part 1 — Decided issues (OI-01 to OI-49, OI-53 to OI-55, OI-63 to OI-66)
 
-All 55 issues listed here are decided at the architectural level (OI-50 to OI-52 remain open in Part 2). The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-49-oi-53oi-55-oi-63oi-65).
+All 56 issues listed here are decided at the architectural level (OI-50 to OI-52 remain open in Part 2). The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-49-oi-53oi-55-oi-63oi-66).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -76,6 +76,7 @@ All 55 issues listed here are decided at the architectural level (OI-50 to OI-52
 | OI-63 | Webhook testing strategy: hybrid (synthetic signed events in CI; real Stripe test-mode verification) | Decided (2026-11-23) | DEP-01, DEP-15 |
 | OI-64 | Stripe test-mode catalog structure: 11 products and 11 prices | Decided (2026-11-23) | DEP-01 |
 | OI-65 | Stripe test-mode catalog naming, metadata, catalog keys, lookup keys, versioning (provided no conflict) | Decided (2026-11-23) | DEP-01 |
+| OI-66 | `Stripe-Should-Retry: false` on a successful, verified HTTP 200 is not by itself a failure; never retried | Decided (2026-11-23) | DEP-01 |
 
 ---
 
@@ -156,6 +157,8 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
   1. `api.stripe.com` was first blocked by the session network policy.
   2. A credential was then saved to the session environment. A single read-only verification request showed it was a **live-mode** key, and Stripe rejected it as invalid.
   3. No search, create, or update request was sent, and no Stripe object was created or modified.
+  4. **Catalog run `dep01-20261123T142608Z-0295d87d`** (14:26:08–14:26:09Z, sandbox "Spotlight Client Portal - Development", 6 requests): `GET /v1/balance` returned `livemode: false`; the sandbox held no products or prices; all 11 entries classified *missing* with no conflict. Request 6 (`POST /v1/products`, key `dep01-v1-essential.deposit-product`, Stripe request `req_v8jMoDuB0OsJq0`) returned HTTP 200 with `Stripe-Should-Retry: false`, and the run stopped under the rule then in force (see OI-66). Nothing else was created.
+  5. **Read-only reconciliation `dep01-reconcile-20261123T143019Z-defd3b34`** (14:30:19–14:30:20Z, 6 `GET` requests, all `livemode: false`): the sandbox holds exactly one product, `prod_VgKrmaWefVnWy1`, which matches the 04 §6.1 manifest for `essential.deposit` exactly (name, all metadata, active, no default price). It has **no price**, no price uses `spotlight_v1_essential_deposit`, and the sandbox holds no prices at all. A resumed run would classify `essential.deposit` as *price missing* and the other 10 entries as *missing*.
 - **Current status:**
   - The Owner has chosen to leave the environment configuration unchanged for now, so the live-mode credential remains saved for `api.stripe.com` on that environment.
   - The Owner has instructed that **no Stripe API requests** be made until a verified test-mode credential workflow is separately authorized.

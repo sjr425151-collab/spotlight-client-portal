@@ -2,10 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22, OI-24 |
-| Open issues | OI-26, OI-27, OI-32, OI-33, OI-41 |
+| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41 |
+| Open issues | OI-45, OI-46 |
+| Dependencies | DEP-03, DEP-06, DEP-09 |
 
 ## 1. Scope
 
@@ -20,15 +21,17 @@ Gates are evaluated **on the server** by a single gate evaluator, at authorizati
 | G1 | Valid agreement | Agreement state `effective` for the current order summary; no `reacceptance_required` | 04 §1 |
 | G2 | Verified deposit | Deposit `verified` (webhook-derived ledger entry) and not fully refunded | 04 §11–§12 |
 | G3 | Current-version client approval | A client approval exists for the **current** released preview, and that release is the artifact being published | 05 §6–§7 |
-| G4 | Verified final balance | Balance `verified` via webhook, **or** a balance adjustment under **[PENDING OI-27]** such that paid + adjusted = owed. The gate output always discloses an adjustment. | 04 §12 |
-| G5 | QA passed | A recorded QA checklist result for this release ID, checklist version current, all mandatory items passed | §6, **[PENDING OI-33]** |
+| G4 | Verified final balance (no unresolved contractual balance) | Balance `verified` via webhook, **or** `settled_by_adjustment`: verified payments + Owner-authorized discounts, credits, or waivers = owed **[APPROVED OI-27]**. The gate output always discloses an adjustment. | 04 §10, §12 |
+| G5 | QA passed | A recorded, release-specific QA result for this release ID (§6), all blocking items passed **[APPROVED OI-33]** | §6 |
 | G6 | Domain readiness | The domain readiness check for this project passed within the freshness window | §5 |
-| G7 | Security checks passed | A recorded security check result for this release ID, all mandatory items passed | §7, **[PENDING OI-33]** |
-| G8 | Billing holds cleared | No active hold of a publication-blocking type | 04 §14, **[PENDING OI-26]** |
+| G7 | Security checks passed | A recorded security result for this release ID, no critical failures **[APPROVED OI-33]** | §7 |
+| G8 | Holds cleared | No active publication-blocking hold (`maintenance_payment_hold`, `dispute_risk_hold`, `owner_manual_hold`; `approval_nonresponsive_hold` per OI-45) **[APPROVED OI-26, OI-37]** | 04 §14 |
 
 Rules:
 - **[APPROVED OI-19]** No override can mark G1–G8 as passed. There is no "force publish."
 - **[APPROVED OI-19]** Results for G2–G4 cannot be fabricated. G5 and G7 are evidence records produced by the checks; they are not toggles.
+- **[APPROVED OI-33]** The only permitted exception is a **documented, Owner-approved performance exception** within G5: performance items that miss the OI-23 thresholds. It must reference the release ID, the measured values, and a reason. **Security, payment and settlement, and explicit client approval can never be bypassed.**
+- QA evidence (G5) and Owner publication authorization (§3) are separate records. Passing QA does not authorize publication, and authorization cannot be recorded without a passing QA result.
 - **[PROPOSED]** The evaluator returns a structured result (each gate, pass/fail, evidence IDs). The result is stored with the authorization record.
 
 ## 3. Owner authorization **[APPROVED OI-22, OI-03]**
@@ -47,8 +50,21 @@ Rules:
 
 - The published artifact is the **same** immutable release the client approved. **[PROPOSED]** It is identified by release number, commit SHA, and build artifact or deployment ID. Rebuilding from a different SHA is a new release that requires new approval.
 - Every client website deploys to an **isolated** target. There are no shared runtime, credentials, or data with the portal or with other clients.
-- The hosting platform and account model are **[PENDING OI-32]**.
-- **[PROPOSED]** Deployment credentials for client sites are held server-side, scoped per target, and never exposed to clients or Admins.
+
+**Client hosting model [APPROVED OI-32]:**
+
+| Requirement | Specification |
+|---|---|
+| Platform | **Agency-managed Vercel hosting** |
+| Isolation | An **independent Vercel deployment (project) per client website**, with separate environment configuration and release history. **[PROPOSED]** Client projects live in a Vercel team separate from the portal's. |
+| Domains | Per-client domain configuration on that client's project |
+| Rollback | Supported per client project (§8.2) |
+| Operational isolation | No shared environment variables, secrets, or build caches across clients **[PROPOSED]** |
+| Ownership | The agency is **not** assumed to own the client's domain or intellectual property. Ownership, cancellation, and transfer follow the final agreement (draft §5, §8; DEP-03) and §8.4. |
+| Scale | Project creation and configuration are automatable and idempotent (**[PROPOSED]** a provisioning record per client site), built only under Phase 4 authorization |
+
+- **[PROPOSED]** Deployment credentials for client sites are held server-side, scoped to the minimum needed, and never exposed to clients or Admins.
+- **[VERIFY-PROVIDER OI-39]** Check Vercel team, project, and domain limits, plan costs at scale, and rollback semantics (DEP-06).
 
 ## 5. Domain readiness **[APPROVED OI-22; checks PROPOSED]**
 
@@ -61,14 +77,29 @@ Checks:
 
 Results are recorded with timestamps. **[PROPOSED]** Freshness window: 24 hours.
 
-## 6. Internal QA **[APPROVED OI-22; criteria PENDING OI-33]**
+## 6. Release-specific QA **[APPROVED OI-22, OI-33]**
 
-**[PROPOSED]** starting checklist (versioned):
+QA is recorded **against the exact release ID**. The approved mandatory coverage areas are:
+
+| Area | Blocking? |
+|---|---|
+| Functional behavior and **lead forms** | Yes. Failed essential functionality blocks. |
+| Responsive design | Yes |
+| Branding and content accuracy | Yes |
+| Performance (OI-23 Lighthouse and Core Web Vitals thresholds) | Yes, unless a documented Owner-approved performance exception exists (§2) |
+| Accessibility | Yes |
+| Security (§7) | Yes. Critical failures cannot be bypassed. |
+| Domain and operational readiness (§5) | Yes |
+| Monitoring and rollback readiness (uptime check configured; previous release available for rollback) | Yes |
+
+Also blocking, through other gates: missing client approval (G3) and unresolved contractual balances (G4).
+
+**[PROPOSED]** detailed checklist items (versioned; the Owner may amend them):
 - All pages from the order scope are present.
 - Forms deliver to the client's contact.
 - No broken links.
 - Mobile, tablet, and desktop layouts checked.
-- Lighthouse thresholds for the client site (adopt the OI-23 targets as goals **[PROPOSED]**).
+- Lighthouse and Core Web Vitals thresholds for the client site use the OI-23 values **[APPROVED OI-33]**.
 - Accessibility automated scan: no critical violations.
 - Content proofread against intake.
 - Favicon and metadata present.
@@ -77,7 +108,9 @@ Results are recorded with timestamps. **[PROPOSED]** Freshness window: 24 hours.
 
 The result records the checklist version, release ID, staff actor, item results, and evidence links.
 
-## 7. Security gate **[APPROVED OI-22; criteria PENDING OI-33]**
+## 7. Security gate **[APPROVED OI-22, OI-33]**
+
+Critical security failures always block publication. No exception exists.
 
 **[PROPOSED]** starting checklist:
 - HTTPS enforced, with HSTS.
@@ -88,27 +121,44 @@ The result records the checklist version, release ID, staff actor, item results,
 - No debug endpoints.
 - Admin and CMS surfaces (if any) protected.
 
-## 8. Publication execution, rollback, and incidents
+## 8. Publication execution, rollback, incidents, and live-site continuity
 
-**Execution** **[PROPOSED]**:
+### 8.1 Execution **[PROPOSED]**
 1. Re-evaluate the gates. Abort if any fails.
 2. Record `deployment.started` with the release ID and target.
 3. Deploy the approved artifact. The job is idempotent, keyed by authorization ID.
 4. Record the deployment ID, `deployment.succeeded` or `deployment.failed`.
 5. Run live verification (§9).
 
-**Rollback** **[APPROVED OI-22; detail PROPOSED]**:
+### 8.2 Rollback **[APPROVED OI-22, OI-32; detail PROPOSED]**
 - Owner-initiated, with reauthentication.
 - Target is the previous `live_verified` release for that project.
 - Records the reason and the incident reference.
 - A rollback never deletes release or approval history.
 - Rolling back to a release that has never been live requires the full gate process.
 
-**Incidents** **[APPROVED OI-22]**:
+### 8.3 Incidents **[APPROVED OI-22]**
 - Severity classification (**[PROPOSED]** SEV1 site down or security issue; SEV2 major functionality broken; SEV3 minor).
 - The Owner is notified for SEV1/SEV2.
 - An incident record is kept with timeline and resolution.
 - The client is notified when the client-facing impact warrants it.
+
+### 8.4 Live-site continuity and decommissioning
+
+| Situation | Effect on an already-published website |
+|---|---|
+| `maintenance_payment_hold` | **None.** The site stays online. New publication and nonessential maintenance are paused. **[APPROVED OI-26]** |
+| Open dispute or `dispute_risk_hold` | **None.** No takedown merely because a dispute exists. **[APPROVED OI-37]** |
+| `approval_nonresponsive_hold` | None to the live site **[PROPOSED; scope PENDING OI-45]** |
+| Subscription cancelled, transition deadline not reached | Site stays online. Transition assistance continues. **[APPROVED OI-35]** |
+| Transition deadline passed (04 §15.1) | The agency **may** discontinue managed hosting and remove the site, subject to the final agreement and applicable law (DEP-03). |
+
+Decommissioning **[PROPOSED]**:
+- An Owner-authorized action with reauthentication and an audit event.
+- It checks that the transition deadline has passed and that no legal hold applies.
+- It confirms that the transfer materials were provided.
+- It **never** changes or cancels a client-owned domain registration.
+- Records are retained per 07 §6.
 
 ## 9. Live verification **[APPROVED OI-22]**
 
@@ -153,6 +203,11 @@ After `live_verified`, the client receives a confirmation notification and in-po
 | T-PUB-08 | Live verification failure prevents the confirmation notification and creates an incident |
 | T-PUB-09 | Rollback requires the Owner and reauthentication, targets the last verified release, and preserves history |
 | T-PUB-10 | A deployment job retried with the same authorization ID does not deploy twice |
+| T-PUB-11 | A performance exception is accepted only from the Owner, with a release ID and reason. No exception mechanism exists for security, payment, or approval items. (OI-33) |
+| T-PUB-12 | QA results attach to one release ID. A new release requires new QA evidence. |
+| T-PUB-13 | No billing hold, dispute, or approval hold triggers any undeploy or domain change on a live site (OI-26, OI-37) |
+| T-PUB-14 | Decommissioning is rejected before the transition deadline, under a legal hold, or by anyone but the Owner (OI-35) |
+| T-PUB-15 | Each client site deploys to its own project. Environment variables of one client project are not readable from another. (OI-32) |
 | T-INQ-01 | Inquiry options appear only after `live_verified` |
 | T-INQ-02 | Submitting an inquiry creates a queue entry and notifications and creates no Stripe objects (asserted with a Stripe mock showing no calls) |
 | T-INQ-03 | Client A cannot submit or view inquiries for project B |

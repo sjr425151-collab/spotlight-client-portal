@@ -2,10 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-03, OI-08, OI-09, OI-19 |
-| Open issues | OI-27, OI-39 |
+| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39 |
+| Open issues | OI-45 |
+| Dependencies | DEP-06 |
 
 ## 1. Security objectives
 
@@ -54,8 +55,17 @@ Key: ✅ allowed · ❌ denied · **M** = only for projects where the client hol
 | Accept agreement | ❌ | ❌ | M (authorized signer) | ❌ |
 | Start initial / final Checkout | ❌ | ❌ | M | ❌ |
 | View payments and ledger | ✅ | ✅ (read) | M (own invoices) | ❌ |
-| Financial exception / balance adjustment **[PENDING OI-27]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
-| Place an Owner manual billing hold | ✅ | ❌ | ❌ | ❌ |
+| Discount, credit, partial waiver, or full waiver **[APPROVED OI-27]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
+| Hold exceptions (clear a system hold) **[APPROVED OI-26]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
+| Place / clear `owner_manual_hold` or `dispute_risk_hold` | ✅ | ❌ | ❌ | ❌ |
+| Place / clear `approval_nonresponsive_hold` | **[PENDING OI-45]** | **[PENDING OI-45]** | ❌ | ❌ |
+| Record personal follow-up outreach (OI-25) | ✅ | ✅ | ❌ | ❌ |
+| Respond to or settle a dispute **[APPROVED OI-37]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
+| Discretionary refund decision **[APPROVED OI-35]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
+| Open Stripe Customer Portal for own billing **[APPROVED OI-29]** | ❌ | ❌ | M (billing contact) | ❌ |
+| Submit subscription cancellation request **[APPROVED OI-35]** | ❌ | ❌ | M | ❌ |
+| Confirm cancellation / schedule it in Stripe | ✅ | ❌ **[PROPOSED]** | ❌ | ❌ |
+| Decommission a client site after the transition deadline | ✅ (reauthentication) | ❌ | ❌ | ❌ |
 | Submit / edit intake | ❌ | ✅ (correct on client's behalf, audited) **[PROPOSED]** | M | ❌ |
 | Upload assets | ✅ | ✅ | M | ❌ |
 | Approve non-standard file types / quota exceptions | ✅ | ✅ (within approved rules) | ❌ | ❌ |
@@ -107,7 +117,10 @@ Owner and Admin **cannot** approve a preview on a client's behalf, accept an agr
 - **High-risk actions** need a fresh reauthentication (**[PROPOSED]** MFA challenge within the last 5 minutes):
   - authorize publication
   - initiate rollback
-  - financial exception or balance adjustment
+  - financial adjustment (discount, credit, waiver) **[APPROVED OI-27]**
+  - discretionary refund, dispute response or settlement
+  - hold exception
+  - site decommissioning
   - staff role change
   - deletion execution
   - billing hold clearance where manual clearance is allowed
@@ -171,7 +184,9 @@ Minimum event catalog **[PROPOSED]**:
 | No override may create a payment, a successful Stripe status, a client approval, or a QA pass | Approved |
 | No general-purpose "mark as paid" action exists in any interface or API | Approved |
 | No override may silently bypass a mandatory publication gate | Approved |
-| A genuine contractual balance adjustment is a separately authorized, documented ledger entry | Approved in principle. Mechanism **[PENDING OI-27]**. |
+| Discounts, credits, and partial or full waivers are Owner-only ledger entries, with reason, reauthentication, and audit. A full waiver is recorded as a waiver, never as a Stripe payment. | **Approved (OI-27)**. Payment mechanism for adjusted amounts: **[PENDING OI-44]** |
+| The only permitted QA exception is a documented, Owner-approved performance exception. Security, payment/settlement, and client approval cannot be bypassed. | **Approved (OI-33)** |
+| Dispute evidence is compiled from authoritative records only. No fabricated evidence and no automatic concession. | **Approved (OI-37)** |
 | An Owner may *add* holds or *block* publication at any time | **[PROPOSED]** |
 
 ## 13. Security acceptance tests **[PROPOSED]**

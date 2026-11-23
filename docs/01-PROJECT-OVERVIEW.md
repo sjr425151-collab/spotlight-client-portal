@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24 |
+| Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
 ## 1. Identity and purpose
@@ -49,6 +49,8 @@ The MVP covers the following client journey **[APPROVED baseline]**:
 | 12 | Owner authorizes publication after all gates pass | Gate evaluation and Owner authorization record | 06 §2–§3 |
 | 13 | System verifies the live deployment | Verification record | 06 §9 |
 | 14 | Client receives confirmation and may optionally inquire about more services | Notification and inquiry record | 06 §10–§11 |
+
+Ongoing billing self-service: through the hosted Stripe Customer Portal, clients manage payment methods and view invoices and subscription details. Self-service cancellation is disabled. Cancellation requests follow 04 §15.1.1. **[APPROVED OI-29]**
 
 ```mermaid
 flowchart LR
@@ -95,11 +97,13 @@ Each phase requires **separate written owner authorization**. None is currently 
 
 | Phase | Scope | Entry criteria **[PROPOSED]** | Exit criteria **[PROPOSED]** |
 |---|---|---|---|
-| 1. Foundation and CI | Repository tooling, CI, environments, design tokens scaffold | Specs 01, 02 and CLAUDE.md approved; Phase 1 authorized | CI green on lint, typecheck, unit and e2e smoke; environments documented |
-| 2. Auth, security, tenant isolation | Supabase Auth, memberships, RLS, audit log, MFA | Spec 03 approved; Phase 1 exited; Phase 2 authorized | All 03 §13 tests pass |
-| 3. Agreement and Stripe test-mode billing | Agreement acceptance, initial Checkout, webhooks, ledger | Spec 04 approved; OI-26, 27, 28, 29, 30 resolved; Phase 3 authorized | All 04 §16 tests pass in test mode |
-| 4. Intake, fulfillment, previews, final payment, publishing | 05, 06, 07 workflows | Specs 05–07 approved; OI-25, 31, 32, 33 resolved; Phase 4 authorized | All 05, 06, 07 acceptance tests pass |
-| 5. Hardening and production readiness | Performance, security review, runbooks, production config | Phases 1–4 exited; Phase 5 authorized | Launch checklist complete; production launch requires separate authorization (OI-01 stage 4) |
+| 1. Foundation and CI | Repository tooling, CI, environments, design tokens scaffold | Specs 01, 02 and CLAUDE.md approved; DEP-10 (branch protection) and DEP-11 (version pins) planned; Phase 1 authorized | CI green on lint, typecheck, unit and e2e smoke; environments documented |
+| 2. Auth, security, tenant isolation | Supabase Auth, memberships, RLS, audit log, MFA | Spec 03 approved; Phase 1 exited; Supabase items of DEP-06 verified; Phase 2 authorized | All 03 §13 tests pass |
+| 3. Agreement and Stripe test-mode billing | Agreement acceptance, initial Checkout, Customer Portal (test), webhooks, ledger, holds, adjustments | Spec 04 approved; DEP-01 (test catalog) complete; OI-43, OI-44, OI-46 decided; Stripe items of DEP-06 verified; Phase 3 authorized | All 04 §16 tests pass in test mode |
+| 4. Intake, fulfillment, previews, final payment, publishing | 05, 06, 07 workflows | Specs 05–07 approved; OI-42, OI-45 decided; DEP-07 (scanner) selected; Vercel/Resend items of DEP-06 verified; Phase 4 authorized | All 05, 06, 07 acceptance tests pass |
+| 5. Hardening and production readiness | Performance, security review, runbooks, production config | Phases 1–4 exited; Phase 5 authorized | 02 §11 prerequisites P-1–P-8 evidenced; DEP-02–DEP-05, DEP-08, DEP-09 complete; production launch requires separate authorization (OI-01 stage 4) |
+
+**Stripe test-mode catalog exception [APPROVED OI-30]:** the Owner has narrowly authorized creating the test-mode products and prices in 04 §6. This is not Phase 3 authorization, and it authorizes no integration code, webhook deployment, or live-mode change.
 
 ## 8. Approval governance **[APPROVED OI-01]**
 

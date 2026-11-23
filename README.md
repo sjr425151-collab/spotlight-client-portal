@@ -9,10 +9,11 @@ A secure client portal for Spotlight Marketing LLC. It takes each website client
 
 | Stage | Status |
 |---|---|
-| Architecture approval | Approved (owner-provided baseline; register pending owner verification) |
+| Architecture approval | Approved: decisions OI-01–OI-41 (register pending owner verification) |
 | Specification reconciliation | **In progress.** Documentation only. |
 | Implementation | **Not authorized.** No phase may begin without separate written owner authorization. |
 | Production launch | **Not authorized** |
+| Stripe test-mode catalog (narrow exception, OI-30) | Authorized; **blocked** pending a valid test-mode key (DEP-01) |
 
 This repository currently contains **documentation only**. See [CLAUDE.md](CLAUDE.md) before making any change.
 
@@ -26,6 +27,7 @@ This repository currently contains **documentation only**. See [CLAUDE.md](CLAUD
 6. A separate Checkout for the remaining 80% balance.
 7. Owner-authorized publication behind server-enforced gates, followed by live verification.
 8. Publication confirmation, with optional, inquiry-only service offers.
+9. Billing self-service through the hosted Stripe Customer Portal: payment methods, invoices, and subscription details. Self-service cancellation is disabled; cancellation is handled by request, with a 12-business-day hosting transition.
 
 **Not in the MVP:** a full client dashboard, AI agents, Google Sheets/Drive or CRM integrations, marketing automation, automatic upsell purchases, and multi-agency tenancy. See [01 §4](docs/01-PROJECT-OVERVIEW.md#4-exclusions-and-future-roadmap).
 
@@ -36,11 +38,13 @@ This repository currently contains **documentation only**. See [CLAUDE.md](CLAUD
 | App | Next.js App Router, strict TypeScript, Tailwind CSS |
 | Runtime / tooling | Node.js 24 LTS, pnpm, ESLint, Prettier, Vitest, Playwright |
 | Auth / data / files | Supabase Auth (email OTP), Postgres with RLS, private Storage |
-| Payments | Stripe Checkout and Billing (signature-verified webhooks) |
+| Payments | Stripe Checkout, Billing, and Customer Portal (signature-verified webhooks) |
 | Email | Resend (operational), Supabase Auth (auth flows), Stripe (receipts) |
 | Hosting / CI | Vercel, GitHub Actions |
 
-Client websites are **separate, isolated deployments**. They are not pages inside the portal.
+Client websites are **separate, isolated deployments**: agency-managed Vercel, one project per client. They are not pages inside the portal.
+
+**Brand:** the official logo source is the Google Drive "SLM" folder (`https://drive.google.com/drive/folders/1SGrxZ6fOI6PZUVk76XYaEFS4pQ26LvGu`). See [07 §10.1](docs/07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#101-official-logo-source-approved-oi-38). Final visual design requires Owner approval.
 
 ## Documentation index
 
@@ -54,7 +58,7 @@ Client websites are **separate, isolated deployments**. They are not pages insid
 | [06 — Publishing and Post-Launch](docs/06-PUBLISHING-AND-POST-LAUNCH.md) | Publication gates, deployment, verification, rollback, inquiries |
 | [07 — Notifications, Privacy, and Design](docs/07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md) | Outbox, event catalog, retention, privacy, design system |
 | [08 — Decisions and Changelog](docs/08-DECISIONS-AND-CHANGELOG.md) | Decision register OI-01–OI-24, change control |
-| [OPEN-ISSUES.md](OPEN-ISSUES.md) | Unresolved decisions (OI-25 onward) |
+| [OPEN-ISSUES.md](OPEN-ISSUES.md) | Decided issues, open Owner decisions (OI-42 onward), and implementation dependencies (DEP-nn) |
 | [CLAUDE.md](CLAUDE.md) | Operating instructions for contributors and AI agents |
 
 ## Environments

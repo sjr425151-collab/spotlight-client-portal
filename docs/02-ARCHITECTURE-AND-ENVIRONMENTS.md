@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-07, OI-10, OI-11, OI-22, OI-23 |
-| Open issues | OI-32, OI-39, OI-41 |
+| Decisions | OI-07, OI-10, OI-11, OI-22, OI-23, OI-29, OI-32, OI-39, OI-41 |
+| Dependencies | DEP-06, DEP-09, DEP-10, DEP-11, DEP-12 |
 
 ## 1. Application architecture
 
@@ -28,8 +28,8 @@ flowchart TB
   end
   STRIPE[Stripe]
   RESEND[Resend]
-  SCAN[Malware scanner - OI-31]
-  CS[Client website deployments - OI-32]
+  SCAN[Malware scanner - vendor DEP-07]
+  CS[Client websites - one Vercel project per client]
 
   UI --> SSR
   SSR --> AUTH & DB & ST
@@ -50,7 +50,7 @@ Architectural principles:
 | Concern | Portal | Client websites |
 |---|---|---|
 | Purpose | Onboarding, billing, approval, publishing control | Each client's public website |
-| Hosting | Vercel project for the portal | **Isolated per-client deployments.** Platform and account model pending (**[PENDING OI-32]**). |
+| Hosting | Vercel project for the portal | **Agency-managed Vercel. An independent project per client website**, with separate environment configuration and release history **[APPROVED OI-32]** (06 §4) |
 | Domain | `portal.spotlight-marketing.co` | Each client's own domain |
 | Code | This repository | Not in this repository. Referenced only by immutable release identifiers. |
 | Data | Portal database and storage | None of the portal's data. Approved assets are copied in at build time by a controlled process. |
@@ -70,7 +70,7 @@ The GoHighLevel agency site is a third, independent system. The portal does not 
 | Unit/integration tests | Vitest | — |
 | E2E tests | Playwright | — |
 | Auth/DB/storage | Supabase Auth, Postgres, RLS, Storage | — |
-| Payments | Stripe Checkout and Billing | 04 |
+| Payments | Stripe Checkout, Billing, and hosted Customer Portal (OI-29) | 04 |
 | Email | Resend (operational), Supabase Auth email (auth) | 07 |
 | Hosting/CI | Vercel, GitHub Actions | — |
 
@@ -146,12 +146,59 @@ The monitoring vendor is not selected; it is chosen in Phase 1 or Phase 5.
 4. **[PROPOSED]** The Stripe webhook signing secret, the Supabase service-role key, and the Resend API key are rotated on staff change or suspected exposure, following a documented procedure.
 5. Stripe **Price IDs** are identifiers, not credentials. They may be stored in versioned configuration (04 §5).
 
-## 10. Dependencies and unresolved infrastructure decisions
+## 10. Provider verification **[APPROVED OI-39]**
+
+Before implementing any integration, verify these against current official provider sources and record the result in the relevant spec (DEP-06):
+- current APIs
+- supported features
+- authentication requirements
+- webhook capabilities
+- security controls
+- usage limits
+- costs
+- recovery and failure behavior
+
+This applies to Stripe, Supabase, Vercel, Resend, and any future Google integration. A finding that materially changes the architecture or cost is **escalated to the Owner** before work continues.
+
+| Provider | Items marked **[VERIFY-PROVIDER]** |
+|---|---|
+| Stripe | One-time prices in subscription-mode Checkout; Customer Portal configuration (cancellation disabled); retry settings; dispute events; Stripe Tax; webhook event set |
+| Supabase | Email OTP and custom SMTP; disabling sign-ups; MFA/AAL2; RLS on Storage; resumable uploads and the 250 MB object limit; PITR/backup retention versus 30 days |
+| Vercel | Protected previews; separate environments; instant rollback; per-client project and domain limits; team separation; costs at scale |
+| Resend | Domain verification per environment; idempotency keys; bounce and complaint webhooks |
+
+## 11. Production infrastructure **[APPROVED OI-41]**
+
+**Approved architecture:**
+- `portal.spotlight-marketing.co` on Vercel
+- Supabase, Stripe, Resend, and GitHub
+- independent Vercel deployments for client websites
+
+**The main agency website remains unchanged.**
+
+Prerequisites before **production deployment**, each requiring evidence:
+
+| # | Prerequisite |
+|---|---|
+| P-1 | Isolated environments (§4) configured and verified |
+| P-2 | Protected DNS: registrar lock and MFA on the DNS account; only a `portal` subdomain record added; GoHighLevel apex records untouched **[PROPOSED detail]** |
+| P-3 | Authentication and authorization verified (03 §13 all passing) |
+| P-4 | Stripe test-mode payment scenarios verified (04 §16 all passing in test mode) |
+| P-5 | Security testing completed (03 §13 and an independent review **[PROPOSED]**) |
+| P-6 | Monitoring active (§8) |
+| P-7 | Backup restore tested and portal rollback rehearsed (§6) |
+| P-8 | Release-specific QA for the portal release |
+| P-9 | **Explicit Owner production launch authorization (OI-01 stage 4)** |
+
+None of P-1 to P-9 is complete. Documenting this architecture does **not** authorize creating production infrastructure, changing DNS, or deploying (DEP-09).
+
+## 12. Dependencies
 
 | Item | Reference |
 |---|---|
-| Client website hosting/account model | OI-32 |
-| Provider plan capabilities (protected previews, PITR retention, MFA, resumable uploads) | OI-39 |
-| Production DNS for the `portal` subdomain alongside GoHighLevel | OI-41 |
-| Monitoring vendor | To be proposed in Phase 1 **[PROPOSED]** |
-| Malware scanning infrastructure | OI-31 |
+| Provider verification | DEP-06 |
+| Malware scanning vendor | DEP-07 |
+| Production infrastructure and DNS | DEP-09 |
+| Branch protection on `main` (Owner action) | DEP-10 |
+| Toolchain version pins | DEP-11 |
+| Monitoring vendor | DEP-12 |

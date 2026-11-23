@@ -2,10 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-05, OI-09, OI-18, OI-20 |
-| Open issues | OI-25, OI-26, OI-31, OI-39 |
+| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39 |
+| Open issues | OI-42, OI-43, OI-45 |
+| Dependencies | DEP-06, DEP-07 |
 
 ## 1. Principle **[APPROVED OI-05]**
 
@@ -20,8 +21,8 @@ Each lifecycle dimension has its **own** state, derived from authoritative recor
 | Intake | `locked → open → submitted → accepted_by_staff` (+ `changes_requested`) | Intake records |
 | Development | `not_started → in_progress → ready_for_preview` (+ `paused`) | Staff-recorded milestones (informational, never a gate) |
 | Preview approval | Per release: `released → approved` / `superseded` / `withdrawn` | Preview release and approval records (§6–§7) |
-| Final balance | `not_due → due → pending → verified` (+ `failed`, `refunded`, `disputed`, `adjusted` **[PENDING OI-27]**) | Webhook-derived ledger |
-| Billing holds | Zero or more active holds | Hold records (04 §14, **[PENDING OI-26]**) |
+| Final balance | `not_due → due → pending → verified` (+ `failed`, `refunded`, `disputed`, `settled_by_adjustment` **[APPROVED OI-27]**, meaning paid + Owner-authorized adjustments = owed, never a fabricated payment) | Webhook-derived ledger |
+| Holds | Zero or more active holds | Hold records (04 §14) **[APPROVED OI-25, OI-26, OI-37]** |
 | Publication | `not_eligible → eligible → authorized → deploying → live_unverified → live_verified` (+ `failed`, `rolled_back`) | Gate evaluation and deployment records (06) |
 
 ```mermaid
@@ -105,7 +106,7 @@ stateDiagram-v2
 
 Rules:
 1. **[APPROVED]** Validate actual content, not just extension or declared MIME type. **[PROPOSED]** Check magic bytes; reject mismatches and polyglots.
-2. **[APPROVED]** Malware screening is required before an asset is usable. The scanning approach is **[PENDING OI-31]**. Until it is resolved, nothing leaves `quarantined` in any environment that handles real client data.
+2. **[APPROVED OI-31]** Every upload stays in quarantine until malware scanning finishes. A **failed scan blocks both access and fulfillment**: the asset becomes `rejected` and cannot be downloaded, previewed, or used in a release. A failed scan produces an audit record and an **actionable notification** to the client (re-upload guidance) and to staff (07 §4). The scanning **vendor is selected after provider and cost verification** (DEP-07). Until a vendor is in place, nothing leaves `quarantined` in any environment that handles real client data.
 3. **[APPROVED]** SVG must be sanitized. **[PROPOSED]** Strip scripts, event handlers, external references, and `foreignObject`. Keep the original in quarantine storage, and serve only the sanitized output.
 4. **[APPROVED]** HEIC must be handled. **[PROPOSED]** Convert to JPEG/WEBP derivatives and keep the original.
 5. **[APPROVED]** Safe image/video processing. **[PROPOSED]** Run in an isolated worker with dimension and pixel limits (decompression-bomb protection), and strip EXIF location metadata from derivatives.
@@ -128,14 +129,32 @@ Rules:
 | Inputs | Explicit approval action on that release ID, plus an optional comment |
 | Records | `preview_approvals` (release ID, user ID, timestamp, IP/UA **[PROPOSED]**) — insert-only |
 | Gate rule | The approval gate passes only if an approval exists **for the current released release ID** |
-| Silence | **Never** treated as approval. No timer converts silence into approval. **[APPROVED]** |
-| Nonresponsive client | **[PENDING OI-25]**. Reminders and escalation only (proposal B). |
+| Silence | **Never** treated as approval. No timer converts silence into approval. **[APPROVED OI-18, OI-25]** |
+| Nonresponsive client | §7.1 **[APPROVED OI-25]** |
 | Permissions | Owner/Admin cannot approve on a client's behalf |
 | Concurrency | Approving a release that was superseded between page load and submission is rejected with a reload prompt |
 | Idempotency | A repeat approval of the same release by the same user returns the existing record |
 | Audit | `preview.released`, `preview.approved`, `preview.superseded`, `preview.withdrawn` |
 
-The owner-authored draft agreement §3 gives the client five business days to identify material deviations. **[PROPOSED]** The portal shows this as an informational review window only. It does not change the explicit-approval rule. See OI-25.
+The owner-authored draft agreement §3 gives the client five business days to identify material deviations. **[PROPOSED]** The portal shows this as an informational review window only. It does not change the explicit-approval rule.
+
+### 7.1 Nonresponsive client escalation **[APPROVED OI-25]**
+
+Days are calendar days counted from the release date of the **current** released preview **[PROPOSED: in the business time zone, OI-43]**. Releasing a new preview restarts the schedule.
+
+| Day | Action | Actor | Audit event |
+|---|---|---|---|
+| 0 | Preview released. The client is asked to give explicit approval or request revisions. | System / staff | `preview.released` |
+| 3 | First reminder to the client | System (outbox) | `approval.reminder_1_sent` |
+| 7 | Second reminder to the client, plus an Admin notification | System (outbox) | `approval.reminder_2_sent`, `approval.admin_notified` |
+| 14 | Personal follow-up escalation. Staff record the outreach (channel, date, summary). | Staff | `approval.personal_followup_recorded` |
+| 21+ | An `approval_nonresponsive_hold` **may** be applied, but only after documented outreach exists. Who may apply it, and what it pauses: **[PENDING OI-45]**. | See OI-45 | `hold.placed` |
+
+Rules **[APPROVED OI-25]**:
+- Silence never constitutes approval.
+- The hold does **not** cancel the subscription, waive any balance, or satisfy any publication requirement.
+- A client response (approval or revision request) stops the schedule.
+- Every step is auditable.
 
 ## 8. Revision handling **[PROPOSED]**
 
@@ -155,7 +174,11 @@ Queues are **computed** from authoritative state. They are never maintained by h
 | Intake review | Intake `submitted` |
 | In development | Intake accepted, no current release |
 | Awaiting client approval | Current release with no approval |
-| Approval stalled | Awaiting approval beyond the reminder threshold (OI-25) |
+| Approval follow-up due | Current release unapproved at day 14 with no recorded personal follow-up (OI-25) |
+| Approval hold eligible | Current release unapproved at day 21+ with documented outreach (OI-25) |
+| Payment recovery | Failed maintenance renewal within the 7-day recovery period (OI-26) |
+| Cancellation transitions | Effective cancellations with transition deadlines approaching or passed (OI-35) |
+| Disputes | Open disputes, ordered by evidence due date (OI-37) |
 | Awaiting final payment | Approval current, balance not `verified` |
 | Ready for publication review | All gates pass except Owner authorization |
 | Blocked by hold | Any active blocking hold |
@@ -189,3 +212,6 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-UP-06 | Cross-tenant: client A cannot upload into, list, or download from project B paths |
 | T-UP-07 | Failed uploads are purged after 7 days |
 | T-UP-08 | Uploading an asset never changes any preview or live site |
+| T-UP-09 | A failed scan makes the asset `rejected`, blocks its download and release use, and sends client and staff notifications (OI-31) |
+| T-LC-10 | Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) |
+| T-LC-11 | The approval hold cannot be placed without a recorded personal follow-up. Placing it never creates an approval or alters billing. |

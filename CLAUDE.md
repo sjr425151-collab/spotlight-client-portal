@@ -8,6 +8,7 @@ These instructions apply to every contributor and AI agent working in this repos
 |---|---|
 | Architecture | Approved |
 | Specification reconciliation | Documentation-only changes authorized |
+| Stripe test-mode catalog (OI-30) | Narrow exception only; see §5 |
 | **Implementation** | **NOT AUTHORIZED** |
 | **Production launch** | **NOT AUTHORIZED** |
 
@@ -58,6 +59,12 @@ Each phase requires separate written owner authorization. Work only within the a
 
 - Never access, request, print, or commit production or live credentials.
 - Never create, modify, or delete Stripe products, prices, customers, subscriptions, coupons, or Checkout/Portal configurations. Catalog changes are Owner actions.
+- **Single narrow exception (OI-30):** the Owner has authorized creating the approved **test-mode** catalog (04 §6), and nothing else. Before any write:
+  - verify the credential is test mode (`livemode: false`), and abort on any live-mode key
+  - search for existing matches to avoid duplicates
+  - never touch live resources
+  - record only the nonsecret Price IDs
+  This exception does not authorize Stripe integration code, webhooks, Customer Portal configuration, or any other Stripe change.
 - The live Price IDs in [docs/04 §5.2](docs/04-AGREEMENT-AND-BILLING.md#52-live-catalog-reference--owner-supplied) are reference identifiers. Use them only in production, after verification, and with production authorization.
 - Non-production environments use Stripe test mode only.
 

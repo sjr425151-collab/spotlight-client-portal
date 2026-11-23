@@ -169,7 +169,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 
   | Resource | Level | Needed for |
   |---|---|---|
-  | Balance | Read | `GET /v1/balance`, the fail-closed `livemode: false` check before any other request (04 §6.3). The field must first be confirmed in Stripe's documentation, and the Owner attests the `rk_test_` key; the run does not rely on this response alone. |
+  | Balance | Read | `GET /v1/balance`, the fail-closed `livemode: false` check before any other request (04 §6.3). The field was confirmed in Stripe's OpenAPI specification (`2026-09-30.endive`, commit `2dcbcfb`) on 2026-11-23, and the Owner attests the `rk_test_` key; the run does not rely on this response alone. |
   | Products | Write | list, retrieve, and create products. In Stripe's restricted-key model, Write includes Read, so no separate Products Read setting is needed. |
   | Prices | Write | list (including by `lookup_keys`), retrieve, and create prices. Write includes Read. |
   | Every other resource | None | — |

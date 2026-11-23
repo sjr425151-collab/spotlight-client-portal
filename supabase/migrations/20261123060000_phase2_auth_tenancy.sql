@@ -135,7 +135,13 @@ create table public.audit_events (
   ip text,
   user_agent text,
   reason text,
-  summary jsonb not null default '{}'::jsonb
+  summary jsonb not null default '{}'::jsonb,
+  -- Bounded payloads at the database boundary (Phase 2 remediation D1): an append-only log
+  -- can never be cleaned up, so oversized rows must be impossible to write.
+  constraint audit_events_summary_bounded check (
+    jsonb_typeof(summary) = 'object' and octet_length(summary::text) <= 8192),
+  constraint audit_events_action_bounded check (char_length(action) between 1 and 100),
+  constraint audit_events_reason_bounded check (reason is null or char_length(reason) <= 1000)
 );
 create index audit_events_project_time_idx on public.audit_events (project_id, occurred_at);
 create index audit_events_actor_time_idx on public.audit_events (actor_user_id, occurred_at);
@@ -773,14 +779,48 @@ language sql stable security definer set search_path = '' as $$
   );
 $$;
 
--- Server-recorded security events (sign-in outcomes, OTP requests, MFA resets).
-create function private.record_security_event(p_action text, p_summary jsonb default '{}'::jsonb) returns void
+-- Security events (sign-in outcomes, OTP requests, MFA events, sessions) are recorded only
+-- by the server with the secret key (Phase 2 remediation D1; spec 03 §11, T-ROLE-01). The
+-- actor is the user the server verified (getClaims / Auth response), passed explicitly; it is
+-- never derived from a client-callable path. Defense in depth: EXECUTE is granted to
+-- service_role only, and the function also refuses any caller whose JWT role is not
+-- service_role.
+create function private.record_security_event(
+  p_actor_user_id uuid,
+  p_action text,
+  p_summary jsonb default '{}'::jsonb
+) returns void
 language plpgsql security definer set search_path = '' as $$
+declare
+  v_summary jsonb := coalesce(p_summary, '{}'::jsonb);
 begin
-  if p_action !~ '^(auth|mfa|session)\.[a-z_.]+$' then
+  if coalesce((select auth.jwt()) ->> 'role', '') <> 'service_role' then
+    raise exception 'security events are recorded by the server only' using errcode = '42501';
+  end if;
+  if p_action is null or char_length(p_action) > 64
+     or p_action !~ '^(auth|mfa|session)\.[a-z_]+(\.[a-z_]+)*$' then
     raise exception 'invalid security event action' using errcode = '22023';
   end if;
-  perform private.record_audit_event(p_action, null, null, null, null, coalesce(p_summary, '{}'::jsonb), 'security');
+  if jsonb_typeof(v_summary) <> 'object' or octet_length(v_summary::text) > 2048 then
+    raise exception 'security event summary must be a JSON object of at most 2048 bytes'
+      using errcode = '22023';
+  end if;
+  if p_actor_user_id is not null
+     and not exists (select 1 from auth.users u where u.id = p_actor_user_id) then
+    raise exception 'unknown security event actor' using errcode = '22023';
+  end if;
+  insert into public.audit_events (actor_user_id, actor_role, action, category, request_id, ip, user_agent, summary)
+  values (
+    p_actor_user_id,
+    coalesce(private.staff_role_of(p_actor_user_id)::text,
+             case when p_actor_user_id is not null then 'client' end,
+             'system'),
+    p_action, 'security',
+    left(private.request_header('x-request-id'), 100),
+    left(coalesce(private.request_header('x-client-ip'), private.request_header('x-forwarded-for')), 100),
+    left(private.request_header('user-agent'), 300),
+    v_summary
+  );
 end;
 $$;
 
@@ -837,11 +877,12 @@ create function public.auth_context() returns jsonb
 language sql stable security invoker set search_path = '' as $$
   select private.auth_context();
 $$;
-create function public.record_security_event(p_action text, p_summary jsonb default '{}'::jsonb) returns void
-language sql security invoker set search_path = '' as $$
-  select private.record_security_event(p_action, p_summary);
-$$;
 -- Server (secret key) only:
+create function public.record_security_event(p_actor_user_id uuid, p_action text, p_summary jsonb default '{}'::jsonb)
+returns void
+language sql security invoker set search_path = '' as $$
+  select private.record_security_event(p_actor_user_id, p_action, p_summary);
+$$;
 create function public.check_invitation_link(p_invitation_id uuid, p_token text) returns jsonb
 language sql security invoker set search_path = '' as $$
   select private.check_invitation_link(p_invitation_id, p_token);
@@ -866,7 +907,7 @@ grant execute on function
   private.accept_invitation(uuid, text), private.revoke_invitation(uuid),
   private.revoke_membership(uuid, text), private.set_staff_role(uuid, public.staff_role, text),
   private.revoke_staff(uuid, text), private.set_user_status(uuid, public.profile_status, text),
-  private.auth_context(), private.record_security_event(text, jsonb)
+  private.auth_context()
 to authenticated;
 
 grant execute on function
@@ -874,19 +915,20 @@ grant execute on function
   public.accept_invitation(uuid, text), public.revoke_invitation(uuid),
   public.revoke_membership(uuid, text), public.set_staff_role(uuid, public.staff_role, text),
   public.revoke_staff(uuid, text), public.set_user_status(uuid, public.profile_status, text),
-  public.auth_context(), public.record_security_event(text, jsonb)
+  public.auth_context()
 to authenticated;
 
 grant execute on function
   private.check_invitation_link(uuid, text), private.consume_rate_limit(text, integer, interval),
-  private.record_security_event(text, jsonb), private.record_audit_event(text, text, text, uuid, text, jsonb, text),
+  private.record_security_event(uuid, text, jsonb),
   private.staff_role_of(uuid), private.fail(text),
   public.check_invitation_link(uuid, text), public.consume_rate_limit(text, integer, integer),
-  public.record_security_event(text, jsonb)
+  public.record_security_event(uuid, text, jsonb)
 to service_role;
 
-grant execute on function private.fail(text), private.record_audit_event(text, text, text, uuid, text, jsonb, text)
-  to authenticated;
+-- private.record_audit_event is executed only by SECURITY DEFINER functions and triggers
+-- (as their owner). No API role is granted EXECUTE on it (Phase 2 remediation D1).
+grant execute on function private.fail(text) to authenticated;
 
 -- Auth hook (spec 03 §5)
 grant usage on schema private to supabase_auth_admin;

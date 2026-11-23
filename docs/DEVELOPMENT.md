@@ -175,6 +175,7 @@ scripts/          CI helper scripts
 - Every page and server action calls a guard from `src/server/auth/guards.ts` (`requireUser`, `requireClient`, `requireStaff({ fresh })`, `requireOwner`, `requireProjectAccess`). A static test fails if an exported server action has no guard (T-TEN-04).
 - RLS applies to every table. Security-definer code lives in the unexposed `private` schema with `search_path = ''`; the app calls `public` SECURITY INVOKER wrappers.
 - The secret-key client is importable only from `src/server/**` (ESLint rule and static test).
+- Security events are written only through `recordSecurityEvent` (secret key, verified actor). No API role, client or staff, can execute an audit-writing function (`supabase/tests/050_security_events.test.sql`).
 
 **Boundaries** (enforced by ESLint `no-restricted-imports`):
 - `components`, `design`, and `domain` must not import `@/server/*`, `@/config/env`, or `server-only`. Server data flows in from server components.
@@ -205,7 +206,7 @@ The artwork itself is not modified, and a unit test pins the master's SHA-256. A
 
 | Item | Reason | When |
 |---|---|---|
-| Phase 2 implementation notes (**OI-53**) | Spike refinements listed in 03 §18.1 await Owner confirmation | Before the Phase 2 PR merges |
+| Phase 2 implementation notes (**OI-53**, approved 2026-11-23) | Approved with N-8 amended: security events are recorded only by the server (`service_role`) with a verified actor and bounded payloads | Done |
 | Marking expired invitations (**OI-54**, decided) | Deferred on condition: expired invitations must stay rejected at every boundary regardless of cleanup status (`supabase/tests/045_expired_invitations.test.sql`) | Phase 5 |
 | Invitation emails to existing users | Supabase cannot email confirmed users (03A S-06); they accept in the portal. Notification email needs Resend. | Phase 4 |
 | Add CI jobs as required status checks | GitHub ruleset change (Owner) | After the Phase 1 PR's first successful run |

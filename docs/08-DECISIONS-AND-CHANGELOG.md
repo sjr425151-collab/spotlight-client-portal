@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.9.1 (draft for owner review) |
+| Version | 0.9.2 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -587,6 +587,16 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-08.
 - **Affected sections:** 07 §10.1; `src/components/brand/logo.tsx`.
 
+### OI-53 — Phase 2 implementation notes (03 §18.1)
+
+- **Decision:** The eight Phase 2 implementation notes N-1 to N-8 in spec 03 §18.1 are **approved**, subject to:
+  - **N-8 amended:** security events are recorded only through trusted, server-authorized operations. The server uses the secret key and passes a verified actor; payloads are bounded at the database boundary; no client- or staff-callable audit writer exists (Phase 2 remediation D1).
+  - **N-2 retained:** in-portal acceptance by verified email is unchanged. The incorrect client-facing label for staff invitations is corrected (finding D3).
+  - **N-6 retained:** 30 per hour per IP for code verification and for invitation attempts, and 10 code verifications per hour per email.
+- **Status:** Approved.
+- **Provenance:** Owner authorization "Phase 2 Security Remediation Authorization", 2026-11-23.
+- **Affected sections:** 03 §6.1, §6.2, §7, §9.1, §9.2, §11, §17, §18.1; 03A §5.
+
 ### OI-54 — Marking expired invitations
 
 - **Decision:** The scheduled cleanup job that marks expired invitations (and writes `invitation.expired`) is **deferred to Phase 5**, strictly on the condition that expired invitations are rejected at every authentication and acceptance boundary regardless of cleanup status.
@@ -613,7 +623,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-06 (Stripe verification of an invoice-level discount restricted to the balance product).
 - **Affected sections:** 04 §10–§10.1, §16 (T-BIL-11); 03 §4; OI-44.
 
-## 3A. Traceability matrix (OI-01–OI-46, OI-48–OI-49, OI-54–OI-55)
+## 3A. Traceability matrix (OI-01–OI-46, OI-48–OI-49, OI-53–OI-55)
 
 Phase = the earliest OI-02 phase whose implementation the decision governs. "Prod" = production launch.
 
@@ -666,6 +676,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-45 | Day-21 preview approval hold | Approved | 4 | 05 §7.2; 04 §14 | — | — |
 | OI-48 | Theme mode: dark-only MVP | Approved | 1 | 07 §10 | DEP-08 (future light variant) | — |
 | OI-49 | Temporary logo compositing | Approved | 1 | 07 §10.1 | DEP-08 | Owner asset approval |
+| OI-53 | Phase 2 implementation notes (N-1 to N-8) | Approved (N-8 amended) | 2 | 03 §18.1 | — | — |
 | OI-54 | Expired-invitation cleanup job | Approved (deferred to Phase 5, with condition) | 2 / 5 | 03 §6.1, §18.1 | — | — |
 | OI-55 | Adjusted final-balance collection vehicle | Approved | 3 | 04 §10–§10.1 | DEP-06 | Provider (Stripe invoice discounts) |
 | OI-46 | Involuntary subscription cancellation | Approved | 3 | 04 §9.1.1; 06 §8.4 | DEP-03, DEP-06 | Legal; provider (Stripe `past_due` behavior) |
@@ -699,6 +710,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.8.1 | 2026-11-23 | **OI-55 approved (option A).** Owner-authorized final-balance discounts are applied to the automatic final-balance invoice, with every OI-44 safeguard unchanged. An interim block on collecting discounted final balances was recorded and then **lifted** by the Owner the same day, so collection on the invoice is authorized. 04 §10–§10.1, T-BIL-11 and 03 §4 updated. | Claude Code | Owner (instructions, 2026-11-23) |
 | 0.9.0 | 2026-11-23 | Recorded the Owner's approval of spec 03 v0.4.0 (with 03A as supporting evidence) and the **Phase 2 authorization** (local Supabase with synthetic data; CI with the Supabase CLI). Phase 2 implemented on branch `phase-2/auth-security-tenancy` for Owner review: migrations, RLS, invitation-only OTP, staff TOTP MFA, roles, append-only audit, nonce CSP, private storage policies, and automated tests. 03 v0.4.2 adds §18.1 implementation notes pending Owner confirmation (OI-53); 03A v0.2.0 records the spike results. DEP-13 complete. Opened OI-53, OI-54. **No Owner decision changed.** | Claude Code | Owner (spec 03 approval and Phase 2 authorization only; OI-53 pending) |
 | 0.9.1 | 2026-11-23 | **OI-54 approved:** the expired-invitation cleanup job is deferred to Phase 5, on the condition that expired invitations are rejected at every authentication and acceptance boundary regardless of cleanup status. The condition is verified by new pgTAP and integration tests. OI-53 is still pending Owner confirmation. | Claude Code | Owner (instruction, 2026-11-23) |
+| 0.9.2 | 2026-11-23 | **OI-53 approved** with N-8 amended (security events recorded only by the server with a verified actor; payload bounds) and N-2 / N-6 retained. **Phase 2 remediation:** D1 removed client and staff execution of the security-event writer and bounded audit payloads; D3 corrected the client-facing label for staff invitations. Spec 03 v0.4.3. | Claude Code | Owner (Phase 2 Security Remediation Authorization, 2026-11-23) |
 
 ## 6. Change-control rules
 

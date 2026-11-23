@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { recordSecurityEvent } from "@/server/auth/security-events";
+import { recordSecurityEvent, verifiedActorId } from "@/server/auth/security-events";
 import { createAdminClient } from "@/server/supabase/admin";
 
 /**
@@ -64,7 +64,11 @@ export async function setUserStatus(
     ban_duration: status === "deactivated" ? "876000h" : "none",
   });
   if (error) {
-    await recordSecurityEvent("session.ban_update_failed", { target: userId, status }, user);
+    await recordSecurityEvent(
+      "session.ban_update_failed",
+      { target: userId, status },
+      await verifiedActorId(user),
+    );
     return { ok: false, error: "partial" } as const;
   }
   return result;
@@ -76,7 +80,12 @@ export async function setUserStatus(
  */
 export async function resetMfa(user: SupabaseClient, userId: string) {
   const { data } = await user.rpc("auth_context");
-  const ctx = data as { staff_role?: string; mfa_fresh?: boolean; session_active?: boolean } | null;
+  const ctx = data as {
+    user_id?: string;
+    staff_role?: string;
+    mfa_fresh?: boolean;
+    session_active?: boolean;
+  } | null;
   if (ctx?.staff_role !== "owner" || !ctx.mfa_fresh || !ctx.session_active) {
     return { ok: false, error: "forbidden" } as const;
   }
@@ -86,6 +95,11 @@ export async function resetMfa(user: SupabaseClient, userId: string) {
   for (const factor of factors.factors) {
     await admin.auth.admin.mfa.deleteFactor({ id: factor.id, userId });
   }
-  await recordSecurityEvent("mfa.reset", { target: userId, factors: factors.factors.length }, user);
+  // Actor: the Owner the database just verified (auth_context reads the verified JWT).
+  await recordSecurityEvent(
+    "mfa.reset",
+    { target: userId, factors: factors.factors.length },
+    ctx.user_id ?? null,
+  );
   return { ok: true } as const;
 }

@@ -4,6 +4,7 @@ import { AppShell, PageHeading } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
+import { invitationDescription } from "@/lib/invitations";
 import { messageFor } from "@/lib/messages";
 import { requireClient } from "@/server/auth/guards";
 import { createUserClient } from "@/server/supabase/clients";
@@ -30,7 +31,10 @@ export default async function PortalPage({ searchParams }: { searchParams: Searc
       .select("id, name, created_at, client_businesses(display_name)")
       .is("archived_at", null)
       .order("created_at", { ascending: true }),
-    db.from("invitations").select("id, full_name, expires_at").eq("status", "pending"),
+    db
+      .from("invitations")
+      .select("id, kind, intended_role, full_name, expires_at")
+      .eq("status", "pending"),
   ]);
   const notice = messageFor(params.notice);
   const error = messageFor(params.error);
@@ -56,7 +60,8 @@ export default async function PortalPage({ searchParams }: { searchParams: Searc
               <li key={invitation.id}>
                 <Card className="flex flex-col gap-4 p-6 sm:p-6">
                   <p className="text-sm text-fg-muted">
-                    You have been invited to a new project. This invitation expires on{" "}
+                    {invitationDescription(invitation.kind, invitation.intended_role)} This
+                    invitation expires on{" "}
                     {new Date(invitation.expires_at).toLocaleDateString("en-US", {
                       dateStyle: "medium",
                     })}

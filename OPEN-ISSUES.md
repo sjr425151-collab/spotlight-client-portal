@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.9.1 (draft for owner review) |
+| Version | 0.9.2 (draft for owner review) |
 | Status | Draft |
 | Next unused issue ID | **OI-56** |
 | Next unused dependency ID | **DEP-15** |
@@ -17,7 +17,7 @@ Rules:
 
 ## Part 1 — Decided issues (OI-01 to OI-46)
 
-All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46-oi-48oi-49-oi-54oi-55).
+All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46-oi-48oi-49-oi-53oi-55).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -69,6 +69,7 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 | OI-46 | Involuntary subscription cancellation | Decided | DEP-03, DEP-06 |
 | OI-48 | Theme mode: dark-only MVP | Decided (2026-11-23) | DEP-08 (light variant, future) |
 | OI-49 | Temporary logo compositing treatment | Decided (2026-11-23) | DEP-08 |
+| OI-53 | Phase 2 implementation notes N-1 to N-8 (N-8 amended; N-2, N-6 retained) | Decided (2026-11-23) | — |
 | OI-54 | Marking expired invitations: cleanup job deferred to Phase 5, on condition | Decided (2026-11-23) | — |
 | OI-55 | Adjusted final-balance collection vehicle (option A) | Decided (2026-11-23) | DEP-06 |
 
@@ -76,7 +77,7 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 
 ## Part 2 — Open issues requiring Owner decision
 
-OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. OI-55 (adjusted final-balance collection vehicle) was approved on 2026-11-23 (option A), and collection on the final-balance invoice is authorized; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice. Phase 2 implementation raised **OI-53 and OI-54** (2026-11-23). OI-54 was decided on 2026-11-23 (deferred to Phase 5, on condition); see 08.
+OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. OI-55 (adjusted final-balance collection vehicle) was approved on 2026-11-23 (option A), and collection on the final-balance invoice is authorized; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice. Phase 2 implementation raised **OI-53 and OI-54** (2026-11-23). OI-53 was approved and OI-54 decided on 2026-11-23; see 08.
 
 | ID | Title | Earliest phase | Status |
 |---|---|---|---|
@@ -84,24 +85,6 @@ OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains
 | OI-50 | Supabase plan for hosted environments | 2 (hosted only; local work unaffected) | Open |
 | OI-51 | Custom SMTP provider for Supabase Auth email | 2 (hosted only) | Open |
 | OI-52 | CAPTCHA on OTP requests | 2 | Open |
-| OI-53 | Confirm the Phase 2 implementation notes (03 §18.1) | 2 | Open (Owner confirmation) |
-
-### OI-53 — Confirm the Phase 2 implementation notes (03 §18.1)
-
-- **Description:** The Phase 2 spike (03A §5) found no contradiction with an approved decision or value. Eight implementation notes (N-1 to N-8 in 03 §18.1, v0.4.2) record where provider behavior differed from an assumption in the text, or where the text gave no number:
-  - N-1: first sign-in with the invitation email's code; "send a new code" re-invites unconfirmed users
-  - N-2: in-portal acceptance by verified email, without the link token
-  - N-3: MFA freshness from any `totp` `amr` entry
-  - N-4: interim session limits enforced in the database helper
-  - N-5: staff policies also require a verified factor and a live session
-  - N-6: per-IP limits of 30 per hour for code verification and invitation attempts
-  - N-7: resend audited as revoke plus create
-  - N-8: the secret key is also used for rate limits and security events
-- **Options:** A. Confirm all. B. Confirm with changes, naming the note and the change.
-- **Recommendation:** A. Each note keeps or tightens the approved control.
-- **Impacted documents:** 03 §6.1, §6.2, §7, §9.2, §17; 03A §5.
-- **Owner decision required:** Yes, before the Phase 2 pull request merges.
-- **Status:** Open.
 
 ### OI-50 — Supabase plan for hosted environments
 
@@ -215,7 +198,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 
 - 31 provider facts are verified with source citations in `docs/03A-SUPABASE-PROVIDER-VERIFICATION.md`.
 - Verification used the official documentation source in the vendors' GitHub repositories, because `supabase.com` and `nextjs.org` are blocked by this environment's network policy.
-- U-01 to U-05 and U-11 were **resolved by the Phase 2 local verification spike on 2026-11-23** (03A §5, S-01 to S-08). No result contradicted an approved decision; the implementation notes are listed for Owner confirmation as OI-53.
+- U-01 to U-05 and U-11 were **resolved by the Phase 2 local verification spike on 2026-11-23** (03A §5, S-01 to S-08). No result contradicted an approved decision; the implementation notes were approved by the Owner on 2026-11-23 (OI-53, with N-8 amended).
 - U-06 to U-08 and U-10 still need hosted or dashboard access, or Owner checks (DEP-14, OI-50). U-09 is not needed.
 
 ### DEP-08 detail — brand assets

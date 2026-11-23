@@ -2,7 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { recordSecurityEvent } from "@/server/auth/security-events";
+import { recordSecurityEvent, verifiedActorId } from "@/server/auth/security-events";
 import { codeSchema } from "@/server/services/sign-in";
 
 /** TOTP MFA (spec 03 §7). All calls run on the server with the user's own session. */
@@ -46,7 +46,7 @@ export async function verifyTotp(
   await recordSecurityEvent(
     error ? "mfa.verify_failed" : kind === "enroll" ? "mfa.enrolled" : "mfa.verified",
     { reason: error?.code ?? null },
-    user,
+    await verifiedActorId(user),
   );
   return !error;
 }

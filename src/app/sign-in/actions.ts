@@ -54,7 +54,7 @@ export async function signOutAction() {
     await recordSecurityEvent(
       "session.signed_out",
       { scope: ctx.staffRole ? "global" : "local" },
-      user,
+      ctx.userId,
     );
   await user.auth.signOut({ scope: ctx?.staffRole ? "global" : "local" });
   redirect("/sign-in?notice=signed_out");

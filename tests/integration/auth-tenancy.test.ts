@@ -9,6 +9,7 @@ import {
   anonClient,
   clientWithToken,
   signInWithCode,
+  SUPABASE_URL,
   upgradeToAal2,
 } from "../support/local-supabase";
 
@@ -380,6 +381,136 @@ describe("cross-tenant RPCs with project B IDs (T-TEN-04)", () => {
       db.query("select count(*)::int as n from public.audit_events"),
     );
     expect(auditAfter.rows[0].n).toBe(auditBefore.rows[0].n);
+  });
+});
+
+describe("security-event boundary over the real API (Phase 2 remediation D1)", () => {
+  const publishable = () => process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+  const forged = {
+    p_actor_user_id: "00000000-0000-4000-8000-000000000001",
+    p_action: "mfa.reset",
+    p_summary: { target: "00000000-0000-4000-8000-000000000002", note: "forged" },
+  };
+
+  /** Calls PostgREST directly, as a malicious caller holding only their own token would. */
+  async function rpc(fn: string, body: unknown, bearer?: string) {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      headers: {
+        apikey: publishable(),
+        "Content-Type": "application/json",
+        "x-client-ip": "203.0.113.66",
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+    return response.status;
+  }
+
+  async function forgedRows() {
+    const { rows } = await withDb((db) =>
+      db.query(
+        "select count(*)::int as n from public.audit_events where summary ->> 'note' = 'forged'",
+      ),
+    );
+    return rows[0].n as number;
+  }
+
+  it("refuses an authenticated client, a staff user at aal2, and an unauthenticated caller", async () => {
+    const clientToken = await accessToken(await signInWithCode(CLIENT_A));
+    const ownerToken = await accessToken(owner); // Owner, aal2, fresh MFA (beforeAll)
+
+    for (const bearer of [clientToken, ownerToken, undefined]) {
+      const status = await rpc("record_security_event", forged, bearer);
+      expect([401, 403, 404]).toContain(status);
+      // The pre-remediation signature is gone as well.
+      const legacy = await rpc(
+        "record_security_event",
+        { p_action: "mfa.reset", p_summary: {} },
+        bearer,
+      );
+      expect([401, 403, 404]).toContain(legacy);
+    }
+    // Direct table writes and the private writer are not reachable either.
+    for (const bearer of [clientToken, ownerToken]) {
+      const insert = await fetch(`${SUPABASE_URL}/rest/v1/audit_events`, {
+        method: "POST",
+        headers: {
+          apikey: publishable(),
+          Authorization: `Bearer ${bearer}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "mfa.reset",
+          category: "security",
+          summary: { note: "forged" },
+        }),
+      });
+      expect([401, 403]).toContain(insert.status);
+      expect(await rpc("record_audit_event", { p_action: "mfa.reset" }, bearer)).toBe(404);
+    }
+    expect(await forgedRows()).toBe(0);
+  });
+
+  it("exposes no audit writer through GraphQL", async () => {
+    const clientToken = await accessToken(await signInWithCode(CLIENT_A));
+    const response = await fetch(`${SUPABASE_URL}/graphql/v1`, {
+      method: "POST",
+      headers: {
+        apikey: publishable(),
+        Authorization: `Bearer ${clientToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query: "{ __schema { mutationType { fields { name } } } }" }),
+    });
+    const body = (await response.json()) as {
+      data?: { __schema?: { mutationType?: { fields?: Array<{ name: string }> } } };
+    };
+    const names = (body.data?.__schema?.mutationType?.fields ?? []).map((field) =>
+      field.name.toLowerCase(),
+    );
+    expect(names.some((name) => name.includes("security_event") || name.includes("audit"))).toBe(
+      false,
+    );
+  });
+
+  it("records legitimate server events with the verified actor, and rejects oversized summaries", async () => {
+    const { recordSecurityEvent } = await import("@/server/auth/security-events");
+    const marker = `int-${RUN}`;
+    await recordSecurityEvent(
+      "auth.sign_in_succeeded",
+      { method: "email_otp", marker },
+      CLIENT_A_ID,
+    );
+    await recordSecurityEvent("auth.otp_requested", { outcome: "sent", marker }, null);
+    const { rows } = await withDb((db) =>
+      db.query(
+        `select action, actor_user_id::text as actor, actor_role from public.audit_events
+          where category = 'security' and summary ->> 'marker' = $1 order by id`,
+        [marker],
+      ),
+    );
+    expect(rows).toEqual([
+      { action: "auth.sign_in_succeeded", actor: CLIENT_A_ID, actor_role: "client" },
+      { action: "auth.otp_requested", actor: null, actor_role: "system" },
+    ]);
+
+    const oversized = await adminClient().rpc("record_security_event", {
+      p_actor_user_id: null,
+      p_action: "auth.sign_in_failed",
+      p_summary: { blob: "x".repeat(3000) },
+    });
+    expect(oversized.error?.code).toBe("22023");
+  });
+
+  it("keeps audit rows append-only for the server role too", async () => {
+    const update = await adminClient()
+      .from("audit_events")
+      .update({ summary: {} })
+      .eq("category", "security");
+    expect(update.error).not.toBeNull();
+    const remove = await adminClient().from("audit_events").delete().eq("category", "security");
+    expect(remove.error).not.toBeNull();
   });
 });
 

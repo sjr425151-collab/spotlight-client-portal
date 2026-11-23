@@ -92,6 +92,11 @@ export async function verifySignInCode(
     });
     return { ok: false, reason: "invalid" };
   }
-  await recordSecurityEvent("auth.sign_in_succeeded", { method: "email_otp" }, user);
+  // The actor is the user the Auth server just verified the code for.
+  await recordSecurityEvent(
+    "auth.sign_in_succeeded",
+    { method: "email_otp" },
+    data.user?.id ?? null,
+  );
   return { ok: true };
 }

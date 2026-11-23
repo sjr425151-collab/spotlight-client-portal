@@ -50,6 +50,19 @@ describe("static security checks", () => {
     expect(offenders.map(({ path }) => path)).toEqual([]);
   });
 
+  it("records security events only through the server-side helper (Phase 2 remediation D1)", () => {
+    const callers = sources.filter(({ text }) => /record_security_event/.test(text));
+    expect(callers.map(({ path }) => path)).toEqual(["src/server/auth/security-events.ts"]);
+    const helper = callers[0]!.text;
+    expect(helper).toMatch(/createAdminClient\(\)/);
+    expect(helper).toMatch(/p_actor_user_id: actorUserId/);
+    // No caller may hand a user-scoped client to the helper.
+    const passesClient = sources.filter(({ text }) =>
+      /recordSecurityEvent\([^)]*,\s*(?:user|db|client)\s*,?\s*\)/.test(text),
+    );
+    expect(passesClient.map(({ path }) => path)).toEqual([]);
+  });
+
   it("never imports server modules into client components", () => {
     const offenders = sources.filter(
       ({ text }) =>

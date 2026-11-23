@@ -15,18 +15,19 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const swatches: ReadonlyArray<{ token: ColorToken; on: ColorToken }> = [
-  { token: "canvas", on: "fg" },
-  { token: "surface", on: "fg" },
-  { token: "surface-raised", on: "fg" },
-  { token: "line-strong", on: "fg" },
-  { token: "fg", on: "canvas" },
-  { token: "fg-muted", on: "canvas" },
-  { token: "fg-subtle", on: "canvas" },
-  { token: "accent", on: "canvas" },
-  { token: "danger", on: "canvas" },
-  { token: "success", on: "canvas" },
-  { token: "warning", on: "canvas" },
+// Static class names (no inline style attributes: the CSP has no 'unsafe-inline', DEP-13).
+const swatches: ReadonlyArray<{ token: ColorToken; on: ColorToken; className: string }> = [
+  { token: "canvas", on: "fg", className: "bg-canvas text-fg" },
+  { token: "surface", on: "fg", className: "bg-surface text-fg" },
+  { token: "surface-raised", on: "fg", className: "bg-surface-raised text-fg" },
+  { token: "line-strong", on: "fg", className: "bg-line-strong text-fg" },
+  { token: "fg", on: "canvas", className: "bg-fg text-canvas" },
+  { token: "fg-muted", on: "canvas", className: "bg-fg-muted text-canvas" },
+  { token: "fg-subtle", on: "canvas", className: "bg-fg-subtle text-canvas" },
+  { token: "accent", on: "canvas", className: "bg-accent text-canvas" },
+  { token: "danger", on: "canvas", className: "bg-danger text-canvas" },
+  { token: "success", on: "canvas", className: "bg-success text-canvas" },
+  { token: "warning", on: "canvas", className: "bg-warning text-canvas" },
 ];
 
 /**
@@ -54,12 +55,9 @@ export default function DesignSystemPage() {
           Color
         </h2>
         <ul className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {swatches.map(({ token, on }) => (
+          {swatches.map(({ token, on, className }) => (
             <li key={token} className="overflow-hidden rounded-card border border-line">
-              <div
-                className="flex h-20 items-end p-3 text-sm font-medium"
-                style={{ backgroundColor: colors[token], color: colors[on] }}
-              >
+              <div className={`flex h-20 items-end p-3 text-sm font-medium ${className}`}>
                 Aa {contrastRatio(colors[on], colors[token]).toFixed(1)}:1
               </div>
               <div className="bg-surface p-3 text-sm">

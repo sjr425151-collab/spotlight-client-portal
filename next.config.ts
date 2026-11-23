@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
-import { securityHeaders } from "./src/config/security-headers";
-
-const isDevelopment = process.env.NODE_ENV === "development";
+import { staticSecurityHeaders } from "./src/config/security-headers";
 
 const nextConfig: NextConfig = {
   // A separate output directory lets CI serve a production-mode build alongside the test
@@ -14,12 +12,8 @@ const nextConfig: NextConfig = {
   // Typed routes catch broken internal links at compile time.
   typedRoutes: true,
   headers() {
-    return Promise.resolve([
-      {
-        source: "/:path*",
-        headers: securityHeaders({ isDevelopment }),
-      },
-    ]);
+    // The nonce-based Content-Security-Policy is set per request in src/proxy.ts.
+    return Promise.resolve([{ source: "/:path*", headers: staticSecurityHeaders() }]);
   },
 };
 

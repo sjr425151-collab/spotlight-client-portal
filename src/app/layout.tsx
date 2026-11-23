@@ -41,6 +41,10 @@ export const metadata: Metadata = {
   icons: { icon: [{ url: "data:," }] },
 };
 
+// Every page is rendered per request so Next.js can apply the CSP nonce from src/proxy.ts
+// to its scripts (03A F-30). Static prerendering would ship pages without a valid nonce.
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: colors.canvas,
   colorScheme: "dark",

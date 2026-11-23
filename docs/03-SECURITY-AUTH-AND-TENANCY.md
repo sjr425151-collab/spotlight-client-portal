@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.0 |
-| Status | **Draft: Phase 2 finalization, pending Owner sign-off.** Not implementation authorization. |
+| Version | 0.4.1 |
+| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 adds only §18.1, implementation notes **pending Owner confirmation**; no approved text or value is changed. |
 | Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-46 |
-| Open issues | OI-47; new OI-50, OI-51, OI-52 |
+| Open issues | OI-47; OI-50, OI-51, OI-52; new OI-53, OI-54 |
 | Dependencies | DEP-06, DEP-13, DEP-14 |
 | Provider evidence | [03A — Supabase and Next.js Provider Verification](03A-SUPABASE-PROVIDER-VERIFICATION.md). Findings are cited as **F-nn**, unverified items as **U-nn**. |
 
@@ -548,3 +548,19 @@ Before any user-facing flow is built, a local-only spike resolves:
 - U-11 (admin session termination for deactivated users)
 
 Results are recorded in 03A. Any result that contradicts this specification is **escalated to the Owner** before implementation continues. Specification wording is never changed silently.
+
+### 18.1 Spike outcomes and implementation notes (v0.4.1) **[PENDING Owner confirmation, OI-53]**
+
+The spike ran on 2026-11-23 (03A §5). **No result contradicts an approved decision or an approved value.** The approved text above is unchanged. These notes record how the implementation meets it where the provider behaved differently from the assumption, or where the text gave no number. Each is listed for Owner confirmation under OI-53:
+
+| # | Section | Approved text | Implementation | Why |
+|---|---|---|---|---|
+| N-1 | §6.1 step 3 | The invitee "requests a fresh sign-in OTP" on `/invite/accept`; U-02 decides the type | The invitation email's code is entered on `/invite/accept` and verified with `type: 'email'`. "Send me a new code" re-invites while the user is unconfirmed, then uses `signInWithOtp` once they are confirmed. Both are gated by a valid link (`check_invitation_link`). | Unconfirmed users cannot use `signInWithOtp` with sign-up disabled (03A S-02). |
+| N-2 | §6.1 steps 2 and 4 | An existing user "signs in normally and sees the pending invitation, which needs no email link"; step 4 checks `token_hash` | `accept_invitation(id, null)` accepts a pending invitation for a signed-in user, bound only to the verified email. A tokenless mismatch does not count toward `failed_attempts`. Link acceptance still checks the token. | Step 2 requires a path without the link, and Supabase cannot email confirmed users (03A S-06). |
+| N-3 | §7, §9.2 | Freshness uses "the most recent `amr` entry" / `amr[0]` | `mfa_is_fresh` accepts any `totp` entry within 5 minutes. | `amr` is not reliably ordered (03A S-04). It is equally strict about time. |
+| N-4 | §6.2 | Interim limits are enforced "by the proxy" from `auth.sessions` timestamps | Enforced in `private.session_is_active()`, with the specified values. Server guards and the staff restrictive policies call it on every request. | The same limits are enforced on every request, and the database enforces them as well. Values: staff 12 h inactivity and a 7-day time-box; clients 7 days inactivity. |
+| N-5 | §7 | Staff restrictive policies require `aal = 'aal2'` | They also require a verified factor (live) and a live session (`session_is_active`). | Makes factor reset (F-14) and global sign-out (T-AUTH-10) take effect before the access token expires. Stricter than the text. |
+| N-6 | §17 | Per-IP limits for code verification and invitation attempts, with no number given | 30 per hour per IP for each; also 10 verifications per hour per email. | Implementation values, chosen conservatively. Owner to confirm or change. |
+| N-7 | §6.1 audit | `invitation.resent`, `invitation.expired` | A resend is recorded as `invitation.revoked` (old) plus `invitation.created` (new). Expiry is computed (`expires_at`) and enforced; no job marks rows `expired` yet. | Marking expired rows needs a scheduler (for example `pg_cron`), which is a new component. Raised as OI-54. |
+| N-8 | §9.1 rule 6 | Secret key in `src/server/supabase/admin.ts` | As specified. The secret key is also used for rate limits and server-recorded security events. | These need writes that bypass RLS, with no user session. |
+

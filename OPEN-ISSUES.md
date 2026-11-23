@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.7.0 (draft for owner review) |
+| Version | 0.8.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-53** |
+| Next unused issue ID | **OI-55** |
 | Next unused dependency ID | **DEP-15** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -74,7 +74,7 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 
 ## Part 2 — Open issues requiring Owner decision
 
-OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice.
+OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice. Phase 2 implementation raised **OI-53 and OI-54** (2026-11-23).
 
 | ID | Title | Earliest phase | Status |
 |---|---|---|---|
@@ -82,6 +82,37 @@ OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains
 | OI-50 | Supabase plan for hosted environments | 2 (hosted only; local work unaffected) | Open |
 | OI-51 | Custom SMTP provider for Supabase Auth email | 2 (hosted only) | Open |
 | OI-52 | CAPTCHA on OTP requests | 2 | Open |
+| OI-53 | Confirm the Phase 2 implementation notes (03 §18.1) | 2 | Open (Owner confirmation) |
+| OI-54 | Marking expired invitations (`invitation.expired`) | 2 (reporting only) | Open |
+
+### OI-53 — Confirm the Phase 2 implementation notes (03 §18.1)
+
+- **Description:** The Phase 2 spike (03A §5) found no contradiction with an approved decision or value. Eight implementation notes (N-1 to N-8 in 03 §18.1) record where provider behavior differed from an assumption in the text, or where the text gave no number:
+  - N-1: first sign-in with the invitation email's code; "send a new code" re-invites unconfirmed users
+  - N-2: in-portal acceptance by verified email, without the link token
+  - N-3: MFA freshness from any `totp` `amr` entry
+  - N-4: interim session limits enforced in the database helper
+  - N-5: staff policies also require a verified factor and a live session
+  - N-6: per-IP limits of 30 per hour for code verification and invitation attempts
+  - N-7: resend audited as revoke plus create
+  - N-8: the secret key is also used for rate limits and security events
+- **Options:** A. Confirm all. B. Confirm with changes, naming the note and the change.
+- **Recommendation:** A. Each note keeps or tightens the approved control.
+- **Impacted documents:** 03 §6.1, §6.2, §7, §9.2, §17; 03A §5.
+- **Owner decision required:** Yes, before the Phase 2 pull request merges.
+- **Status:** Open.
+
+### OI-54 — Marking expired invitations
+
+- **Description:** Spec 03 §6.1 says an invitation's expiry is computed and that "a job marks it for reporting", with the audit event `invitation.expired`. Expiry is computed and enforced everywhere in Phase 2, so an expired invitation can never be accepted. No job marks rows yet, because Phase 2 has no scheduler.
+- **Options:**
+  - A. Enable `pg_cron` (a Postgres extension, available locally and on hosted Supabase) for a daily job that marks rows and writes `invitation.expired`.
+  - B. Mark rows lazily when staff view invitations.
+  - C. Defer to Phase 5 (reporting and hardening).
+- **Recommendation:** C. Expiry is already enforced, and the job affects reporting only.
+- **Impacted documents:** 03 §6.1, §11.
+- **Owner decision required:** Yes. The choice adds a component (A) or changes the timing (C).
+- **Status:** Open.
 
 ### OI-50 — Supabase plan for hosted environments
 
@@ -147,14 +178,14 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 | DEP-03 | Qualified **legal review** of the agreement and related policies | Owner + counsel | Phase 5 (Prod; before enforcement) | Not started |
 | DEP-04 | Qualified **tax review**; Stripe Tax production configuration (OI-36) | Owner + tax advisor | Phase 5 (Prod tax collection) | Not started |
 | DEP-05 | **Legal/privacy review** of retention, deletion, data requests, DPAs, incident notification (OI-21, OI-40, OI-42) | Owner + counsel | Phase 5 (Prod) | Not started |
-| DEP-06 | **Provider verification** per OI-39 (02 §10) | Implementer; escalations to the Owner | Phase 1 (Vercel, GitHub Actions); Phase 2 (Supabase); Phase 3 (Stripe); Phase 4 (Resend, Storage, client-site Vercel) | **In progress.** GitHub Actions: actions pinned to verified commit SHAs (Phase 1). Vercel: not verified, because Vercel access is not authorized in Phase 1. |
+| DEP-06 | **Provider verification** per OI-39 (02 §10) | Implementer; escalations to the Owner | Phase 1 (Vercel, GitHub Actions); Phase 2 (Supabase); Phase 3 (Stripe); Phase 4 (Resend, Storage, client-site Vercel) | **In progress.** GitHub Actions: actions pinned to verified commit SHAs (Phase 1). **Supabase (local): verified** by the Phase 2 spike (03A §5); the Supabase CLI 3.2.0 release is checksum-pinned in CI. Hosted-only items remain (U-06 to U-08, U-10). Vercel: not verified, because Vercel access is not authorized in Phase 1. |
 | DEP-07 | Malware scanning **vendor selection** after provider and cost verification (OI-31) | Owner (selection) | Phase 4 | Not started |
 | DEP-08 | **Brand assets**: Owner confirmation of the official logo master (Phase 1); vector and variant assets and final visual approval (Prod) | Owner | Phase 1 (confirmation); Prod (final approval) | Phase 1 part **complete**: logo master confirmed 2026-11-23. Production part **outstanding**. |
 | DEP-09 | **Production infrastructure** prerequisites P-1–P-9 (02 §11) | Owner + implementer | Phase 5 (Prod) | Not started |
 | DEP-10 | **Branch protection** on `main` | Owner (GitHub settings) | Phase 1 | **Complete (2026-11-23)**. See detail below. |
 | DEP-11 | Toolchain **version pins** verified against official sources (OI-11) | Implementer | Phase 1 | **Complete (2026-11-23).** See [docs/DEVELOPMENT.md §1](docs/DEVELOPMENT.md#1-toolchain). |
 | DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 5 (required); may be proposed earlier | Not started |
-| DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | **Designed** in 03 §14 (v0.4.0, pending sign-off). Implementation is not started. Phase 1 intentionally keeps the documented limitation. |
+| DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | **Complete (2026-11-23, Phase 2 branch, pending PR merge).** `src/proxy.ts` sets a per-request nonce CSP with `'strict-dynamic'` and no `'unsafe-inline'` for scripts or styles; no inline style attributes remain. Verified by T-SEC-03 and T-SEC-04 (e2e) and the Lighthouse budgets (T-PERF-01). |
 | DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment. Phase 2 itself runs on local Supabase only. | Not authorized. Depends on OI-50 and OI-51. |
 
 ### DEP-01 detail — Stripe test-mode catalog
@@ -194,7 +225,8 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 
 - 31 provider facts are verified with source citations in `docs/03A-SUPABASE-PROVIDER-VERIFICATION.md`.
 - Verification used the official documentation source in the vendors' GitHub repositories, because `supabase.com` and `nextjs.org` are blocked by this environment's network policy.
-- Items U-01 to U-11 remain unverified. U-01 to U-05 and U-11 are resolved by the Phase 2 local verification spike (03 §18). U-06 to U-08 and U-10 need hosted or dashboard access, or Owner checks.
+- U-01 to U-05 and U-11 were **resolved by the Phase 2 local verification spike on 2026-11-23** (03A §5, S-01 to S-08). No result contradicted an approved decision; the implementation notes are listed for Owner confirmation as OI-53.
+- U-06 to U-08 and U-10 still need hosted or dashboard access, or Owner checks (DEP-14, OI-50). U-09 is not needed.
 
 ### DEP-08 detail — brand assets
 

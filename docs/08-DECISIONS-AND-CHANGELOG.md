@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.7.0 (draft for owner review) |
+| Version | 0.8.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -660,6 +660,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.5.0 | 2026-11-23 | Recorded the Owner's final approval of 01 v0.3.2, 02 v0.4.0, and CLAUDE.md, and the Phase 1 authorization. Status lines only; approved spec content unchanged. Phase 1 foundation delivered on branch `phase-1/foundation-ci`. DEP-11 complete. OI-48 (theme mode) opened. | Claude Code | Owner (Owner's written Phase 1 authorization, 2026-11-23) |
 | 0.6.0 | 2026-11-23 | Final Phase 1 refinements. OI-48 approved (dark-only MVP, light-theme compatibility preserved). OI-49 approved (temporary logo compositing; master preserved). The CSP `'unsafe-inline'` limitation is tracked as the Phase 2 security requirement DEP-13 / T-SEC-03. Production gating test added. | Claude Code | Owner (Owner instruction, 2026-11-23 (final Phase 1 refinements)) |
 | 0.7.0 | 2026-11-23 | Phase 2 security specification finalization (documentation only): spec 03 v0.4.0 drafted for Owner sign-off, with Supabase and Next.js provider verification evidence in the new 03A. **No Owner decision changed.** All new design detail is [PROPOSED]. Opened OI-50 to OI-52; added DEP-14; DEP-13 designed. | Claude Code | Pending owner review |
+| 0.8.0 | 2026-11-23 | Recorded the Owner's approval of spec 03 v0.4.0 (with 03A as supporting evidence) and the **Phase 2 authorization** (local Supabase with synthetic data; CI with the Supabase CLI). Phase 2 implemented on branch `phase-2/auth-security-tenancy` for Owner review: migrations, RLS, invitation-only OTP, staff TOTP MFA, roles, append-only audit, nonce CSP, private storage policies, and automated tests. 03 v0.4.1 adds §18.1 implementation notes pending Owner confirmation (OI-53); 03A v0.2.0 records the spike results. DEP-13 complete. Opened OI-53, OI-54. **No Owner decision changed.** | Claude Code | Owner (spec 03 approval and Phase 2 authorization only; OI-53 pending) |
 
 ## 6. Change-control rules
 

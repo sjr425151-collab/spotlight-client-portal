@@ -7,7 +7,14 @@ import {
   parseServerEnv,
 } from "@/config/env-schema";
 
-const valid = { APP_ENV: "test", NEXT_PUBLIC_SITE_URL: "http://localhost:3000" };
+// Placeholder key shapes only: not real keys, and no Supabase stack is contacted.
+const valid = {
+  APP_ENV: "test",
+  NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+  NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_placeholder",
+  SUPABASE_SECRET_KEY: "sb_secret_placeholder",
+};
 
 function issuesFor(source: Record<string, string | undefined>): readonly string[] {
   try {
@@ -28,7 +35,29 @@ describe("parseServerEnv", () => {
     const issues = issuesFor({});
     expect(issues.some((issue) => issue.startsWith("APP_ENV"))).toBe(true);
     expect(issues.some((issue) => issue.startsWith("NEXT_PUBLIC_SITE_URL"))).toBe(true);
+    expect(issues.some((issue) => issue.startsWith("SUPABASE_SECRET_KEY"))).toBe(true);
   });
+
+  it("requires Supabase keys of the right kind (spec 03 §15)", () => {
+    expect(
+      issuesFor({ ...valid, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_secret_x" }),
+    ).not.toHaveLength(0);
+    expect(issuesFor({ ...valid, SUPABASE_SECRET_KEY: "sb_publishable_x" })).not.toHaveLength(0);
+  });
+
+  it.each(["development", "test", "preview"])(
+    "rejects a hosted Supabase project in %s (local stack only)",
+    (appEnv) => {
+      const issues = issuesFor({
+        ...valid,
+        APP_ENV: appEnv,
+        NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnop.supabase.co",
+      });
+      expect(issues).toContain(
+        "NEXT_PUBLIC_SUPABASE_URL: only a local Supabase stack is allowed outside staging and production",
+      );
+    },
+  );
 
   it("rejects unknown environments and non-http URLs", () => {
     expect(issuesFor({ ...valid, APP_ENV: "prod" })).not.toHaveLength(0);
@@ -56,6 +85,7 @@ describe("parseServerEnv", () => {
     ["rk_live_abc123"],
     ["whsec_abc123"],
     ["re_abcdefghijklmnopqrstuvwxyz"],
+    ["sb_secret_abc123"],
   ])("rejects secret-like values in NEXT_PUBLIC_ variables (%s)", (value) => {
     const issues = issuesFor({ ...valid, NEXT_PUBLIC_LEAK: value });
     expect(issues).toContain(

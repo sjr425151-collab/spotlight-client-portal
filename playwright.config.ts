@@ -28,13 +28,24 @@ export default defineConfig({
   },
   projects: [
     {
+      // Phase 2 auth flows need the local Supabase stack (`supabase start`); desktop only.
+      name: "auth-setup",
+      testMatch: /auth\.setup\.ts/,
+    },
+    {
+      name: "auth",
+      testMatch: /auth\.spec\.ts/,
+      dependencies: ["auth-setup"],
+      use: { ...devices["Desktop Chrome"], launchOptions },
+    },
+    {
       name: "desktop-chromium",
-      testIgnore: /production-gating/,
+      testIgnore: /production-gating|auth\./,
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
       name: "mobile-chromium",
-      testIgnore: /production-gating/,
+      testIgnore: /production-gating|auth\./,
       use: { ...devices["Pixel 7"], launchOptions },
     },
     {

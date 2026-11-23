@@ -81,3 +81,18 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * Logo edge fade (OI-49, temporary presentation treatment; see src/components/brand/logo.tsx).
+ * Mask gradients use alpha only: `black` means "fully visible", not a page color.
+ */
+.logo-edge-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 4%,
+    black 95%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to right, transparent 0%, black 4%, black 95%, transparent 100%);
+}

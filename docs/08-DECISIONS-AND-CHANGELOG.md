@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.4.0 (draft for owner review) |
+| Version | 0.6.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -559,7 +559,28 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-03, DEP-06.
 - **Affected sections:** 04 §9.1.1, §11, §15.1; 05 §2, §9; 06 §8.4; 03 §4, §12; 07 §4.
 
-## 3A. Traceability matrix (OI-01–OI-46)
+### OI-48 — Theme mode
+
+- **Decision:** The MVP uses a **dark-only** theme. Future light-theme compatibility is preserved:
+  - all UI colors come from semantic design tokens, never hard-coded literals (enforced by `tests/unit/brand.test.ts`)
+  - a light theme can be added later by redefining the token values
+  - a light theme requires an Owner-approved light-background or transparent logo variant (DEP-08)
+- **Status:** Approved.
+- **Provenance:** Owner instruction, 2026-11-23 (final Phase 1 refinements). Supersedes the **[PROPOSED]** "Light theme required" wording in 07 §10.
+- **Dependencies:** DEP-08 (for a future light theme only).
+- **Affected sections:** 07 §10; `src/design/tokens.ts`; `docs/DEVELOPMENT.md` §6.
+
+### OI-49 — Temporary logo compositing
+
+- **Decision:** The current logo presentation is approved as a **temporary presentation treatment**: `mix-blend-mode: screen` on the dark canvas, plus a narrow horizontal edge fade that hides the master's cropped glow edge.
+  - The original master (`public/brand/spotlight-marketing-logo.jpg`, SHA-256 `6cc6edb3…b2bd3c`) is preserved unmodified. A unit test pins its checksum.
+  - The treatment is removed when an Owner-approved transparent or vector master exists.
+- **Status:** Approved.
+- **Provenance:** Owner instruction, 2026-11-23 (final Phase 1 refinements).
+- **Dependencies:** DEP-08.
+- **Affected sections:** 07 §10.1; `src/components/brand/logo.tsx`.
+
+## 3A. Traceability matrix (OI-01–OI-46, OI-48–OI-49)
 
 Phase = the earliest OI-02 phase whose implementation the decision governs. "Prod" = production launch.
 
@@ -610,6 +631,8 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-43 | Business-day and time-zone calendar | Approved | 3 | 02 §13 | DEP-03 | Legal (trigger-date exclusion, wording) |
 | OI-44 | Adjusted final-balance payments | Approved | 3 | 04 §10.1 | DEP-06, DEP-03; OI-47 (open) | Provider (Stripe discounts) |
 | OI-45 | Day-21 preview approval hold | Approved | 4 | 05 §7.2; 04 §14 | — | — |
+| OI-48 | Theme mode: dark-only MVP | Approved | 1 | 07 §10 | DEP-08 (future light variant) | — |
+| OI-49 | Temporary logo compositing | Approved | 1 | 07 §10.1 | DEP-08 | Owner asset approval |
 | OI-46 | Involuntary subscription cancellation | Approved | 3 | 04 §9.1.1; 06 §8.4 | DEP-03, DEP-06 | Legal; provider (Stripe `past_due` behavior) |
 
 ## 4. Current authorization status
@@ -618,8 +641,8 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 |---|---|---|
 | 1. Architecture approval | **Approved** (per owner-provided baseline; pending verification of this register) | §1 |
 | 2. Specification reconciliation | **In progress.** Documentation-only changes authorized. This change set is under owner review. | Draft PR for branch `docs/architecture-specification-reconciliation` |
-| Foundation specs 01, 02 and CLAUDE.md | **Owner-approved (conditional)** at v0.3.1 on 2026-11-22. The mandatory reconciliation is applied (02 v0.4.0, 01 v0.3.2, CLAUDE.md). **Awaiting Owner final confirmation.** | [Sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) |
-| 3. Implementation authorization | **Not authorized** for any phase | — |
+| Foundation specs 01, 02 and CLAUDE.md | **Approved (final)**: 01 v0.3.2, 02 v0.4.0, and CLAUDE.md as reconciled in commit `10868de` and merged through PR #1. | [Sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); Owner's written Phase 1 authorization, 2026-11-23 |
+| 3. Implementation authorization | **Phase 1 (Foundation and CI) authorized 2026-11-23.** Phases 2–5 are **not authorized**. Within Phase 1, Stripe requests, Supabase, authentication, Resend, Vercel, DNS, deployment, and production credentials remain prohibited. | Owner's written Phase 1 authorization, 2026-11-23 (transcribed from the Owner's instruction in the implementation session; no separate signed record) |
 | 4. Production launch authorization | **Not authorized** | — |
 | Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked and suspended**: there is no valid test-mode credential, and the Owner has instructed that no Stripe API requests be made until a verified test-mode credential workflow is separately authorized (DEP-01). | Owner instructions, 2026-11-23 |
 
@@ -634,6 +657,8 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.3.1 | 2026-11-23 | DEP-10 marked complete. The Owner created the active ruleset `protect-main` on the default branch: pull request required with 0 approvals (Owner decision, sole developer), force pushes blocked, deletions restricted, no status checks. The GitHub API confirms `main` is protected. Rule details are Owner-attested. | Claude Code (documentation author) | Pending owner review |
 | 0.3.2 | 2026-11-23 | Recorded the Owner's confirmation that the SLM folder logo (Drive file ID `13-UmtqYfcweEZUCwCcYiIsHiTy9RMTKX`, SHA-256 `6cc6edb3…b2bd3c`) is the official master. DEP-08 Phase 1 part complete; production asset variants and final visual approval remain outstanding. | Claude Code (documentation author) | Owner (logo confirmation only) |
 | 0.4.0 | 2026-11-23 | Recorded the Owner sign-off of specs 01, 02 and CLAUDE.md (conditional, `OWNER-SIGNOFF-FOUNDATION-2026-11-22.md`). Applied the mandatory reconciliation: OI-35 revised into M1 (12 business days, maintenance and designated infrastructure cessation) and M2 (60 calendar days, final transfer and offboarding), a one-year initial domain term separate from hosting, no guaranteed functionality after discontinuation, no intentional degradation, and a commercially reasonable $99 model with no uptime or response-time guarantees. Updated specs 01–07, tests, README, CLAUDE.md, and OPEN-ISSUES. | Claude Code (documentation author) | Owner (sign-off record; final confirmation pending) |
+| 0.5.0 | 2026-11-23 | Recorded the Owner's final approval of 01 v0.3.2, 02 v0.4.0, and CLAUDE.md, and the Phase 1 authorization. Status lines only; approved spec content unchanged. Phase 1 foundation delivered on branch `phase-1/foundation-ci`. DEP-11 complete. OI-48 (theme mode) opened. | Claude Code | Owner (Owner's written Phase 1 authorization, 2026-11-23) |
+| 0.6.0 | 2026-11-23 | Final Phase 1 refinements. OI-48 approved (dark-only MVP, light-theme compatibility preserved). OI-49 approved (temporary logo compositing; master preserved). The CSP `'unsafe-inline'` limitation is tracked as the Phase 2 security requirement DEP-13 / T-SEC-03. Production gating test added. | Claude Code | Owner (Owner instruction, 2026-11-23 (final Phase 1 refinements)) |
 
 ## 6. Change-control rules
 

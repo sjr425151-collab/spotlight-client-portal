@@ -7,12 +7,14 @@ These instructions apply to every contributor and AI agent working in this repos
 | Stage (OI-01) | Status |
 |---|---|
 | Architecture | Approved |
-| Specification reconciliation | Documentation-only changes authorized. Specs 01, 02 and this file are Owner-approved ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md), conditional; final confirmation pending). |
+| Specification reconciliation | Specs 01, 02 and this file are **approved (final, 2026-11-23)** ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); final approval in the Phase 1 authorization). |
 | Stripe test-mode catalog (OI-30) | Narrow exception, **currently suspended**; see §5 |
-| **Implementation** | **NOT AUTHORIZED** |
+| **Implementation** | **Phase 1 (Foundation and CI) only**, authorized 2026-11-23. Phases 2–5: **NOT AUTHORIZED**. |
 | **Production launch** | **NOT AUTHORIZED** |
 
-Until the Owner grants written implementation authorization for a specific phase, you must **not**:
+Phase 1 permits only: the application scaffold, pinned tooling and lockfile, CI, `.env.example`, and the design foundation (see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)). Even in Phase 1, Supabase, Stripe, Resend, Vercel, DNS, authentication, deployment, and production work remain prohibited.
+
+For any phase without written Owner authorization, you must **not**:
 
 - create application source code, components, routes, API handlers, or database migrations
 - initialize a Next.js (or any) application, or create or modify `package.json` or lockfiles

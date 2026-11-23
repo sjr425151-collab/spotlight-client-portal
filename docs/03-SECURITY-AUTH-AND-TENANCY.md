@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.1 |
+| Version | 0.3.2 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-46 |
 | Open issues | OI-47 |
@@ -221,3 +221,4 @@ Minimum event catalog **[PROPOSED]**:
 | T-AUD-01 | Each privileged action in §11 produces exactly one audit event. Update/delete on the audit log is rejected. | Integration |
 | T-SEC-01 | The production client bundle contains no service-role key, webhook secret, or Resend key | CI |
 | T-SEC-02 | Security headers (CSP, HSTS, frame-ancestors, referrer policy) are present on all portal responses | e2e |
+| T-SEC-03 | **Phase 2 required (DEP-13):** `script-src` uses per-request nonces and contains no `'unsafe-inline'`. Phase 1 deliberately keeps `'unsafe-inline'` as a documented limitation. | e2e |

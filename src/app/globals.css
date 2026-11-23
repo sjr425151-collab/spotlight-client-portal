@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Color values mirror src/design/tokens.ts (enforced by
+ * tests/unit/tokens.test.ts). Provisional pending Owner brand approval (DEP-08).
+ */
+@theme {
+  --color-canvas: #05070b;
+  --color-surface: #0c111a;
+  --color-surface-raised: #141b27;
+  --color-line: #222b3a;
+  --color-line-strong: #626d80;
+  --color-fg: #f4f6fa;
+  --color-fg-muted: #aab3c2;
+  --color-fg-subtle: #8691a3;
+  --color-accent: #8ab4ff;
+  --color-accent-strong: #b9d1ff;
+  --color-danger: #ff8f85;
+  --color-success: #7fe0b5;
+  --color-warning: #ffd27a;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-montserrat), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --tracking-eyebrow: 0.32em;
+
+  --radius-control: 0.625rem;
+  --radius-card: 1.25rem;
+
+  --shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 24px 48px -24px rgb(0 0 0 / 0.6);
+  --shadow-glow: 0 0 0 1px rgb(138 180 255 / 0.18), 0 0 48px -8px rgb(138 180 255 / 0.35);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-eclipse: eclipse 9s ease-in-out infinite;
+
+  @keyframes eclipse {
+    0%,
+    100% {
+      opacity: 0.85;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.015);
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-fg antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: rgb(138 180 255 / 0.35);
+    color: var(--color-fg);
+  }
+
+  /* One consistent, highly visible focus indicator for every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+}
+
+/* Reduced-motion accessibility (07 §11, T-DES-03). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

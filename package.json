@@ -1,0 +1,53 @@
+{
+  "name": "spotlight-client-portal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spotlight Marketing Client Portal (portal.spotlight-marketing.co)",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=24.22.3 <25",
+    "pnpm": "12.21.0"
+  },
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "build:production-check": "APP_ENV=production NEXT_PUBLIC_SITE_URL=http://localhost:3101 NEXT_DIST_DIR=.next-production next build",
+    "start": "next start --port 3000",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:bundle": "node scripts/check-client-bundle.mjs",
+    "lhci": "lhci autorun",
+    "verify": "pnpm lint && pnpm typecheck && pnpm format:check && pnpm test && pnpm build && pnpm check:bundle && pnpm build:production-check && pnpm test:e2e"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "server-only": "0.0.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@lhci/cli": "0.16.1",
+    "@playwright/test": "1.65.1",
+    "@tailwindcss/postcss": "4.3.5",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.6",
+    "jsdom": "31.0.1",
+    "prettier": "3.10.1",
+    "tailwindcss": "4.3.5",
+    "typescript": "6.0.3",
+    "vitest": "5.1.1"
+  }
+}

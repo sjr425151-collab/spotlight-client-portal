@@ -10,12 +10,12 @@ A secure client portal for Spotlight Marketing LLC. It takes each website client
 | Stage | Status |
 |---|---|
 | Architecture approval | Approved: decisions OI-01–OI-46 (register pending owner verification) |
-| Specification reconciliation | Specs 01, 02 and CLAUDE.md **Owner-approved** ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md), conditional; final confirmation pending). Specs 03–08 in review. Documentation only. |
-| Implementation | **Not authorized.** No phase may begin without separate written owner authorization. |
+| Specification reconciliation | Specs 01, 02 and CLAUDE.md **approved (final, 2026-11-23)**. Specs 03–08 in review. |
+| Implementation | **Phase 1 (Foundation and CI) authorized** (2026-11-23). Phases 2–5 each require separate written Owner authorization. |
 | Production launch | **Not authorized** |
 | Stripe test-mode catalog (narrow exception, OI-30) | Authorized but **suspended**: no Stripe API requests until the Owner authorizes a verified test-mode credential workflow (DEP-01) |
 
-This repository currently contains **documentation only**. See [CLAUDE.md](CLAUDE.md) before making any change.
+This repository contains the approved specifications and the Phase 1 application foundation (no external services connected). See [CLAUDE.md](CLAUDE.md) before making any change.
 
 ## MVP scope
 
@@ -60,6 +60,7 @@ Client websites are **separate, isolated deployments**: agency-managed Vercel, o
 | [08 — Decisions and Changelog](docs/08-DECISIONS-AND-CHANGELOG.md) | Decision register OI-01–OI-24, change control |
 | [OPEN-ISSUES.md](OPEN-ISSUES.md) | Decided issues, open Owner decisions (OI-47 onward), and implementation dependencies (DEP-nn) |
 | [CLAUDE.md](CLAUDE.md) | Operating instructions for contributors and AI agents |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local setup, toolchain, commands, CI, architecture |
 
 ## Environments
 
@@ -82,7 +83,14 @@ Details are in [02 §4](docs/02-ARCHITECTURE-AND-ENVIRONMENTS.md#4-environment-i
 
 ## Development workflow
 
-Once implementation is separately authorized (it is not yet):
+Setup, toolchain versions, commands, CI, and architecture are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+```bash
+corepack enable && pnpm install --frozen-lockfile
+cp .env.example .env.local
+pnpm dev          # http://localhost:3000
+pnpm verify       # lint, typecheck, format, unit, build, bundle check, e2e
+```
 
 1. Work on a feature branch. Open a PR against `main`.
 2. CI must pass lint, typecheck, unit, e2e, and performance/security checks.

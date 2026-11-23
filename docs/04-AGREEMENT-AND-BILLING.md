@@ -4,8 +4,8 @@
 |---|---|
 | Version | 0.5.0 |
 | Status | **Draft — pending owner sign-off.** v0.5.0: automatic final-balance collection (Owner instruction, 2026-11-23; OI-17 revised). |
-| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46 |
-| Open issues | OI-47, OI-55 |
+| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-55 |
+| Open issues | OI-47 |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
 > Nothing in this document authorizes any Stripe operation. No Stripe products, prices, customers, subscriptions, or Checkout configurations were created, queried, or modified in preparing it.
@@ -309,13 +309,13 @@ Whether final payment may be requested *before* client approval is not specified
 **Adjusted balances [APPROVED OI-27]:**
 - When an Owner-authorized discount, credit, or partial waiver reduces the amount owed, the **remaining amount still requires verified payment**.
 - The standard Stripe balance prices remain unchanged.
-- The adjusted amount is collected with an **Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices. OI-44 specifies Stripe Checkout as the vehicle; applying the same discount to the automatic final-balance invoice instead is **[PENDING OI-55]**.
+- The adjusted amount is collected with an **Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices. The discount is applied to the automatic final-balance invoice (§10) **[APPROVED OI-55]**.
 - A fully waived balance requires no charge. It is recorded as a `waiver` ledger entry (§12), and approval triggers no Stripe invoice.
 - **Deposit-stage adjustments:** OI-44 covers the final balance only. Adjustments to the initial deposit Checkout are **[PENDING OI-47]**.
 
-### 10.1 Adjusted final-balance payment **[APPROVED OI-44; collection vehicle PENDING OI-55]**
+### 10.1 Adjusted final-balance payment **[APPROVED OI-44, OI-55]**
 
-OI-44 was approved for a separate final Checkout. With the final balance now collected automatically on approval (§10), the requirements below are unchanged. Whether row 12 and the mechanism constraints carry over to the final-balance invoice, as written in brackets, needs Owner confirmation **[PENDING OI-55]**. Until then, no adjusted final balance may be collected.
+OI-44 was approved for a separate final Checkout. Under **OI-55 (option A, Owner-approved 2026-11-23)**, the same requirements and safeguards apply unchanged to the automatic final-balance invoice (§10), which replaces that Checkout. The adjusted amount is charged on the client's approval like a standard balance.
 
 | # | Requirement |
 |---|---|
@@ -326,14 +326,14 @@ OI-44 was approved for a separate final Checkout. With the final balance now col
 | 9 | Revised order summary and client re-acceptance where the change is materially necessary (§4) |
 | 10 | Publication requires verified payment of the adjusted amount or an authorized settlement (G4, 06 §2) |
 | 11 | A successful Stripe payment is never fabricated |
-| 12 | The discount applies **only** to the intended final-balance Checkout Session [OI-55: the intended final-balance invoice] |
+| 12 | The discount applies **only** to the intended final-balance invoice (OI-55) |
 | 13 | The recurring **$99 maintenance subscription is never discounted** |
 | 14 | Stripe's actual support for the mechanism is verified before implementation (DEP-06) |
 
 Mechanism constraints **[PROPOSED; VERIFY-PROVIDER]**:
-- The final Checkout is `payment` mode with a single line item: the standard balance Price ID. The maintenance subscription is never part of this session, so a session-level discount cannot reach it. [OI-55: the final-balance invoice has this single line item and excludes the subscription.]
-- The discount is applied at the **Checkout Session** level only. It is restricted to the balance product, limited to a single redemption, and linked to the `balance_adjustments` record in metadata. It is **never** attached to the Stripe Customer or the subscription. [OI-55: applied to the final-balance invoice only.]
-- Webhook verification (§11): the session's total must equal the adjusted amount due, and the discount must equal the authorized discount. Any mismatch quarantines the event, and payment is not verified. [OI-55: the invoice's total and discount.]
+- The final-balance invoice has a single line item: the standard balance Price ID. The maintenance subscription is never part of this invoice, so an invoice-level discount cannot reach it.
+- The discount is applied to the **final-balance invoice** only. It is restricted to the balance product, limited to a single redemption, and linked to the `balance_adjustments` record in metadata. It is **never** attached to the Stripe Customer or the subscription.
+- Webhook verification (§11): the invoice's total must equal the adjusted amount due, and its discount must equal the authorized discount. Any mismatch quarantines the event, and payment is not verified.
 - Creating discount objects (for example coupons) is a Stripe change. This document authorizes none. Test-mode creation requires Phase 3 authorization; live creation requires production authorization.
 - If Stripe cannot meet these constraints, **escalate to the Owner**. No inline pricing or alternative mechanism may be substituted silently.
 
@@ -546,7 +546,7 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-08 | No automated process cancels, deletes, or lets lapse a client-owned domain |
 | T-BIL-09 | A dispute webhook notifies the Owner, records the deadline, and triggers no takedown (OI-37) |
 | T-BIL-10 | Ledger entries carry a service category. Tax collection is disabled outside authorized production configuration. (OI-36) |
-| T-BIL-11 | The adjusted final payment (vehicle per OI-55) has only the balance line item. The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
+| T-BIL-11 | The adjusted final-balance invoice has only the balance line item (OI-55). The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
 | T-BIL-12 | After an adjusted final payment, no discount is attached to the customer or subscription, and the next maintenance renewal invoice is exactly 9900 cents |
 | T-BIL-13 | The adjustment record contains every §10.1 field. An Admin attempt is rejected and audited. |
 | T-BIL-14 | Through day 7 of recovery: no hold, no termination state, no discontinuation or deactivation request. After the period: the hold is placed and an Owner review item exists. (OI-46) |

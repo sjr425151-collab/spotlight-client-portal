@@ -102,7 +102,7 @@ Key: ✅ allowed · ❌ denied · **M** = only for projects where the client hol
 | Clear `approval_nonresponsive_hold` **without** a client response **[APPROVED OI-45]** | ✅ (reason required) | ❌ | ❌ | ❌ | 4 |
 | Clear `approval_nonresponsive_hold` after a qualifying client response **[APPROVED OI-45]** | ✅ | ✅ | ❌ | ❌ | 4 |
 | Approve or request revisions on a held preview **[APPROVED OI-45]** | ❌ | ❌ | M | ❌ | 4 |
-| Authorize a final-balance discount (adjusted final payment; vehicle **[PENDING OI-55]**) **[APPROVED OI-44]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
+| Authorize a final-balance discount (applied to the automatic final-balance invoice) **[APPROVED OI-44, OI-55]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
 | Billing hold Owner review: continue collection, authorize exception, or initiate documented service termination **[APPROVED OI-46]** | ✅ (reauthentication for exception or termination) | ❌ | ❌ | ❌ | 3 |
 | Resolve an unexpected Stripe cancellation exception **[APPROVED OI-46]** | ✅ | ❌ | ❌ | ❌ | 3 |
 | Record personal follow-up outreach (OI-25) | ✅ | ✅ | ❌ | ❌ | 4 |

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.11.0 (draft for owner review) |
+| Version | 0.12.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-64** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-66** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-16** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-49, OI-53 to OI-55, OI-63)
+## Part 1 — Decided issues (OI-01 to OI-49, OI-53 to OI-55, OI-63 to OI-65)
 
-All 53 issues listed here are decided at the architectural level (OI-50 to OI-52 remain open in Part 2). The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-49-oi-53oi-55-oi-63).
+All 55 issues listed here are decided at the architectural level (OI-50 to OI-52 remain open in Part 2). The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-49-oi-53oi-55-oi-63oi-65).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -74,6 +74,8 @@ All 53 issues listed here are decided at the architectural level (OI-50 to OI-52
 | OI-54 | Marking expired invitations: cleanup job deferred to Phase 5, on condition | Decided (2026-11-23) | — |
 | OI-55 | Adjusted final-balance collection vehicle (option A) | Decided (2026-11-23) | DEP-06 |
 | OI-63 | Webhook testing strategy: hybrid (synthetic signed events in CI; real Stripe test-mode verification) | Decided (2026-11-23) | DEP-01, DEP-15 |
+| OI-64 | Stripe test-mode catalog structure: 11 products and 11 prices | Decided (2026-11-23) | DEP-01 |
+| OI-65 | Stripe test-mode catalog naming, metadata, catalog keys, lookup keys, versioning (provided no conflict) | Decided (2026-11-23) | DEP-01 |
 
 ---
 
@@ -130,7 +132,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 
 | ID | Dependency | Action owner | Earliest phase | Status |
 |---|---|---|---|---|
-| DEP-01 | Stripe **test-mode** catalog created and test Price IDs recorded (OI-30) | Owner-authorized operator with a verified **test-mode** credential | Phase 3 | **Blocked / suspended** |
+| DEP-01 | Stripe **test-mode** catalog created and test Price IDs recorded (OI-30; design OI-64, OI-65; manifest 04 §6.1) | Owner-authorized operator with a verified **test-mode** credential | Phase 3 | **Blocked / suspended.** Catalog design approved 2026-11-23; creation not yet authorized. |
 | DEP-02 | Verify the live Price IDs (04 §5.2) against the live catalog | Owner / authorized implementer | Phase 5 (Prod) | Not started |
 | DEP-03 | Qualified **legal review** of the agreement and related policies | Owner + counsel | Phase 5 (Prod; before enforcement) | Not started |
 | DEP-04 | Qualified **tax review**; Stripe Tax production configuration (OI-36) | Owner + tax advisor | Phase 5 (Prod tax collection) | Not started |
@@ -142,13 +144,14 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 | DEP-10 | **Branch protection** on `main` | Owner (GitHub settings) | Phase 1 | **Complete (2026-11-23)**. See detail below. |
 | DEP-11 | Toolchain **version pins** verified against official sources (OI-11) | Implementer | Phase 1 | **Complete (2026-11-23).** See [docs/DEVELOPMENT.md §1](docs/DEVELOPMENT.md#1-toolchain). |
 | DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 5 (required); may be proposed earlier | Not started |
-| DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | **Complete (2026-11-23, Phase 2 branch, pending PR merge).** `src/proxy.ts` sets a per-request nonce CSP with `'strict-dynamic'` and no `'unsafe-inline'` for scripts or styles; no inline style attributes remain. Verified by T-SEC-03 and T-SEC-04 (e2e) and the Lighthouse budgets (T-PERF-01). |
+| DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | **Complete (2026-11-23; merged to `main` in PR #4, merge commit `45d05f6`).** `src/proxy.ts` sets a per-request nonce CSP with `'strict-dynamic'` and no `'unsafe-inline'` for scripts or styles; no inline style attributes remain. Verified by T-SEC-03 and T-SEC-04 (e2e) and the Lighthouse budgets (T-PERF-01). |
 | DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment. Phase 2 itself runs on local Supabase only. | Not authorized. Depends on OI-50 and OI-51. |
 | DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | Phase 3 | Not started. Requires DEP-01 and the Stripe access condition in CLAUDE.md §5. |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
 - **Authorized scope:** create only the missing test-mode products and prices matching 04 §5.1, following 04 §6.
+- **Catalog design (approved 2026-11-23):** 11 products and 11 prices (OI-64), with the naming, metadata, catalog keys, lookup keys, and versioning in 04 §6.1 (OI-65). Conflict handling and idempotency: 04 §6.2. Execution constraints: 04 §6.3. This is a design approval only.
 - **History (2026-11-23):**
   1. `api.stripe.com` was first blocked by the session network policy.
   2. A credential was then saved to the session environment. A single read-only verification request showed it was a **live-mode** key, and Stripe rejected it as invalid.
@@ -156,11 +159,26 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 - **Current status:**
   - The Owner has chosen to leave the environment configuration unchanged for now, so the live-mode credential remains saved for `api.stripe.com` on that environment.
   - The Owner has instructed that **no Stripe API requests** be made until a verified test-mode credential workflow is separately authorized.
-  - **Re-checked 2026-11-23 (read-only, no Stripe request):** the session environment (`chris-pribyl`, a personal environment shared with other projects) still holds one network secret for `api.stripe.com` (`Authorization` header). Its value is not visible, and nothing indicates that the credential previously identified as live-mode was replaced.
+  - **Re-checked 2026-11-23 (read-only, no Stripe request):** the earlier session environment (`chris-pribyl`, a personal environment shared with other projects) still holds one network secret for `api.stripe.com` (`Authorization` header). Its value is not visible, and nothing indicates that the credential previously identified as live-mode was replaced. **That environment must not be used for this repository.** **[PROPOSED]** The Owner removes that secret in the environment's settings.
+  - **Environment for DEP-01 (2026-11-23):** this repository now uses the dedicated personal environment `spotlight-client-portal-dev`. A read-only check on 2026-11-23 showed it holds **no network secret**, and its allowlist does not include `api.stripe.com`. No Stripe credential has been requested or saved there.
 - **To unblock (Owner instruction, 2026-11-23):**
   1. Confirm that the environment used contains **only** an appropriate Stripe test-mode credential (`sk_test_…`, or a restricted test key with write access to Products and Prices only). The live-mode credential must be removed from it. **[PROPOSED]** Use a dedicated environment for this repository rather than the shared personal one.
   2. The Owner gives a **separate, narrowly scoped** written authorization for the catalog creation.
   3. Before any write, the creation action itself verifies `livemode: false` and aborts on a live key (04 §6). It then runs as a separately identifiable action.
+- **Credential permissions [PROPOSED; VERIFY-PROVIDER at key creation]:** a restricted test-mode key (`rk_test_…`) created by the Owner in the Stripe Dashboard in test mode:
+
+  | Resource | Level | Needed for |
+  |---|---|---|
+  | Balance | Read | `GET /v1/balance`, the fail-closed `livemode: false` check before any other request (04 §6.3). The field must first be confirmed in Stripe's documentation, and the Owner attests the `rk_test_` key; the run does not rely on this response alone. |
+  | Products | Write | list, retrieve, and create products. In Stripe's restricted-key model, Write includes Read, so no separate Products Read setting is needed. |
+  | Prices | Write | list (including by `lookup_keys`), retrieve, and create prices. Write includes Read. |
+  | Every other resource | None | — |
+
+  - If the Dashboard groups prices under the Products resource, that single resource is set to Write.
+  - If the Dashboard offers Read and Write as separate options, both Read and Write are granted for Products and Prices.
+  - The search endpoints (`/v1/products/search`, `/v1/prices/search`) are not used. List endpoints are used instead.
+  - A permission error during the run aborts it. The key is never broadened mid-run.
+  - The key is entered by the Owner only through the secure credential form for `api.stripe.com` on `spotlight-client-portal-dev`. It is never pasted in chat, committed, or logged. The Owner revokes it after the IDs are recorded.
 
 ### DEP-03 detail — legal review scope
 

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.11.0 (draft for owner review) |
+| Version | 0.12.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -653,7 +653,26 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-01 (test catalog), DEP-15 (test-mode webhook verification setup), the Stripe access condition (CLAUDE.md §5).
 - **Affected sections:** 04 §11, §16 (T-PAY-03 to T-PAY-08).
 
-## 3A. Traceability matrix (OI-01–OI-49, OI-53–OI-55, OI-63)
+### OI-64 — Stripe test-mode catalog structure
+
+- **Decision:** the test-mode catalog has **11 Stripe products and 11 prices**: five website deposits, five website final balances, and one recurring $99/month maintenance subscription. Each product carries exactly one price.
+- **Scope:** a catalog-design approval only. It authorizes no Stripe request and does not lift the Stripe suspension (CLAUDE.md §5).
+- **Status:** Approved.
+- **Provenance:** Owner decision, 2026-11-23 ("OI-64: Use 11 Stripe products and 11 prices: five website deposits, five website final balances, and one recurring $99/month maintenance subscription.").
+- **Dependencies:** DEP-01 (creation), DEP-02 (live catalog parity, production).
+- **Affected sections:** 04 §6.1.
+
+### OI-65 — Stripe test-mode catalog naming, metadata, keys, and versioning
+
+- **Decision:** the product names, metadata, catalog keys, price lookup keys, and versioning scheme proposed in the DEP-01 readiness report §1a are approved, **provided no existing test-mode objects conflict**. They are recorded in 04 §6.1. The conflict proviso is applied as defined in 04 §6.2: any conflict stops the creation run before any write and goes to the Owner.
+- **Clarification:** `package_key` is left **unset** on the maintenance product, which is not a package (Owner confirmation, 2026-11-23: "Maintenance product package_key: Leave unset").
+- **Scope:** a catalog-design approval only. It authorizes no Stripe request.
+- **Status:** Approved.
+- **Provenance:** Owner decision, 2026-11-23 ("OI-65: Approve the product naming, metadata, catalog keys, lookup keys, and versioning scheme proposed in DEP-01 readiness report §1a, provided no existing test-mode objects conflict.").
+- **Dependencies:** DEP-01; DEP-04 (tax settings deliberately left unset).
+- **Affected sections:** 04 §6.1–§6.3.
+
+## 3A. Traceability matrix (OI-01–OI-49, OI-53–OI-55, OI-63–OI-65)
 
 Phase = the earliest OI-02 phase whose implementation the decision governs. "Prod" = production launch.
 
@@ -711,6 +730,8 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-54 | Expired-invitation cleanup job | Approved (deferred to Phase 5, with condition) | 2 / 5 | 03 §6.1, §18.1 | — | — |
 | OI-55 | Adjusted final-balance collection vehicle | Approved | 3 | 04 §10–§10.1 | DEP-06 | Provider (Stripe invoice discounts) |
 | OI-63 | Webhook testing strategy (hybrid) | Approved | 3 | 04 §11, §16 | DEP-01, DEP-15 | Provider (Stripe test mode) |
+| OI-64 | Stripe test-mode catalog structure (11 products, 11 prices) | Approved | 3 | 04 §6.1 | DEP-01, DEP-02 | Provider (Stripe test mode) |
+| OI-65 | Stripe test-mode catalog naming, metadata, keys, versioning | Approved | 3 | 04 §6.1–§6.3 | DEP-01, DEP-04 | Provider (Stripe test mode) |
 | OI-46 | Involuntary subscription cancellation | Approved | 3 | 04 §9.1.1; 06 §8.4 | DEP-03, DEP-06 | Legal; provider (Stripe `past_due` behavior) |
 
 ## 4. Current authorization status
@@ -722,7 +743,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | Foundation specs 01, 02 and CLAUDE.md | **Approved (final)**: 01 v0.3.2, 02 v0.4.0, and CLAUDE.md as reconciled in commit `10868de` and merged through PR #1. | [Sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); Owner's written Phase 1 authorization, 2026-11-23 |
 | 3. Implementation authorization | **Phase 1** (Foundation and CI): authorized and merged (PR #2). **Phase 2** (Auth, security, and tenant isolation): authorized 2026-11-23 and merged (PR #4, merge commit `45d05f6`); local Supabase only, not deployed. **Phases 3–5: not authorized.** Approval of spec 04 for test-mode implementation does not authorize Phase 3. | Owner's written Phase 1 and Phase 2 authorizations, 2026-11-23 |
 | 4. Production launch authorization | **Not authorized** | — |
-| Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked and suspended.** No Stripe request of any kind is made until (1) it is confirmed that the environment used contains **only** an appropriate Stripe test-mode credential, and (2) the Owner gives a **separate, narrowly scoped** written authorization (Owner instruction, 2026-11-23). As of 2026-11-23 the session environment still holds the credential previously identified as live-mode (DEP-01). | Owner instructions, 2026-11-23 |
+| Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked and suspended.** No Stripe request of any kind is made until (1) it is confirmed that the environment used contains **only** an appropriate Stripe test-mode credential, and (2) the Owner gives a **separate, narrowly scoped** written authorization (Owner instruction, 2026-11-23). The catalog design is approved (OI-64, OI-65). Creation is to run only in the dedicated cloud environment `spotlight-client-portal-dev`, which on 2026-11-23 held no network secret and did not allow `api.stripe.com`. The `chris-pribyl` environment still holds the credential previously identified as live-mode and must not be used (DEP-01). | Owner instructions, 2026-11-23 |
 
 ## 5. Change history
 
@@ -745,11 +766,12 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.9.2 | 2026-11-23 | **OI-53 approved** with N-8 amended (security events recorded only by the server with a verified actor; payload bounds) and N-2 / N-6 retained. **Phase 2 remediation:** D1 removed client and staff execution of the security-event writer and bounded audit payloads; D3 corrected the client-facing label for staff invitations. Spec 03 v0.4.3. | Claude Code | Owner (Phase 2 Security Remediation Authorization, 2026-11-23) |
 | 0.10.0 | 2026-11-23 | **OI-47 approved (Option A):** the standard 20% deposit is mandatory for all five packages, and the initial Checkout always contains the standard deposit plus the first $99 maintenance payment. No deposit-stage discounts, credits, or waivers. Owner-authorized reductions apply only to the outstanding final balance, under OI-44 / OI-55. The maintenance subscription is never reduced. 04 v0.5.1 (new tests T-BIL-20, T-BIL-21); 03 v0.4.4 (§12 row). Documentation only. | Claude Code | Owner (decision, 2026-11-23) |
 | 0.11.0 | 2026-11-23 | Owner instructions: **OI-47** item 6 confirmed (a reduction can never exceed the outstanding final balance). **OI-63 approved** (hybrid webhook testing: signed synthetic events in CI; real Stripe test-mode verification separately). **Spec 04 v0.6.0 approved for Phase 3 Stripe test-mode implementation only**; legal review and provider verification remain production conditions. **Stripe access** requires an environment holding only an appropriate test credential plus a separate, narrowly scoped authorization. §4 authorization table brought up to date (Phase 2 merged). DEP-15 added. Phase 3 is **not** authorized. | Claude Code | Owner (instructions, 2026-11-23) |
+| 0.12.0 | 2026-11-23 | **OI-64 approved** (test-mode catalog of 11 products and 11 prices). **OI-65 approved** (naming, metadata, catalog keys, lookup keys, and versioning, provided no existing test-mode object conflicts). 04 v0.7.0 adds the catalog manifest, conflict rules, and execution constraints (§6.1–§6.3). DEP-01 remains **blocked**; its environment reference now names `spotlight-client-portal-dev`, and its credential permissions are listed. Stale Phase 2 status references corrected (CLAUDE.md §1, README, 01 §8 stage table, DEP-13). Owner confirmed that the maintenance product's `package_key` stays unset. The 04 §6.3 test-mode preflight now fails closed and does not rely on an unverified Balance `livemode` field: it requires Owner attestation of an `rk_test_` key, prior documentation confirmation, and an explicit `livemode: false` on every response. Catalog-design approvals only: no Stripe request, no credential, and no Phase 3 work. | Claude Code | Owner (decisions, 2026-11-23) |
 
 ## 6. Change-control rules
 
 1. **Decision changes.** A change to an OI-01–OI-46 decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
-2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-48 onward). Implementation dependencies use DEP-nn IDs (currently DEP-13 onward). When the owner resolves one, it is recorded in this register under that same ID.
+2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-66 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-16 onward). When the owner resolves one, it is recorded in this register under that same ID.
 3. **Specification changes.** Changes to specifications 01–07 go through a pull request. Each spec carries a version and status header. A spec moves from *Draft* to *Approved* only on owner sign-off recorded in §5.
 4. **Precedence.** (a) Owner-approved decisions in this register. (b) Approved specifications 01–07. (c) CLAUDE.md for operating procedure. (d) README. A lower-precedence document must never be used to override a higher one.
 5. **Conflicts.** Any conflict between documents, or between a document and an owner decision, is **escalated** to the owner as an open issue. It is never silently resolved by an author or agent.

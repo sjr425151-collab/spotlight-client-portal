@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.1.0 |
-| Status | **Draft — verification evidence for Owner review.** This is not a decision record. |
+| Version | 0.2.0 |
+| Status | **Verification evidence.** Supporting evidence for spec 03 v0.4.0 (Owner-approved 2026-11-23, Phase 2 authorization). This is not a decision record. v0.2.0 adds the Phase 2 local spike results (§5). |
 | Purpose | Evidence for spec 03 v0.4.0 under OI-39 (provider verification) and DEP-06 |
-| Verified on | 2026-11-23 |
+| Verified on | 2026-11-23 (documentation); 2026-11-23 (local spike, §5) |
 
 ## 1. Method and limitations
 
@@ -62,19 +62,21 @@
 
 ## 3. Unverified items (must be confirmed before reliance)
 
+U-01 to U-05 and U-11 were resolved by the Phase 2 local spike on 2026-11-23. See §5 for the observations; the rows below are kept for traceability.
+
 | ID | Item | How to resolve |
 |---|---|---|
-| U-01 | Whether `inviteUserByEmail` still works when public sign-up is disabled (F-03 says only existing users can **sign in**) | Phase 2 local spike, test with `enable_signup = false` |
-| U-02 | Whether an invited, unconfirmed user can sign in with `signInWithOtp({ shouldCreateUser: false })`, or must verify the `invite` OTP type first | Local spike |
-| U-03 | What `signInWithOtp({ shouldCreateUser: false })` returns for an unknown email (account-enumeration risk) | Local spike. The design returns a generic response regardless (03 §5). |
-| U-04 | Whether a fresh TOTP challenge at `aal2` adds a new `amr` entry with a current timestamp (needed for "fresh reauthentication") | Local spike |
-| U-05 | Admin API for removing a lost staff MFA factor | Check the reference docs (not in the guides read) and run a local spike |
+| U-01 | Whether `inviteUserByEmail` still works when public sign-up is disabled (F-03 says only existing users can **sign in**) | **Resolved (S-01).** Phase 2 local spike, test with `enable_signup = false` |
+| U-02 | Whether an invited, unconfirmed user can sign in with `signInWithOtp({ shouldCreateUser: false })`, or must verify the `invite` OTP type first | **Resolved (S-02); the spec deferred this choice to the spike.** Local spike |
+| U-03 | What `signInWithOtp({ shouldCreateUser: false })` returns for an unknown email (account-enumeration risk) | **Resolved (S-03).** Local spike. The design returns a generic response regardless (03 §5). |
+| U-04 | Whether a fresh TOTP challenge at `aal2` adds a new `amr` entry with a current timestamp (needed for "fresh reauthentication") | **Resolved (S-04), with an ordering caveat.** Local spike |
+| U-05 | Admin API for removing a lost staff MFA factor | **Resolved (S-05).** Check the reference docs (not in the guides read) and run a local spike |
 | U-06 | Hosted default rate limits and the allowed range for Email OTP Expiration | Owner checks the hosted dashboard when a hosted project is authorized |
 | U-07 | **Plan prices and feature gating** (pricing page unreachable). Only "Pro and up" for session controls (F-16) is verified. | **Owner** checks `supabase.com/pricing` (OI-50) |
 | U-08 | Plan availability of the before-user-created hook | Owner and dashboard check (OI-50) |
 | U-09 | Phone MFA pricing (in a documentation partial not retrieved) | Not needed. The design uses TOTP only. |
 | U-10 | Hosted Postgres major version vs the local default (`major_version = 17`) | Check at hosted project creation |
-| U-11 | Admin API that terminates all sessions of a deactivated user (the guides read cover only user-initiated `signOut` scopes, F-17) | Reference docs plus local spike. Data access is already denied live through `profiles.status` (03 §6.2). |
+| U-11 | Admin API that terminates all sessions of a deactivated user (the guides read cover only user-initiated `signOut` scopes, F-17) | **Resolved (S-05).** Reference docs plus local spike. Data access is already denied live through `profiles.status` (03 §6.2). |
 
 ## 4. Material conflicts with existing specifications (escalated, not silently changed)
 
@@ -85,3 +87,28 @@
 | C-3 | Session time-box, inactivity timeout, and single-session controls require a **Pro plan** (F-16). Spec 03 proposed idle and absolute limits. | 03 §6 | The limits depend on the plan decision (**OI-50**). App-level fallbacks are specified for local development. |
 | C-4 | A nonce CSP **requires dynamic rendering** (F-30). Phase 1 pages are static. | 02 §7 (performance), 03 T-SEC-03 | Every HTML route becomes dynamic. The performance budgets still apply and must pass. This is an explicit approval item, not a decision change. |
 | C-5 | Default SMTP cannot deliver to clients (F-07). OI-04 requires "appropriately configured email delivery". | OI-04 | Local development uses the local email testing server. A custom SMTP provider is needed before any hosted environment (**OI-51**). |
+
+## 5. Phase 2 local verification spike (spec 03 §18), 2026-11-23
+
+**Environment.** Supabase CLI 3.2.0 (release checksum verified), local stack in Docker, Postgres image `17.4.1.054`, `enable_signup = false`, `otp_expiry = 600`, `jwt_expiry = 900`, TOTP enroll and verify enabled, the before-user-created hook enabled. Synthetic `@example.test` users only; email read from the local Mailpit. No hosted project, SMTP provider, or real address was used.
+
+**Method.** Scripted calls with `@supabase/supabase-js` 2.119.2 against the local API, then database inspection. The same behaviors are now pinned by the automated suites: pgTAP (`supabase/tests`), integration (`tests/integration`), and Playwright (`tests/e2e/auth.spec.ts`).
+
+| ID | Question | Observation | Conclusion |
+|---|---|---|---|
+| S-01 (U-01) | Does `admin.inviteUserByEmail` work with sign-up disabled? | No error. An **unconfirmed** user is created. The email contains the six-digit code and the allow-listed `{{ .RedirectTo }}` link. A redirect that is not allow-listed is not used (matches F-04). | Yes. Provisioning works with sign-up disabled. |
+| S-02 (U-02) | Can an invited, unconfirmed user request a fresh code with `signInWithOtp({ shouldCreateUser: false })`? | **No.** 422 `signup_disabled`, and no email. The code in the invitation email verifies with `verifyOtp({ type: 'email' })` (and with `type: 'invite'`), creates a session, and confirms the email. Re-inviting an unconfirmed user sends a **new** code and expires the old one (`otp_expired`). Re-inviting a confirmed user returns 422 `email_exists`. A confirmed user can use `signInWithOtp`. | The first sign-in uses `type: 'email'` with the code from the invitation email. "Send me a new code" on a valid invitation link re-invites while the user is unconfirmed, and uses `signInWithOtp` once they are confirmed. **This refines 03 §6.1 step 3** ("requests a fresh sign-in OTP"), which assumed `signInWithOtp` works before confirmation. All approved values are unchanged. Flagged for Owner confirmation (03 §18.1, OI-53). |
+| S-03 (U-03) | What does `signInWithOtp({ shouldCreateUser: false })` return for an unknown email? | 422 `otp_disabled` ("Signups not allowed for otp"), no email, no user. `shouldCreateUser: true` also fails (422 `signup_disabled`). | The raw error distinguishes unknown emails, so the server maps every outcome to one generic response (03 §5, TM-03). Implemented in `src/server/services/sign-in.ts`. |
+| S-04 (U-04) | Does a fresh TOTP challenge at `aal2` add a current `amr` entry? | Yes: re-challenging refreshes the `totp` timestamp. **But `amr[0]` was `otp`, not `totp`, right after the first TOTP verification.** The array is not reliably ordered most-recent-first, despite F-13. | Freshness is enforceable. `private.mfa_is_fresh()` checks **every** `amr` entry for a `totp` timestamp within 5 minutes, instead of only `amr[0]` (03 §7, §9.2 say `amr[0]`). This is as strict as intended and avoids false rejections. Flagged for Owner confirmation (03 §18.1). |
+| S-05 (U-05, U-11) | Lost-factor reset, and terminating a deactivated user's sessions | `auth.admin.mfa.deleteFactor` removes the factor. Banning a user (`updateUserById`, `ban_duration`) blocks refresh (`user_banned`) but **leaves `auth.sessions` rows**. Global `signOut` deletes the user's session rows. | Factor reset: secret-key call after an Owner fresh-MFA check (`src/server/services/staff.ts`). Deactivation: `private.set_user_status` deletes the user's `auth.sessions` rows (their refresh tokens die with them), live `profiles.status` checks deny data on the next request, and an Auth ban blocks new sign-ins. |
+| S-06 | Can an existing, confirmed user be emailed an invitation to another project? | No: `inviteUserByEmail` returns `email_exists` (as F-04 predicts), and Resend is not authorized. | As 03 §6.1 step 2 specifies, the invitee signs in and accepts the pending invitation **in the portal**, with no link token. `accept_invitation(id, null)` binds it to the caller's verified email and does not count a mismatch as a token guess. Flagged for Owner confirmation, because §6.1 step 4 lists a token check (03 §18.1). |
+| S-07 | Can the secret key create users that bypass the hook? | `admin.inviteUserByEmail` for an email without a pending invitation is **rejected by the hook** (403). `admin.createUser` **bypasses** the before-user-created hook. | The application never calls `createUser` or `signUp`; a static test enforces this (`tests/unit/static-security.test.ts`). |
+| S-08 | Local stack limits that affect tests | The local `auth.email.max_frequency` is 1 s per address, and the CLI template's `email_sent` limit is 2 per hour. | Local and CI `email_sent` is raised to 100 per hour (Mailpit only). The app limits of 03 §17 apply on top. Not a hosted setting (U-06 stands). |
+
+**Also confirmed during implementation:**
+- The audit trigger, append-only triggers, and grants behave as designed (pgTAP 040).
+- `next/image` adds an inline `style="color:transparent"` attribute, which the nonce CSP blocks (`style-src` has no `'unsafe-inline'`). The logo is rendered from `getImageProps()` without that attribute (T-SEC-04).
+- **C-4 outcome:** with every page dynamic, the Lighthouse budgets still pass locally: home performance 99, accessibility 100, best practices 100, SEO 100; `/sign-in` 100/100/100 (SEO is not assessed because the page is `noindex`) (T-PERF-01).
+
+**Contradictions.** None of these results contradicts an approved decision or an approved value. S-02, S-04, and S-06 refine mechanics that 03 left to the spike or did not anticipate. They are recorded in 03 §18.1 and OI-53 for Owner confirmation, and are listed in the implementation pull request.
+

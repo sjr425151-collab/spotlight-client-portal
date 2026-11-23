@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.1 |
-| Status | **Draft: Phase 2 finalization, pending Owner sign-off.** Not implementation authorization. v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). |
-| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-46 |
-| Open issues | OI-47; new OI-50, OI-51, OI-52 |
+| Version | 0.4.3 |
+| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). v0.4.2 added §18.1, implementation notes. v0.4.3 records their **Owner approval (OI-53, 2026-11-23)** with the amended N-8 and the corrected N-2 label (Phase 2 remediation D1, D3); no other approved text or value is changed. |
+| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-46, OI-53, OI-54 |
+| Open issues | OI-47; OI-50, OI-51, OI-52 |
 | Dependencies | DEP-06, DEP-13, DEP-14 |
 | Provider evidence | [03A — Supabase and Next.js Provider Verification](03A-SUPABASE-PROVIDER-VERIFICATION.md). Findings are cited as **F-nn**, unverified items as **U-nn**. |
 
@@ -549,3 +549,19 @@ Before any user-facing flow is built, a local-only spike resolves:
 - U-11 (admin session termination for deactivated users)
 
 Results are recorded in 03A. Any result that contradicts this specification is **escalated to the Owner** before implementation continues. Specification wording is never changed silently.
+
+### 18.1 Spike outcomes and implementation notes **[APPROVED OI-53, 2026-11-23]**
+
+The spike ran on 2026-11-23 (03A §5). **No result contradicts an approved decision or an approved value.** The approved text above is unchanged. These notes record how the implementation meets it where the provider behaved differently from the assumption, or where the text gave no number. **The Owner approved all eight on 2026-11-23 (OI-53)**, with N-8 amended for trusted server-side security-event recording, N-2 kept with its corrected client-facing label, and N-6 kept at the documented limits:
+
+| # | Section | Approved text | Implementation | Why |
+|---|---|---|---|---|
+| N-1 | §6.1 step 3 | The invitee "requests a fresh sign-in OTP" on `/invite/accept`; U-02 decides the type | The invitation email's code is entered on `/invite/accept` and verified with `type: 'email'`. "Send me a new code" re-invites while the user is unconfirmed, then uses `signInWithOtp` once they are confirmed. Both are gated by a valid link (`check_invitation_link`). | Unconfirmed users cannot use `signInWithOtp` with sign-up disabled (03A S-02). |
+| N-2 | §6.1 steps 2 and 4 | An existing user "signs in normally and sees the pending invitation, which needs no email link"; step 4 checks `token_hash` | `accept_invitation(id, null)` accepts a pending invitation for a signed-in user, bound only to the verified email. A tokenless mismatch does not count toward `failed_attempts`. Link acceptance still checks the token. The client portal describes a staff invitation as a team invitation, never as a project invitation (finding D3, corrected 2026-11-23). | Step 2 requires a path without the link, and Supabase cannot email confirmed users (03A S-06). |
+| N-3 | §7, §9.2 | Freshness uses "the most recent `amr` entry" / `amr[0]` | `mfa_is_fresh` accepts any `totp` entry within 5 minutes. | `amr` is not reliably ordered (03A S-04). It is equally strict about time. |
+| N-4 | §6.2 | Interim limits are enforced "by the proxy" from `auth.sessions` timestamps | Enforced in `private.session_is_active()`, with the specified values. Server guards and the staff restrictive policies call it on every request. | The same limits are enforced on every request, and the database enforces them as well. Values: staff 12 h inactivity and a 7-day time-box; clients 7 days inactivity. |
+| N-5 | §7 | Staff restrictive policies require `aal = 'aal2'` | They also require a verified factor (live) and a live session (`session_is_active`). | Makes factor reset (F-14) and global sign-out (T-AUTH-10) take effect before the access token expires. Stricter than the text. |
+| N-6 | §17 | Per-IP limits for code verification and invitation attempts, with no number given | 30 per hour per IP for each; also 10 verifications per hour per email. | Implementation values, chosen conservatively. Owner to confirm or change. |
+| N-7 | §6.1 audit | `invitation.resent`, `invitation.expired` | A resend is recorded as `invitation.revoked` (old) plus `invitation.created` (new). Expiry is computed (`expires_at`) and enforced; no job marks rows `expired` yet. | Marking expired rows needs a scheduler (for example `pg_cron`), which is a new component. **OI-54 (decided 2026-11-23):** the job is deferred to Phase 5, on the condition that expired invitations are rejected at every authentication and acceptance boundary regardless of cleanup status (verified by `045_expired_invitations`). |
+| N-8 | §9.1 rule 6; §11 | Secret key in `src/server/supabase/admin.ts` | As specified. The secret key is also used for rate limits and **all** security events (amended, OI-53). Security events are recorded only by the server: `public.record_security_event(actor, action, summary)` is executable by `service_role` alone and also refuses any caller whose JWT role is not `service_role`. The actor is the user the server verified (JWT claims via `getClaims`, the Auth server's verification response, or `auth_context`), never client input. Summaries are capped at 2048 bytes by the function, and every audit row at 8192 bytes by a table constraint. No API role can execute `private.record_audit_event`. | Phase 2 remediation D1 (2026-11-23): the earlier client-callable writer let any signed-in user add forged, unbounded rows to the append-only log, contrary to T-ROLE-01. Verified by `supabase/tests/050_security_events.test.sql` and API-boundary integration tests. |
+

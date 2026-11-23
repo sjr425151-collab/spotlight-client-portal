@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { getImageProps } from "next/image";
 
 import { cn } from "@/lib/cn";
 
@@ -22,22 +22,29 @@ import { cn } from "@/lib/cn";
  * treatment. The master file must never be edited; tests/unit/brand.test.ts pins its
  * SHA-256. Remove both treatments when an approved transparent/vector master exists (DEP-08).
  */
-// Mask gradients use alpha only; `black` here means "fully visible", not a page color.
-const edgeFade = "linear-gradient(to right, transparent 0%, black 4%, black 95%, transparent 100%)";
+// The edge fade is the `.logo-edge-fade` class in globals.css (no inline style attribute:
+// the CSP has no 'unsafe-inline', DEP-13).
 export const LOGO_WIDTH = 597;
 export const LOGO_HEIGHT = 335;
 
 export function Logo({ className, priority = false }: { className?: string; priority?: boolean }) {
+  // getImageProps keeps Next.js image optimization but lets us drop the inline
+  // `style="color:transparent"` that <Image> adds, which the nonce CSP would block.
+  const {
+    props: { style: _style, ...props },
+  } = getImageProps({
+    src: "/brand/spotlight-marketing-logo.jpg",
+    alt: "Spotlight Marketing",
+    width: LOGO_WIDTH,
+    height: LOGO_HEIGHT,
+    priority,
+    sizes: "(min-width: 640px) 160px, 128px",
+  });
   return (
-    <Image
-      src="/brand/spotlight-marketing-logo.jpg"
-      alt="Spotlight Marketing"
-      width={LOGO_WIDTH}
-      height={LOGO_HEIGHT}
-      priority={priority}
-      sizes="(min-width: 640px) 160px, 128px"
-      className={cn("h-auto mix-blend-screen select-none", className)}
-      style={{ maskImage: edgeFade, WebkitMaskImage: edgeFade }}
+    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text -- alt is in props
+    <img
+      {...props}
+      className={cn("logo-edge-fade h-auto mix-blend-screen select-none", className)}
     />
   );
 }

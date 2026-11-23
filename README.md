@@ -10,12 +10,12 @@ A secure client portal for Spotlight Marketing LLC. It takes each website client
 | Stage | Status |
 |---|---|
 | Architecture approval | Approved: decisions OI-01–OI-46 (register pending owner verification) |
-| Specification reconciliation | Specs 01, 02 and CLAUDE.md **approved (final, 2026-11-23)**. Specs 03–08 in review. |
-| Implementation | **Phase 1 (Foundation and CI) authorized** (2026-11-23). Phases 2–5 each require separate written Owner authorization. |
+| Specification reconciliation | Specs 01, 02 and CLAUDE.md **approved (final, 2026-11-23)**. Spec 03 v0.4.0 **approved** (2026-11-23). Specs 04–08 in review. |
+| Implementation | Phase 1 (Foundation and CI) complete. **Phase 2 (Auth, security, and tenant isolation) authorized** (2026-11-23; local Supabase, synthetic data). Phases 3–5 each require separate written Owner authorization. |
 | Production launch | **Not authorized** |
 | Stripe test-mode catalog (narrow exception, OI-30) | Authorized but **suspended**: no Stripe API requests until the Owner authorizes a verified test-mode credential workflow (DEP-01) |
 
-This repository contains the approved specifications and the Phase 1 application foundation (no external services connected). See [CLAUDE.md](CLAUDE.md) before making any change.
+This repository contains the approved specifications, the Phase 1 application foundation, and the Phase 2 authentication, security, and tenant-isolation layer. Phase 2 runs only against a **local** Supabase stack with synthetic data; no hosted service is connected. See [CLAUDE.md](CLAUDE.md) before making any change, and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) to run it.
 
 ## MVP scope
 

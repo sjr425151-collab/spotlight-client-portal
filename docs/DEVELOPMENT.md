@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Applies to | Phase 1: Foundation and CI (authorized 2026-11-23) |
-| Specifications | [01](01-PROJECT-OVERVIEW.md), [02](02-ARCHITECTURE-AND-ENVIRONMENTS.md), [CLAUDE.md](../CLAUDE.md) |
+| Applies to | Phase 1: Foundation and CI (merged); Phase 2: Auth, security, and tenant isolation (authorized 2026-11-23) |
+| Specifications | [01](01-PROJECT-OVERVIEW.md), [02](02-ARCHITECTURE-AND-ENVIRONMENTS.md), [03](03-SECURITY-AUTH-AND-TENANCY.md) with [03A](03A-SUPABASE-PROVIDER-VERIFICATION.md), [CLAUDE.md](../CLAUDE.md) |
 
-Read [CLAUDE.md](../CLAUDE.md) first. Only Phase 1 is authorized. No external service (Supabase, Stripe, Resend, Vercel) is connected, and none may be connected without separate written Owner authorization.
+Read [CLAUDE.md](../CLAUDE.md) first. Phase 2 uses a **local** Supabase stack only, with synthetic data. No hosted service (hosted Supabase, Stripe, Resend or SMTP, Vercel) is connected, and none may be connected without separate written Owner authorization.
 
 ## 1. Toolchain
 
@@ -29,6 +29,10 @@ All versions are pinned exactly. They were verified on 2026-11-23 against the of
 | @lhci/cli | 0.16.1 | npm registry | Lighthouse budgets (spec 02 §7) |
 | zod | 4.6.7 | npm registry | Environment validation |
 | server-only | 0.0.1 | npm registry | Build-time guard for server modules |
+| @supabase/supabase-js | 2.119.2 | npm registry | Phase 2. Server-side only. |
+| @supabase/ssr | 0.12.7 | npm registry | Phase 2. Cookie sessions in `src/proxy.ts` and server code (03A F-19) |
+| pg / @types/pg (dev) | 8.16.3 / 8.15.6 | npm registry | Test setup against the local database only |
+| Supabase CLI | 3.2.0 | GitHub release `supabase/cli`, SHA-256 from `checksums.txt` | Local stack and CI. Needs Docker. Not an npm dependency. |
 | gitleaks (CI only) | 8.30.1 | GitHub release, SHA-256 checksum | Downloaded and verified in CI |
 
 GitHub Actions are pinned to commit SHAs: `actions/checkout` v7.0.1, `actions/setup-node` v7.1.0, `pnpm/action-setup` v6.1.1, `actions/upload-artifact` v7.0.2.
@@ -48,12 +52,18 @@ pnpm --version            # 12.21.0
 # 3. Install exactly what the lockfile specifies
 pnpm install --frozen-lockfile
 
-# 4. Configure the environment (names only in .env.example; no secrets needed in Phase 1)
-cp .env.example .env.local
+# 4. Start the local Supabase stack (Docker required; migrations and the synthetic seed apply)
+supabase start            # prints the local API URL and the local publishable/secret keys
+supabase db reset         # re-apply every migration and supabase/seed.sql from scratch
 
-# 5. Run
+# 5. Configure the environment from `supabase status` (names in .env.example)
+cp .env.example .env.local   # then fill in the three Supabase values printed by `supabase status`
+
+# 6. Run
 pnpm dev                  # http://localhost:3000
 ```
+
+**Local sign-in.** Seeded synthetic users (`supabase/seed.sql`): `owner@example.test` (Owner), `admin@example.test` (Admin), `client.a@example.test` (Project A), `client.b@example.test` (Project B). Sign-in codes and invitation emails arrive in the local Mailpit at http://127.0.0.1:54324. Staff are asked to enroll an authenticator app (TOTP) at first sign-in. The local keys printed by `supabase status` are well-known development defaults. They are never committed: `.env.local` is gitignored.
 
 Playwright needs a browser: run `pnpm exec playwright install chromium` once. If your machine already provides a compatible Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its path.
 
@@ -66,9 +76,12 @@ Playwright needs a browser: run `pnpm exec playwright install chromium` once. If
 | `pnpm lint` | ESLint (zero warnings allowed) |
 | `pnpm typecheck` | Strict TypeScript, no emit |
 | `pnpm format` / `pnpm format:check` | Prettier write / verify |
-| `pnpm test` | Vitest unit and component tests |
+| `pnpm test` | Vitest unit, component, and static security tests (no services needed) |
+| `supabase test db` | pgTAP database tests in `supabase/tests` (RLS, roles, MFA, sessions, invitations, audit). `pnpm test:db` runs the same files through `psql` in the database container, for machines that cannot pull the pgTAP runner image. |
+| `pnpm test:integration` | Vitest integration tests against the local stack (real Auth sessions, Mailpit, storage) |
 | `pnpm build:production-check` | Builds a production-mode copy (`APP_ENV=production`) into `.next-production/`, used only by the gating tests and never deployed |
-| `pnpm test:e2e` | Playwright: smoke tests against the test build and production-gating tests against the production-mode build (run both builds first) |
+| `pnpm test:e2e` | Playwright: smoke tests, the Phase 2 auth flows (`auth` project, needs the local stack), and production-gating tests (run both builds first) |
+| `scripts/check-migrations.sh [base]` | Fails if a migration already on the base branch was edited, renamed, or deleted (T-MIG-02) |
 | `pnpm check:bundle` | Scans browser-delivered build output for secrets (T-SEC-01) |
 | `pnpm lhci` | Lighthouse CI with the spec 02 §7 budgets (run `pnpm build` first) |
 | `pnpm verify` | Everything above, except Lighthouse, in CI order |
@@ -81,6 +94,9 @@ Configuration is validated at startup and build time by `src/config/env-schema.t
 |---|---|---|
 | `APP_ENV` | 1 | One of `development`, `test`, `preview`, `staging`, `production` |
 | `NEXT_PUBLIC_SITE_URL` | 1 | Absolute http(s) URL of the deployment |
+| `NEXT_PUBLIC_SUPABASE_URL` | 2 | Absolute URL. Outside `staging` and `production` it must be a local host (spec 03 §15). |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | 2 | Must start with `sb_publishable_` |
+| `SUPABASE_SECRET_KEY` | 2 | Must start with `sb_secret_`. Server-only; read only by `src/server/supabase/admin.ts`. |
 | `STRIPE_SECRET_KEY` | 3 (not used yet) | If present, a live-mode key outside `production` fails validation (spec 02 §4 rule 2) |
 | any `NEXT_PUBLIC_*` | All | Must not contain secret-shaped values (spec 02 §9 rule 3) |
 
@@ -106,8 +122,8 @@ Each environment gets its own credentials, set in the hosting provider's secret 
 | Job | Checks |
 |---|---|
 | Lint, types, format, unit tests | Frozen-lockfile install, ESLint, `tsc`, Prettier, Vitest |
-| Build, client bundle check, Playwright smoke tests | Test build, secret scan of `.next/static`, production-mode build, Playwright on desktop and mobile Chromium (axe WCAG 2.2 AA, security headers, logo aspect ratio, reduced motion, responsive overflow), and production gating (`/design-system` returns HTTP 404 when `APP_ENV=production`) |
-| Lighthouse budgets | 3 mobile runs. Median must reach Performance ≥ 0.90, Accessibility ≥ 0.95, Best Practices ≥ 0.95, SEO ≥ 0.90. Reports kept as a run artifact only. |
+| Database, integration, and e2e tests (local Supabase) | Migration immutability (T-MIG-02); Supabase CLI 3.2.0 (checksum verified); `supabase start`; `supabase db reset` (T-MIG-01); `supabase test db` (pgTAP); integration tests; test build; secret scan of `.next/static` (T-SEC-01, including `sb_secret_`); production-mode build; Playwright smoke tests on desktop and mobile Chromium, the Phase 2 auth flows (OTP via Mailpit, invitations, staff MFA, revocation, nonce CSP T-SEC-03/04, `Cache-Control` T-SEC-06, WCAG), and production gating. The local stack's development keys are exported from `supabase status` and masked. |
+| Lighthouse budgets | 3 mobile runs each for `/` and `/sign-in`. Median must reach Performance ≥ 0.90, Accessibility ≥ 0.95, Best Practices ≥ 0.95, and SEO ≥ 0.90 (SEO for `/` only; private pages are `noindex`). Reports kept as a run artifact only. |
 | Dependency audit | `pnpm audit --audit-level=high` |
 | Secret scan | gitleaks over full git history (checksum-verified binary) |
 
@@ -115,7 +131,8 @@ Each environment gets its own credentials, set in the hosting provider's secret 
 
 **Checks that cannot run yet:**
 - Field Core Web Vitals (RUM): requires a deployed environment and a monitoring vendor (DEP-12).
-- p95 read latency: requires the Phase 2+ data layer.
+- p95 read latency: requires a hosted data layer (DEP-14).
+- Hosted Supabase settings (rate limits, OTP expiry range, plan gating): U-06 to U-08 and U-10 need a hosted project (DEP-14, OI-50).
 
 ## 6. Architecture
 
@@ -131,17 +148,38 @@ src/
     site/         Site chrome: header, footer
   config/         env-schema (pure, tested), env (server-only), security headers, site metadata
   design/         Design tokens (single source of truth) and WCAG contrast helpers
-  domain/         Business rules. Empty in Phase 1. See README.
-  server/         External-service adapters. Empty in Phase 1. See README.
-  lib/            Small shared utilities
+  domain/         Business rules. Empty until Phase 3. See README.
+  server/         Server-only code
+    supabase/     clients.ts (publishable key: user and sessionless clients); admin.ts (secret key)
+    auth/         context (getClaims + live auth_context), guards, rate limits, security events
+    services/     sign-in, invitations, staff administration, MFA
+  proxy.ts        Per-request nonce CSP, Supabase session refresh, Cache-Control (Next.js 16 proxy)
+  lib/            Small shared utilities, user-facing message codes
+supabase/
+  config.toml     Local stack: sign-up disabled, OTP 10 min, JWT 15 min, TOTP, before-user-created hook
+  migrations/     Forward-only SQL migrations (never edited after merge, T-MIG-02)
+  seed.sql        Synthetic users, businesses, and projects
+  templates/      Code-based invitation and sign-in emails
+  tests/          pgTAP tests
 tests/
-  unit/           Vitest (node; jsdom per file where needed)
-  e2e/            Playwright smoke tests
+  unit/           Vitest (node; jsdom per file where needed), including static security checks
+  integration/    Vitest against the local stack
+  e2e/            Playwright smoke tests and Phase 2 auth flows
+  support/        Local-only helpers: Mailpit, TOTP, local database
 scripts/          CI helper scripts
 ```
 
+**Phase 2 security model (spec 03).**
+- The browser never calls Supabase. All Supabase calls run on the server; auth cookies are HttpOnly.
+- Identity comes from `getClaims()` (verified JWT); role, status, session liveness, and MFA freshness come from `public.auth_context()` on every request. `getSession()` is never used for authorization (static test, T-AUTH-13).
+- Every page and server action calls a guard from `src/server/auth/guards.ts` (`requireUser`, `requireClient`, `requireStaff({ fresh })`, `requireOwner`, `requireProjectAccess`). A static test fails if an exported server action has no guard (T-TEN-04).
+- RLS applies to every table. Security-definer code lives in the unexposed `private` schema with `search_path = ''`; the app calls `public` SECURITY INVOKER wrappers.
+- The secret-key client is importable only from `src/server/**` (ESLint rule and static test).
+- Security events are written only through `recordSecurityEvent` (secret key, verified actor). No API role, client or staff, can execute an audit-writing function (`supabase/tests/050_security_events.test.sql`).
+
 **Boundaries** (enforced by ESLint `no-restricted-imports`):
 - `components`, `design`, and `domain` must not import `@/server/*`, `@/config/env`, or `server-only`. Server data flows in from server components.
+- `app`, `lib`, `config`, and `proxy.ts` must not import `@/server/supabase/admin` (spec 03 §10).
 - `domain` stays free of framework and I/O code, so business rules remain portable and unit-testable (spec 02 §1).
 
 **Design tokens.** `src/design/tokens.ts` is the source of truth. `src/app/globals.css` mirrors it in the Tailwind `@theme` block. `tests/unit/tokens.test.ts` fails if the two drift, or if any approved text pair drops below 4.5:1 or any UI pair below 3:1.
@@ -158,7 +196,8 @@ The artwork itself is not modified, and a unit test pins the master's SHA-256. A
 
 | Integration | Where | Phase |
 |---|---|---|
-| Supabase Auth, Postgres/RLS, Storage | `src/server/supabase/*`, server-only | 2 |
+| Supabase Auth, Postgres/RLS, Storage (local) | `src/server/supabase/*`, server-only | 2 (implemented) |
+| Hosted Supabase projects | Owner-controlled (DEP-14) | Not authorized |
 | Stripe (test mode), webhooks, ledger | `src/server/stripe/*`, `src/domain/billing/*` | 3 (DEP-01 blocked) |
 | Resend, outbox, upload scanning | `src/server/*`, `src/domain/*` | 4 |
 | Vercel projects, DNS, production | Owner-controlled infrastructure | 5 and production authorization |
@@ -167,7 +206,9 @@ The artwork itself is not modified, and a unit test pins the master's SHA-256. A
 
 | Item | Reason | When |
 |---|---|---|
-| Nonce-based Content-Security-Policy (**DEP-13**, T-SEC-03) | Next.js inline bootstrap scripts currently need `'unsafe-inline'`. A nonce policy needs per-request handling. No partial nonce implementation is shipped in Phase 1. | **Phase 2, required** |
+| Phase 2 implementation notes (**OI-53**, approved 2026-11-23) | Approved with N-8 amended: security events are recorded only by the server (`service_role`) with a verified actor and bounded payloads | Done |
+| Marking expired invitations (**OI-54**, decided) | Deferred on condition: expired invitations must stay rejected at every boundary regardless of cleanup status (`supabase/tests/045_expired_invitations.test.sql`) | Phase 5 |
+| Invitation emails to existing users | Supabase cannot email confirmed users (03A S-06); they accept in the portal. Notification email needs Resend. | Phase 4 |
 | Add CI jobs as required status checks | GitHub ruleset change (Owner) | After the Phase 1 PR's first successful run |
 | ESLint 10 upgrade | Waiting on plugin peer support | When `eslint-config-next` dependencies support it |
 | Favicon and app icons | No Owner-approved icon asset. The page declares an empty icon to avoid 404s. | DEP-08 |

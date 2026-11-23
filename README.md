@@ -59,7 +59,7 @@ Client websites are **separate, isolated deployments**: agency-managed Vercel, o
 | [06 — Publishing and Post-Launch](docs/06-PUBLISHING-AND-POST-LAUNCH.md) | Publication gates, deployment, verification, rollback, inquiries |
 | [07 — Notifications, Privacy, and Design](docs/07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md) | Outbox, event catalog, retention, privacy, design system |
 | [08 — Decisions and Changelog](docs/08-DECISIONS-AND-CHANGELOG.md) | Decision register OI-01–OI-24, change control |
-| [OPEN-ISSUES.md](OPEN-ISSUES.md) | Decided issues, open Owner decisions (OI-47 onward), and implementation dependencies (DEP-nn) |
+| [OPEN-ISSUES.md](OPEN-ISSUES.md) | Decided issues, open Owner decisions (Part 2), and implementation dependencies (DEP-nn) |
 | [CLAUDE.md](CLAUDE.md) | Operating instructions for contributors and AI agents |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local setup, toolchain, commands, CI, architecture |
 

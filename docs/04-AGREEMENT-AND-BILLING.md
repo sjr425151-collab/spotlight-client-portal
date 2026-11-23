@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.0 |
-| Status | **Draft — pending owner sign-off.** v0.5.0: automatic final-balance collection (Owner instruction, 2026-11-23; OI-17 revised). |
-| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-55 |
-| Open issues | OI-47 |
+| Version | 0.5.1 |
+| Status | **Draft — pending owner sign-off.** v0.5.0: automatic final-balance collection (Owner instruction, 2026-11-23; OI-17 revised). v0.5.1: OI-47 approved (Option A, 2026-11-23); deposit-stage adjustments are not supported. |
+| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55 |
+| Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
 > Nothing in this document authorizes any Stripe operation. No Stripe products, prices, customers, subscriptions, or Checkout configurations were created, queried, or modified in preparing it.
@@ -193,7 +193,8 @@ Phase 3 cannot begin implementation until these IDs are recorded and verified to
 | Line item 2 | **Maintenance** Price ID (recurring monthly, 9900), quantity 1 |
 | First invoice total | **deposit + 9900 cents**: one deposit charge plus **one** maintenance period. Never deposit + 19800. |
 | Subsequent billing | 9900 cents monthly from the subscription billing anchor (purchase date) |
-| Discounts | **None.** No discount is applied to the initial Checkout. Deposit-stage adjustments are unsupported until OI-47 is decided **[PENDING OI-47]**. |
+| Deposit | **Mandatory [APPROVED OI-47, Option A]**: the standard 20% deposit price for the package (§5.1), for all five standard packages. It is never reduced, credited, or waived. |
+| Discounts | **None [APPROVED OI-47, Option A].** No discount, coupon, promotion code, credit, or waiver is ever applied to the initial Checkout, so neither the deposit nor the maintenance line can be reduced there. **[PROPOSED; VERIFY-PROVIDER]** The Checkout Session is created without discounts and with promotion codes disabled. |
 | Payment method for the final balance **[APPROVED OI-17, revised 2026-11-23]** | Stripe securely saves the payment method on the client business's Stripe Customer for later **off-session** collection of the final balance (§10), under the client's explicit authorization in the accepted agreement (§3.1). The portal never stores card data. |
 
 Expected initial totals:
@@ -311,7 +312,9 @@ Whether final payment may be requested *before* client approval is not specified
 - The standard Stripe balance prices remain unchanged.
 - The adjusted amount is collected with an **Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices. The discount is applied to the automatic final-balance invoice (§10) **[APPROVED OI-55]**.
 - A fully waived balance requires no charge. It is recorded as a `waiver` ledger entry (§12), and approval triggers no Stripe invoice.
-- **Deposit-stage adjustments:** OI-44 covers the final balance only. Adjustments to the initial deposit Checkout are **[PENDING OI-47]**.
+- **Deposit-stage adjustments are not supported in the MVP [APPROVED OI-47, Option A].** The deposit is always the standard deposit price (§8). An Owner-authorized project price reduction is applied **only** to the outstanding final balance, under §10.1 (OI-44, OI-55).
+- A reduction can therefore never exceed the outstanding final balance; reducing it to zero is the full waiver above. A concession larger than the final balance is not supported in the MVP; refunds are governed separately (§15.2).
+- The $99 maintenance subscription is never reduced by a project discount (§10.1 row 13; OI-44).
 
 ### 10.1 Adjusted final-balance payment **[APPROVED OI-44, OI-55]**
 
@@ -557,3 +560,5 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-17 | Maintenance discontinuation is rejected before M1. Deactivating remaining services is rejected before M2 or without the required notices recorded. (OI-35) |
 | T-BIL-18 | No code path or configuration deliberately degrades a client website (code review checklist and negative test) |
 | T-BIL-19 | Domain expiry is taken from the actual registration date and registrar record. Cancellation, M1, and M2 make no registrar call that cancels, deletes, or transfers the domain. |
+| T-BIL-20 | The initial Checkout Session for every standard package contains exactly the standard deposit Price ID and the maintenance Price ID, with no discount, coupon, promotion code, or credit. Any attempt to create a deposit-stage adjustment is rejected and audited. (OI-47) |
+| T-BIL-21 | An Owner-authorized reduction larger than the outstanding final balance is rejected. After any final-balance adjustment, the deposit ledger entry is unchanged and the next maintenance invoice is exactly 9900 cents. (OI-47, OI-44) |

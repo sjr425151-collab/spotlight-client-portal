@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.9.2 (draft for owner review) |
+| Version | 0.10.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -30,7 +30,7 @@ All specifications in this repository use these labels:
 |---|---|
 | **[APPROVED OI-nn]** | Owner-approved architectural requirement traced to decision OI-nn. Binding. |
 | **[PROPOSED]** | Engineering detail proposed by the documentation author. Not binding until the owner approves the specification containing it. |
-| **[PENDING OI-nn]** | Open owner decision tracked in [OPEN-ISSUES.md](../OPEN-ISSUES.md) Part 2 (currently OI-47 only). It must not be assumed. |
+| **[PENDING OI-nn]** | Open owner decision tracked in [OPEN-ISSUES.md](../OPEN-ISSUES.md) Part 2 (currently OI-50 to OI-52). It must not be assumed. |
 | **DEP-nn** | Implementation or production dependency (verification, review, asset, or setup) tracked in OPEN-ISSUES.md Part 3. It is not an open policy decision. |
 | **[DEFERRED]** | Legal, commercial, or brand policy deferred until production readiness. Placeholder only. |
 | **[VERIFY-PROVIDER]** | Behavior or capability of a third-party provider (Stripe, Supabase, Vercel, Resend, etc.) that must be verified against current provider documentation and plan limits during authorized implementation. |
@@ -317,7 +317,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - Standard Stripe prices remain unchanged. Adjusted payment amounts require a compliant payment mechanism.
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
-- **Related decisions:** OI-44 (approved mechanism for the final balance). **Open:** OI-47 (deposit-stage adjustments).
+- **Related decisions:** OI-44 (approved mechanism for the final balance); OI-55 (collection vehicle); **OI-47 (approved 2026-11-23): adjustments apply only to the outstanding final balance; none at the deposit stage.**
 - **Affected sections:** 04 §10, §12; 03 §4, §7, §12; 05 §2; 06 §2.
 
 ### OI-28 — Signer authority
@@ -531,7 +531,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Status:** Approved.
 - **Provenance:** Owner final reconciliation instructions, 2026-11-23.
 - **Dependencies:** DEP-06 (Stripe discount capability), DEP-03 (disclosure).
-- **Related open item:** OI-47 (deposit-stage adjustments, which OI-44 does not cover). **OI-55 (approved 2026-11-23):** after the OI-17 revision, the Owner-authorized discount is applied to the automatic final-balance invoice instead of a Stripe Checkout. Every other requirement above is unchanged. Collection on that invoice is authorized (block lifted 2026-11-23).
+- **Related decision:** OI-47 (approved 2026-11-23, Option A): no deposit-stage adjustments; this mechanism is the only adjustment path. **OI-55 (approved 2026-11-23):** after the OI-17 revision, the Owner-authorized discount is applied to the automatic final-balance invoice instead of a Stripe Checkout. Every other requirement above is unchanged. Collection on that invoice is authorized (block lifted 2026-11-23).
 - **Affected sections:** 04 §10–§10.1, §12; 03 §4, §12; 06 §2.
 
 ### OI-45 — Day-21 preview approval hold
@@ -565,6 +565,25 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner final reconciliation instructions, 2026-11-23.
 - **Dependencies:** DEP-03, DEP-06.
 - **Affected sections:** 04 §9.1.1, §11, §15.1; 05 §2, §9; 06 §8.4; 03 §4, §12; 07 §4.
+
+### OI-47 — Adjustments to the initial deposit Checkout
+
+- **Decision (Option A):**
+  1. The standard 20% initial deposit is **mandatory** for all five standard website packages.
+  2. The initial Stripe Checkout always includes the standard deposit plus the first $99 monthly maintenance payment.
+  3. No deposit-stage discounts, credits, or waivers are supported in the MVP.
+  4. Owner-authorized project price reductions may be applied **only to the outstanding final balance**, under the existing OI-44 and OI-55 safeguards.
+  5. The $99 maintenance subscription must never be reduced by a project discount.
+- **Status:** Approved.
+- **Provenance:** Owner decision, 2026-11-23 ("I formally approve OI-47, Option A").
+- **Decision history:** opened 2026-11-23 during the OI-42–OI-46 reconciliation, because OI-27 permits adjustments without naming a payment stage while OI-44 approved a mechanism for the final balance only. Options considered:
+  - **A (chosen):** no deposit-stage adjustments; reductions only on the final balance.
+  - B: a discount on the initial Checkout restricted to the deposit product.
+  - C: deposit waivers only, with no deposit line item.
+
+  B and C were not adopted. Both would add new Stripe behavior to the subscription-mode initial Checkout, and B risked reducing the maintenance charge.
+- **Relationship to other decisions:** narrows *where* OI-27 adjustments apply. It does not change OI-27's Owner-only, reauthenticated, reasoned, audited rules, or OI-44 / OI-55's mechanism and safeguards.
+- **Affected sections:** 04 §8, §10, §10.1, §16 (T-BIL-20, T-BIL-21); 03 §12.
 
 ### OI-48 — Theme mode
 
@@ -623,7 +642,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-06 (Stripe verification of an invoice-level discount restricted to the balance product).
 - **Affected sections:** 04 §10–§10.1, §16 (T-BIL-11); 03 §4; OI-44.
 
-## 3A. Traceability matrix (OI-01–OI-46, OI-48–OI-49, OI-53–OI-55)
+## 3A. Traceability matrix (OI-01–OI-49, OI-53–OI-55)
 
 Phase = the earliest OI-02 phase whose implementation the decision governs. "Prod" = production launch.
 
@@ -655,7 +674,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-24 | Post-publication inquiries | Approved | 4 | 06 §11 | — | — |
 | OI-25 | Nonresponsive preview clients | Approved | 4 | 05 §7.1–§7.2 | — | — |
 | OI-26 | Failed maintenance payments | Approved | 3 | 04 §9.1–§9.1.1, §14 | DEP-03, DEP-06 | Legal (notice); provider (Stripe retries) |
-| OI-27 | Financial adjustments | Approved | 3 | 04 §10–§10.1, §12 | OI-47 (open) | Provider (discount mechanism) |
+| OI-27 | Financial adjustments | Approved | 3 | 04 §10–§10.1, §12 | OI-47 (approved) | Provider (discount mechanism) |
 | OI-28 | Signer authority | Approved | 3 | 04 §3 | DEP-03 | Legal (wording) |
 | OI-29 | Stripe Customer Portal | Approved | 3 | 04 §9.2 | DEP-03 | Provider (portal config) |
 | OI-30 | Stripe test-mode catalog | Approved; creation blocked | Pre-3 (authorized exception) | 04 §6 | **DEP-01** | Provider (test account) |
@@ -672,7 +691,8 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-41 | Production infrastructure | Approved | 5 / Prod | 02 §11 | DEP-09 | Provider; Owner authorization |
 | OI-42 | Unused upload retention | Approved | 4 | 07 §5–§6; 05 §4 | DEP-05 | Legal/privacy |
 | OI-43 | Business-day and time-zone calendar | Approved | 3 | 02 §13 | DEP-03 | Legal (trigger-date exclusion, wording) |
-| OI-44 | Adjusted final-balance payments | Approved | 3 | 04 §10.1 | DEP-06, DEP-03; OI-47 (open) | Provider (Stripe discounts) |
+| OI-44 | Adjusted final-balance payments | Approved | 3 | 04 §10.1 | DEP-06, DEP-03; OI-47 (approved) | Provider (Stripe discounts) |
+| OI-47 | Deposit-stage adjustments (Option A: none) | Approved | 3 | 04 §8, §10 | — | Provider (Checkout without discounts) |
 | OI-45 | Day-21 preview approval hold | Approved | 4 | 05 §7.2; 04 §14 | — | — |
 | OI-48 | Theme mode: dark-only MVP | Approved | 1 | 07 §10 | DEP-08 (future light variant) | — |
 | OI-49 | Temporary logo compositing | Approved | 1 | 07 §10.1 | DEP-08 | Owner asset approval |
@@ -711,6 +731,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.9.0 | 2026-11-23 | Recorded the Owner's approval of spec 03 v0.4.0 (with 03A as supporting evidence) and the **Phase 2 authorization** (local Supabase with synthetic data; CI with the Supabase CLI). Phase 2 implemented on branch `phase-2/auth-security-tenancy` for Owner review: migrations, RLS, invitation-only OTP, staff TOTP MFA, roles, append-only audit, nonce CSP, private storage policies, and automated tests. 03 v0.4.2 adds §18.1 implementation notes pending Owner confirmation (OI-53); 03A v0.2.0 records the spike results. DEP-13 complete. Opened OI-53, OI-54. **No Owner decision changed.** | Claude Code | Owner (spec 03 approval and Phase 2 authorization only; OI-53 pending) |
 | 0.9.1 | 2026-11-23 | **OI-54 approved:** the expired-invitation cleanup job is deferred to Phase 5, on the condition that expired invitations are rejected at every authentication and acceptance boundary regardless of cleanup status. The condition is verified by new pgTAP and integration tests. OI-53 is still pending Owner confirmation. | Claude Code | Owner (instruction, 2026-11-23) |
 | 0.9.2 | 2026-11-23 | **OI-53 approved** with N-8 amended (security events recorded only by the server with a verified actor; payload bounds) and N-2 / N-6 retained. **Phase 2 remediation:** D1 removed client and staff execution of the security-event writer and bounded audit payloads; D3 corrected the client-facing label for staff invitations. Spec 03 v0.4.3. | Claude Code | Owner (Phase 2 Security Remediation Authorization, 2026-11-23) |
+| 0.10.0 | 2026-11-23 | **OI-47 approved (Option A):** the standard 20% deposit is mandatory for all five packages, and the initial Checkout always contains the standard deposit plus the first $99 maintenance payment. No deposit-stage discounts, credits, or waivers. Owner-authorized reductions apply only to the outstanding final balance, under OI-44 / OI-55. The maintenance subscription is never reduced. 04 v0.5.1 (new tests T-BIL-20, T-BIL-21); 03 v0.4.4 (§12 row). Documentation only. | Claude Code | Owner (decision, 2026-11-23) |
 
 ## 6. Change-control rules
 

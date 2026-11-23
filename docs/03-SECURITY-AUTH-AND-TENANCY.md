@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.3 |
-| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). v0.4.2 added §18.1, implementation notes. v0.4.3 records their **Owner approval (OI-53, 2026-11-23)** with the amended N-8 and the corrected N-2 label (Phase 2 remediation D1, D3); no other approved text or value is changed. |
-| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-46, OI-53, OI-54 |
-| Open issues | OI-47; OI-50, OI-51, OI-52 |
+| Version | 0.4.4 |
+| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). v0.4.2 added §18.1, implementation notes. v0.4.3 records their **Owner approval (OI-53, 2026-11-23)** with the amended N-8 and the corrected N-2 label (Phase 2 remediation D1, D3); no other approved text or value is changed. v0.4.4 updates the §12 adjustment row for OI-47 (approved 2026-11-23) and OI-55; no other approved text or value is changed. |
+| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-47, OI-53–OI-55 |
+| Open issues | OI-50, OI-51, OI-52 |
 | Dependencies | DEP-06, DEP-13, DEP-14 |
 | Provider evidence | [03A — Supabase and Next.js Provider Verification](03A-SUPABASE-PROVIDER-VERIFICATION.md). Findings are cited as **F-nn**, unverified items as **U-nn**. |
 
@@ -350,7 +350,7 @@ Minimum event catalog **[PROPOSED]**:
 | No override may create a payment, a successful Stripe status, a client approval, or a QA pass | Approved |
 | No general-purpose "mark as paid" action exists in any interface or API | Approved |
 | No override may silently bypass a mandatory publication gate | Approved |
-| Discounts, credits, and partial or full waivers are Owner-only ledger entries, with reason, reauthentication, and audit. A full waiver is recorded as a waiver, never as a Stripe payment. | **Approved (OI-27, OI-44)**. Mechanism: an Owner-authorized discount on the standard final-balance price in Checkout (04 §10.1). Deposit-stage adjustments: **[PENDING OI-47]**. |
+| Discounts, credits, and partial or full waivers are Owner-only ledger entries, with reason, reauthentication, and audit. A full waiver is recorded as a waiver, never as a Stripe payment. | **Approved (OI-27, OI-44)**. Mechanism: an Owner-authorized discount on the standard final-balance price, applied to the automatic final-balance invoice (04 §10.1; OI-55). Deposit-stage adjustments are **not supported** (**OI-47, Option A**): the standard deposit is mandatory, reductions apply only to the outstanding final balance, and the $99 maintenance subscription is never reduced. |
 | The only permitted QA exception is a documented, Owner-approved performance exception. Security, payment/settlement, and client approval cannot be bypassed. | **Approved (OI-33)** |
 | Dispute evidence is compiled from authoritative records only. No fabricated evidence and no automatic concession. | **Approved (OI-37)** |
 | No service is discontinued or deactivated, and no website is removed, solely because a payment failed or because Stripe cancelled a subscription. Only an Owner-authorized, documented termination starts the post-cancellation milestones. | **Approved (OI-46)** |

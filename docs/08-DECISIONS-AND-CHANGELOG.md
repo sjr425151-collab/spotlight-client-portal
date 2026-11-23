@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.3.1 (draft for owner review) |
+| Version | 0.3.2 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -441,7 +441,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - Flag the folder if it is inaccessible or ambiguous. Final visual design requires Owner approval before production.
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
-- **Findings:** the folder is accessible and contains a single candidate (07 §10.1). Owner confirmation and production asset variants are pending (DEP-08).
+- **Findings:** the folder is accessible and contains a single logo file (07 §10.1). **The Owner confirmed it as the official master on 2026-11-23.** Production asset variants and final visual approval remain pending (DEP-08).
 - **Affected sections:** 07 §10–§12.
 
 ### OI-39 — Provider verification
@@ -593,7 +593,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-35 | Cancellation and transition | Approved | 3–4 | 04 §15.1–§15.2; 06 §8.4 | DEP-03 | Legal (before enforcement) |
 | OI-36 | Tax readiness | Approved | 3 / Prod | 04 §12, §15.3 | DEP-04 | Tax review; provider (Stripe Tax) |
 | OI-37 | Disputes | Approved | 3 | 04 §15.4 | DEP-03 | Legal |
-| OI-38 | Branding | Approved | 1 / Prod | 07 §10–§12 | DEP-08 | Owner asset confirmation |
+| OI-38 | Branding | Approved | 1 / Prod | 07 §10–§12 | DEP-08 (logo confirmed; production assets pending) | Owner final visual approval |
 | OI-39 | Provider verification | Approved | Each phase | 02 §10 | DEP-06 | Provider |
 | OI-40 | Data governance | Approved | 4 | 07 §5–§9 | DEP-05 | Legal/privacy |
 | OI-41 | Production infrastructure | Approved | 5 / Prod | 02 §11 | DEP-09 | Provider; Owner authorization |
@@ -622,6 +622,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.2.0 | 2026-11-23 | Transcribed approved decisions OI-25–OI-41 and added the §3A traceability matrix. Reconciled specs 01–07, README, CLAUDE.md, and OPEN-ISSUES. Moved OI-25–OI-41 to decided. Opened OI-42–OI-46 from the cross-document audit. Created the dependency register DEP-01–DEP-12. Recorded the official logo candidate (07 §10.1). Recorded the Stripe test-catalog creation as blocked (DEP-01). | Claude Code (documentation author) | Pending owner review |
 | 0.3.0 | 2026-11-23 | Transcribed approved decisions OI-42–OI-46. Extended the §3A matrix to 46 decisions. Added the shared deadline calendar (02 §13), adjusted final-balance Checkout (04 §10.1), the failed-payment-to-termination lifecycle (04 §9.1.1), the day-21 approval hold (05 §7.2), and used/unused retention with the closure event (07 §6). Opened OI-47 (deposit-stage adjustments). Reassessed dependency phases. Recorded the Stripe test-catalog action as suspended. | Claude Code (documentation author) | Pending owner review |
 | 0.3.1 | 2026-11-23 | DEP-10 marked complete. The Owner created the active ruleset `protect-main` on the default branch: pull request required with 0 approvals (Owner decision, sole developer), force pushes blocked, deletions restricted, no status checks. The GitHub API confirms `main` is protected. Rule details are Owner-attested. | Claude Code (documentation author) | Pending owner review |
+| 0.3.2 | 2026-11-23 | Recorded the Owner's confirmation that the SLM folder logo (Drive file ID `13-UmtqYfcweEZUCwCcYiIsHiTy9RMTKX`, SHA-256 `6cc6edb3…b2bd3c`) is the official master. DEP-08 Phase 1 part complete; production asset variants and final visual approval remain outstanding. | Claude Code (documentation author) | Owner (logo confirmation only) |
 
 ## 6. Change-control rules
 

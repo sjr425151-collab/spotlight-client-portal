@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.0 |
+| Version | 0.3.1 |
 | Status | **Draft — pending owner sign-off** |
 | Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46 |
 | Open issues | None |
@@ -167,7 +167,7 @@ DPAs and subprocessor terms must be reviewed before production (DEP-05).
 | Format | JPEG, 597 × 335 px, 72 dpi, RGB. No transparency. |
 | SHA-256 (as downloaded) | `6cc6edb39da3a8a6e5412d14989c590039632aff85e4114812c21a2ce8b2bd3c` |
 | Visual description | White "SPOTLIGHT" wordmark (bold, italic, geometric sans), with "MARKETING" below in widely letter-spaced capitals. Both sit within a glowing white/blue-white crescent ("eclipse") arc, on a solid black background. |
-| Candidate status | A single unambiguous candidate. **Identified, not yet confirmed by the Owner as the official master** (DEP-08). |
+| Status | **Confirmed by the Owner as the official logo master (2026-11-23).** The Owner confirmed in writing in the documentation session; no signed record exists. The confirmation applies to the file identified by the Drive file ID and SHA-256 above. |
 
 Rules **[APPROVED OI-38]**:
 - Use this logo as the foundation of the portal's visual design. Preserve its original proportions and visual identity: no stretching, recoloring, redrawing, or effects.
@@ -198,11 +198,11 @@ The Owner must supply or approve these. The JPEG is not committed to this reposi
 ## 12. Brand approval dependencies **[APPROVED OI-38; final approval DEP-08]**
 
 Before production, the Owner must:
-- confirm the official logo file (§10.1)
+- ~~confirm the official logo file (§10.1)~~: confirmed 2026-11-23
 - supply or approve logo variants
 - approve the color palette, typography and font licensing, email template branding, favicon, and social preview imagery
 
-**Final visual design requires Owner approval before production.** Until then, implementation uses the identified logo (once confirmed) with provisional, clearly labeled design tokens.
+**Final visual design requires Owner approval before production.** Until then, implementation uses the confirmed logo (§10.1) with provisional, clearly labeled design tokens. Confirming the logo does **not** approve the final palette, typography, or visual design.
 
 ## 13. Acceptance tests **[PROPOSED]**
 

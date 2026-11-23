@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.1 (draft for owner review) |
+| Version | 0.3.2 (draft for owner review) |
 | Status | Draft |
 | Next unused issue ID | **OI-48** |
 | Next unused dependency ID | **DEP-13** |
@@ -109,7 +109,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 | DEP-05 | **Legal/privacy review** of retention, deletion, data requests, DPAs, incident notification (OI-21, OI-40, OI-42) | Owner + counsel | Phase 5 (Prod) | Not started |
 | DEP-06 | **Provider verification** per OI-39 (02 §10) | Implementer; escalations to the Owner | Phase 1 (Vercel, GitHub Actions); Phase 2 (Supabase); Phase 3 (Stripe); Phase 4 (Resend, Storage, client-site Vercel) | Not started |
 | DEP-07 | Malware scanning **vendor selection** after provider and cost verification (OI-31) | Owner (selection) | Phase 4 | Not started |
-| DEP-08 | **Brand assets**: Owner confirmation of the official logo master (Phase 1); vector and variant assets and final visual approval (Prod) | Owner | Phase 1 (confirmation); Prod (final approval) | Candidate identified; **not confirmed** |
+| DEP-08 | **Brand assets**: Owner confirmation of the official logo master (Phase 1); vector and variant assets and final visual approval (Prod) | Owner | Phase 1 (confirmation); Prod (final approval) | Phase 1 part **complete**: logo master confirmed 2026-11-23. Production part **outstanding**. |
 | DEP-09 | **Production infrastructure** prerequisites P-1–P-9 (02 §11) | Owner + implementer | Phase 5 (Prod) | Not started |
 | DEP-10 | **Branch protection** on `main` | Owner (GitHub settings) | Phase 1 | **Complete (2026-11-23)**. See detail below. |
 | DEP-11 | Toolchain **version pins** verified against official sources (OI-11) | Implementer | Phase 1 | Not started |
@@ -148,9 +148,8 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 
 ### DEP-08 detail — brand assets
 
-- One logo candidate is identified in the official SLM folder (07 §10.1).
-- Phase 1 needs the Owner to confirm it is the official master.
-- Production needs:
+- **Complete (Phase 1 part):** on 2026-11-23 the Owner confirmed that the single logo file in the official SLM folder is the official master (07 §10.1).
+- **Outstanding (production part):**
   - a vector master
   - transparent and light-background variants
   - a favicon and app icon

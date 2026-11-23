@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.4.0 (draft for owner review) |
+| Version | 0.5.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -618,8 +618,8 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 |---|---|---|
 | 1. Architecture approval | **Approved** (per owner-provided baseline; pending verification of this register) | §1 |
 | 2. Specification reconciliation | **In progress.** Documentation-only changes authorized. This change set is under owner review. | Draft PR for branch `docs/architecture-specification-reconciliation` |
-| Foundation specs 01, 02 and CLAUDE.md | **Owner-approved (conditional)** at v0.3.1 on 2026-11-22. The mandatory reconciliation is applied (02 v0.4.0, 01 v0.3.2, CLAUDE.md). **Awaiting Owner final confirmation.** | [Sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) |
-| 3. Implementation authorization | **Not authorized** for any phase | — |
+| Foundation specs 01, 02 and CLAUDE.md | **Approved (final)**: 01 v0.3.2, 02 v0.4.0, and CLAUDE.md as reconciled in commit `10868de` and merged through PR #1. | [Sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); Owner's written Phase 1 authorization, 2026-11-23 |
+| 3. Implementation authorization | **Phase 1 (Foundation and CI) authorized 2026-11-23.** Phases 2–5 are **not authorized**. Within Phase 1, Stripe requests, Supabase, authentication, Resend, Vercel, DNS, deployment, and production credentials remain prohibited. | Owner's written Phase 1 authorization, 2026-11-23 (transcribed from the Owner's instruction in the implementation session; no separate signed record) |
 | 4. Production launch authorization | **Not authorized** | — |
 | Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked and suspended**: there is no valid test-mode credential, and the Owner has instructed that no Stripe API requests be made until a verified test-mode credential workflow is separately authorized (DEP-01). | Owner instructions, 2026-11-23 |
 
@@ -634,6 +634,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.3.1 | 2026-11-23 | DEP-10 marked complete. The Owner created the active ruleset `protect-main` on the default branch: pull request required with 0 approvals (Owner decision, sole developer), force pushes blocked, deletions restricted, no status checks. The GitHub API confirms `main` is protected. Rule details are Owner-attested. | Claude Code (documentation author) | Pending owner review |
 | 0.3.2 | 2026-11-23 | Recorded the Owner's confirmation that the SLM folder logo (Drive file ID `13-UmtqYfcweEZUCwCcYiIsHiTy9RMTKX`, SHA-256 `6cc6edb3…b2bd3c`) is the official master. DEP-08 Phase 1 part complete; production asset variants and final visual approval remain outstanding. | Claude Code (documentation author) | Owner (logo confirmation only) |
 | 0.4.0 | 2026-11-23 | Recorded the Owner sign-off of specs 01, 02 and CLAUDE.md (conditional, `OWNER-SIGNOFF-FOUNDATION-2026-11-22.md`). Applied the mandatory reconciliation: OI-35 revised into M1 (12 business days, maintenance and designated infrastructure cessation) and M2 (60 calendar days, final transfer and offboarding), a one-year initial domain term separate from hosting, no guaranteed functionality after discontinuation, no intentional degradation, and a commercially reasonable $99 model with no uptime or response-time guarantees. Updated specs 01–07, tests, README, CLAUDE.md, and OPEN-ISSUES. | Claude Code (documentation author) | Owner (sign-off record; final confirmation pending) |
+| 0.5.0 | 2026-11-23 | Recorded the Owner's final approval of 01 v0.3.2, 02 v0.4.0, and CLAUDE.md, and the Phase 1 authorization. Status lines only; approved spec content unchanged. Phase 1 foundation delivered on branch `phase-1/foundation-ci`. DEP-11 complete. OI-48 (theme mode) opened. | Claude Code | Owner (Owner's written Phase 1 authorization, 2026-11-23) |
 
 ## 6. Change-control rules
 

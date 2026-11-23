@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Version | 0.3.2 |
-| Status | **Owner-approved baseline v0.3.1** ([sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md), 2026-11-22, conditional). v0.3.2 is a status-only update. **Pending Owner final confirmation.** |
+| Status | **Approved (final): v0.3.2.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.3.2 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). |
 | Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
@@ -110,8 +110,8 @@ Each phase requires **separate written owner authorization**. None is currently 
 | Stage | Status |
 |---|---|
 | 1. Architecture approval | Approved |
-| 2. Specification reconciliation | Specs 01, 02 and CLAUDE.md: Owner-approved (conditional; mandatory reconciliation applied, final confirmation pending). Specs 03–08: in review. |
-| 3. Implementation authorization | **Not authorized** |
+| 2. Specification reconciliation | Specs 01 (v0.3.2), 02 (v0.4.0) and CLAUDE.md: **approved (final, 2026-11-23)**. Specs 03–08: in review. |
+| 3. Implementation authorization | **Phase 1 (Foundation and CI) authorized 2026-11-23.** Phases 2–5 not authorized. |
 | 4. Production launch authorization | **Not authorized** |
 
 Approving this or any specification does not authorize implementation.

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Version | 0.4.0 |
-| Status | **Owner-approved baseline v0.3.1** ([sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md), 2026-11-22, conditional). v0.4.0 applies the mandatory reconciliation. **Pending Owner final confirmation.** |
+| Status | **Approved (final): v0.4.0.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.4.0 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). |
 | Decisions | OI-07, OI-10, OI-11, OI-22, OI-23, OI-29, OI-32, OI-39, OI-41, OI-43 |
 | Dependencies | DEP-06, DEP-09, DEP-11, DEP-12 (DEP-10 complete) |
 

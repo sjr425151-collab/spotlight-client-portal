@@ -1,0 +1,16 @@
+.next/
+node_modules/
+coverage/
+playwright-report/
+test-results/
+.lighthouseci/
+pnpm-lock.yaml
+next-env.d.ts
+public/
+src/app/fonts/
+# Approved specifications and records are formatted by hand and change only through
+# documentation change control (CLAUDE.md §7); do not reflow them automatically.
+docs/
+CLAUDE.md
+OPEN-ISSUES.md
+README.md

@@ -309,7 +309,7 @@ Whether final payment may be requested *before* client approval is not specified
 **Adjusted balances [APPROVED OI-27]:**
 - When an Owner-authorized discount, credit, or partial waiver reduces the amount owed, the **remaining amount still requires verified payment**.
 - The standard Stripe balance prices remain unchanged.
-- The adjusted amount is collected with an **Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices. The discount is applied to the automatic final-balance invoice (§10) **[APPROVED OI-55]**. **Collection is currently blocked** (§10.1).
+- The adjusted amount is collected with an **Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices. The discount is applied to the automatic final-balance invoice (§10) **[APPROVED OI-55]**.
 - A fully waived balance requires no charge. It is recorded as a `waiver` ledger entry (§12), and approval triggers no Stripe invoice.
 - **Deposit-stage adjustments:** OI-44 covers the final balance only. Adjustments to the initial deposit Checkout are **[PENDING OI-47]**.
 
@@ -317,10 +317,7 @@ Whether final payment may be requested *before* client approval is not specified
 
 OI-44 was approved for a separate final Checkout. Under **OI-55 (option A, Owner-approved 2026-11-23)**, the same requirements and safeguards apply unchanged to the automatic final-balance invoice (§10), which replaces that Checkout.
 
-**Collection block [APPROVED OI-55, Owner instruction 2026-11-23]:** **no discounted final balance may be collected** until the Owner separately authorizes it in writing. While the block is in place:
-- the server never creates a final-balance invoice with a discount, and approval of a project with an authorized adjustment starts no charge
-- such a project's balance stays unverified, so publication remains blocked (G4)
-- standard (undiscounted) balances and full waivers (`waiver` ledger entry) are unaffected
+**Collection [APPROVED OI-55, Owner instruction 2026-11-23]:** the interim block was lifted on 2026-11-23. The adjusted amount due is charged on the client's approval through the final-balance invoice, exactly like a standard balance (§10), and only within the requirements and constraints below.
 
 | # | Requirement |
 |---|---|
@@ -551,7 +548,7 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-08 | No automated process cancels, deletes, or lets lapse a client-owned domain |
 | T-BIL-09 | A dispute webhook notifies the Owner, records the deadline, and triggers no takedown (OI-37) |
 | T-BIL-10 | Ledger entries carry a service category. Tax collection is disabled outside authorized production configuration. (OI-36) |
-| T-BIL-11 | While the OI-55 collection block is in place, no discounted final-balance invoice can be created and approval of an adjusted project starts no charge. Once collection is authorized: the adjusted final-balance invoice has only the balance line item (OI-55). The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
+| T-BIL-11 | The adjusted final-balance invoice has only the balance line item, and approval charges it exactly once (OI-55). The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
 | T-BIL-12 | After an adjusted final payment, no discount is attached to the customer or subscription, and the next maintenance renewal invoice is exactly 9900 cents |
 | T-BIL-13 | The adjustment record contains every §10.1 field. An Admin attempt is rejected and audited. |
 | T-BIL-14 | Through day 7 of recovery: no hold, no termination state, no discontinuation or deactivation request. After the period: the hold is placed and an Owner review item exists. (OI-46) |

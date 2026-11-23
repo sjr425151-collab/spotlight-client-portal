@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.6.0 |
-| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63). |
-| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63 |
+| Version | 0.7.0 |
+| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value. |
+| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63, OI-64, OI-65 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
@@ -161,16 +161,112 @@ Required procedure for the creation action:
 
 **Status (2026-11-23): blocked.** In this documentation session, `api.stripe.com` was initially not reachable from the session environment. A credential was then supplied, and Stripe identified it as a **live-mode** key (`sk_live_` prefix) and rejected it as invalid. Work stopped before any search or write. **No Stripe object was created or modified.** A valid test-mode key is required (DEP-01). No placeholder IDs are recorded.
 
-**Owner instruction (2026-11-23):** make **no Stripe API requests** until the Owner separately authorizes a verified test-mode credential workflow. DEP-01 remains blocked until then.
+**Owner instruction (2026-11-23):** make **no Stripe API requests** until the Owner separately authorizes a verified test-mode credential workflow. DEP-01 remains blocked until then. The catalog design below is approved (OI-64, OI-65). That approval is a design approval only and authorizes no Stripe request.
 
-| Package | Test Deposit Price ID | Test Balance Price ID |
+### 6.1 Catalog manifest, version 1 **[APPROVED OI-30, OI-64, OI-65]**
+
+**Structure [APPROVED OI-64]:** 11 products and 11 prices: a deposit product and a final-balance product for each of the five packages, and one maintenance product. Each product has exactly one price. The final-balance products are separate so that an adjustment discount can be restricted to the balance product (§10.1; OI-55).
+
+**Naming, metadata, catalog keys, lookup keys, and versioning [APPROVED OI-65]**, provided no existing test-mode object conflicts (§6.2):
+
+| # | `catalog_key` | Product `name` | `component` | `service_category` | Price type | `unit_amount` (cents) | Recurring | Price `lookup_key` |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `essential.deposit` | Essential Website, Deposit | `deposit` | `development` | `one_time` | 16000 | — | `spotlight_v1_essential_deposit` |
+| 2 | `essential.balance` | Essential Website, Final Balance | `balance` | `development` | `one_time` | 64000 | — | `spotlight_v1_essential_balance` |
+| 3 | `professional.deposit` | Professional Website, Deposit | `deposit` | `development` | `one_time` | 29900 | — | `spotlight_v1_professional_deposit` |
+| 4 | `professional.balance` | Professional Website, Final Balance | `balance` | `development` | `one_time` | 119600 | — | `spotlight_v1_professional_balance` |
+| 5 | `advanced.deposit` | Advanced Website, Deposit | `deposit` | `development` | `one_time` | 49900 | — | `spotlight_v1_advanced_deposit` |
+| 6 | `advanced.balance` | Advanced Website, Final Balance | `balance` | `development` | `one_time` | 199600 | — | `spotlight_v1_advanced_balance` |
+| 7 | `signature.deposit` | Signature Website, Deposit | `deposit` | `development` | `one_time` | 69900 | — | `spotlight_v1_signature_deposit` |
+| 8 | `signature.balance` | Signature Website, Final Balance | `balance` | `development` | `one_time` | 279600 | — | `spotlight_v1_signature_balance` |
+| 9 | `prestige.deposit` | Prestige Website, Deposit | `deposit` | `development` | `one_time` | 99900 | — | `spotlight_v1_prestige_deposit` |
+| 10 | `prestige.balance` | Prestige Website, Final Balance | `balance` | `development` | `one_time` | 399600 | — | `spotlight_v1_prestige_balance` |
+| 11 | `maintenance.monthly` | Website Care & Maintenance | `maintenance` | `maintenance` | `recurring` | 9900 | `month`, interval count 1, `licensed` | `spotlight_v1_maintenance_monthly` |
+
+Check: each deposit plus its balance equals the §5.1 total, and each deposit equals `round_half_up(total × 20%)` (§7).
+
+Attributes common to every entry:
+
+| Object | Attribute | Value |
 |---|---|---|
-| Essential | *unresolved* | *unresolved* |
-| Professional | *unresolved* | *unresolved* |
-| Advanced | *unresolved* | *unresolved* |
-| Signature | *unresolved* | *unresolved* |
-| Prestige | *unresolved* | *unresolved* |
-| Maintenance (recurring) | *unresolved* | — |
+| Product | metadata `catalog_key` | the row's catalog key |
+| Product | metadata `catalog_version` | `1` |
+| Product | metadata `package_key` | `essential`, `professional`, `advanced`, `signature`, or `prestige`. **Omitted for row 11**, which is not a package. |
+| Product | metadata `component`, `service_category` | as in the table (OI-36) |
+| Product | metadata `environment` | `test` |
+| Product | `active` | `true` |
+| Product | not set | `description`, `tax_code`, `statement_descriptor`, `unit_label`, custom `id` |
+| Price | `product` | the row's product |
+| Price | `currency` | `usd` |
+| Price | `unit_amount` | the row's integer cents. Never `unit_amount_decimal` or `price_data`. |
+| Price | `lookup_key` | the row's lookup key |
+| Price | metadata `catalog_key`, `catalog_version`, `expected_unit_amount` | the row's key, `1`, and the row's cents as a string |
+| Price | `active` | `true` |
+| Price | not set | `tax_behavior` (left unspecified pending DEP-04, because it can be set only once), `nickname`, `transfer_lookup_key`, tiers |
+
+**Versioning:** `catalog_version` and the `spotlight_v1_` prefix identify this manifest. Any change to an amount, name, or structure is a new version (`v2`), recorded in 08, with new objects. Existing objects are never edited to fit a new version. Retiring an old version is a separate, Owner-authorized Stripe change.
+
+The machine-readable form of this manifest (used to drive and check the creation run):
+
+```json
+{
+  "catalog_version": 1,
+  "currency": "usd",
+  "environment": "test",
+  "entries": [
+    { "catalog_key": "essential.deposit", "package_key": "essential", "component": "deposit", "service_category": "development", "name": "Essential Website, Deposit", "type": "one_time", "unit_amount": 16000, "lookup_key": "spotlight_v1_essential_deposit" },
+    { "catalog_key": "essential.balance", "package_key": "essential", "component": "balance", "service_category": "development", "name": "Essential Website, Final Balance", "type": "one_time", "unit_amount": 64000, "lookup_key": "spotlight_v1_essential_balance" },
+    { "catalog_key": "professional.deposit", "package_key": "professional", "component": "deposit", "service_category": "development", "name": "Professional Website, Deposit", "type": "one_time", "unit_amount": 29900, "lookup_key": "spotlight_v1_professional_deposit" },
+    { "catalog_key": "professional.balance", "package_key": "professional", "component": "balance", "service_category": "development", "name": "Professional Website, Final Balance", "type": "one_time", "unit_amount": 119600, "lookup_key": "spotlight_v1_professional_balance" },
+    { "catalog_key": "advanced.deposit", "package_key": "advanced", "component": "deposit", "service_category": "development", "name": "Advanced Website, Deposit", "type": "one_time", "unit_amount": 49900, "lookup_key": "spotlight_v1_advanced_deposit" },
+    { "catalog_key": "advanced.balance", "package_key": "advanced", "component": "balance", "service_category": "development", "name": "Advanced Website, Final Balance", "type": "one_time", "unit_amount": 199600, "lookup_key": "spotlight_v1_advanced_balance" },
+    { "catalog_key": "signature.deposit", "package_key": "signature", "component": "deposit", "service_category": "development", "name": "Signature Website, Deposit", "type": "one_time", "unit_amount": 69900, "lookup_key": "spotlight_v1_signature_deposit" },
+    { "catalog_key": "signature.balance", "package_key": "signature", "component": "balance", "service_category": "development", "name": "Signature Website, Final Balance", "type": "one_time", "unit_amount": 279600, "lookup_key": "spotlight_v1_signature_balance" },
+    { "catalog_key": "prestige.deposit", "package_key": "prestige", "component": "deposit", "service_category": "development", "name": "Prestige Website, Deposit", "type": "one_time", "unit_amount": 99900, "lookup_key": "spotlight_v1_prestige_deposit" },
+    { "catalog_key": "prestige.balance", "package_key": "prestige", "component": "balance", "service_category": "development", "name": "Prestige Website, Final Balance", "type": "one_time", "unit_amount": 399600, "lookup_key": "spotlight_v1_prestige_balance" },
+    { "catalog_key": "maintenance.monthly", "package_key": null, "component": "maintenance", "service_category": "maintenance", "name": "Website Care & Maintenance", "type": "recurring", "recurring": { "interval": "month", "interval_count": 1, "usage_type": "licensed" }, "unit_amount": 9900, "lookup_key": "spotlight_v1_maintenance_monthly" }
+  ]
+}
+```
+
+### 6.2 Duplicate detection, conflicts, and idempotency **[APPROVED OI-65 (conflict proviso); procedure PROPOSED]**
+
+The run reads and classifies **all 11 entries before any write**. If any entry is a conflict, it stops with no write at all.
+
+| Class | Condition | Action |
+|---|---|---|
+| Match | One active product whose metadata `catalog_key` equals the entry and whose name and metadata all equal the manifest, **and** one active price with the entry's `lookup_key` on that product, with equal amount, currency, type, recurrence, and metadata | Reuse it. No write. |
+| Price missing | The product is a match and no price (active or archived) has the entry's `lookup_key` | Create the price only |
+| Missing | No product has the entry's `catalog_key` or the entry's exact name, and no price has the entry's `lookup_key` | Create the product, then the price |
+| **Conflict** | Anything else, including: the `lookup_key` exists with any difference, on another product, or archived; the `catalog_key` exists with any difference, archived, or on more than one product; a product with the entry's exact name exists without a matching `catalog_key` | **Stop the whole run before any write and report to the Owner.** No update, archive, or workaround. |
+
+Idempotency:
+- Each write sends an `Idempotency-Key`: `dep01-v1-<catalog_key>-product` or `dep01-v1-<catalog_key>-price`. Keys are deterministic, so a retried request within Stripe's key-retention window returns the original object instead of creating a second one **[VERIFY-PROVIDER: retention window]**.
+- A Stripe idempotency error (the same key with different parameters) stops the run.
+- Duplicate prevention does not rely on idempotency keys alone. A rerun repeats the full read-and-classify step, so objects created earlier are reused as matches.
+- Price `lookup_key` values are expected to be unique per account and mode, which gives a further guard **[VERIFY-PROVIDER]**.
+
+### 6.3 Execution constraints **[PROPOSED]**
+
+- The credential is a restricted **test-mode** key limited to the permissions in [OPEN-ISSUES.md DEP-01](../OPEN-ISSUES.md#dep-01-detail--stripe-test-mode-catalog).
+- The first request is `GET /v1/balance`. Anything other than `livemode: false` aborts the run. Every later response must also show `livemode: false`.
+- Only list, retrieve, and create requests on products and prices are made. No object is updated, archived, or deleted.
+- After creation, each product and price is retrieved and compared against §6.1. Any difference stops the run and is reported. It is not repaired.
+- Only the resulting nonsecret Product and Price IDs are recorded, in the table below, through a documentation pull request.
+
+| # | `catalog_key` | Test Product ID | Test Price ID | Verified |
+|---|---|---|---|---|
+| 1 | `essential.deposit` | *unresolved* | *unresolved* | No |
+| 2 | `essential.balance` | *unresolved* | *unresolved* | No |
+| 3 | `professional.deposit` | *unresolved* | *unresolved* | No |
+| 4 | `professional.balance` | *unresolved* | *unresolved* | No |
+| 5 | `advanced.deposit` | *unresolved* | *unresolved* | No |
+| 6 | `advanced.balance` | *unresolved* | *unresolved* | No |
+| 7 | `signature.deposit` | *unresolved* | *unresolved* | No |
+| 8 | `signature.balance` | *unresolved* | *unresolved* | No |
+| 9 | `prestige.deposit` | *unresolved* | *unresolved* | No |
+| 10 | `prestige.balance` | *unresolved* | *unresolved* | No |
+| 11 | `maintenance.monthly` | *unresolved* | *unresolved* | No |
 
 Phase 3 cannot begin implementation until these IDs are recorded and verified to match the §5.1 amounts.
 

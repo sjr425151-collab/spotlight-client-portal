@@ -9,12 +9,12 @@ These instructions apply to every contributor and AI agent working in this repos
 | Architecture | Approved |
 | Specification reconciliation | Specs 01, 02 and this file are **approved (final, 2026-11-23)** ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); final approval in the Phase 1 authorization). Spec 03 v0.4.0 is **approved** (2026-11-23, Phase 2 authorization), with 03A as supporting evidence. Spec 04 is **approved for Phase 3 Stripe test-mode implementation only** (2026-11-23); legal review and provider verification remain production conditions. Approving a spec never authorizes its phase. |
 | Stripe test-mode catalog (OI-30) | Narrow exception, **currently suspended**; see §5 |
-| **Implementation** | Phase 1 (Foundation and CI): authorized and merged. **Phase 2 (Auth, security, and tenant isolation): authorized 2026-11-23**, local Supabase with synthetic data only, delivered through a pull request that the Owner reviews and merges. Phases 3–5: **NOT AUTHORIZED**. |
+| **Implementation** | Phase 1 (Foundation and CI): authorized and merged. **Phase 2 (Auth, security, and tenant isolation): authorized 2026-11-23 and merged** (PR #4, merge commit `45d05f6`), local Supabase with synthetic data only, not deployed. Phases 3–5: **NOT AUTHORIZED**. |
 | **Production launch** | **NOT AUTHORIZED** |
 
-Phase 2 permits only (spec 03 §1): database schema and migrations; Row Level Security and cross-tenant isolation; invitation-only authentication, OTP, and MFA; Owner, Admin, and Client authorization; append-only audit logging; the nonce-based CSP (DEP-13); private `project-assets` storage policies; and automated database and security tests in CI. It runs against the **local** Supabase stack (Supabase CLI locally and in CI) with synthetic data only.
+Phase 2 permitted only (spec 03 §1): database schema and migrations; Row Level Security and cross-tenant isolation; invitation-only authentication, OTP, and MFA; Owner, Admin, and Client authorization; append-only audit logging; the nonce-based CSP (DEP-13); private `project-assets` storage policies; and automated database and security tests in CI. It runs against the **local** Supabase stack (Supabase CLI locally and in CI) with synthetic data only.
 
-Even in Phase 2, these remain prohibited: creating or modifying any hosted Supabase project; Resend or SMTP configuration; Stripe API requests; Vercel or DNS changes; production credentials; deployments; real customer data; and any Phase 3–5 work. Never modify or use the existing live-mode Stripe credential. Never merge the Phase 2 pull request or begin Phase 3 without separate written Owner authorization.
+These remain prohibited: creating or modifying any hosted Supabase project; Resend or SMTP configuration; Stripe API requests; Vercel or DNS changes; production credentials; deployments; real customer data; and any Phase 3–5 work. Never modify or use the existing live-mode Stripe credential. Never begin Phase 3 without separate written Owner authorization.
 
 For any phase without written Owner authorization, you must **not**:
 

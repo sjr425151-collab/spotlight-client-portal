@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.9.2 (draft for owner review) |
+| Version | 0.11.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-56** |
-| Next unused dependency ID | **DEP-15** |
+| Next unused issue ID | **OI-64** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused dependency ID | **DEP-16** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
 Rules:
@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-46)
+## Part 1 — Decided issues (OI-01 to OI-49, OI-53 to OI-55, OI-63)
 
-All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46-oi-48oi-49-oi-53oi-55).
+All 53 issues listed here are decided at the architectural level (OI-50 to OI-52 remain open in Part 2). The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-49-oi-53oi-55-oi-63).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -47,7 +47,7 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 | OI-24 | Optional post-publication inquiries | Decided | — |
 | OI-25 | Nonresponsive preview clients | Decided | — |
 | OI-26 | Failed maintenance payments | Decided | DEP-03, DEP-06 |
-| OI-27 | Owner-authorized financial adjustments | Decided | DEP-03, DEP-06; OI-47 (open) |
+| OI-27 | Owner-authorized financial adjustments | Decided | DEP-03, DEP-06; OI-47 (decided) |
 | OI-28 | Signer authority | Decided | DEP-03 (final wording) |
 | OI-29 | Stripe Customer Portal | Decided | DEP-03, DEP-06 |
 | OI-30 | Stripe test-mode catalog | Decided; creation **blocked** | DEP-01 |
@@ -67,21 +67,22 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 | OI-44 | Adjusted final-balance payments | Decided | DEP-03, DEP-06 |
 | OI-45 | Day-21 preview approval hold | Decided | — |
 | OI-46 | Involuntary subscription cancellation | Decided | DEP-03, DEP-06 |
+| OI-47 | Deposit-stage adjustments: none (Option A; reductions only on the final balance and never above it) | Decided (2026-11-23) | DEP-06 |
 | OI-48 | Theme mode: dark-only MVP | Decided (2026-11-23) | DEP-08 (light variant, future) |
 | OI-49 | Temporary logo compositing treatment | Decided (2026-11-23) | DEP-08 |
 | OI-53 | Phase 2 implementation notes N-1 to N-8 (N-8 amended; N-2, N-6 retained) | Decided (2026-11-23) | — |
 | OI-54 | Marking expired invitations: cleanup job deferred to Phase 5, on condition | Decided (2026-11-23) | — |
 | OI-55 | Adjusted final-balance collection vehicle (option A) | Decided (2026-11-23) | DEP-06 |
+| OI-63 | Webhook testing strategy: hybrid (synthetic signed events in CI; real Stripe test-mode verification) | Decided (2026-11-23) | DEP-01, DEP-15 |
 
 ---
 
 ## Part 2 — Open issues requiring Owner decision
 
-OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. OI-55 (adjusted final-balance collection vehicle) was approved on 2026-11-23 (option A), and collection on the final-balance invoice is authorized; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice. Phase 2 implementation raised **OI-53 and OI-54** (2026-11-23). OI-53 was approved and OI-54 decided on 2026-11-23; see 08.
+OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 (deposit-stage adjustments) was approved on 2026-11-23 (Option A); see 08. OI-48 (theme mode) was approved on 2026-11-23; see 08. OI-55 (adjusted final-balance collection vehicle) was approved on 2026-11-23 (option A), and collection on the final-balance invoice is authorized; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice. Phase 2 implementation raised **OI-53 and OI-54** (2026-11-23). OI-53 was approved and OI-54 decided on 2026-11-23; see 08.
 
 | ID | Title | Earliest phase | Status |
 |---|---|---|---|
-| OI-47 | Adjustments to the initial deposit Checkout | 3 | Open |
 | OI-50 | Supabase plan for hosted environments | 2 (hosted only; local work unaffected) | Open |
 | OI-51 | Custom SMTP provider for Supabase Auth email | 2 (hosted only) | Open |
 | OI-52 | CAPTCHA on OTP requests | 2 | Open |
@@ -121,22 +122,6 @@ OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains
 - **Owner decision required:** Yes.
 - **Status:** Open.
 
-### OI-47 — Adjustments to the initial deposit Checkout
-
-- **Description:**
-  - OI-27 permits Owner-authorized discounts, credits, and waivers without limiting them to a payment stage.
-  - OI-44 approves a mechanism only for the **final balance**: a discount on the standard balance price in a payment-mode Checkout.
-  - The initial Checkout is **subscription mode** and combines the deposit with the $99 maintenance subscription. A discount there risks reducing the maintenance charge, which OI-44 forbids for the final balance.
-  - No approved mechanism exists for reducing the deposit.
-- **Options:**
-  - A. Deposit-stage adjustments are not supported in the MVP. Any agreed reduction is applied to the final balance through the OI-44 mechanism. The deposit is always the standard deposit price.
-  - B. Allow a discount on the initial Checkout, restricted to the deposit product. This needs Stripe verification (DEP-06) and the same safeguards as OI-44.
-  - C. Allow deposit waivers only: no initial Checkout deposit line item. This changes the subscription-start flow and needs further design.
-- **Recommendation:** A. It adds no new Stripe behavior and keeps the maintenance subscription untouched.
-- **Impacted documents:** 04 §8, §10; 03 §12.
-- **Owner decision required:** Yes. Until it is decided, the specs treat deposit-stage adjustments as unsupported.
-- **Status:** Open.
-
 ---
 
 ## Part 3 — Implementation and production dependencies
@@ -159,6 +144,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 | DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 5 (required); may be proposed earlier | Not started |
 | DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | **Complete (2026-11-23, Phase 2 branch, pending PR merge).** `src/proxy.ts` sets a per-request nonce CSP with `'strict-dynamic'` and no `'unsafe-inline'` for scripts or styles; no inline style attributes remain. Verified by T-SEC-03 and T-SEC-04 (e2e) and the Lighthouse budgets (T-PERF-01). |
 | DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment. Phase 2 itself runs on local Supabase only. | Not authorized. Depends on OI-50 and OI-51. |
+| DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | Phase 3 | Not started. Requires DEP-01 and the Stripe access condition in CLAUDE.md §5. |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
@@ -170,9 +156,11 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 - **Current status:**
   - The Owner has chosen to leave the environment configuration unchanged for now, so the live-mode credential remains saved for `api.stripe.com` on that environment.
   - The Owner has instructed that **no Stripe API requests** be made until a verified test-mode credential workflow is separately authorized.
-- **To unblock:**
-  - The Owner authorizes a test-mode credential workflow, replacing the live credential with a test-mode key (`sk_test_…`) or a restricted test key with write access to Products and Prices.
-  - Then the authorized creation is run as a separately identifiable action.
+  - **Re-checked 2026-11-23 (read-only, no Stripe request):** the session environment (`chris-pribyl`, a personal environment shared with other projects) still holds one network secret for `api.stripe.com` (`Authorization` header). Its value is not visible, and nothing indicates that the credential previously identified as live-mode was replaced.
+- **To unblock (Owner instruction, 2026-11-23):**
+  1. Confirm that the environment used contains **only** an appropriate Stripe test-mode credential (`sk_test_…`, or a restricted test key with write access to Products and Prices only). The live-mode credential must be removed from it. **[PROPOSED]** Use a dedicated environment for this repository rather than the shared personal one.
+  2. The Owner gives a **separate, narrowly scoped** written authorization for the catalog creation.
+  3. Before any write, the creation action itself verifies `livemode: false` and aborts on a live key (04 §6). It then runs as a separately identifiable action.
 
 ### DEP-03 detail — legal review scope
 
@@ -187,7 +175,8 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 
 ### DEP-06 detail — provider verification items added by OI-43 to OI-46
 
-- **Stripe:** a Checkout Session-level discount restricted to the balance product with a single redemption, which must never attach to the customer or subscription (OI-44).
+- **Stripe:** a Checkout Session-level discount restricted to the balance product with a single redemption, which must never attach to the customer or subscription (OI-44). *Superseded by OI-55: verify the invoice-level discount in the next item instead.*
+- **Stripe (OI-47, approved 2026-11-23):** a subscription-mode Checkout Session created with no discounts and with promotion codes disabled, so neither the deposit nor the maintenance line can be reduced.
 - **Stripe (OI-17 revised, 2026-11-23):** saving the payment method in subscription-mode Checkout for a later off-session, one-off charge; an automatically charged one-off invoice using the standard balance Price ID; the events for failed charges and required authentication; the Stripe-hosted page for completing the same invoice; idempotency keys; and, for OI-55 (approved, option A), an invoice-level discount restricted to the balance product.
 - **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).

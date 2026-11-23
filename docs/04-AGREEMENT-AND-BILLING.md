@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.0 |
-| Status | **Draft — pending owner sign-off.** v0.5.0: automatic final-balance collection (Owner instruction, 2026-11-23; OI-17 revised). |
-| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-55 |
-| Open issues | OI-47 |
-| Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
+| Version | 0.6.0 |
+| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63). |
+| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63 |
+| Open issues | None |
+| Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
 > Nothing in this document authorizes any Stripe operation. No Stripe products, prices, customers, subscriptions, or Checkout configurations were created, queried, or modified in preparing it.
 
@@ -193,7 +193,8 @@ Phase 3 cannot begin implementation until these IDs are recorded and verified to
 | Line item 2 | **Maintenance** Price ID (recurring monthly, 9900), quantity 1 |
 | First invoice total | **deposit + 9900 cents**: one deposit charge plus **one** maintenance period. Never deposit + 19800. |
 | Subsequent billing | 9900 cents monthly from the subscription billing anchor (purchase date) |
-| Discounts | **None.** No discount is applied to the initial Checkout. Deposit-stage adjustments are unsupported until OI-47 is decided **[PENDING OI-47]**. |
+| Deposit | **Mandatory [APPROVED OI-47, Option A]**: the standard 20% deposit price for the package (§5.1), for all five standard packages. It is never reduced, credited, or waived. |
+| Discounts | **None [APPROVED OI-47, Option A].** No discount, coupon, promotion code, credit, or waiver is ever applied to the initial Checkout, so neither the deposit nor the maintenance line can be reduced there. **[PROPOSED; VERIFY-PROVIDER]** The Checkout Session is created without discounts and with promotion codes disabled. |
 | Payment method for the final balance **[APPROVED OI-17, revised 2026-11-23]** | Stripe securely saves the payment method on the client business's Stripe Customer for later **off-session** collection of the final balance (§10), under the client's explicit authorization in the accepted agreement (§3.1). The portal never stores card data. |
 
 Expected initial totals:
@@ -311,7 +312,9 @@ Whether final payment may be requested *before* client approval is not specified
 - The standard Stripe balance prices remain unchanged.
 - The adjusted amount is collected with an **Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices. The discount is applied to the automatic final-balance invoice (§10) **[APPROVED OI-55]**.
 - A fully waived balance requires no charge. It is recorded as a `waiver` ledger entry (§12), and approval triggers no Stripe invoice.
-- **Deposit-stage adjustments:** OI-44 covers the final balance only. Adjustments to the initial deposit Checkout are **[PENDING OI-47]**.
+- **Deposit-stage adjustments are not supported in the MVP [APPROVED OI-47, Option A].** The deposit is always the standard deposit price (§8). An Owner-authorized project price reduction is applied **only** to the outstanding final balance, under §10.1 (OI-44, OI-55).
+- A reduction can **never exceed the outstanding final balance** (**[APPROVED OI-47]**, confirmed by the Owner 2026-11-23); reducing it to zero is the full waiver above. A concession larger than the final balance is not supported in the MVP; refunds are governed separately (§15.2).
+- The $99 maintenance subscription is never reduced by a project discount (§10.1 row 13; OI-44).
 
 ### 10.1 Adjusted final-balance payment **[APPROVED OI-44, OI-55]**
 
@@ -340,6 +343,11 @@ Mechanism constraints **[PROPOSED; VERIFY-PROVIDER]**:
 - If Stripe cannot meet these constraints, **escalate to the Owner**. No inline pricing or alternative mechanism may be substituted silently.
 
 ## 11. Verified webhook handling **[APPROVED OI-17]**
+
+**Testing strategy [APPROVED OI-63, hybrid]:**
+- **CI (every pull request):** synthetic Stripe-format events signed with a **test-only signing secret generated for the CI run**, never a real Stripe secret. They exercise signature verification, idempotent replay, out-of-order delivery, `livemode` and metadata checks, and quarantine (T-PAY-03 to T-PAY-08). CI holds **no Stripe credential** and makes no Stripe request.
+- **Real Stripe test-mode verification:** the same handlers are verified against events that real test-mode Stripe objects produce (Checkout, invoices, subscriptions, refunds, disputes), with a test-mode webhook signing secret. **[PROPOSED]** It runs as a recorded verification step (for example with the Stripe CLI forwarding test-mode events to a local server), separately from CI. It needs DEP-01 and the separate Stripe access authorization (CLAUDE.md §5), and is tracked as DEP-15.
+- A handler behavior proven only by synthetic events is not treated as verified against Stripe until the matching test-mode verification passes.
 
 Rules:
 1. Every event's Stripe signature is verified against the environment's webhook secret using the raw request body. Unverified requests are rejected (400) and logged.
@@ -518,7 +526,7 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 |---|---|
 | T-PAY-01 | For each package, the initial Checkout's first invoice totals deposit + 9900 cents (table §8). The maintenance line appears exactly once. |
 | T-PAY-02 | `deposit + balance = total` and the deposit equals `round_half_up(20%)` for all packages and for property-based random totals |
-| T-PAY-03 | A webhook with an invalid signature is rejected and changes no state |
+| T-PAY-03 | A webhook with an invalid signature is rejected and changes no state. T-PAY-03 to T-PAY-08 run in CI with synthetic events signed by a test-only secret (OI-63). |
 | T-PAY-04 | Visiting the success URL without a processed webhook leaves the deposit `pending` and intake locked |
 | T-PAY-05 | Replaying the same event ID (×N, concurrently) posts each ledger entry exactly once |
 | T-PAY-06 | Out-of-order delivery (`invoice.paid` before `checkout.session.completed`) produces the correct final state |
@@ -531,6 +539,7 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-PAY-13 | Approval (**Approve Website & Authorize Final Payment**) creates exactly one final-balance invoice for the snapshot balance, charged to the saved payment method. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice or charge. |
 | T-PAY-14 | A failed charge or a required authentication leaves the balance unverified, offers the Stripe-hosted completion option for the same invoice, and blocks publication until a verified `invoice.paid` |
 | T-PAY-15 | The accepted agreement version contains the §3.1 clause verbatim (text hash check) |
+| T-PAY-16 | **Test-mode verification (OI-63, DEP-15):** for each in-scope event type (§11), an event produced by a real **test-mode** Stripe object is delivered with a real test-mode signing secret and processed with the same outcome as its synthetic CI counterpart. A `livemode: true` event is rejected. Not run in CI. |
 | T-AGR-01 | The acceptance checkbox renders unchecked. The server rejects acceptance without an explicit true value. |
 | T-AGR-02 | Initial Checkout cannot be created without a current acceptance |
 | T-AGR-03 | Acceptance evidence includes every §3 field. The stored hash matches the version text. |
@@ -557,3 +566,5 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-17 | Maintenance discontinuation is rejected before M1. Deactivating remaining services is rejected before M2 or without the required notices recorded. (OI-35) |
 | T-BIL-18 | No code path or configuration deliberately degrades a client website (code review checklist and negative test) |
 | T-BIL-19 | Domain expiry is taken from the actual registration date and registrar record. Cancellation, M1, and M2 make no registrar call that cancels, deletes, or transfers the domain. |
+| T-BIL-20 | The initial Checkout Session for every standard package contains exactly the standard deposit Price ID and the maintenance Price ID, with no discount, coupon, promotion code, or credit. Any attempt to create a deposit-stage adjustment is rejected and audited. (OI-47) |
+| T-BIL-21 | An Owner-authorized reduction larger than the outstanding final balance is rejected. After any final-balance adjustment, the deposit ledger entry is unchanged and the next maintenance invoice is exactly 9900 cents. (OI-47, OI-44) |

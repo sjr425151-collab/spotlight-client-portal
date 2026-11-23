@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.7.3 |
-| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value; v0.7.1 records provider verification of the `livemode` field and clarifies `tax_behavior` (§6.1, §6.3), with no change to any catalog value or procedure; v0.7.2 records verified Stripe key, sandbox, and idempotency behavior and strengthens execution safety (§6.2–§6.4), with no change to any catalog value; v0.7.3 clarifies the `Stripe-Should-Retry: false` rule (§6.4; OI-66), with no change to any catalog value or other safeguard. |
+| Version | 0.7.4 |
+| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value; v0.7.1 records provider verification of the `livemode` field and clarifies `tax_behavior` (§6.1, §6.3), with no change to any catalog value or procedure; v0.7.2 records verified Stripe key, sandbox, and idempotency behavior and strengthens execution safety (§6.2–§6.4), with no change to any catalog value; v0.7.3 clarifies the `Stripe-Should-Retry: false` rule (§6.4; OI-66), with no change to any catalog value or other safeguard; v0.7.4 records the created and verified sandbox catalog IDs (§6.5; DEP-01), with no change to any catalog value or procedure. |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63, OI-64, OI-65, OI-66 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
@@ -148,7 +148,7 @@ Catalog rules **[APPROVED OI-14]**:
 - The mapping is versioned. A change to any ID is a recorded change (08 §6).
 - **[PROPOSED]** The application keeps a versioned catalog mapping (package key → environment → Price IDs, plus expected cents). At startup or deploy time, a verification compares the Stripe price amounts against the expected cents, and fails closed on mismatch.
 
-## 6. Test-mode catalog mapping **[APPROVED OI-30] — creation BLOCKED (DEP-01)**
+## 6. Test-mode catalog mapping **[APPROVED OI-30] — created and verified in the sandbox (DEP-01, 2026-11-23)**
 
 **[APPROVED OI-30]** The test catalog must match §5.1 exactly: five packages, each with a one-time deposit price and a one-time balance price, plus one recurring maintenance price of 9900 cents per month, all in USD. The Owner has narrowly authorized creating these **test-mode** products and prices. That authorization does not extend to Stripe integration code, webhook deployment, or any live-mode change.
 
@@ -282,19 +282,34 @@ Idempotency:
 
 | # | `catalog_key` | Test Product ID | Test Price ID | Verified |
 |---|---|---|---|---|
-| 1 | `essential.deposit` | *unresolved* | *unresolved* | No |
-| 2 | `essential.balance` | *unresolved* | *unresolved* | No |
-| 3 | `professional.deposit` | *unresolved* | *unresolved* | No |
-| 4 | `professional.balance` | *unresolved* | *unresolved* | No |
-| 5 | `advanced.deposit` | *unresolved* | *unresolved* | No |
-| 6 | `advanced.balance` | *unresolved* | *unresolved* | No |
-| 7 | `signature.deposit` | *unresolved* | *unresolved* | No |
-| 8 | `signature.balance` | *unresolved* | *unresolved* | No |
-| 9 | `prestige.deposit` | *unresolved* | *unresolved* | No |
-| 10 | `prestige.balance` | *unresolved* | *unresolved* | No |
-| 11 | `maintenance.monthly` | *unresolved* | *unresolved* | No |
+| 1 | `essential.deposit` | `prod_VgKrmaWefVnWy1` | `price_1Uf5HxK5j4r4WkVPkRUJ4gnZ` | Yes |
+| 2 | `essential.balance` | `prod_VgSCAxhfEGdaad` | `price_1Uf5HyK5j4r4WkVPfrkvOv7h` | Yes |
+| 3 | `professional.deposit` | `prod_VgSCeNeWEAgD5n` | `price_1Uf5HyK5j4r4WkVPOtk24lGw` | Yes |
+| 4 | `professional.balance` | `prod_VgSCfdhERuVy2D` | `price_1Uf5HzK5j4r4WkVPRH6Wkz6D` | Yes |
+| 5 | `advanced.deposit` | `prod_VgSC96cbyhUzC9` | `price_1Uf5HzK5j4r4WkVP35jgGOiy` | Yes |
+| 6 | `advanced.balance` | `prod_VgSC3IZmhX2qpb` | `price_1Uf5I0K5j4r4WkVPZLs7eS9w` | Yes |
+| 7 | `signature.deposit` | `prod_VgSCeFVATAQD5p` | `price_1Uf5I0K5j4r4WkVPW6smdGo2` | Yes |
+| 8 | `signature.balance` | `prod_VgSCqRM6FGup6G` | `price_1Uf5I1K5j4r4WkVPB0lY2MgL` | Yes |
+| 9 | `prestige.deposit` | `prod_VgSCyf8mCcu9mc` | `price_1Uf5I1K5j4r4WkVPyCBIiYGP` | Yes |
+| 10 | `prestige.balance` | `prod_VgSCGIcK8EA2g5` | `price_1Uf5I1K5j4r4WkVPDvIUmRD9` | Yes |
+| 11 | `maintenance.monthly` | `prod_VgSCHvgDEvac7A` | `price_1Uf5I2K5j4r4WkVPJodSnaBe` | Yes |
 
-Phase 3 cannot begin implementation until these IDs are recorded and verified to match the §5.1 amounts.
+**Execution record (2026-11-23):**
+
+| Field | Value |
+|---|---|
+| Sandbox | Spotlight Client Portal - Development |
+| Baseline | `main` at `f543054` (spec 04 v0.7.3, OI-66) |
+| Completing run | `dep01-20261123T220040Z-290aebd0`, 2026-11-23T22:00:40Z to 2026-11-23T22:00:49Z |
+| Requests (completing run) | 48 of 60; every response HTTP 200, `livemode: false`, API version `2026-09-30.endive`; no idempotent replay |
+| Classification before writes | `essential.deposit` *price missing*; the other 10 entries *missing*; no conflict |
+| Products | 10 created, 1 reused (`essential.deposit`, created by the stopped run) |
+| Prices | 11 created, 0 reused |
+| Verification | All 11 products and 11 prices retrieved independently and matched §6.1: name, metadata, amount, currency, type, recurrence, lookup key, product relationship, `tax_behavior` unspecified, `livemode: false` |
+| Earlier runs | `dep01-20261123T142608Z-0295d87d` (6 requests; stopped after creating `prod_VgKrmaWefVnWy1` under the pre-OI-66 rule) and read-only reconciliation `dep01-reconcile-20261123T143019Z-defd3b34` (6 requests) |
+| Total authenticated Stripe requests | 60 across the three runs |
+
+Phase 3 cannot begin implementation until these IDs are recorded and verified to match the §5.1 amounts. **They are recorded and verified above.** Phase 3 still requires separate written Owner authorization (CLAUDE.md §1).
 
 ## 7. Integer-cents calculation policy **[APPROVED OI-15]**
 

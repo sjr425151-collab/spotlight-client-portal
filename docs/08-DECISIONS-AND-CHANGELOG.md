@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.12.3 (draft for owner review) |
+| Version | 0.12.4 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -342,7 +342,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - The test catalog matches the approved package values (Essential through Prestige, deposit and balance) and $99/month maintenance.
   - The Owner separately authorized creating matching test-mode products and prices.
   - Requirements: strict test/live isolation; verify the account and test-mode access first; search for existing matches and avoid duplicates; preserve live resources completely; record the test Price IDs; never commit credentials; no real charges; no payment workflow implementation without further authorization.
-- **Status:** Approved. **Creation blocked** (DEP-01): a live-mode, invalid credential was supplied, so no Stripe object was created.
+- **Status:** Approved. Creation was first blocked (DEP-01): a live-mode, invalid credential was supplied, so no Stripe object was created. **Created and verified in the sandbox on 2026-11-23** (04 §6.5).
 - **Provenance:** Owner approval instructions, 2026-11-23.
 - **Affected sections:** 04 §6; 01 §7; CLAUDE.md §5.
 
@@ -716,7 +716,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-27 | Financial adjustments | Approved | 3 | 04 §10–§10.1, §12 | OI-47 (approved) | Provider (discount mechanism) |
 | OI-28 | Signer authority | Approved | 3 | 04 §3 | DEP-03 | Legal (wording) |
 | OI-29 | Stripe Customer Portal | Approved | 3 | 04 §9.2 | DEP-03 | Provider (portal config) |
-| OI-30 | Stripe test-mode catalog | Approved; creation blocked | Pre-3 (authorized exception) | 04 §6 | **DEP-01** | Provider (test account) |
+| OI-30 | Stripe test-mode catalog | Approved; created and verified (2026-11-23) | Pre-3 (authorized exception) | 04 §6 | **DEP-01** | Provider (test account) |
 | OI-31 | File upload security | Approved | 4 | 05 §5 | DEP-07 | Provider (scanner, cost) |
 | OI-32 | Client hosting | Approved | 4 | 02 §2; 06 §4, §8.4 | DEP-03 | Provider (Vercel limits, cost); legal (ownership) |
 | OI-33 | Publishing QA | Approved | 4 | 06 §2, §6–§7 | — | — |
@@ -780,6 +780,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.12.1 | 2026-11-23 | **Provider verification recorded (DEP-06, Stripe):** Stripe's official OpenAPI specification (`2026-09-30.endive`, commit `2dcbcfb`) defines `livemode` as a required boolean on the Balance, Product, and Price objects, so 04 §6.3 preflight step 2 is satisfied. 04 §6.1 clarifies that a price's `tax_behavior` cannot be changed once set to `inclusive` or `exclusive`. 04 v0.7.1. The fail-closed preflight, the catalog values, and all restrictions are unchanged. Restricted-key permission scope and idempotency-key retention remain unverified, because `docs.stripe.com` is not reachable from the session environment. Documentation only; DEP-01 remains blocked. | Claude Code | Owner (documentation-correction authorization, 2026-11-23) |
 | 0.12.2 | 2026-11-23 | **Stripe provider verification and retry safety (DEP-01, DEP-06; documentation only).** Recorded from Stripe's public documentation (`docs.stripe.com/keys/restricted-api-keys`, `/keys`, `/api/idempotent_requests`, `/error-low-level`): restricted-key permissions are None, Read, or Write, and Write includes Read; minimum catalog permissions are Balance Read (inferred from the documented `GET` rule, to be confirmed at key creation), Products Write, and Prices Write; idempotency keys are kept for at least 24 hours, an expired key may execute a new request, identical retries can return a saved HTTP 500, and `Stripe-Should-Retry: false` prohibits retrying; sandbox terminology, with one sandbox used for the catalog and all later test-mode development. 04 v0.7.2 strengthens §6.2–§6.3 and adds §6.4 (failure handling, reconciliation, no automatic retry of ambiguous creates, no replacement after HTTP 500, no concurrent runs) and §6.5 (credential and sandbox). The 60-request ceiling, previously stated only in the proposed execution authorization, is recorded in §6.3. The fail-closed `livemode` preflight and every catalog value are unchanged. DEP-01 remains blocked. | Claude Code | Owner (documentation-update authorization, 2026-11-23) |
 | 0.12.3 | 2026-11-23 | **OI-66 approved:** `Stripe-Should-Retry: false` prohibits retrying; on a successful HTTP 200 with a valid, expected, verified object it is not by itself a failure; any error, ambiguity, unexpected object, or failed verification still stops the run; no automatic retry. 04 v0.7.3 (§6.4). DEP-01 history records run `dep01-20261123T142608Z-0295d87d` (stopped at request 6 of 60 after one product creation) and read-only reconciliation `dep01-reconcile-20261123T143019Z-defd3b34` (product `prod_VgKrmaWefVnWy1` matches the manifest; no price). No other decision or safeguard changed. DEP-01 remains blocked pending a resumed-run authorization. | Claude Code | Owner (OI-66 and reconciliation authorization, 2026-11-23) |
+| 0.12.4 | 2026-11-23 | **DEP-01 catalog created and verified** in sandbox "Spotlight Client Portal - Development" by run `dep01-20261123T220040Z-290aebd0` (48 requests; 10 products and 11 prices created, 1 product reused; all 11 entries verified, `livemode: false` throughout). 04 v0.7.4 records the Product and Price IDs and the execution record (§6.5). OI-30 status updated. DEP-01 complete on merge. The Stripe API suspension in CLAUDE.md §5 is unchanged and still applies to any further request. Phase 3 is not authorized. | Claude Code | Owner (resumed-run authorization, 2026-11-23) |
 
 ## 6. Change-control rules
 

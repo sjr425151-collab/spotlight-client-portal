@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.10.0 (draft for owner review) |
+| Version | 0.11.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -574,8 +574,9 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   3. No deposit-stage discounts, credits, or waivers are supported in the MVP.
   4. Owner-authorized project price reductions may be applied **only to the outstanding final balance**, under the existing OI-44 and OI-55 safeguards.
   5. The $99 maintenance subscription must never be reduced by a project discount.
+  6. A reduction can **never exceed the outstanding final balance**. A concession larger than that balance is not supported in the MVP; refunds are governed separately (04 §15.2).
 - **Status:** Approved.
-- **Provenance:** Owner decision, 2026-11-23 ("I formally approve OI-47, Option A").
+- **Provenance:** Owner decision, 2026-11-23 ("I formally approve OI-47, Option A"). The Owner confirmed item 6 the same day ("including the restriction that reductions cannot exceed the outstanding balance").
 - **Decision history:** opened 2026-11-23 during the OI-42–OI-46 reconciliation, because OI-27 permits adjustments without naming a payment stage while OI-44 approved a mechanism for the final balance only. Options considered:
   - **A (chosen):** no deposit-stage adjustments; reductions only on the final balance.
   - B: a discount on the initial Checkout restricted to the deposit product.
@@ -642,7 +643,17 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-06 (Stripe verification of an invoice-level discount restricted to the balance product).
 - **Affected sections:** 04 §10–§10.1, §16 (T-BIL-11); 03 §4; OI-44.
 
-## 3A. Traceability matrix (OI-01–OI-49, OI-53–OI-55)
+### OI-63 — Webhook testing strategy
+
+- **Decision (hybrid):**
+  - CI runs synthetic Stripe-format webhook events, signed with a test-only secret generated for the run. CI never holds a Stripe credential or makes a Stripe request.
+  - The same handlers are also verified against real Stripe **test-mode** events. That verification runs separately from CI, under the separate Stripe access authorization.
+- **Status:** Approved.
+- **Provenance:** Owner decision, 2026-11-23 ("Hybrid approach — synthetic signed events in CI and real Stripe test-mode verification").
+- **Dependencies:** DEP-01 (test catalog), DEP-15 (test-mode webhook verification setup), the Stripe access condition (CLAUDE.md §5).
+- **Affected sections:** 04 §11, §16 (T-PAY-03 to T-PAY-08).
+
+## 3A. Traceability matrix (OI-01–OI-49, OI-53–OI-55, OI-63)
 
 Phase = the earliest OI-02 phase whose implementation the decision governs. "Prod" = production launch.
 
@@ -699,6 +710,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-53 | Phase 2 implementation notes (N-1 to N-8) | Approved (N-8 amended) | 2 | 03 §18.1 | — | — |
 | OI-54 | Expired-invitation cleanup job | Approved (deferred to Phase 5, with condition) | 2 / 5 | 03 §6.1, §18.1 | — | — |
 | OI-55 | Adjusted final-balance collection vehicle | Approved | 3 | 04 §10–§10.1 | DEP-06 | Provider (Stripe invoice discounts) |
+| OI-63 | Webhook testing strategy (hybrid) | Approved | 3 | 04 §11, §16 | DEP-01, DEP-15 | Provider (Stripe test mode) |
 | OI-46 | Involuntary subscription cancellation | Approved | 3 | 04 §9.1.1; 06 §8.4 | DEP-03, DEP-06 | Legal; provider (Stripe `past_due` behavior) |
 
 ## 4. Current authorization status
@@ -706,11 +718,11 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | Stage (OI-01) | Status | Evidence |
 |---|---|---|
 | 1. Architecture approval | **Approved** (per owner-provided baseline; pending verification of this register) | §1 |
-| 2. Specification reconciliation | **In progress.** Documentation-only changes authorized. This change set is under owner review. | Draft PR for branch `docs/architecture-specification-reconciliation` |
+| 2. Specification reconciliation | Foundation specs approved (below). **Spec 03** v0.4.0: approved 2026-11-23 (Phase 2 authorization). **Spec 04**: approved 2026-11-23 for **Phase 3 Stripe test-mode implementation only**; not approved for production (legal review DEP-03 and provider verification DEP-06 remain conditions). Specs 05–08: in review. | Owner instructions, 2026-11-23 |
 | Foundation specs 01, 02 and CLAUDE.md | **Approved (final)**: 01 v0.3.2, 02 v0.4.0, and CLAUDE.md as reconciled in commit `10868de` and merged through PR #1. | [Sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); Owner's written Phase 1 authorization, 2026-11-23 |
-| 3. Implementation authorization | **Phase 1 (Foundation and CI) authorized 2026-11-23.** Phases 2–5 are **not authorized**. Within Phase 1, Stripe requests, Supabase, authentication, Resend, Vercel, DNS, deployment, and production credentials remain prohibited. | Owner's written Phase 1 authorization, 2026-11-23 (transcribed from the Owner's instruction in the implementation session; no separate signed record) |
+| 3. Implementation authorization | **Phase 1** (Foundation and CI): authorized and merged (PR #2). **Phase 2** (Auth, security, and tenant isolation): authorized 2026-11-23 and merged (PR #4, merge commit `45d05f6`); local Supabase only, not deployed. **Phases 3–5: not authorized.** Approval of spec 04 for test-mode implementation does not authorize Phase 3. | Owner's written Phase 1 and Phase 2 authorizations, 2026-11-23 |
 | 4. Production launch authorization | **Not authorized** | — |
-| Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked and suspended**: there is no valid test-mode credential, and the Owner has instructed that no Stripe API requests be made until a verified test-mode credential workflow is separately authorized (DEP-01). | Owner instructions, 2026-11-23 |
+| Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked and suspended.** No Stripe request of any kind is made until (1) it is confirmed that the environment used contains **only** an appropriate Stripe test-mode credential, and (2) the Owner gives a **separate, narrowly scoped** written authorization (Owner instruction, 2026-11-23). As of 2026-11-23 the session environment still holds the credential previously identified as live-mode (DEP-01). | Owner instructions, 2026-11-23 |
 
 ## 5. Change history
 
@@ -732,6 +744,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.9.1 | 2026-11-23 | **OI-54 approved:** the expired-invitation cleanup job is deferred to Phase 5, on the condition that expired invitations are rejected at every authentication and acceptance boundary regardless of cleanup status. The condition is verified by new pgTAP and integration tests. OI-53 is still pending Owner confirmation. | Claude Code | Owner (instruction, 2026-11-23) |
 | 0.9.2 | 2026-11-23 | **OI-53 approved** with N-8 amended (security events recorded only by the server with a verified actor; payload bounds) and N-2 / N-6 retained. **Phase 2 remediation:** D1 removed client and staff execution of the security-event writer and bounded audit payloads; D3 corrected the client-facing label for staff invitations. Spec 03 v0.4.3. | Claude Code | Owner (Phase 2 Security Remediation Authorization, 2026-11-23) |
 | 0.10.0 | 2026-11-23 | **OI-47 approved (Option A):** the standard 20% deposit is mandatory for all five packages, and the initial Checkout always contains the standard deposit plus the first $99 maintenance payment. No deposit-stage discounts, credits, or waivers. Owner-authorized reductions apply only to the outstanding final balance, under OI-44 / OI-55. The maintenance subscription is never reduced. 04 v0.5.1 (new tests T-BIL-20, T-BIL-21); 03 v0.4.4 (§12 row). Documentation only. | Claude Code | Owner (decision, 2026-11-23) |
+| 0.11.0 | 2026-11-23 | Owner instructions: **OI-47** item 6 confirmed (a reduction can never exceed the outstanding final balance). **OI-63 approved** (hybrid webhook testing: signed synthetic events in CI; real Stripe test-mode verification separately). **Spec 04 v0.6.0 approved for Phase 3 Stripe test-mode implementation only**; legal review and provider verification remain production conditions. **Stripe access** requires an environment holding only an appropriate test credential plus a separate, narrowly scoped authorization. §4 authorization table brought up to date (Phase 2 merged). DEP-15 added. Phase 3 is **not** authorized. | Claude Code | Owner (instructions, 2026-11-23) |
 
 ## 6. Change-control rules
 

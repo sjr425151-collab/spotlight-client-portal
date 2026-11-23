@@ -9,11 +9,11 @@ A secure client portal for Spotlight Marketing LLC. It takes each website client
 
 | Stage | Status |
 |---|---|
-| Architecture approval | Approved: decisions OI-01–OI-41 (register pending owner verification) |
+| Architecture approval | Approved: decisions OI-01–OI-46 (register pending owner verification) |
 | Specification reconciliation | **In progress.** Documentation only. |
 | Implementation | **Not authorized.** No phase may begin without separate written owner authorization. |
 | Production launch | **Not authorized** |
-| Stripe test-mode catalog (narrow exception, OI-30) | Authorized; **blocked** pending a valid test-mode key (DEP-01) |
+| Stripe test-mode catalog (narrow exception, OI-30) | Authorized but **suspended**: no Stripe API requests until the Owner authorizes a verified test-mode credential workflow (DEP-01) |
 
 This repository currently contains **documentation only**. See [CLAUDE.md](CLAUDE.md) before making any change.
 
@@ -58,7 +58,7 @@ Client websites are **separate, isolated deployments**: agency-managed Vercel, o
 | [06 — Publishing and Post-Launch](docs/06-PUBLISHING-AND-POST-LAUNCH.md) | Publication gates, deployment, verification, rollback, inquiries |
 | [07 — Notifications, Privacy, and Design](docs/07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md) | Outbox, event catalog, retention, privacy, design system |
 | [08 — Decisions and Changelog](docs/08-DECISIONS-AND-CHANGELOG.md) | Decision register OI-01–OI-24, change control |
-| [OPEN-ISSUES.md](OPEN-ISSUES.md) | Decided issues, open Owner decisions (OI-42 onward), and implementation dependencies (DEP-nn) |
+| [OPEN-ISSUES.md](OPEN-ISSUES.md) | Decided issues, open Owner decisions (OI-47 onward), and implementation dependencies (DEP-nn) |
 | [CLAUDE.md](CLAUDE.md) | Operating instructions for contributors and AI agents |
 
 ## Environments

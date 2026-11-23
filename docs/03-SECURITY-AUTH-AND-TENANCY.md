@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.0 |
+| Version | 0.3.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39 |
-| Open issues | OI-45 |
+| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-46 |
+| Open issues | OI-47 |
 | Dependencies | DEP-06 |
 
 ## 1. Security objectives
@@ -58,7 +58,13 @@ Key: ✅ allowed · ❌ denied · **M** = only for projects where the client hol
 | Discount, credit, partial waiver, or full waiver **[APPROVED OI-27]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
 | Hold exceptions (clear a system hold) **[APPROVED OI-26]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
 | Place / clear `owner_manual_hold` or `dispute_risk_hold` | ✅ | ❌ | ❌ | ❌ |
-| Place / clear `approval_nonresponsive_hold` | **[PENDING OI-45]** | **[PENDING OI-45]** | ❌ | ❌ |
+| Place `approval_nonresponsive_hold` (day 21+, after documented outreach) **[APPROVED OI-45]** | ✅ | ✅ | ❌ | ❌ |
+| Clear `approval_nonresponsive_hold` **without** a client response **[APPROVED OI-45]** | ✅ (reason required) | ❌ | ❌ | ❌ |
+| Clear `approval_nonresponsive_hold` after a qualifying client response **[APPROVED OI-45]** | ✅ | ✅ | ❌ | ❌ |
+| Approve or request revisions on a held preview **[APPROVED OI-45]** | ❌ | ❌ | M | ❌ |
+| Authorize a final-balance discount (adjusted Checkout) **[APPROVED OI-44]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
+| Billing hold Owner review: continue collection, authorize exception, or initiate documented service termination **[APPROVED OI-46]** | ✅ (reauthentication for exception or termination) | ❌ | ❌ | ❌ |
+| Resolve an unexpected Stripe cancellation exception **[APPROVED OI-46]** | ✅ | ❌ | ❌ | ❌ |
 | Record personal follow-up outreach (OI-25) | ✅ | ✅ | ❌ | ❌ |
 | Respond to or settle a dispute **[APPROVED OI-37]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
 | Discretionary refund decision **[APPROVED OI-35]** | ✅ (reauthentication) | ❌ | ❌ | ❌ |
@@ -171,10 +177,10 @@ Minimum event catalog **[PROPOSED]**:
 - **Auth:** sign-in success/failure, OTP requested, MFA enrolled/challenged, session revoked.
 - **Membership:** invitation lifecycle, membership granted/revoked, staff role changed, Fulfillment assignment attempted.
 - **Agreement:** order summary created/superseded, agreement accepted, reacceptance required.
-- **Payment:** Checkout session created, webhook received/processed/rejected, ledger entry posted, hold placed/cleared, adjustment recorded.
-- **Lifecycle:** intake submitted, asset uploaded/quarantined/released/rejected, preview released, approval recorded/superseded.
+- **Payment:** Checkout session created, webhook received/processed/rejected, ledger entry posted, hold placed/cleared, adjustment and discount authorized, billing hold Owner review decision, service termination authorized/effective/withdrawn, unexpected Stripe cancellation exception.
+- **Lifecycle:** intake submitted, asset uploaded/quarantined/released/rejected/marked used, preview released, approval recorded/superseded, follow-up outreach recorded, approval hold placed/cleared (with actor, authorization, reason, outreach evidence), client response during hold, resumption decision.
 - **Publishing:** gate evaluated, publication authorized, deployment started/succeeded/failed, verification result, rollback.
-- **Privacy:** export, correction, and deletion requested/executed; legal hold placed/removed.
+- **Privacy:** export, correction, and deletion requested/executed; legal hold placed/removed; retention deletion executed (metadata-only evidence); project closed.
 
 ## 12. Owner override restrictions **[APPROVED OI-19]**
 
@@ -184,9 +190,11 @@ Minimum event catalog **[PROPOSED]**:
 | No override may create a payment, a successful Stripe status, a client approval, or a QA pass | Approved |
 | No general-purpose "mark as paid" action exists in any interface or API | Approved |
 | No override may silently bypass a mandatory publication gate | Approved |
-| Discounts, credits, and partial or full waivers are Owner-only ledger entries, with reason, reauthentication, and audit. A full waiver is recorded as a waiver, never as a Stripe payment. | **Approved (OI-27)**. Payment mechanism for adjusted amounts: **[PENDING OI-44]** |
+| Discounts, credits, and partial or full waivers are Owner-only ledger entries, with reason, reauthentication, and audit. A full waiver is recorded as a waiver, never as a Stripe payment. | **Approved (OI-27, OI-44)**. Mechanism: an Owner-authorized discount on the standard final-balance price in Checkout (04 §10.1). Deposit-stage adjustments: **[PENDING OI-47]**. |
 | The only permitted QA exception is a documented, Owner-approved performance exception. Security, payment/settlement, and client approval cannot be bypassed. | **Approved (OI-33)** |
 | Dispute evidence is compiled from authoritative records only. No fabricated evidence and no automatic concession. | **Approved (OI-37)** |
+| No website is decommissioned solely because a payment failed or because Stripe cancelled a subscription. Only an Owner-authorized, documented termination starts the transition. | **Approved (OI-46)** |
+| An approval hold never represents approval. Admin cannot clear it without a qualifying client response. | **Approved (OI-45)** |
 | An Owner may *add* holds or *block* publication at any time | **[PROPOSED]** |
 
 ## 13. Security acceptance tests **[PROPOSED]**
@@ -207,6 +215,8 @@ Minimum event catalog **[PROPOSED]**:
 | T-ROLE-02 | Admin cannot authorize publication, perform financial exceptions, or manage staff | Negative |
 | T-ROLE-03 | Assigning the Fulfillment role is rejected and audited | Negative |
 | T-ROLE-04 | Owner/Admin cannot record a client approval or agreement acceptance | Negative |
+| T-ROLE-05 | Admin cannot clear an approval hold without a qualifying client response. The Owner can, with a reason, and the clearance is audited. (OI-45) | Negative |
+| T-ROLE-06 | Only the Owner, with reauthentication, can authorize a discount or initiate service termination (OI-44, OI-46) | Negative |
 | T-AUD-01 | Each privileged action in §11 produces exactly one audit event. Update/delete on the audit log is rejected. | Integration |
 | T-SEC-01 | The production client bundle contains no service-role key, webhook secret, or Resend key | CI |
 | T-SEC-02 | Security headers (CSP, HSTS, frame-ancestors, referrer policy) are present on all portal responses | e2e |

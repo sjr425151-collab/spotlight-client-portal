@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.0 |
+| Version | 0.3.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40 |
-| Open issues | OI-42 |
+| Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46 |
+| Open issues | None |
 | Dependencies | DEP-05, DEP-07, DEP-08 |
 
 ---
@@ -34,6 +34,7 @@
 - **[PROPOSED]** The idempotency key is `event_type + subject_id + version`, for example `preview.released:<release_id>`. The key is passed to Resend as an idempotency key **[VERIFY-PROVIDER]**.
 - **[PROPOSED]** Exponential backoff (1 min, 5 min, 30 min, 2 h, 12 h), then `dead`, which raises an Admin queue item.
 - A duplicate enqueue with the same key is a no-op.
+- **Scheduling [APPROVED OI-43]:** deadline-driven notifications (preview reminders, payment recovery, transition, dispute deadlines) take their due times from the shared deadline calendar (02 §13) in America/Detroit. Due times and `next_attempt_at` are stored in UTC. Retries never move a contractual or administrative deadline.
 - Bounces and complaints from provider webhooks are recorded **[PROPOSED]**.
 
 ## 4. Event catalog **[PROPOSED]**
@@ -63,6 +64,11 @@
 | Transition deadline approaching / passed (OI-35) | Client, Owner | Resend |
 | Dispute opened: **immediate** (OI-37) | Owner | Resend |
 | Dispute evidence deadline reminders (OI-37) | Owner | Resend |
+| Approval hold placed / cleared (OI-45) | Client, Owner, Admin | Resend |
+| Client responded during approval hold (OI-45) | Admin, Owner | Resend |
+| Billing hold Owner review required (OI-46) | Owner | Resend |
+| Unexpected Stripe cancellation exception (OI-46) | Owner | Resend |
+| Service termination authorized / effective, with transition deadline (OI-46) | Client, Owner | Resend |
 | Publication live | Client, Owner | Resend |
 | Publication / verification failed | Owner | Resend |
 | Service inquiry received | Staff | Resend |
@@ -80,7 +86,10 @@
 - **Least privilege:** 03 §4 and §9.
 - **Encryption:** in transit (TLS) and at rest (provider-managed) **[VERIFY-PROVIDER]**.
 - **Legal holds:** a legal hold on a project or user suspends every deletion and retention job for the affected records. Placing and removing holds is Owner-only and audited **[PROPOSED]**.
-- **Secure deletion:** delete from the database and storage, and propagate to derivatives. Backups expire on their rolling schedule **[PROPOSED]**.
+- **Secure deletion:** delete from the database and storage, and propagate to derivatives.
+  - Deleted content can persist in backups only until the rolling 30-day backup window expires **[APPROVED OI-42 requires accounting for backup expiry; detail PROPOSED]**.
+  - Any restore from backup must re-apply the deletion log before the restored data is used **[PROPOSED]**.
+  - **Deletion evidence [APPROVED OI-42]:** an immutable audit record holding **metadata only** (asset ID, category, size, content hash, retention policy, deletion time, job ID). The deleted content itself is never retained.
 - **Backup controls:** rolling 30 days, subject to provider capabilities **[VERIFY-PROVIDER OI-39]**. Restore testing in Phase 5.
 
 ## 6. Provisional retention schedule **[APPROVED OI-21, OI-40 — provisional pending legal and privacy review, DEP-05]**
@@ -88,8 +97,8 @@
 | Data | Retention | Source |
 |---|---|---|
 | Active client and project records | Duration of the relationship | OI-21, OI-40 |
-| Project assets | 12 months after project closure | OI-21, OI-40 |
-| Unused uploads | 90 days after closure. This is in OI-21 but **absent from OI-40**, so whether it still applies is **[PENDING OI-42]**. | OI-21 |
+| Project assets **used** in a released preview or final deliverable | 12 months after project closure | OI-21, OI-40, OI-42 |
+| **Unused** client uploads (never incorporated into a released preview or final deliverable) | 90 days after project closure, then secure deletion unless a legal hold, applicable law, or another documented obligation requires preservation | OI-21, OI-42 |
 | Abandoned onboarding / intake | 90 days | OI-21, OI-40 |
 | Agreements and acceptance evidence | 7 years after termination | OI-21, OI-40 |
 | Financial records (ledger, webhook events, disputes, refunds, adjustments) | 7 years | OI-21, OI-40 |
@@ -99,7 +108,13 @@
 | Recoverable backups | Rolling 30 days, subject to provider capabilities (DEP-06) | OI-21, OI-40 |
 
 - **[APPROVED OI-40]** Subscription cancellation and account closure do **not** automatically delete legally required records.
-- The retention clock for project assets starts at project closure, which is distinct from subscription cancellation. **[PROPOSED]** Closure is recorded explicitly, no earlier than the transition deadline (04 §15.1).
+- **Project closure event.** **[APPROVED OI-42]** requires a defined closure event; the definition below is **[PROPOSED]**. Retention clocks start at an explicit, audited `project.closed` event recorded by the Owner or an Admin. It may be recorded only when no development work remains outstanding, and either:
+  - (a) for a project with a maintenance subscription: the 12-business-day transition deadline has passed (04 §15.1), or the client has completed transfer; or
+  - (b) for a project cancelled before publication: the cancellation is effective and cancellation accounting is complete.
+
+  Subscription cancellation alone is not closure.
+- **Automated enforcement.** **[APPROVED OI-42]** This is a future implementation requirement for Phase 4. A scheduled retention job classifies each asset as used or unused, evaluates due dates in America/Detroit (02 §13), skips anything under legal hold, and writes metadata-only deletion evidence. No retention deletion runs until the job is implemented and authorized.
+- These periods are provisional and **not legally finalized** (DEP-05).
 - Legal holds suspend every retention deletion (§5).
 
 - **[APPROVED OI-21]** Account closure does **not** automatically cancel Stripe billing or delete legally required records.
@@ -208,3 +223,5 @@ Before production, the Owner must:
 | T-DES-04 | Logo renders at its original aspect ratio (597:335) at every breakpoint, with no CSS distortion (OI-38) |
 | T-NOT-06 | Every event in §4 for OI-25, OI-26, OI-31, OI-35, and OI-37 has a template and is enqueued by its trigger |
 | T-PRV-05 | Subscription cancellation triggers no deletion of agreements, financial records, or audit logs (OI-40) |
+| T-PRV-06 | Unused assets are deleted 90 days after `project.closed`. Used assets are kept until 12 months after closure. Legal holds block both. (OI-42) |
+| T-PRV-07 | Deletion evidence contains metadata only. No deleted content is recoverable from audit records. |

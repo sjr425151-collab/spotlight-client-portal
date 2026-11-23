@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.0 |
+| Version | 0.3.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39 |
-| Open issues | OI-43, OI-44, OI-46 |
+| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46 |
+| Open issues | OI-47 |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
 > Nothing in this document authorizes any Stripe operation. No Stripe products, prices, customers, subscriptions, or Checkout configurations were created, queried, or modified in preparing it.
@@ -143,6 +143,8 @@ Required procedure for the creation action:
 
 **Status (2026-11-23): blocked.** In this documentation session, `api.stripe.com` was initially not reachable from the session environment. A credential was then supplied, and Stripe identified it as a **live-mode** key (`sk_live_` prefix) and rejected it as invalid. Work stopped before any search or write. **No Stripe object was created or modified.** A valid test-mode key is required (DEP-01). No placeholder IDs are recorded.
 
+**Owner instruction (2026-11-23):** make **no Stripe API requests** until the Owner separately authorizes a verified test-mode credential workflow. DEP-01 remains blocked until then.
+
 | Package | Test Deposit Price ID | Test Balance Price ID |
 |---|---|---|
 | Essential | *unresolved* | *unresolved* |
@@ -173,6 +175,7 @@ Phase 3 cannot begin implementation until these IDs are recorded and verified to
 | Line item 2 | **Maintenance** Price ID (recurring monthly, 9900), quantity 1 |
 | First invoice total | **deposit + 9900 cents**: one deposit charge plus **one** maintenance period. Never deposit + 19800. |
 | Subsequent billing | 9900 cents monthly from the subscription billing anchor (purchase date) |
+| Discounts | **None.** No discount is applied to the initial Checkout. Deposit-stage adjustments are unsupported until OI-47 is decided **[PENDING OI-47]**. |
 
 Expected initial totals:
 
@@ -210,14 +213,37 @@ Expected initial totals:
 | Step | Rule |
 |---|---|
 | T0 | `invoice.payment_failed` for a $99 renewal is recorded. Recovery starts. |
-| Recovery period | **Seven full calendar days** after T0. **[PROPOSED]** Recovery ends at 23:59:59 on the 7th calendar day after T0, in the business time zone (OI-43). |
+| Recovery period | **Seven full calendar days** after T0: calendar days, **never** business days. Recovery ends at 23:59:59 America/Detroit on the 7th calendar day after T0's local date (02 §13) **[APPROVED OI-26, OI-43]**. |
 | During recovery | Stripe's configured payment retries **[VERIFY-PROVIDER]** run, with automated reminders to the client (07 §4). Account access is unchanged. |
 | Recovered | A verified `invoice.paid` for the failed invoice ends recovery. No hold is placed. |
-| Unresolved at end | A `maintenance_payment_hold` is placed automatically (§14). |
+| Unresolved at end | A `maintenance_payment_hold` is placed automatically (§14), and the project enters Owner review (§9.1.1). |
 | Hold effect | Pauses **new publication** and **nonessential maintenance**. The client **keeps portal access**. An **already-published website is not disabled automatically**. |
 | Clearing | Cleared automatically on verified payment recovery (webhook). |
 | Exceptions | Owner-only, documented reason, reauthentication, audit (03 §12). |
 | Notice | Notice requirements must be reconciled with the final agreement (draft §12 says seven calendar days after written notice) (DEP-03). |
+
+### 9.1.1 Failed payment to service termination lifecycle **[APPROVED OI-46]**
+
+A failed maintenance payment **never** removes a website by itself.
+
+| Stage | Trigger | Effects | Already-published website |
+|---|---|---|---|
+| 1. Failed payment | Stripe reports an unsuccessful maintenance payment | Recovery begins (§9.1) | Online |
+| 2. Recovery period | Seven full calendar days | Notifications. Payment-method updates through the Customer Portal (§9.2). Stripe retries. | Online |
+| 3. Billing hold | Recovery period ends without verified recovery | `maintenance_payment_hold`. New publishing and nonessential maintenance are paused. | Online. **Never** taken offline automatically. |
+| 4. Owner review | Hold placed. An Owner review queue item is created. | The Owner chooses to: continue collection and recovery; authorize a documented exception; or initiate documented service termination | Online |
+| 5. Authorized termination | The Owner records the termination, with reason and reauthentication | The effective cancellation date is documented. The 12-business-day transition (§15.1) begins on it, subject to the final agreement. | Online until the transition deadline. After that, only per 06 §8.4. |
+
+Stripe configuration **[APPROVED OI-46; VERIFY-PROVIDER, DEP-06]**:
+- Prefer a recoverable `past_due` or `unpaid` subscription state over automatic cancellation after retries, where supported.
+- Verify Stripe Billing's actual behavior before implementation.
+
+Internal service-termination state **[APPROVED OI-46; states PROPOSED]**:
+- This state is separate from the Stripe subscription status: `none → under_owner_review → termination_authorized → effective → transition_complete | decommissioned`, plus `withdrawn` before `effective`.
+- An **unexpected** `customer.subscription.deleted`, meaning one that matches no authorized termination, creates a `stripe_cancellation_exception` Owner review item. It is **not** authorization to start the transition or remove a website.
+- Duplicate or contradictory transitions are prevented. At most one active termination is allowed per project (unique constraint). Repeated events are idempotent. A conflicting event, such as a recovery payment after termination was authorized, goes to Owner review.
+- Billing and termination audit history is complete (03 §11).
+- Final termination and transition terms require legal review (DEP-03).
 
 ### 9.2 Stripe Customer Portal **[APPROVED OI-29]**
 
@@ -252,8 +278,31 @@ Whether final payment may be requested *before* client approval is not specified
 **Adjusted balances [APPROVED OI-27]:**
 - When an Owner-authorized discount, credit, or partial waiver reduces the amount owed, the **remaining amount still requires verified payment**.
 - The standard Stripe balance prices remain unchanged.
-- The adjusted amount must be collected through a compliant payment mechanism. Which mechanism is **[PENDING OI-44]**, because OI-14 prohibits new prices and inline pricing.
+- The adjusted amount is collected through **Stripe Checkout with an Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices.
 - A fully waived balance requires no Checkout. It is recorded as a `waiver` ledger entry (§12).
+- **Deposit-stage adjustments:** OI-44 covers the final balance only. Adjustments to the initial deposit Checkout are **[PENDING OI-47]**.
+
+### 10.1 Adjusted final-balance Checkout **[APPROVED OI-44]**
+
+| # | Requirement |
+|---|---|
+| 1 | Only the Owner may authorize a financial adjustment |
+| 2 | Fresh high-risk reauthentication (03 §7) |
+| 3–7 | An insert-only `balance_adjustments` record holds: the original package amount; the original remaining balance; the authorized discount or credit; the adjusted amount due; and the reason, authorizing Owner, and timestamp. All amounts are integer cents. |
+| 8 | Immutable financial history. A matching ledger entry (§12) is posted. Corrections are new records, not edits. |
+| 9 | Revised order summary and client re-acceptance where the change is materially necessary (§4) |
+| 10 | Publication requires verified payment of the adjusted amount or an authorized settlement (G4, 06 §2) |
+| 11 | A successful Stripe payment is never fabricated |
+| 12 | The discount applies **only** to the intended final-balance Checkout Session |
+| 13 | The recurring **$99 maintenance subscription is never discounted** |
+| 14 | Stripe's actual support for the mechanism is verified before implementation (DEP-06) |
+
+Mechanism constraints **[PROPOSED; VERIFY-PROVIDER]**:
+- The final Checkout is `payment` mode with a single line item: the standard balance Price ID. The maintenance subscription is never part of this session, so a session-level discount cannot reach it.
+- The discount is applied at the **Checkout Session** level only. It is restricted to the balance product, limited to a single redemption, and linked to the `balance_adjustments` record in metadata. It is **never** attached to the Stripe Customer or the subscription.
+- Webhook verification (§11): the session's total must equal the adjusted amount due, and the discount must equal the authorized discount. Any mismatch quarantines the event, and payment is not verified.
+- Creating discount objects (for example coupons) is a Stripe change. This document authorizes none. Test-mode creation requires Phase 3 authorization; live creation requires production authorization.
+- If Stripe cannot meet these constraints, **escalate to the Owner**. No inline pricing or alternative mechanism may be substituted silently.
 
 ## 11. Verified webhook handling **[APPROVED OI-17]**
 
@@ -273,7 +322,7 @@ Rules:
 | `checkout.session.async_payment_succeeded` / `_failed` | Delayed payment methods |
 | `invoice.paid` | Ledger: deposit and first maintenance (initial); maintenance renewals |
 | `invoice.payment_failed` | Failed payment record; hold evaluation (OI-26) |
-| `customer.subscription.created` / `updated` / `deleted` | Subscription state mirror |
+| `customer.subscription.created` / `updated` / `deleted` | Subscription state mirror. A `deleted` event that matches no authorized termination creates an Owner exception review item. It never starts the transition and never removes a site. **[APPROVED OI-46]** |
 | `charge.refunded` / `refund.*` | Refund ledger entries |
 | `charge.dispute.created` / `closed` | Dispute ledger entries and holds (OI-37) |
 
@@ -331,7 +380,7 @@ A hold is a record holding: type, trigger source, `placed_at`, `placed_by` (for 
 | Hold type | Trigger | Blocks | Never does | Clears when |
 |---|---|---|---|---|
 | `maintenance_payment_hold` | §9.1 recovery period ends unresolved **[APPROVED OI-26]** | New publication (gate G8); nonessential maintenance | Disable a live site; remove portal access; cancel the subscription | Verified payment recovery, or Owner exception **[APPROVED OI-26]** |
-| `approval_nonresponsive_hold` | Day 21 after preview release, after documented outreach **[APPROVED OI-25]** | Who applies it, and what it pauses: **[PENDING OI-45]** | Count as approval; cancel the subscription; waive a balance; satisfy any gate | Explicit client response, or authorized clearance **[PENDING OI-45]** |
+| `approval_nonresponsive_hold`: a **fulfillment** hold, never a billing hold | Owner or Admin, from day 21 after documented outreach **[APPROVED OI-25, OI-45]** | Active development and nonessential fulfillment **[APPROVED OI-45]**; new publication through G8 **[PROPOSED]** | Count as approval; restrict portal or preview access; block client approval or revision requests; cancel the subscription; waive a balance; affect a published site | Owner at any time, with a reason; Admin only after a qualifying client response **[APPROVED OI-45]** (05 §7.2) |
 | `dispute_risk_hold` | Owner decision when a dispute warrants it **[APPROVED OI-37]** | New publication (G8) | Take down a live site because a dispute exists | Owner clears it with a reason |
 | `owner_manual_hold` | Owner action **[PROPOSED]** | New publication (G8) | — | Owner clears it with a reason |
 
@@ -348,7 +397,7 @@ System holds (Stripe-derived) clear only when the underlying Stripe state resolv
 | Cancellation request date | When the client's cancellation request is received and recorded (portal form or written notice, §15.1.1) |
 | Effective cancellation date | When the subscription actually ends. **[PROPOSED]** This is the end of the current paid billing period, matching draft agreement §7, pending legal review (DEP-03). |
 | Transition deadline | **12 business days after the effective cancellation date**, unless the final approved agreement explicitly says otherwise **[APPROVED OI-35]** |
-| Business day | **[PENDING OI-43]** Proposed: Monday–Friday, excluding U.S. federal holidays, in America/Detroit time. The deadline is the end of the 12th business day. |
+| Business day | Monday–Friday, excluding U.S. federal holidays, evaluated in America/Detroit. The deadline is 23:59:59 America/Detroit on the 12th business day after the effective cancellation date. The trigger date is excluded, subject to legal confirmation. **[APPROVED OI-43]** (02 §13) |
 
 **Procedure [APPROVED OI-35]:**
 1. Record the request date and the effective cancellation date, as separate fields.
@@ -363,7 +412,7 @@ System holds (Stripe-derived) clear only when the underlying Stripe state resolv
 - Legal responsibilities are **not** described as disappearing automatically.
 - Applicable records are retained (07 §6), and legal holds apply.
 - **Enforcement of this policy requires legal review** (DEP-03). Until the final agreement includes it, the transition period is not enforced against production clients.
-- **[PENDING OI-46]** Whether an involuntary cancellation (Stripe ends the subscription after failed payment retries) starts the same 12-business-day transition.
+- **[APPROVED OI-46]** A failed payment never starts the transition. Only an Owner-authorized, documented service termination (§9.1.1, stage 5) or a confirmed client cancellation starts it, on the documented effective cancellation date. A Stripe cancellation webhook alone is never authorization to remove a website.
 
 #### 15.1.1 Cancellation request handling **[APPROVED OI-29, OI-35; workflow PROPOSED]**
 
@@ -445,3 +494,9 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-08 | No automated process cancels, deletes, or lets lapse a client-owned domain |
 | T-BIL-09 | A dispute webhook notifies the Owner, records the deadline, and triggers no takedown (OI-37) |
 | T-BIL-10 | Ledger entries carry a service category. Tax collection is disabled outside authorized production configuration. (OI-36) |
+| T-BIL-11 | The adjusted final Checkout has only the balance line item. The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
+| T-BIL-12 | After an adjusted final payment, no discount is attached to the customer or subscription, and the next maintenance renewal invoice is exactly 9900 cents |
+| T-BIL-13 | The adjustment record contains every §10.1 field. An Admin attempt is rejected and audited. |
+| T-BIL-14 | Through day 7 of recovery: no hold, no termination state, no decommissioning request. After the period: the hold is placed and an Owner review item exists. (OI-46) |
+| T-BIL-15 | An unexpected `customer.subscription.deleted` creates an exception review. No transition starts, and the site is unaffected. |
+| T-BIL-16 | Duplicate termination authorizations or duplicate webhooks produce exactly one termination and one transition deadline |

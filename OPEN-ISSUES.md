@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.0 (draft for owner review) |
+| Version | 0.3.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-47** |
+| Next unused issue ID | **OI-48** |
 | Next unused dependency ID | **DEP-13** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-41)
+## Part 1 — Decided issues (OI-01 to OI-46)
 
-All 41 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-41).
+All 46 issues are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-46).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -41,13 +41,13 @@ All 41 issues are decided at the architectural level. The authoritative text is 
 | OI-18 | Preview approval | Decided | — |
 | OI-19 | Administrative overrides | Decided | — |
 | OI-20 | Uploads | Decided | DEP-06, DEP-07 |
-| OI-21 | Privacy and retention | Decided | DEP-05; OI-42 |
+| OI-21 | Privacy and retention | Decided | DEP-05 |
 | OI-22 | Publication | Decided | DEP-06 |
 | OI-23 | Performance | Decided | DEP-12 |
 | OI-24 | Optional post-publication inquiries | Decided | — |
-| OI-25 | Nonresponsive preview clients | Decided | OI-43, OI-45 |
-| OI-26 | Failed maintenance payments | Decided | DEP-03, DEP-06; OI-43 |
-| OI-27 | Owner-authorized financial adjustments | Decided | OI-44; DEP-03 |
+| OI-25 | Nonresponsive preview clients | Decided | — |
+| OI-26 | Failed maintenance payments | Decided | DEP-03, DEP-06 |
+| OI-27 | Owner-authorized financial adjustments | Decided | DEP-03, DEP-06; OI-47 (open) |
 | OI-28 | Signer authority | Decided | DEP-03 (final wording) |
 | OI-29 | Stripe Customer Portal | Decided | DEP-03, DEP-06 |
 | OI-30 | Stripe test-mode catalog | Decided; creation **blocked** | DEP-01 |
@@ -55,138 +55,103 @@ All 41 issues are decided at the architectural level. The authoritative text is 
 | OI-32 | Client hosting | Decided | DEP-03, DEP-06 |
 | OI-33 | Mandatory publishing QA | Decided | — |
 | OI-34 | Agreement versioning | Decided | DEP-03 |
-| OI-35 | Cancellation, refunds, 12-business-day transition | Decided | DEP-03; OI-43, OI-46 |
+| OI-35 | Cancellation, refunds, 12-business-day transition | Decided | DEP-03 |
 | OI-36 | Tax readiness | Decided | DEP-04 |
 | OI-37 | Disputes and chargebacks | Decided | DEP-03 |
 | OI-38 | Branding | Decided | DEP-08 |
 | OI-39 | Provider verification | Decided | DEP-06 |
-| OI-40 | Data governance | Decided | DEP-05; OI-42 |
+| OI-40 | Data governance | Decided | DEP-05 |
 | OI-41 | Production infrastructure | Decided | DEP-09 |
+| OI-42 | Unused client upload retention | Decided | DEP-05 |
+| OI-43 | Business-day and time-zone calendar | Decided | DEP-03 |
+| OI-44 | Adjusted final-balance payments | Decided | DEP-03, DEP-06 |
+| OI-45 | Day-21 preview approval hold | Decided | — |
+| OI-46 | Involuntary subscription cancellation | Decided | DEP-03, DEP-06 |
 
 ---
 
 ## Part 2 — Open issues requiring Owner decision
 
-These came out of the 2026-11-23 cross-document audit. Each is a gap or conflict that the approved decisions do not resolve.
+OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. The final cross-document audit found **one** remaining genuine gap: the approved decisions do not say how to adjust the deposit stage.
 
 | ID | Title | Earliest phase | Status |
 |---|---|---|---|
-| OI-42 | "Unused uploads" retention: OI-21 vs OI-40 | 4 | Open |
-| OI-43 | Business-day and time-zone calendar | 3 | Open |
-| OI-44 | Payment mechanism for adjusted (reduced) amounts | 3 | Open |
-| OI-45 | Authority and effect of the day-21 approval hold | 4 | Open |
-| OI-46 | Involuntary cancellation and the 12-business-day transition | 3 | Open |
+| OI-47 | Adjustments to the initial deposit Checkout | 3 | Open |
 
-### OI-42 — "Unused uploads" retention: OI-21 vs OI-40
+### OI-47 — Adjustments to the initial deposit Checkout
 
-- **Description:** OI-21 sets "unused uploads: 90 days after closure". OI-40, which restates the retention schedule, omits that category. All other categories match.
+- **Description:**
+  - OI-27 permits Owner-authorized discounts, credits, and waivers without limiting them to a payment stage.
+  - OI-44 approves a mechanism only for the **final balance**: a discount on the standard balance price in a payment-mode Checkout.
+  - The initial Checkout is **subscription mode** and combines the deposit with the $99 maintenance subscription. A discount there risks reducing the maintenance charge, which OI-44 forbids for the final balance.
+  - No approved mechanism exists for reducing the deposit.
 - **Options:**
-  - A. Keep the 90-day rule (OI-40's omission was unintentional).
-  - B. Drop it; unused uploads follow "project assets: 12 months after closure".
-- **Recommendation:** A, because it supports data minimization. Define "unused upload" as an asset never included in any released preview.
-- **Impacted documents:** 07 §6.
-- **Owner decision required:** Yes. Also confirm under legal review (DEP-05).
-
-### OI-43 — Business-day and time-zone calendar
-
-- **Description:** Several approved rules depend on a calendar definition, which OI-35 requires to be set out explicitly:
-  - OI-35: 12 business days
-  - OI-26: seven full calendar days
-  - OI-25: day 3/7/14/21 schedule
-  - draft agreement §3: five business days
-- **Options:**
-  - A. Monday–Friday, excluding U.S. federal holidays, in America/Detroit (the draft agreement is governed by Michigan law).
-  - B. Same, plus Spotlight-observed holidays published annually.
-  - C. Use the client's local time zone.
-- **Recommendation:** A. The deadline is the end of the business day (23:59:59, America/Detroit). Calendar-day periods use the same time zone.
-- **Impacted documents:** 04 §9.1, §15.1; 05 §7.1.
-- **Owner decision required:** Yes, plus legal confirmation for the agreement (DEP-03).
-
-### OI-44 — Payment mechanism for adjusted (reduced) amounts
-
-- **Description:** OI-27 requires a "compliant payment mechanism" for adjusted remaining amounts. OI-14 forbids creating new prices or using inline pricing, and keeps the standard prices unchanged. With a fixed balance Price ID, Checkout cannot charge a reduced amount on its own.
-- **Options:**
-  - A. A Stripe **coupon or discount** applied to the standard balance price in Checkout. The price is unchanged; the coupon is a separate Stripe object created per adjustment or from a predefined set.
-  - B. A Stripe **Invoice** for the adjusted amount, using a credit balance or credit note against the standard price.
-  - C. Allow inline amounts only for Owner-authorized adjustments. This needs an explicit amendment to OI-14.
-- **Recommendation:** A, if verified (DEP-06). It keeps standard prices intact and makes the adjustment visible in Stripe. Creating coupons is a Stripe change and needs separate authorization.
-- **Impacted documents:** 04 §10, §12; 06 §2 (G4).
-- **Owner decision required:** Yes.
-
-### OI-45 — Authority and effect of the day-21 approval hold
-
-- **Description:** OI-25 lets an "administrative hold" be applied from day 21 after documented outreach. It does not say who may apply or clear the hold, or what the hold pauses. Publication is already blocked by the missing approval (G3).
-- **Options:**
-  - A. Owner or Admin may apply. Only the Owner may clear without a client response. The hold pauses active development work and is shown in queues. It never affects a live site.
-  - B. Owner only, for both applying and clearing.
-  - C. Informational status only, with no operational effect.
-- **Recommendation:** A.
-- **Impacted documents:** 03 §4; 04 §14; 05 §7.1; 06 §2, §8.4.
-- **Owner decision required:** Yes.
-
-### OI-46 — Involuntary cancellation and the 12-business-day transition
-
-- **Description:** If maintenance payment recovery fails, Stripe may eventually cancel the subscription automatically, depending on its retry settings. OI-35 defines the transition for client-initiated cancellation. OI-26 keeps live sites online during holds. It is undefined whether an involuntary cancellation starts the 12-business-day transition, and on what date.
-- **Options:**
-  - A. Configure Stripe to leave the subscription past due or unpaid rather than cancelling it, so the hold persists until the Owner decides.
-  - B. Involuntary cancellation is the effective cancellation date and starts the transition.
-  - C. The Owner decides case by case. The transition starts only when the Owner records it.
-- **Recommendation:** A combined with C, so that no automatic decommissioning path exists.
-- **Impacted documents:** 04 §9.1, §15.1; 06 §8.4.
-- **Owner decision required:** Yes, plus legal confirmation (DEP-03).
+  - A. Deposit-stage adjustments are not supported in the MVP. Any agreed reduction is applied to the final balance through the OI-44 mechanism. The deposit is always the standard deposit price.
+  - B. Allow a discount on the initial Checkout, restricted to the deposit product. This needs Stripe verification (DEP-06) and the same safeguards as OI-44.
+  - C. Allow deposit waivers only: no initial Checkout deposit line item. This changes the subscription-start flow and needs further design.
+- **Recommendation:** A. It adds no new Stripe behavior and keeps the maintenance subscription untouched.
+- **Impacted documents:** 04 §8, §10; 03 §12.
+- **Owner decision required:** Yes. Until it is decided, the specs treat deposit-stage adjustments as unsupported.
+- **Status:** Open.
 
 ---
 
 ## Part 3 — Implementation and production dependencies
 
-| ID | Dependency | Owner of action | Needed before | Status |
+Earliest phase = the first OI-02 phase whose **implementation** cannot proceed without the dependency. "Prod" = production launch authorization. Every dependency below is **incomplete** unless its status says otherwise.
+
+| ID | Dependency | Action owner | Earliest phase | Status |
 |---|---|---|---|---|
-| DEP-01 | Stripe **test-mode** catalog creation and recorded test Price IDs (OI-30) | Claude Code or Owner, with a valid **test-mode** key | Phase 3 implementation | **Blocked** (see below) |
-| DEP-02 | Verify the live Price IDs (04 §5.2) against the live catalog | Owner / authorized implementer | Production launch | Not started |
-| DEP-03 | Qualified **legal review** of the agreement | Owner + counsel | Production launch (enforcement) | Not started |
-| DEP-04 | Qualified **tax review**; Stripe Tax production configuration (OI-36) | Owner + tax advisor | Production tax collection | Not started |
-| DEP-05 | **Legal/privacy review** of retention, data requests, DPAs, incident notification (OI-21, OI-40) | Owner + counsel | Production launch | Not started |
-| DEP-06 | **Provider verification** per OI-39 (02 §10) | Implementer | The phase that first uses each provider | Not started |
-| DEP-07 | Malware scanning **vendor selection** after provider and cost verification (OI-31) | Owner (selection), implementer (evaluation) | Phase 4 implementation | Not started |
-| DEP-08 | **Brand assets** | Owner | Production launch | Partially done: logo candidate identified |
-| DEP-09 | **Production infrastructure** prerequisites P-1–P-9 (02 §11) | Owner + implementer | Production launch | Not started |
-| DEP-10 | **Branch protection** on `main` with required review and status checks | Owner (GitHub settings) | Phase 1 | Not started |
+| DEP-01 | Stripe **test-mode** catalog created and test Price IDs recorded (OI-30) | Owner-authorized operator with a verified **test-mode** credential | Phase 3 | **Blocked / suspended** |
+| DEP-02 | Verify the live Price IDs (04 §5.2) against the live catalog | Owner / authorized implementer | Phase 5 (Prod) | Not started |
+| DEP-03 | Qualified **legal review** of the agreement and related policies | Owner + counsel | Phase 5 (Prod; before enforcement) | Not started |
+| DEP-04 | Qualified **tax review**; Stripe Tax production configuration (OI-36) | Owner + tax advisor | Phase 5 (Prod tax collection) | Not started |
+| DEP-05 | **Legal/privacy review** of retention, deletion, data requests, DPAs, incident notification (OI-21, OI-40, OI-42) | Owner + counsel | Phase 5 (Prod) | Not started |
+| DEP-06 | **Provider verification** per OI-39 (02 §10) | Implementer; escalations to the Owner | Phase 1 (Vercel, GitHub Actions); Phase 2 (Supabase); Phase 3 (Stripe); Phase 4 (Resend, Storage, client-site Vercel) | Not started |
+| DEP-07 | Malware scanning **vendor selection** after provider and cost verification (OI-31) | Owner (selection) | Phase 4 | Not started |
+| DEP-08 | **Brand assets**: Owner confirmation of the official logo master (Phase 1); vector and variant assets and final visual approval (Prod) | Owner | Phase 1 (confirmation); Prod (final approval) | Candidate identified; **not confirmed** |
+| DEP-09 | **Production infrastructure** prerequisites P-1–P-9 (02 §11) | Owner + implementer | Phase 5 (Prod) | Not started |
+| DEP-10 | **Branch protection** on `main` (required PR review and status checks) | Owner (GitHub settings) | Phase 1 | Not started; `main` is unprotected as of 2026-11-22 |
 | DEP-11 | Toolchain **version pins** verified against official sources (OI-11) | Implementer | Phase 1 | Not started |
-| DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 1 (proposal), Phase 5 (active) | Not started |
+| DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 5 (required); may be proposed earlier | Not started |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
-- **Authorized scope:** create only the missing test-mode products and prices matching 04 §5.1, following the procedure in 04 §6.
-- **What happened on 2026-11-23:**
-  1. The session environment's network policy refused connections to `api.stripe.com` (proxy 403).
-  2. A credential was then provided through the secure environment form.
-  3. A read-only verification call (`GET /v1/balance`) returned an authentication error. Stripe identified the key as **live mode** (`sk_live_` prefix) and as invalid.
-  4. Work stopped there. No search, create, or update request was sent.
-- **Required next steps:**
-  - The Owner removes the live credential from the environment's network secrets and rolls the key in Stripe if it may still be valid.
-  - The Owner supplies a **test-mode** secret key (`sk_test_…`) or a restricted test key with write access to Products and Prices.
-  - The authorized creation action is then re-run as a separately identifiable step.
+- **Authorized scope:** create only the missing test-mode products and prices matching 04 §5.1, following 04 §6.
+- **History (2026-11-23):**
+  1. `api.stripe.com` was first blocked by the session network policy.
+  2. A credential was then saved to the session environment. A single read-only verification request showed it was a **live-mode** key, and Stripe rejected it as invalid.
+  3. No search, create, or update request was sent, and no Stripe object was created or modified.
+- **Current status:**
+  - The Owner has chosen to leave the environment configuration unchanged for now, so the live-mode credential remains saved for `api.stripe.com` on that environment.
+  - The Owner has instructed that **no Stripe API requests** be made until a verified test-mode credential workflow is separately authorized.
+- **To unblock:**
+  - The Owner authorizes a test-mode credential workflow, replacing the live credential with a test-mode key (`sk_test_…`) or a restricted test key with write access to Products and Prices.
+  - Then the authorized creation is run as a separately identifiable action.
 
 ### DEP-03 detail — legal review scope
 
-- Final agreement text and versioning (OI-34).
-- Signer authority wording (OI-28).
-- Notice terms for payment holds (draft §12 vs OI-26).
+- Final agreement text and versioning (OI-34) and signer authority wording (OI-28).
+- Payment-hold notice terms (draft §12 vs OI-26) and the Owner-authorized termination path after failed payment (OI-46).
 - Draft §7 "designated billing portal" wording vs disabled self-service cancellation (OI-29).
-- Draft §7 "discontinue hosting after the current paid period" vs the 12-business-day transition (OI-35).
-- Effective-cancellation definition.
-- Refund terms (OI-35).
-- Domain ownership and transfer, IP ownership (OI-32, draft §5, §8).
-- Dispute terms (OI-37).
-- The calendar definition (OI-43).
-- The involuntary cancellation treatment (OI-46).
+- Draft §7 "discontinue hosting after the current paid period" vs the 12-business-day transition (OI-35), and the definition of the effective cancellation date.
+- The calendar convention, including trigger-date exclusion (OI-43).
+- Disclosure of adjusted final balances (OI-44).
+- Refund terms (OI-35), domain ownership and transfer, IP ownership (OI-32; draft §5, §8), and dispute terms (OI-37).
+- Unused-upload deletion terms (OI-42), coordinated with DEP-05.
+
+### DEP-06 detail — provider verification items added by OI-43 to OI-46
+
+- **Stripe:** a Checkout Session-level discount restricted to the balance product with a single redemption, which must never attach to the customer or subscription (OI-44).
+- **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
+- **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
 
 ### DEP-08 detail — brand assets
 
-- One logo candidate has been identified in the official SLM folder (07 §10.1).
-- Still required:
-  - Owner confirmation that this file is the official master
+- One logo candidate is identified in the official SLM folder (07 §10.1).
+- Phase 1 needs the Owner to confirm it is the official master.
+- Production needs:
   - a vector master
   - transparent and light-background variants
   - a favicon and app icon
-  - Owner approval of palette, typography, email branding, and the final visual design
+  - Owner approval of the palette, typography, email branding, and final visual design

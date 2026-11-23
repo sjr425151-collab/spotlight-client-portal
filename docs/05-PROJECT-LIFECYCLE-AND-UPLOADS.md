@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.0 |
+| Version | 0.3.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39 |
-| Open issues | OI-42, OI-43, OI-45 |
+| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46 |
+| Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
 
 ## 1. Principle **[APPROVED OI-05]**
@@ -22,7 +22,8 @@ Each lifecycle dimension has its **own** state, derived from authoritative recor
 | Development | `not_started → in_progress → ready_for_preview` (+ `paused`) | Staff-recorded milestones (informational, never a gate) |
 | Preview approval | Per release: `released → approved` / `superseded` / `withdrawn` | Preview release and approval records (§6–§7) |
 | Final balance | `not_due → due → pending → verified` (+ `failed`, `refunded`, `disputed`, `settled_by_adjustment` **[APPROVED OI-27]**, meaning paid + Owner-authorized adjustments = owed, never a fabricated payment) | Webhook-derived ledger |
-| Holds | Zero or more active holds | Hold records (04 §14) **[APPROVED OI-25, OI-26, OI-37]** |
+| Holds | Zero or more active holds (billing and fulfillment holds are distinct types) | Hold records (04 §14) **[APPROVED OI-25, OI-26, OI-37, OI-45]** |
+| Service termination | `none → under_owner_review → termination_authorized → effective → transition_complete / decommissioned` (+ `withdrawn`). Independent of the Stripe subscription status. | Owner-authorized termination records (04 §9.1.1) **[APPROVED OI-46]** |
 | Publication | `not_eligible → eligible → authorized → deploying → live_unverified → live_verified` (+ `failed`, `rolled_back`) | Gate evaluation and deployment records (06) |
 
 ```mermaid
@@ -64,6 +65,7 @@ The exact field list and required/optional flags are **[PROPOSED]** above, for o
 - Storage is private Supabase Storage, isolated per project by path prefix and policy (03 §8–§9).
 - Uploads are authorized on the server. **[PROPOSED]** The server issues a short-lived, single-object upload URL scoped to the project path, only after checking type, size, and quota.
 - **Versioning:** a replaced asset creates a new version. Prior versions are retained per 07 §6.
+- **Usage tracking [APPROVED OI-42]:** used and unused assets must be clearly distinguished. **[PROPOSED]** Each asset version carries a `used` flag. The flag is set irreversibly when the version is incorporated into any released preview or final deliverable, derived from that release's asset manifest. Assets never incorporated are **unused**, and follow the 90-day post-closure retention rule (07 §6).
 - **No automatic publication.** An asset reaches a client website only through a staff-built preview release and the publication gates (06).
 - Upload and access history are audited.
 
@@ -140,7 +142,7 @@ The owner-authored draft agreement §3 gives the client five business days to id
 
 ### 7.1 Nonresponsive client escalation **[APPROVED OI-25]**
 
-Days are calendar days counted from the release date of the **current** released preview **[PROPOSED: in the business time zone, OI-43]**. Releasing a new preview restarts the schedule.
+Days are calendar days in America/Detroit, counted from the local release date of the **current** released preview. Day *N* is the release date + *N* (02 §13). **[APPROVED OI-43]** Releasing a new preview restarts the schedule.
 
 | Day | Action | Actor | Audit event |
 |---|---|---|---|
@@ -148,13 +150,31 @@ Days are calendar days counted from the release date of the **current** released
 | 3 | First reminder to the client | System (outbox) | `approval.reminder_1_sent` |
 | 7 | Second reminder to the client, plus an Admin notification | System (outbox) | `approval.reminder_2_sent`, `approval.admin_notified` |
 | 14 | Personal follow-up escalation. Staff record the outreach (channel, date, summary). | Staff | `approval.personal_followup_recorded` |
-| 21+ | An `approval_nonresponsive_hold` **may** be applied, but only after documented outreach exists. Who may apply it, and what it pauses: **[PENDING OI-45]**. | See OI-45 | `hold.placed` |
+| 21+ | An `approval_nonresponsive_hold` **may** be applied, but only after documented outreach exists (§7.2) | Owner or Admin **[APPROVED OI-45]** | `approval_hold.placed` |
 
 Rules **[APPROVED OI-25]**:
 - Silence never constitutes approval.
 - The hold does **not** cancel the subscription, waive any balance, or satisfy any publication requirement.
 - A client response (approval or revision request) stops the schedule.
 - Every step is auditable.
+
+### 7.2 Day-21 approval hold **[APPROVED OI-45]**
+
+`approval_nonresponsive_hold` is a **fulfillment** hold. It is a separate type from every billing hold, and it never represents an approved preview.
+
+| Aspect | Rule |
+|---|---|
+| Preconditions | Day ≥ 21 for the current release, and documented outreach exists, including the day-14 personal follow-up record |
+| Apply | Owner or Admin, with a reason |
+| Pauses | Active development work and nonessential fulfillment activity. **[PROPOSED]** Publication is also blocked through G8 while the hold is active (06 §2). |
+| Preserved | Client portal access; preview access; the client's ability to approve or to request revisions; the explicit-approval gate G3 |
+| Never | Cancels the maintenance subscription; waives balances; affects already-published websites; treats silence as approval |
+| Client response | An approval or revision request from an authorized client on the current release is recorded normally. An approval made during the hold is a valid G3 approval. Either response creates an `approval_hold_review` queue item for administrative review. |
+| Qualifying client response | An explicit approval or revision request on the current release by an authorized client **[PROPOSED definition]** |
+| Clear | Owner at any time, with a reason. Admin only after a qualifying client response. |
+| Resumption | A recorded resumption decision, for example: resume development, proceed to final payment, or remain held |
+| Audit | `approval_hold.placed` (actor, authorization, reason, outreach evidence IDs, timestamp); `approval_hold.client_response`; `approval_hold.cleared`; `approval_hold.resumption_decided` |
+| Display | **[PROPOSED]** Labeled "Paused: awaiting your preview response". It is never shown as a billing status or as approved. |
 
 ## 8. Revision handling **[PROPOSED]**
 
@@ -179,6 +199,10 @@ Queues are **computed** from authoritative state. They are never maintained by h
 | Payment recovery | Failed maintenance renewal within the 7-day recovery period (OI-26) |
 | Cancellation transitions | Effective cancellations with transition deadlines approaching or passed (OI-35) |
 | Disputes | Open disputes, ordered by evidence due date (OI-37) |
+| Approval hold review | A client responded while `approval_nonresponsive_hold` is active (OI-45) |
+| Billing hold Owner review | `maintenance_payment_hold` is active and no Owner decision is recorded (OI-46) |
+| Stripe cancellation exceptions | A Stripe subscription was deleted without an authorized termination (OI-46) |
+| Retention due | Unused assets 90 days after closure; used assets 12 months after closure (OI-42) |
 | Awaiting final payment | Approval current, balance not `verified` |
 | Ready for publication review | All gates pass except Owner authorization |
 | Blocked by hold | Any active blocking hold |
@@ -215,3 +239,6 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-UP-09 | A failed scan makes the asset `rejected`, blocks its download and release use, and sends client and staff notifications (OI-31) |
 | T-LC-10 | Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) |
 | T-LC-11 | The approval hold cannot be placed without a recorded personal follow-up. Placing it never creates an approval or alters billing. |
+| T-LC-12 | During an approval hold, the client can view the preview, approve it, or request revisions. The approval satisfies G3, and a review queue item is created. (OI-45) |
+| T-LC-13 | An approval hold does not change portal access, subscription status, balances, or any published site |
+| T-UP-10 | Incorporating an asset into a released preview sets `used`. The flag never reverts. Assets that were never incorporated are reported as unused. (OI-42) |

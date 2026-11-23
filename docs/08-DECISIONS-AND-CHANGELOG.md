@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.2.0 (draft for owner review) |
+| Version | 0.3.0 (draft for owner review) |
 | Status | **Draft — pending owner verification** |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -20,6 +20,8 @@ The 24 decisions in this register (OI-01 through OI-24) were **transcribed from 
 
 The 17 decisions **OI-25 through OI-41** were transcribed from the owner-provided approval instructions supplied on 2026-11-23, which state that the Owner approved them. They carry the same provenance caveat: they are pending owner verification of this transcription, and are not verified through any signed record.
 
+The 5 decisions **OI-42 through OI-46** were transcribed from the owner-provided final reconciliation instructions (2026-11-23), with the same caveat.
+
 ## 2. Requirement classification legend
 
 All specifications in this repository use these labels:
@@ -28,7 +30,7 @@ All specifications in this repository use these labels:
 |---|---|
 | **[APPROVED OI-nn]** | Owner-approved architectural requirement traced to decision OI-nn. Binding. |
 | **[PROPOSED]** | Engineering detail proposed by the documentation author. Not binding until the owner approves the specification containing it. |
-| **[PENDING OI-nn]** | Open owner decision tracked in [OPEN-ISSUES.md](../OPEN-ISSUES.md) Part 2 (currently OI-42 to OI-46). It must not be assumed. |
+| **[PENDING OI-nn]** | Open owner decision tracked in [OPEN-ISSUES.md](../OPEN-ISSUES.md) Part 2 (currently OI-47 only). It must not be assumed. |
 | **DEP-nn** | Implementation or production dependency (verification, review, asset, or setup) tracked in OPEN-ISSUES.md Part 3. It is not an open policy decision. |
 | **[DEFERRED]** | Legal, commercial, or brand policy deferred until production readiness. Placeholder only. |
 | **[VERIFY-PROVIDER]** | Behavior or capability of a third-party provider (Stripe, Supabase, Vercel, Resend, etc.) that must be verified against current provider documentation and plan limits during authorized implementation. |
@@ -280,7 +282,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - Silence never constitutes approval. A hold does not cancel subscriptions, waive balances, or satisfy publication requirements. All events are auditable.
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
-- **Open sub-items:** OI-43 (calendar), OI-45 (hold authority and effect).
+- **Related decisions:** OI-43 (calendar) and OI-45 (hold authority and effect), both approved.
 - **Affected sections:** 05 §7.1, §9; 04 §14; 07 §4; 03 §4.
 
 ### OI-26 — Failed maintenance payments
@@ -293,7 +295,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - Notice requirements must be reconciled with the final agreement.
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
-- **Open sub-items:** OI-43, OI-46. Legal notice alignment (DEP-03).
+- **Related decisions:** OI-43 and OI-46, both approved. **Dependencies:** legal notice alignment (DEP-03); Stripe retry and `past_due` behavior (DEP-06).
 - **Affected sections:** 04 §9.1, §14; 06 §2, §8.4; 07 §4.
 
 ### OI-27 — Owner-authorized financial adjustments
@@ -306,7 +308,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - Standard Stripe prices remain unchanged. Adjusted payment amounts require a compliant payment mechanism.
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
-- **Open sub-items:** OI-44 (payment mechanism).
+- **Related decisions:** OI-44 (approved mechanism for the final balance). **Open:** OI-47 (deposit-stage adjustments).
 - **Affected sections:** 04 §10, §12; 03 §4, §7, §12; 05 §2; 06 §2.
 
 ### OI-28 — Signer authority
@@ -404,7 +406,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Also covered:** development-deposit refunds, remaining-balance obligations, discretionary refund authority, and cancellation accounting.
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
-- **Open sub-items:** OI-43 (business-day calendar), OI-46 (involuntary cancellation). DEP-03.
+- **Related decisions:** OI-43 and OI-46, both approved. **Dependencies:** DEP-03.
 - **Affected sections:** 04 §15.1–§15.2; 06 §8.4; 07 §4, §6; 03 §4.
 
 ### OI-36 — Tax readiness
@@ -461,7 +463,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - Cancellation does not automatically delete legally required records.
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
-- **Open sub-items:** OI-42 (the OI-21 "unused uploads" category is absent here). DEP-05.
+- **Related decisions:** OI-42 (approved; restores the unused-upload rule). **Dependencies:** DEP-05.
 - **Affected sections:** 07 §5–§9.
 
 ### OI-41 — Production infrastructure
@@ -475,7 +477,80 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-09.
 - **Affected sections:** 02 §11.
 
-## 3A. Traceability matrix (OI-01–OI-41)
+### OI-42 — Unused client upload retention
+
+- **Decision:**
+  - Unused client-uploaded assets are retained for 90 days after project closure. Unused assets are those never incorporated into a released website preview or final deliverable.
+  - After the period, they are securely deleted unless a legal hold, applicable law, or another documented obligation requires preservation.
+  - Assets incorporated into delivered work stay under the 12-month post-closure rule.
+  - Requirements: clear used/unused distinction; a defined project closure event; automated enforcement as a future implementation requirement; backup expiry and legal holds accounted for; immutable deletion audit evidence without retaining deleted content.
+  - Provisional, and not legally finalized.
+- **Status:** Approved.
+- **Provenance:** Owner final reconciliation instructions, 2026-11-23.
+- **Dependencies:** DEP-05 (legal and privacy review).
+- **Affected sections:** 07 §5–§6; 05 §4, §9.
+
+### OI-43 — Business-day and time-zone calendar
+
+- **Decision:**
+  - The authoritative time zone is America/Detroit.
+  - Business days are Monday–Friday, excluding U.S. federal holidays. Business-day deadlines end at 11:59:59 PM Eastern Time.
+  - Calendar-day periods use Michigan local time and include weekends and holidays.
+  - This applies to: the 12-business-day transition, the seven-full-calendar-day recovery (which stays calendar days), the day 3/7/14/21 preview milestones, contractual business-day obligations, and administrative deadlines.
+  - Timestamps are stored in UTC. Evaluation uses America/Detroit, accounting for DST, with a defined federal holiday calendar. No 24-hour approximation.
+  - Calculation boundaries are documented. Whether the trigger date is excluded is defined, subject to legal confirmation. Deadlines are handled consistently across systems.
+  - Contract wording is subject to legal review.
+- **Status:** Approved.
+- **Provenance:** Owner final reconciliation instructions, 2026-11-23.
+- **Dependencies:** DEP-03 (trigger-date exclusion and contract wording).
+- **Affected sections:** 02 §13; 04 §9.1, §15.1; 05 §7.1; 07 §3.
+
+### OI-44 — Adjusted final-balance payments
+
+- **Decision:**
+  - Use Stripe Checkout with Owner-authorized discounts applied to the existing standard final-balance prices, subject to Stripe capability verification. The standard prices remain unchanged.
+  - Requirements: Owner-only authorization with reauthentication; record the original package amount, original remaining balance, authorized discount or credit, adjusted amount due, reason, authorizing Owner, and timestamp; immutable history; revised acceptance where materially necessary; verified payment or authorized settlement before publishing; never fabricate payment; the discount applies only to the intended final-balance payment and never to the $99 maintenance subscription; verify Stripe support before implementation.
+  - A discount mechanism, not unrestricted inline pricing. Stripe limitations are escalated.
+  - No Stripe API changes are authorized.
+- **Status:** Approved.
+- **Provenance:** Owner final reconciliation instructions, 2026-11-23.
+- **Dependencies:** DEP-06 (Stripe discount capability), DEP-03 (disclosure).
+- **Related open item:** OI-47 (deposit-stage adjustments, which OI-44 does not cover).
+- **Affected sections:** 04 §10–§10.1, §12; 03 §4, §12; 06 §2.
+
+### OI-45 — Day-21 preview approval hold
+
+- **Decision:**
+  - A project may enter an administrative hold after 21 days of unsuccessful, documented preview outreach.
+  - Owner and Admin may apply the hold. The Owner may clear it without a client response. An Admin may not override it without a qualifying client response or Owner authorization.
+  - The hold pauses active development and nonessential fulfillment.
+  - It preserves portal and preview access and the client's ability to approve or request revisions. Client responses go to administrative review. The explicit-approval gate is preserved.
+  - It does not cancel the subscription, waive balances, or affect published sites. Silence is never approval.
+  - Audit: creation, actor and authorization, reason, prior outreach evidence, timestamp, client response, removal, and resumption decision.
+  - It must not be confused with a billing hold or an approved preview.
+- **Status:** Approved.
+- **Provenance:** Owner final reconciliation instructions, 2026-11-23.
+- **Affected sections:** 05 §7.1–§7.2, §9; 04 §14; 03 §4; 06 §2, §8.4; 07 §4.
+
+### OI-46 — Involuntary subscription cancellation
+
+- **Decision:**
+  - Failed maintenance payments never automatically trigger website removal.
+  - Lifecycle:
+    1. Failed payment.
+    2. Seven-full-calendar-day recovery, with notifications and payment-method updates. Sites stay online.
+    3. Billing hold: new publishing and nonessential maintenance are paused, and no automatic takedown.
+    4. Owner review: continue recovery, authorize an exception, or initiate documented termination.
+    5. Only an authorized, documented termination starts the 12-business-day transition, on the documented effective cancellation date, subject to the final agreement.
+  - Stripe configuration: prefer a recoverable `past_due` or `unpaid` state, and verify Stripe behavior. Unexpected Stripe cancellations are exceptions for Owner review. A cancellation webhook is never authorization to remove a site.
+  - Keep a separate internal service-termination state. Prevent duplicate or contradictory transitions. Keep complete audit history.
+  - Legal review of the final terms.
+- **Status:** Approved.
+- **Provenance:** Owner final reconciliation instructions, 2026-11-23.
+- **Dependencies:** DEP-03, DEP-06.
+- **Affected sections:** 04 §9.1.1, §11, §15.1; 05 §2, §9; 06 §8.4; 03 §4, §12; 07 §4.
+
+## 3A. Traceability matrix (OI-01–OI-46)
 
 Phase = the earliest OI-02 phase whose implementation the decision governs. "Prod" = production launch.
 
@@ -499,15 +574,15 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-16 | Maintenance subscription | Approved with deferrals | 3 | 04 §8–§9 | DEP-03 | Legal |
 | OI-17 | Stripe payment workflow | Approved with deferrals | 3 | 04 §8–§14 | DEP-01 | Provider (Stripe) |
 | OI-18 | Preview approval | Approved | 4 | 05 §6–§7 | — | — |
-| OI-19 | Administrative overrides | Approved | 2–4 | 03 §12 | OI-44 | — |
+| OI-19 | Administrative overrides | Approved | 2–4 | 03 §12 | — | — |
 | OI-20 | Uploads | Approved | 4 | 05 §4–§5 | DEP-07 | Provider (Supabase Storage) |
-| OI-21 | Privacy and retention | Approved with deferrals | 4 | 07 §5–§9 | DEP-05; OI-42 | Legal; provider (backups) |
+| OI-21 | Privacy and retention | Approved with deferrals | 4 | 07 §5–§9 | DEP-05 | Legal; provider (backups) |
 | OI-22 | Publication | Approved | 4 | 06 §2–§9 | — | Provider (Vercel) |
 | OI-23 | Performance | Approved | 1 | 02 §7; 07 §11 | DEP-12 | — |
 | OI-24 | Post-publication inquiries | Approved | 4 | 06 §11 | — | — |
-| OI-25 | Nonresponsive preview clients | Approved | 4 | 05 §7.1 | OI-43, OI-45 | — |
-| OI-26 | Failed maintenance payments | Approved | 3 | 04 §9.1, §14 | OI-43, OI-46; DEP-03 | Legal (notice); provider (Stripe retries) |
-| OI-27 | Financial adjustments | Approved | 3 | 04 §10, §12 | OI-44 | Provider (mechanism) |
+| OI-25 | Nonresponsive preview clients | Approved | 4 | 05 §7.1–§7.2 | — | — |
+| OI-26 | Failed maintenance payments | Approved | 3 | 04 §9.1–§9.1.1, §14 | DEP-03, DEP-06 | Legal (notice); provider (Stripe retries) |
+| OI-27 | Financial adjustments | Approved | 3 | 04 §10–§10.1, §12 | OI-47 (open) | Provider (discount mechanism) |
 | OI-28 | Signer authority | Approved | 3 | 04 §3 | DEP-03 | Legal (wording) |
 | OI-29 | Stripe Customer Portal | Approved | 3 | 04 §9.2 | DEP-03 | Provider (portal config) |
 | OI-30 | Stripe test-mode catalog | Approved; creation blocked | Pre-3 (authorized exception) | 04 §6 | **DEP-01** | Provider (test account) |
@@ -515,13 +590,18 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-32 | Client hosting | Approved | 4 | 02 §2; 06 §4, §8.4 | DEP-03 | Provider (Vercel limits, cost); legal (ownership) |
 | OI-33 | Publishing QA | Approved | 4 | 06 §2, §6–§7 | — | — |
 | OI-34 | Agreement versioning | Approved | 3 | 04 §1–§4 | DEP-03 | Legal |
-| OI-35 | Cancellation and transition | Approved | 3–4 | 04 §15.1–§15.2; 06 §8.4 | OI-43, OI-46; DEP-03 | Legal (before enforcement) |
+| OI-35 | Cancellation and transition | Approved | 3–4 | 04 §15.1–§15.2; 06 §8.4 | DEP-03 | Legal (before enforcement) |
 | OI-36 | Tax readiness | Approved | 3 / Prod | 04 §12, §15.3 | DEP-04 | Tax review; provider (Stripe Tax) |
 | OI-37 | Disputes | Approved | 3 | 04 §15.4 | DEP-03 | Legal |
 | OI-38 | Branding | Approved | 1 / Prod | 07 §10–§12 | DEP-08 | Owner asset confirmation |
 | OI-39 | Provider verification | Approved | Each phase | 02 §10 | DEP-06 | Provider |
-| OI-40 | Data governance | Approved | 4 | 07 §5–§9 | OI-42; DEP-05 | Legal/privacy |
+| OI-40 | Data governance | Approved | 4 | 07 §5–§9 | DEP-05 | Legal/privacy |
 | OI-41 | Production infrastructure | Approved | 5 / Prod | 02 §11 | DEP-09 | Provider; Owner authorization |
+| OI-42 | Unused upload retention | Approved | 4 | 07 §5–§6; 05 §4 | DEP-05 | Legal/privacy |
+| OI-43 | Business-day and time-zone calendar | Approved | 3 | 02 §13 | DEP-03 | Legal (trigger-date exclusion, wording) |
+| OI-44 | Adjusted final-balance payments | Approved | 3 | 04 §10.1 | DEP-06, DEP-03; OI-47 (open) | Provider (Stripe discounts) |
+| OI-45 | Day-21 preview approval hold | Approved | 4 | 05 §7.2; 04 §14 | — | — |
+| OI-46 | Involuntary subscription cancellation | Approved | 3 | 04 §9.1.1; 06 §8.4 | DEP-03, DEP-06 | Legal; provider (Stripe `past_due` behavior) |
 
 ## 4. Current authorization status
 
@@ -531,7 +611,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 2. Specification reconciliation | **In progress.** Documentation-only changes authorized. This change set is under owner review. | Draft PR for branch `docs/architecture-specification-reconciliation` |
 | 3. Implementation authorization | **Not authorized** for any phase | — |
 | 4. Production launch authorization | **Not authorized** | — |
-| Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked**: no valid test-mode credential (DEP-01). | Owner instructions, 2026-11-23 |
+| Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Authorized**, limited to creating test products and prices. **Blocked and suspended**: there is no valid test-mode credential, and the Owner has instructed that no Stripe API requests be made until a verified test-mode credential workflow is separately authorized (DEP-01). | Owner instructions, 2026-11-23 |
 
 ## 5. Change history
 
@@ -540,11 +620,12 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | — | 2026-11-22 | Repository created with minimal README (`dfc3553`) | Owner | — |
 | 0.1.0 | 2026-11-22 | Initial transcription of OI-01–OI-24. Specifications 01–07, README, CLAUDE.md, and OPEN-ISSUES.md created. The prior read-only audit's Stripe catalog concern was corrected per the owner: separate deposit and balance prices exist. | Claude Code (documentation author) | Pending owner review |
 | 0.2.0 | 2026-11-23 | Transcribed approved decisions OI-25–OI-41 and added the §3A traceability matrix. Reconciled specs 01–07, README, CLAUDE.md, and OPEN-ISSUES. Moved OI-25–OI-41 to decided. Opened OI-42–OI-46 from the cross-document audit. Created the dependency register DEP-01–DEP-12. Recorded the official logo candidate (07 §10.1). Recorded the Stripe test-catalog creation as blocked (DEP-01). | Claude Code (documentation author) | Pending owner review |
+| 0.3.0 | 2026-11-23 | Transcribed approved decisions OI-42–OI-46. Extended the §3A matrix to 46 decisions. Added the shared deadline calendar (02 §13), adjusted final-balance Checkout (04 §10.1), the failed-payment-to-termination lifecycle (04 §9.1.1), the day-21 approval hold (05 §7.2), and used/unused retention with the closure event (07 §6). Opened OI-47 (deposit-stage adjustments). Reassessed dependency phases. Recorded the Stripe test-catalog action as suspended. | Claude Code (documentation author) | Pending owner review |
 
 ## 6. Change-control rules
 
-1. **Decision changes.** A change to an OI-01–OI-41 decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
-2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-47 onward). Implementation dependencies use DEP-nn IDs (currently DEP-13 onward). When the owner resolves one, it is recorded in this register under that same ID.
+1. **Decision changes.** A change to an OI-01–OI-46 decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
+2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-48 onward). Implementation dependencies use DEP-nn IDs (currently DEP-13 onward). When the owner resolves one, it is recorded in this register under that same ID.
 3. **Specification changes.** Changes to specifications 01–07 go through a pull request. Each spec carries a version and status header. A spec moves from *Draft* to *Approved* only on owner sign-off recorded in §5.
 4. **Precedence.** (a) Owner-approved decisions in this register. (b) Approved specifications 01–07. (c) CLAUDE.md for operating procedure. (d) README. A lower-precedence document must never be used to override a higher one.
 5. **Conflicts.** Any conflict between documents, or between a document and an owner decision, is **escalated** to the owner as an open issue. It is never silently resolved by an author or agent.

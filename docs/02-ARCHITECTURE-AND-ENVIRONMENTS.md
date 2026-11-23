@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.0 |
+| Version | 0.3.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-07, OI-10, OI-11, OI-22, OI-23, OI-29, OI-32, OI-39, OI-41 |
+| Decisions | OI-07, OI-10, OI-11, OI-22, OI-23, OI-29, OI-32, OI-39, OI-41, OI-43 |
 | Dependencies | DEP-06, DEP-09, DEP-10, DEP-11, DEP-12 |
 
 ## 1. Application architecture
@@ -202,3 +202,71 @@ None of P-1 to P-9 is complete. Documenting this architecture does **not** autho
 | Branch protection on `main` (Owner action) | DEP-10 |
 | Toolchain version pins | DEP-11 |
 | Monitoring vendor | DEP-12 |
+
+## 13. Deadline calendar and time handling **[APPROVED OI-43]**
+
+This one calendar is shared by notifications, billing, fulfillment, and administrative deadlines. It is never re-implemented per feature **[PROPOSED]**.
+
+| Rule | Specification |
+|---|---|
+| Storage | All authoritative timestamps are stored in **UTC** |
+| Evaluation time zone | **`America/Detroit`** (Eastern Time, including daylight saving transitions) for every business-day and calendar-day rule |
+| Business day | Monday through Friday, excluding U.S. federal holidays (§13.1) |
+| Business-day deadline | Ends at **23:59:59 America/Detroit** (11:59:59 PM Eastern Time) on the applicable business day |
+| Calendar-day period | Uses Michigan local time (America/Detroit) and **includes** weekends and holidays |
+| Prohibited | Approximating business or calendar days by adding 24-hour periods to a UTC timestamp |
+
+### 13.1 U.S. federal holiday calendar
+
+**[APPROVED OI-43]** A defined U.S. federal holiday calendar is required. **[PROPOSED]** The source is 5 U.S.C. § 6103:
+- New Year's Day (Jan 1)
+- Birthday of Martin Luther King, Jr. (3rd Monday of January)
+- Washington's Birthday (3rd Monday of February)
+- Memorial Day (last Monday of May)
+- Juneteenth National Independence Day (Jun 19)
+- Independence Day (Jul 4)
+- Labor Day (1st Monday of September)
+- Columbus Day (2nd Monday of October)
+- Veterans Day (Nov 11)
+- Thanksgiving Day (4th Thursday of November)
+- Christmas Day (Dec 25)
+
+**[PROPOSED]** Observed-date rule: a fixed-date holiday that falls on a Saturday is observed the preceding Friday, and one on a Sunday is observed the following Monday. The observed date is not a business day.
+
+**[PROPOSED]** Calendar maintenance:
+- The calendar is stored as versioned data, generated per year and reviewed annually.
+- Ad hoc federal closures are added only through an Owner-approved, audited calendar change.
+- Every computed deadline records the calendar version used.
+
+### 13.2 Counting conventions
+
+| Convention | Rule |
+|---|---|
+| Trigger date | **Excluded** from counting. Counting starts on the next calendar day, or the next business day for business-day rules. **[PROPOSED — subject to legal confirmation, DEP-03]** |
+| *N* business days after trigger *T* | Deadline = 23:59:59 America/Detroit on the *N*th business day after *T*'s local date |
+| *N* full calendar days after trigger *T* | The period ends at 23:59:59 America/Detroit on the *N*th calendar day after *T*'s local date. Example: a payment fails Monday 22:00 local; seven full calendar days run Tuesday through the following Monday; recovery ends the following Monday at 23:59:59. |
+| Day-*N* milestone | Day *N* is the local date *N* calendar days after the trigger's local date. The milestone is due from 00:00 local on that date. **[PROPOSED]** Client reminders are sent at 10:00 America/Detroit on that date. |
+| Daylight saving | Local times are converted with the IANA time-zone database. 23:59:59 local always exists, because transitions occur at 02:00. |
+| Consistency | Deadlines are computed once at the trigger, stored in UTC together with the calendar version, and reused by every system. They are recomputed only by an audited correction. |
+
+### 13.3 Applications
+
+| Rule | Day type | Spec |
+|---|---|---|
+| 12-business-day post-cancellation website transition | Business days | 04 §15.1 |
+| Seven-full-calendar-day failed-payment recovery (**never** business days) | Calendar days | 04 §9.1 |
+| Preview follow-up days 3, 7, 14, 21 | Calendar days | 05 §7.1 |
+| Contractual business-day obligations (for example the draft agreement's five-business-day review) | Business days | 05 §7 |
+| Administrative deadlines (dispute evidence reminders, retention due dates) | As defined per rule | 04 §15.4, 07 §6 |
+
+Final contractual wording for all of these remains subject to legal review (DEP-03).
+
+### 13.4 Acceptance tests **[PROPOSED]**
+
+| ID | Test |
+|---|---|
+| T-CAL-01 | 12 business days from an effective date spanning Thanksgiving, or Christmas and New Year's, skips weekends and holidays, and ends at 23:59:59 America/Detroit |
+| T-CAL-02 | Seven full calendar days across a DST change ends at 23:59:59 local on the 7th day after the trigger date, not trigger + 168 hours |
+| T-CAL-03 | Observed holidays (for example July 4 on a Saturday) are treated as non-business days |
+| T-CAL-04 | All stored deadlines are UTC, and each records its calendar version. Notification, billing, and fulfillment read the same stored deadline. |
+| T-CAL-05 | No code path computes deadlines by adding 24-hour multiples (code search and unit tests) |

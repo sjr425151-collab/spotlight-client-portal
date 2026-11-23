@@ -8,7 +8,7 @@ These instructions apply to every contributor and AI agent working in this repos
 |---|---|
 | Architecture | Approved |
 | Specification reconciliation | Documentation-only changes authorized |
-| Stripe test-mode catalog (OI-30) | Narrow exception only; see §5 |
+| Stripe test-mode catalog (OI-30) | Narrow exception, **currently suspended**; see §5 |
 | **Implementation** | **NOT AUTHORIZED** |
 | **Production launch** | **NOT AUTHORIZED** |
 
@@ -65,6 +65,7 @@ Each phase requires separate written owner authorization. Work only within the a
   - never touch live resources
   - record only the nonsecret Price IDs
   This exception does not authorize Stripe integration code, webhooks, Customer Portal configuration, or any other Stripe change.
+- **Suspended (Owner instruction, 2026-11-23):** make **no Stripe API requests of any kind**, including read-only verification, until the Owner separately authorizes a verified test-mode credential workflow (DEP-01).
 - The live Price IDs in [docs/04 §5.2](docs/04-AGREEMENT-AND-BILLING.md#52-live-catalog-reference--owner-supplied) are reference identifiers. Use them only in production, after verification, and with production authorization.
 - Non-production environments use Stripe test mode only.
 

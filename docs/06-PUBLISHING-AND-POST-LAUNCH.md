@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.0 |
+| Version | 0.3.0 |
 | Status | **Draft — pending owner sign-off** |
-| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41 |
-| Open issues | OI-45, OI-46 |
+| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46 |
+| Open issues | None |
 | Dependencies | DEP-03, DEP-06, DEP-09 |
 
 ## 1. Scope
@@ -21,11 +21,11 @@ Gates are evaluated **on the server** by a single gate evaluator, at authorizati
 | G1 | Valid agreement | Agreement state `effective` for the current order summary; no `reacceptance_required` | 04 §1 |
 | G2 | Verified deposit | Deposit `verified` (webhook-derived ledger entry) and not fully refunded | 04 §11–§12 |
 | G3 | Current-version client approval | A client approval exists for the **current** released preview, and that release is the artifact being published | 05 §6–§7 |
-| G4 | Verified final balance (no unresolved contractual balance) | Balance `verified` via webhook, **or** `settled_by_adjustment`: verified payments + Owner-authorized discounts, credits, or waivers = owed **[APPROVED OI-27]**. The gate output always discloses an adjustment. | 04 §10, §12 |
+| G4 | Verified final balance (no unresolved contractual balance) | Balance `verified` via webhook, **or** `settled_by_adjustment`: verified payments + Owner-authorized discounts, credits, or waivers = owed **[APPROVED OI-27, OI-44]**. The gate output always discloses an adjustment. | 04 §10, §12 |
 | G5 | QA passed | A recorded, release-specific QA result for this release ID (§6), all blocking items passed **[APPROVED OI-33]** | §6 |
 | G6 | Domain readiness | The domain readiness check for this project passed within the freshness window | §5 |
 | G7 | Security checks passed | A recorded security result for this release ID, no critical failures **[APPROVED OI-33]** | §7 |
-| G8 | Holds cleared | No active publication-blocking hold (`maintenance_payment_hold`, `dispute_risk_hold`, `owner_manual_hold`; `approval_nonresponsive_hold` per OI-45) **[APPROVED OI-26, OI-37]** | 04 §14 |
+| G8 | Holds cleared | No active publication-blocking hold: `maintenance_payment_hold`, `dispute_risk_hold`, `owner_manual_hold` **[APPROVED OI-26, OI-37]**, and `approval_nonresponsive_hold` **[OI-45; inclusion in G8 PROPOSED]** | 04 §14 |
 
 Rules:
 - **[APPROVED OI-19]** No override can mark G1–G8 as passed. There is no "force publish."
@@ -147,15 +147,17 @@ Critical security failures always block publication. No exception exists.
 
 | Situation | Effect on an already-published website |
 |---|---|
-| `maintenance_payment_hold` | **None.** The site stays online. New publication and nonessential maintenance are paused. **[APPROVED OI-26]** |
+| `maintenance_payment_hold`, including during Owner review | **None.** The site stays online. New publication and nonessential maintenance are paused. **[APPROVED OI-26, OI-46]** |
+| Stripe subscription cancelled with no authorized termination | **None.** An Owner exception review is created and no transition starts. **[APPROVED OI-46]** |
 | Open dispute or `dispute_risk_hold` | **None.** No takedown merely because a dispute exists. **[APPROVED OI-37]** |
-| `approval_nonresponsive_hold` | None to the live site **[PROPOSED; scope PENDING OI-45]** |
-| Subscription cancelled, transition deadline not reached | Site stays online. Transition assistance continues. **[APPROVED OI-35]** |
+| `approval_nonresponsive_hold` | **None.** Already-published websites are unaffected. **[APPROVED OI-45]** |
+| Confirmed client cancellation, or Owner-authorized termination effective, with the transition deadline not yet reached | Site stays online. Transition assistance continues. **[APPROVED OI-35, OI-46]** |
 | Transition deadline passed (04 §15.1) | The agency **may** discontinue managed hosting and remove the site, subject to the final agreement and applicable law (DEP-03). |
 
 Decommissioning **[PROPOSED]**:
 - An Owner-authorized action with reauthentication and an audit event.
 - It checks that the transition deadline has passed and that no legal hold applies.
+- It requires a confirmed client cancellation or an Owner-authorized termination record. A failed payment or a Stripe cancellation webhook **alone never qualifies**. **[APPROVED OI-46]**
 - It confirms that the transfer materials were provided.
 - It **never** changes or cancels a client-owned domain registration.
 - Records are retained per 07 §6.
@@ -208,6 +210,8 @@ After `live_verified`, the client receives a confirmation notification and in-po
 | T-PUB-13 | No billing hold, dispute, or approval hold triggers any undeploy or domain change on a live site (OI-26, OI-37) |
 | T-PUB-14 | Decommissioning is rejected before the transition deadline, under a legal hold, or by anyone but the Owner (OI-35) |
 | T-PUB-15 | Each client site deploys to its own project. Environment variables of one client project are not readable from another. (OI-32) |
+| T-PUB-16 | Decommissioning is rejected when the only basis is a payment failure or a Stripe cancellation event (OI-46) |
+| T-PUB-17 | While an approval hold is active, publication is blocked by G8, and the gate output identifies it as a fulfillment hold, not a billing hold (OI-45) |
 | T-INQ-01 | Inquiry options appear only after `live_verified` |
 | T-INQ-02 | Submitting an inquiry creates a queue entry and notifications and creates no Stripe objects (asserted with a Stripe mock showing no calls) |
 | T-INQ-03 | Client A cannot submit or view inquiries for project B |

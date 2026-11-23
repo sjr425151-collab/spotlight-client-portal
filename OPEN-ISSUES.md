@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.6.0 (draft for owner review) |
+| Version | 0.7.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-50** |
-| Next unused dependency ID | **DEP-14** |
+| Next unused issue ID | **OI-53** |
+| Next unused dependency ID | **DEP-15** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
 Rules:
@@ -74,11 +74,49 @@ All 46 issues are decided at the architectural level. The authoritative text is 
 
 ## Part 2 — Open issues requiring Owner decision
 
-OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. One genuine gap remains open: OI-47 (the approved decisions do not say how to adjust the deposit stage). OI-48 (theme mode) was raised in Phase 1 and approved on 2026-11-23; see 08.
+OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 remains open (deposit-stage adjustments). OI-48 (theme mode) was approved on 2026-11-23; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice.
 
 | ID | Title | Earliest phase | Status |
 |---|---|---|---|
 | OI-47 | Adjustments to the initial deposit Checkout | 3 | Open |
+| OI-50 | Supabase plan for hosted environments | 2 (hosted only; local work unaffected) | Open |
+| OI-51 | Custom SMTP provider for Supabase Auth email | 2 (hosted only) | Open |
+| OI-52 | CAPTCHA on OTP requests | 2 | Open |
+
+### OI-50 — Supabase plan for hosted environments
+
+- **Description:** Verified: time-boxed sessions, inactivity timeout, and single-session-per-user are "only available on Pro Plans and up" (03A F-16). Spec 03 §6.2 proposes staff and client idle and absolute limits. Prices and other plan gating could not be verified, because the pricing page was unreachable (03A U-07, U-08).
+- **Options:**
+  - A. Pro (or higher) for hosted staging and production: provider-enforced session limits.
+  - B. Free for hosted dev, with app-enforced session limits only.
+  - C. Decide later. Phase 2 uses the local stack only, where app-level limits are implemented regardless.
+- **Recommendation:** C now, then A before any hosted staging. The Owner confirms current prices on `supabase.com/pricing`.
+- **Impacted documents:** 03 §6.2, §15; 02 §4.
+- **Owner decision required:** Yes, before any hosted project (DEP-14). It does not block local Phase 2 work.
+- **Status:** Open.
+
+### OI-51 — Custom SMTP provider for Supabase Auth email
+
+- **Description:** Verified: the built-in Supabase SMTP delivers only to project team addresses, is rate-limited, has no SLA, and is "not meant for production use" (03A F-07). OI-04 requires appropriately configured auth email delivery. Local development uses the CLI's email testing server, so no provider is needed locally.
+- **Options:**
+  - A. Resend SMTP (the OI-04 vendor), on a separate auth sending subdomain (03A F-08).
+  - B. Another SMTP provider.
+- **Recommendation:** A, configured only when hosted environments are authorized. Resend changes remain unauthorized until then.
+- **Impacted documents:** 03 §5; 07 §1.
+- **Owner decision required:** Yes, before hosted staging.
+- **Status:** Open.
+
+### OI-52 — CAPTCHA on OTP requests
+
+- **Description:** Supabase supports hCaptcha and Cloudflare Turnstile on auth forms (03A F-10). Spec 03 §17 already proposes rate limits and generic responses. CAPTCHA would add a third-party vendor (DPA, privacy review), and its client script must be allowed by the nonce CSP.
+- **Options:**
+  - A. No CAPTCHA in the MVP; rate limits only.
+  - B. Turnstile on the OTP request form.
+  - C. Enable only if abuse is observed.
+- **Recommendation:** C. Implement the hooks for it, but leave it disabled.
+- **Impacted documents:** 03 §14, §17; 07 §8 (vendor inventory).
+- **Owner decision required:** Yes.
+- **Status:** Open.
 
 ### OI-47 — Adjustments to the initial deposit Checkout
 
@@ -116,7 +154,8 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 | DEP-10 | **Branch protection** on `main` | Owner (GitHub settings) | Phase 1 | **Complete (2026-11-23)**. See detail below. |
 | DEP-11 | Toolchain **version pins** verified against official sources (OI-11) | Implementer | Phase 1 | **Complete (2026-11-23).** See [docs/DEVELOPMENT.md §1](docs/DEVELOPMENT.md#1-toolchain). |
 | DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 5 (required); may be proposed earlier | Not started |
-| DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | Not started. Phase 1 intentionally keeps the documented limitation. |
+| DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | **Designed** in 03 §14 (v0.4.0, pending sign-off). Implementation is not started. Phase 1 intentionally keeps the documented limitation. |
+| DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment. Phase 2 itself runs on local Supabase only. | Not authorized. Depends on OI-50 and OI-51. |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
@@ -150,6 +189,12 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
 - **Domain registrar (to be selected; revised OI-35):** registration date and expiry data, auto-renew settings, the transfer (auth code) process, and confirmation that hosting deactivation cannot affect a registration.
 - **Vercel / infrastructure (revised OI-35):** discontinuing designated per-client resources at M1 independently of the remaining hosting.
+
+### DEP-06 detail — Phase 2 Supabase verification (2026-11-23)
+
+- 31 provider facts are verified with source citations in `docs/03A-SUPABASE-PROVIDER-VERIFICATION.md`.
+- Verification used the official documentation source in the vendors' GitHub repositories, because `supabase.com` and `nextjs.org` are blocked by this environment's network policy.
+- Items U-01 to U-11 remain unverified. U-01 to U-05 and U-11 are resolved by the Phase 2 local verification spike (03 §18). U-06 to U-08 and U-10 need hosted or dashboard access, or Owner checks.
 
 ### DEP-08 detail — brand assets
 

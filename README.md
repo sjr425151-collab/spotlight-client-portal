@@ -53,6 +53,7 @@ Client websites are **separate, isolated deployments**: agency-managed Vercel, o
 | [01 — Project Overview](docs/01-PROJECT-OVERVIEW.md) | Scope, journey, roles, phases, governance, MVP acceptance criteria |
 | [02 — Architecture and Environments](docs/02-ARCHITECTURE-AND-ENVIRONMENTS.md) | System architecture, environments, deployment, performance, secrets |
 | [03 — Security, Auth, and Tenancy](docs/03-SECURITY-AUTH-AND-TENANCY.md) | Threat model, permissions, auth, RLS, audit, overrides |
+| [03A — Supabase and Next.js Provider Verification](docs/03A-SUPABASE-PROVIDER-VERIFICATION.md) | Phase 2 provider evidence with source citations |
 | [04 — Agreement and Billing](docs/04-AGREEMENT-AND-BILLING.md) | Agreement evidence, pricing, Stripe catalog, Checkout, webhooks, ledger |
 | [05 — Project Lifecycle and Uploads](docs/05-PROJECT-LIFECYCLE-AND-UPLOADS.md) | State machines, intake, uploads, previews, approvals, queues |
 | [06 — Publishing and Post-Launch](docs/06-PUBLISHING-AND-POST-LAUNCH.md) | Publication gates, deployment, verification, rollback, inquiries |

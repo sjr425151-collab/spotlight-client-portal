@@ -7,12 +7,14 @@ These instructions apply to every contributor and AI agent working in this repos
 | Stage (OI-01) | Status |
 |---|---|
 | Architecture | Approved |
-| Specification reconciliation | Specs 01, 02 and this file are **approved (final, 2026-11-23)** ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); final approval in the Phase 1 authorization). |
+| Specification reconciliation | Specs 01, 02 and this file are **approved (final, 2026-11-23)** ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); final approval in the Phase 1 authorization). Spec 03 v0.4.0 is **approved** (2026-11-23, Phase 2 authorization), with 03A as supporting evidence. Spec 04 is **approved for Phase 3 Stripe test-mode implementation only** (2026-11-23); legal review and provider verification remain production conditions. Approving a spec never authorizes its phase. |
 | Stripe test-mode catalog (OI-30) | Narrow exception, **currently suspended**; see §5 |
-| **Implementation** | **Phase 1 (Foundation and CI) only**, authorized 2026-11-23. Phases 2–5: **NOT AUTHORIZED**. |
+| **Implementation** | Phase 1 (Foundation and CI): authorized and merged. **Phase 2 (Auth, security, and tenant isolation): authorized 2026-11-23 and merged** (PR #4, merge commit `45d05f6`), local Supabase with synthetic data only, not deployed. Phases 3–5: **NOT AUTHORIZED**. |
 | **Production launch** | **NOT AUTHORIZED** |
 
-Phase 1 permits only: the application scaffold, pinned tooling and lockfile, CI, `.env.example`, and the design foundation (see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)). Even in Phase 1, Supabase, Stripe, Resend, Vercel, DNS, authentication, deployment, and production work remain prohibited.
+Phase 2 permitted only (spec 03 §1): database schema and migrations; Row Level Security and cross-tenant isolation; invitation-only authentication, OTP, and MFA; Owner, Admin, and Client authorization; append-only audit logging; the nonce-based CSP (DEP-13); private `project-assets` storage policies; and automated database and security tests in CI. It runs against the **local** Supabase stack (Supabase CLI locally and in CI) with synthetic data only.
+
+These remain prohibited: creating or modifying any hosted Supabase project; Resend or SMTP configuration; Stripe API requests; Vercel or DNS changes; production credentials; deployments; real customer data; and any Phase 3–5 work. Never modify or use the existing live-mode Stripe credential. Never begin Phase 3 without separate written Owner authorization.
 
 For any phase without written Owner authorization, you must **not**:
 
@@ -68,6 +70,8 @@ Each phase requires separate written owner authorization. Work only within the a
   - record only the nonsecret Price IDs
   This exception does not authorize Stripe integration code, webhooks, Customer Portal configuration, or any other Stripe change.
 - **Suspended (Owner instruction, 2026-11-23):** make **no Stripe API requests of any kind**, including read-only verification, until the Owner separately authorizes a verified test-mode credential workflow (DEP-01).
+  - Lifting the suspension requires both: (1) confirmation that the environment used contains **only** an appropriate Stripe test-mode credential, with no live-mode key; and (2) a **separate, narrowly scoped** written Owner authorization (Owner instruction, 2026-11-23).
+  - CI never holds a Stripe credential. Webhook tests in CI use synthetic events signed with a test-only secret (OI-63).
 - The live Price IDs in [docs/04 §5.2](docs/04-AGREEMENT-AND-BILLING.md#52-live-catalog-reference--owner-supplied) are reference identifiers. Use them only in production, after verification, and with production authorization.
 - Non-production environments use Stripe test mode only.
 

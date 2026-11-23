@@ -17,6 +17,7 @@ const patterns = [
   ["Stripe webhook secret", /\bwhsec_[A-Za-z0-9]{8,}/],
   ["Resend API key", /\bre_[A-Za-z0-9_]{20,}/],
   ["Supabase service role marker", /service_role/],
+  ["Supabase secret key", /\bsb_secret_[A-Za-z0-9_-]{8,}/],
   ["Private key block", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
 ];
 

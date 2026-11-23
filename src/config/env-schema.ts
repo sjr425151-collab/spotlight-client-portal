@@ -24,12 +24,23 @@ const SECRET_VALUE_PATTERNS: readonly RegExp[] = [
   /\bwhsec_[A-Za-z0-9]+/, // Stripe webhook signing secrets
   /\bre_[A-Za-z0-9_]{20,}/, // Resend API keys
   /"role"\s*:\s*"service_role"/, // decoded Supabase service-role JWT payloads
+  /\bsb_secret_[A-Za-z0-9_-]+/, // Supabase secret API keys (spec 03 §15)
 ];
+
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 const baseSchema = z.object({
   APP_ENV: z.enum(APP_ENVIRONMENTS),
   NEXT_PUBLIC_SITE_URL: z.url({ protocol: /^https?$/ }),
   STRIPE_SECRET_KEY: z.string().min(1).optional(),
+  // Spec 03 §15. Server code only; the browser never talks to Supabase directly.
+  NEXT_PUBLIC_SUPABASE_URL: z.url({ protocol: /^https?$/ }),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().regex(/^sb_publishable_[A-Za-z0-9_-]+$/, {
+    message: "must be a Supabase publishable key (sb_publishable_...)",
+  }),
+  SUPABASE_SECRET_KEY: z.string().regex(/^sb_secret_[A-Za-z0-9_-]+$/, {
+    message: "must be a Supabase secret key (sb_secret_...)",
+  }),
 });
 
 export type ServerEnv = z.infer<typeof baseSchema>;
@@ -60,6 +71,20 @@ export function parseServerEnv(source: Record<string, string | undefined>): Serv
   const stripeKey = source.STRIPE_SECRET_KEY;
   if (stripeKey && /^(?:sk|rk)_live_/.test(stripeKey) && appEnv !== "production") {
     issues.push("STRIPE_SECRET_KEY: a live-mode Stripe key is not allowed outside production");
+  }
+
+  // Spec 03 §15: only staging and production may point at a non-local Supabase project.
+  const supabaseUrl = source.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl && appEnv !== "staging" && appEnv !== "production") {
+    try {
+      if (!LOCAL_HOSTS.has(new URL(supabaseUrl).hostname)) {
+        issues.push(
+          "NEXT_PUBLIC_SUPABASE_URL: only a local Supabase stack is allowed outside staging and production",
+        );
+      }
+    } catch {
+      // Reported by the schema above.
+    }
   }
 
   // 02 §9 rule 3: secrets must never be exposed to client bundles.

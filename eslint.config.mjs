@@ -49,6 +49,25 @@ const config = [
     },
   },
   {
+    // Spec 03 §9.1 rule 6 / §10: the secret-key admin client is importable only from
+    // src/server/**, where each use follows an explicit authorization check.
+    files: ["src/app/**", "src/lib/**", "src/config/**", "src/proxy.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/server/supabase/admin", "**/supabase/admin"],
+              message:
+                "The admin (secret-key) client is server-adapter only. Call a service in src/server/services instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["scripts/**/*.mjs"],
     rules: { "no-console": "off" },
   },

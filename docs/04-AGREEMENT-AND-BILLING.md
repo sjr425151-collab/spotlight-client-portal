@@ -2,11 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.0 |
-| Status | **Draft — pending owner sign-off.** v0.5.0: automatic final-balance collection (Owner instruction, 2026-11-23; OI-17 revised). |
-| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-55 |
-| Open issues | OI-47 |
-| Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
+| Version | 0.7.1 |
+| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value; v0.7.1 records provider verification of the `livemode` field and clarifies `tax_behavior` (§6.1, §6.3), with no change to any catalog value or procedure. |
+| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63, OI-64, OI-65 |
+| Open issues | None |
+| Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
 > Nothing in this document authorizes any Stripe operation. No Stripe products, prices, customers, subscriptions, or Checkout configurations were created, queried, or modified in preparing it.
 
@@ -161,16 +161,116 @@ Required procedure for the creation action:
 
 **Status (2026-11-23): blocked.** In this documentation session, `api.stripe.com` was initially not reachable from the session environment. A credential was then supplied, and Stripe identified it as a **live-mode** key (`sk_live_` prefix) and rejected it as invalid. Work stopped before any search or write. **No Stripe object was created or modified.** A valid test-mode key is required (DEP-01). No placeholder IDs are recorded.
 
-**Owner instruction (2026-11-23):** make **no Stripe API requests** until the Owner separately authorizes a verified test-mode credential workflow. DEP-01 remains blocked until then.
+**Owner instruction (2026-11-23):** make **no Stripe API requests** until the Owner separately authorizes a verified test-mode credential workflow. DEP-01 remains blocked until then. The catalog design below is approved (OI-64, OI-65). That approval is a design approval only and authorizes no Stripe request.
 
-| Package | Test Deposit Price ID | Test Balance Price ID |
+### 6.1 Catalog manifest, version 1 **[APPROVED OI-30, OI-64, OI-65]**
+
+**Structure [APPROVED OI-64]:** 11 products and 11 prices: a deposit product and a final-balance product for each of the five packages, and one maintenance product. Each product has exactly one price. The final-balance products are separate so that an adjustment discount can be restricted to the balance product (§10.1; OI-55).
+
+**Naming, metadata, catalog keys, lookup keys, and versioning [APPROVED OI-65]**, provided no existing test-mode object conflicts (§6.2):
+
+| # | `catalog_key` | Product `name` | `component` | `service_category` | Price type | `unit_amount` (cents) | Recurring | Price `lookup_key` |
+|---|---|---|---|---|---|---|---|---|
+| 1 | `essential.deposit` | Essential Website, Deposit | `deposit` | `development` | `one_time` | 16000 | — | `spotlight_v1_essential_deposit` |
+| 2 | `essential.balance` | Essential Website, Final Balance | `balance` | `development` | `one_time` | 64000 | — | `spotlight_v1_essential_balance` |
+| 3 | `professional.deposit` | Professional Website, Deposit | `deposit` | `development` | `one_time` | 29900 | — | `spotlight_v1_professional_deposit` |
+| 4 | `professional.balance` | Professional Website, Final Balance | `balance` | `development` | `one_time` | 119600 | — | `spotlight_v1_professional_balance` |
+| 5 | `advanced.deposit` | Advanced Website, Deposit | `deposit` | `development` | `one_time` | 49900 | — | `spotlight_v1_advanced_deposit` |
+| 6 | `advanced.balance` | Advanced Website, Final Balance | `balance` | `development` | `one_time` | 199600 | — | `spotlight_v1_advanced_balance` |
+| 7 | `signature.deposit` | Signature Website, Deposit | `deposit` | `development` | `one_time` | 69900 | — | `spotlight_v1_signature_deposit` |
+| 8 | `signature.balance` | Signature Website, Final Balance | `balance` | `development` | `one_time` | 279600 | — | `spotlight_v1_signature_balance` |
+| 9 | `prestige.deposit` | Prestige Website, Deposit | `deposit` | `development` | `one_time` | 99900 | — | `spotlight_v1_prestige_deposit` |
+| 10 | `prestige.balance` | Prestige Website, Final Balance | `balance` | `development` | `one_time` | 399600 | — | `spotlight_v1_prestige_balance` |
+| 11 | `maintenance.monthly` | Website Care & Maintenance | `maintenance` | `maintenance` | `recurring` | 9900 | `month`, interval count 1, `licensed` | `spotlight_v1_maintenance_monthly` |
+
+Check: each deposit plus its balance equals the §5.1 total, and each deposit equals `round_half_up(total × 20%)` (§7).
+
+Attributes common to every entry:
+
+| Object | Attribute | Value |
 |---|---|---|
-| Essential | *unresolved* | *unresolved* |
-| Professional | *unresolved* | *unresolved* |
-| Advanced | *unresolved* | *unresolved* |
-| Signature | *unresolved* | *unresolved* |
-| Prestige | *unresolved* | *unresolved* |
-| Maintenance (recurring) | *unresolved* | — |
+| Product | metadata `catalog_key` | the row's catalog key |
+| Product | metadata `catalog_version` | `1` |
+| Product | metadata `package_key` | `essential`, `professional`, `advanced`, `signature`, or `prestige`. **Omitted for row 11**, which is not a package. |
+| Product | metadata `component`, `service_category` | as in the table (OI-36) |
+| Product | metadata `environment` | `test` |
+| Product | `active` | `true` |
+| Product | not set | `description`, `tax_code`, `statement_descriptor`, `unit_label`, custom `id` |
+| Price | `product` | the row's product |
+| Price | `currency` | `usd` |
+| Price | `unit_amount` | the row's integer cents. Never `unit_amount_decimal` or `price_data`. |
+| Price | `lookup_key` | the row's lookup key |
+| Price | metadata `catalog_key`, `catalog_version`, `expected_unit_amount` | the row's key, `1`, and the row's cents as a string |
+| Price | `active` | `true` |
+| Price | not set | `tax_behavior` (left unspecified pending DEP-04, because once it is set to `inclusive` or `exclusive` it cannot be changed), `nickname`, `transfer_lookup_key`, tiers |
+
+**Versioning:** `catalog_version` and the `spotlight_v1_` prefix identify this manifest. Any change to an amount, name, or structure is a new version (`v2`), recorded in 08, with new objects. Existing objects are never edited to fit a new version. Retiring an old version is a separate, Owner-authorized Stripe change.
+
+The machine-readable form of this manifest (used to drive and check the creation run):
+
+```json
+{
+  "catalog_version": 1,
+  "currency": "usd",
+  "environment": "test",
+  "entries": [
+    { "catalog_key": "essential.deposit", "package_key": "essential", "component": "deposit", "service_category": "development", "name": "Essential Website, Deposit", "type": "one_time", "unit_amount": 16000, "lookup_key": "spotlight_v1_essential_deposit" },
+    { "catalog_key": "essential.balance", "package_key": "essential", "component": "balance", "service_category": "development", "name": "Essential Website, Final Balance", "type": "one_time", "unit_amount": 64000, "lookup_key": "spotlight_v1_essential_balance" },
+    { "catalog_key": "professional.deposit", "package_key": "professional", "component": "deposit", "service_category": "development", "name": "Professional Website, Deposit", "type": "one_time", "unit_amount": 29900, "lookup_key": "spotlight_v1_professional_deposit" },
+    { "catalog_key": "professional.balance", "package_key": "professional", "component": "balance", "service_category": "development", "name": "Professional Website, Final Balance", "type": "one_time", "unit_amount": 119600, "lookup_key": "spotlight_v1_professional_balance" },
+    { "catalog_key": "advanced.deposit", "package_key": "advanced", "component": "deposit", "service_category": "development", "name": "Advanced Website, Deposit", "type": "one_time", "unit_amount": 49900, "lookup_key": "spotlight_v1_advanced_deposit" },
+    { "catalog_key": "advanced.balance", "package_key": "advanced", "component": "balance", "service_category": "development", "name": "Advanced Website, Final Balance", "type": "one_time", "unit_amount": 199600, "lookup_key": "spotlight_v1_advanced_balance" },
+    { "catalog_key": "signature.deposit", "package_key": "signature", "component": "deposit", "service_category": "development", "name": "Signature Website, Deposit", "type": "one_time", "unit_amount": 69900, "lookup_key": "spotlight_v1_signature_deposit" },
+    { "catalog_key": "signature.balance", "package_key": "signature", "component": "balance", "service_category": "development", "name": "Signature Website, Final Balance", "type": "one_time", "unit_amount": 279600, "lookup_key": "spotlight_v1_signature_balance" },
+    { "catalog_key": "prestige.deposit", "package_key": "prestige", "component": "deposit", "service_category": "development", "name": "Prestige Website, Deposit", "type": "one_time", "unit_amount": 99900, "lookup_key": "spotlight_v1_prestige_deposit" },
+    { "catalog_key": "prestige.balance", "package_key": "prestige", "component": "balance", "service_category": "development", "name": "Prestige Website, Final Balance", "type": "one_time", "unit_amount": 399600, "lookup_key": "spotlight_v1_prestige_balance" },
+    { "catalog_key": "maintenance.monthly", "package_key": null, "component": "maintenance", "service_category": "maintenance", "name": "Website Care & Maintenance", "type": "recurring", "recurring": { "interval": "month", "interval_count": 1, "usage_type": "licensed" }, "unit_amount": 9900, "lookup_key": "spotlight_v1_maintenance_monthly" }
+  ]
+}
+```
+
+### 6.2 Duplicate detection, conflicts, and idempotency **[APPROVED OI-65 (conflict proviso); procedure PROPOSED]**
+
+The run reads and classifies **all 11 entries before any write**. If any entry is a conflict, it stops with no write at all.
+
+| Class | Condition | Action |
+|---|---|---|
+| Match | One active product whose metadata `catalog_key` equals the entry and whose name and metadata all equal the manifest, **and** one active price with the entry's `lookup_key` on that product, with equal amount, currency, type, recurrence, and metadata | Reuse it. No write. |
+| Price missing | The product is a match and no price (active or archived) has the entry's `lookup_key` | Create the price only |
+| Missing | No product has the entry's `catalog_key` or the entry's exact name, and no price has the entry's `lookup_key` | Create the product, then the price |
+| **Conflict** | Anything else, including: the `lookup_key` exists with any difference, on another product, or archived; the `catalog_key` exists with any difference, archived, or on more than one product; a product with the entry's exact name exists without a matching `catalog_key` | **Stop the whole run before any write and report to the Owner.** No update, archive, or workaround. |
+
+Idempotency:
+- Each write sends an `Idempotency-Key`: `dep01-v1-<catalog_key>-product` or `dep01-v1-<catalog_key>-price`. Keys are deterministic, so a retried request within Stripe's key-retention window returns the original object instead of creating a second one **[VERIFY-PROVIDER: retention window]**.
+- A Stripe idempotency error (the same key with different parameters) stops the run.
+- Duplicate prevention does not rely on idempotency keys alone. A rerun repeats the full read-and-classify step, so objects created earlier are reused as matches.
+- Price `lookup_key` values are expected to be unique per account and mode, which gives a further guard **[VERIFY-PROVIDER]**.
+
+### 6.3 Execution constraints **[PROPOSED]**
+
+- The credential is a restricted **test-mode** key limited to the permissions in [OPEN-ISSUES.md DEP-01](../OPEN-ISSUES.md#dep-01-detail--stripe-test-mode-catalog).
+- **Test-mode preflight (fail closed).** **Provider-verified (2026-11-23):** Stripe's official OpenAPI specification (version `2026-09-30.endive`, `github.com/stripe/openapi` commit `2dcbcfb`) defines `livemode` as a **required boolean** on the Balance, Product, and Price objects ("If the object exists in live mode, the value is `true`. If the object exists in test mode, the value is `false`."). List responses do not carry `livemode`; only the objects inside them do. The preflight still never treats a missing or unexpected field as a pass:
+  1. **Before the run:** the Owner attests, from the Stripe Dashboard, that the key was created in **test mode** and begins `rk_test_`. The agent cannot see the key, because the proxy injects it.
+  2. **Before the run:** the Balance object's `livemode` field, and the `livemode` field on Product and Price objects, are confirmed in the current official Stripe API reference and recorded (DEP-06). If any of them cannot be confirmed, the run does not start, and the preflight is escalated to the Owner. **Satisfied 2026-11-23** by the OpenAPI verification above. It is re-checked if the API version used for the run differs from `2026-09-30.endive`.
+  3. **First request:** `GET /v1/balance`. The run continues only if the response is HTTP 200 **and** `livemode` is present **and** is exactly the boolean `false`. A missing field, `null`, `true`, any other value, or any error aborts the run before any other request.
+  4. **Every later response:** each returned product or price must carry `livemode` exactly `false`, under the same rule. List responses are checked object by object. A list with no objects proves nothing about the mode and does not replace step 3.
+- Only list, retrieve, and create requests on products and prices are made. No object is updated, archived, or deleted.
+- After creation, each product and price is retrieved and compared against §6.1. Any difference stops the run and is reported. It is not repaired.
+- Only the resulting nonsecret Product and Price IDs are recorded, in the table below, through a documentation pull request.
+
+| # | `catalog_key` | Test Product ID | Test Price ID | Verified |
+|---|---|---|---|---|
+| 1 | `essential.deposit` | *unresolved* | *unresolved* | No |
+| 2 | `essential.balance` | *unresolved* | *unresolved* | No |
+| 3 | `professional.deposit` | *unresolved* | *unresolved* | No |
+| 4 | `professional.balance` | *unresolved* | *unresolved* | No |
+| 5 | `advanced.deposit` | *unresolved* | *unresolved* | No |
+| 6 | `advanced.balance` | *unresolved* | *unresolved* | No |
+| 7 | `signature.deposit` | *unresolved* | *unresolved* | No |
+| 8 | `signature.balance` | *unresolved* | *unresolved* | No |
+| 9 | `prestige.deposit` | *unresolved* | *unresolved* | No |
+| 10 | `prestige.balance` | *unresolved* | *unresolved* | No |
+| 11 | `maintenance.monthly` | *unresolved* | *unresolved* | No |
 
 Phase 3 cannot begin implementation until these IDs are recorded and verified to match the §5.1 amounts.
 
@@ -193,7 +293,8 @@ Phase 3 cannot begin implementation until these IDs are recorded and verified to
 | Line item 2 | **Maintenance** Price ID (recurring monthly, 9900), quantity 1 |
 | First invoice total | **deposit + 9900 cents**: one deposit charge plus **one** maintenance period. Never deposit + 19800. |
 | Subsequent billing | 9900 cents monthly from the subscription billing anchor (purchase date) |
-| Discounts | **None.** No discount is applied to the initial Checkout. Deposit-stage adjustments are unsupported until OI-47 is decided **[PENDING OI-47]**. |
+| Deposit | **Mandatory [APPROVED OI-47, Option A]**: the standard 20% deposit price for the package (§5.1), for all five standard packages. It is never reduced, credited, or waived. |
+| Discounts | **None [APPROVED OI-47, Option A].** No discount, coupon, promotion code, credit, or waiver is ever applied to the initial Checkout, so neither the deposit nor the maintenance line can be reduced there. **[PROPOSED; VERIFY-PROVIDER]** The Checkout Session is created without discounts and with promotion codes disabled. |
 | Payment method for the final balance **[APPROVED OI-17, revised 2026-11-23]** | Stripe securely saves the payment method on the client business's Stripe Customer for later **off-session** collection of the final balance (§10), under the client's explicit authorization in the accepted agreement (§3.1). The portal never stores card data. |
 
 Expected initial totals:
@@ -311,7 +412,9 @@ Whether final payment may be requested *before* client approval is not specified
 - The standard Stripe balance prices remain unchanged.
 - The adjusted amount is collected with an **Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices. The discount is applied to the automatic final-balance invoice (§10) **[APPROVED OI-55]**.
 - A fully waived balance requires no charge. It is recorded as a `waiver` ledger entry (§12), and approval triggers no Stripe invoice.
-- **Deposit-stage adjustments:** OI-44 covers the final balance only. Adjustments to the initial deposit Checkout are **[PENDING OI-47]**.
+- **Deposit-stage adjustments are not supported in the MVP [APPROVED OI-47, Option A].** The deposit is always the standard deposit price (§8). An Owner-authorized project price reduction is applied **only** to the outstanding final balance, under §10.1 (OI-44, OI-55).
+- A reduction can **never exceed the outstanding final balance** (**[APPROVED OI-47]**, confirmed by the Owner 2026-11-23); reducing it to zero is the full waiver above. A concession larger than the final balance is not supported in the MVP; refunds are governed separately (§15.2).
+- The $99 maintenance subscription is never reduced by a project discount (§10.1 row 13; OI-44).
 
 ### 10.1 Adjusted final-balance payment **[APPROVED OI-44, OI-55]**
 
@@ -340,6 +443,11 @@ Mechanism constraints **[PROPOSED; VERIFY-PROVIDER]**:
 - If Stripe cannot meet these constraints, **escalate to the Owner**. No inline pricing or alternative mechanism may be substituted silently.
 
 ## 11. Verified webhook handling **[APPROVED OI-17]**
+
+**Testing strategy [APPROVED OI-63, hybrid]:**
+- **CI (every pull request):** synthetic Stripe-format events signed with a **test-only signing secret generated for the CI run**, never a real Stripe secret. They exercise signature verification, idempotent replay, out-of-order delivery, `livemode` and metadata checks, and quarantine (T-PAY-03 to T-PAY-08). CI holds **no Stripe credential** and makes no Stripe request.
+- **Real Stripe test-mode verification:** the same handlers are verified against events that real test-mode Stripe objects produce (Checkout, invoices, subscriptions, refunds, disputes), with a test-mode webhook signing secret. **[PROPOSED]** It runs as a recorded verification step (for example with the Stripe CLI forwarding test-mode events to a local server), separately from CI. It needs DEP-01 and the separate Stripe access authorization (CLAUDE.md §5), and is tracked as DEP-15.
+- A handler behavior proven only by synthetic events is not treated as verified against Stripe until the matching test-mode verification passes.
 
 Rules:
 1. Every event's Stripe signature is verified against the environment's webhook secret using the raw request body. Unverified requests are rejected (400) and logged.
@@ -518,7 +626,7 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 |---|---|
 | T-PAY-01 | For each package, the initial Checkout's first invoice totals deposit + 9900 cents (table §8). The maintenance line appears exactly once. |
 | T-PAY-02 | `deposit + balance = total` and the deposit equals `round_half_up(20%)` for all packages and for property-based random totals |
-| T-PAY-03 | A webhook with an invalid signature is rejected and changes no state |
+| T-PAY-03 | A webhook with an invalid signature is rejected and changes no state. T-PAY-03 to T-PAY-08 run in CI with synthetic events signed by a test-only secret (OI-63). |
 | T-PAY-04 | Visiting the success URL without a processed webhook leaves the deposit `pending` and intake locked |
 | T-PAY-05 | Replaying the same event ID (×N, concurrently) posts each ledger entry exactly once |
 | T-PAY-06 | Out-of-order delivery (`invoice.paid` before `checkout.session.completed`) produces the correct final state |
@@ -531,6 +639,7 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-PAY-13 | Approval (**Approve Website & Authorize Final Payment**) creates exactly one final-balance invoice for the snapshot balance, charged to the saved payment method. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice or charge. |
 | T-PAY-14 | A failed charge or a required authentication leaves the balance unverified, offers the Stripe-hosted completion option for the same invoice, and blocks publication until a verified `invoice.paid` |
 | T-PAY-15 | The accepted agreement version contains the §3.1 clause verbatim (text hash check) |
+| T-PAY-16 | **Test-mode verification (OI-63, DEP-15):** for each in-scope event type (§11), an event produced by a real **test-mode** Stripe object is delivered with a real test-mode signing secret and processed with the same outcome as its synthetic CI counterpart. A `livemode: true` event is rejected. Not run in CI. |
 | T-AGR-01 | The acceptance checkbox renders unchecked. The server rejects acceptance without an explicit true value. |
 | T-AGR-02 | Initial Checkout cannot be created without a current acceptance |
 | T-AGR-03 | Acceptance evidence includes every §3 field. The stored hash matches the version text. |
@@ -557,3 +666,5 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-17 | Maintenance discontinuation is rejected before M1. Deactivating remaining services is rejected before M2 or without the required notices recorded. (OI-35) |
 | T-BIL-18 | No code path or configuration deliberately degrades a client website (code review checklist and negative test) |
 | T-BIL-19 | Domain expiry is taken from the actual registration date and registrar record. Cancellation, M1, and M2 make no registrar call that cancels, deletes, or transfers the domain. |
+| T-BIL-20 | The initial Checkout Session for every standard package contains exactly the standard deposit Price ID and the maintenance Price ID, with no discount, coupon, promotion code, or credit. Any attempt to create a deposit-stage adjustment is rejected and audited. (OI-47) |
+| T-BIL-21 | An Owner-authorized reduction larger than the outstanding final balance is rejected. After any final-balance adjustment, the deposit ledger entry is unchanged and the next maintenance invoice is exactly 9900 cents. (OI-47, OI-44) |

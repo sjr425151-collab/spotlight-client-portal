@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Version | 0.3.3 |
-| Status | **Approved (final): v0.3.2.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.3.2 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). v0.3.3 amends journey steps 5, 10 and 11 for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). |
+| Status | **Approved (final): v0.3.2.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.3.2 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). v0.3.3 amends journey steps 5, 10 and 11 for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). Stage table updated for the Phase 2 authorization (status line only; 08 §5 v0.9.0). Stage table updated for the spec 04 test-mode approval (status line only; 08 §5 v0.11.0). Stage table updated for the Phase 2 merge (status line only; 08 §5 v0.12.0). |
 | Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
@@ -110,8 +110,8 @@ Each phase requires **separate written owner authorization**. None is currently 
 | Stage | Status |
 |---|---|
 | 1. Architecture approval | Approved |
-| 2. Specification reconciliation | Specs 01 (v0.3.2), 02 (v0.4.0) and CLAUDE.md: **approved (final, 2026-11-23)**. Specs 03–08: in review. |
-| 3. Implementation authorization | **Phase 1 (Foundation and CI) authorized 2026-11-23.** Phases 2–5 not authorized. |
+| 2. Specification reconciliation | Specs 01 (v0.3.2), 02 (v0.4.0) and CLAUDE.md: **approved (final, 2026-11-23)**. Spec 03 (v0.4.0): **approved 2026-11-23**. Spec 04: **approved 2026-11-23 for Phase 3 test-mode implementation only**. Specs 05–08: in review. |
+| 3. Implementation authorization | Phase 1 (Foundation and CI) authorized 2026-11-23 and merged. **Phase 2 (Auth, security, tenant isolation) authorized 2026-11-23 and merged** (PR #4; local Supabase, synthetic data). Phases 3–5 not authorized. |
 | 4. Production launch authorization | **Not authorized** |
 
 Approving this or any specification does not authorize implementation.

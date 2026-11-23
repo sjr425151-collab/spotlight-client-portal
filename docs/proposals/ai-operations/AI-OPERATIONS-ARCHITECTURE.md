@@ -9,6 +9,8 @@
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Precedence | Below every approved decision (08) and approved specification (01–07). Where this proposal conflicts with them, they win and the conflict is listed in §16. |
 
+> **Reconciliation note (2026-11-23, conflict resolution with `main` at `55e5610`; documentation only).** The §1 audit is a point-in-time snapshot taken at `main` `8749ba4`. It is kept unchanged as the evidence of that moment. Since then, on `main`: Phase 2 was merged (PR #4, merge commit `45d05f6`), so the "Phase 2 is merged" prerequisite in §1, §15 and §16 is now met; OI-53 and OI-54 were decided; OI-63 (hybrid webhook testing), OI-64 and OI-65 (Stripe test-mode catalog design) were decided; DEP-15 (Stripe test-mode webhook verification) was added; and the next unused IDs are OI-66 and DEP-16. Phase 3 is still **not authorized**, and DEP-01 is still blocked. This note changes no part of the proposal, and the proposal remains **PROPOSED**. None of OI-56 to OI-62 is decided.
+
 **How to read this document.** Findings are labeled:
 
 | Label | Meaning |

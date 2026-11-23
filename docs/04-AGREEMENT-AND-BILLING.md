@@ -1,0 +1,521 @@
+# 04 — Agreement and Billing
+
+| Field | Value |
+|---|---|
+| Version | 0.4.0 |
+| Status | **Draft — pending owner sign-off** |
+| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46 |
+| Open issues | OI-47 |
+| Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
+
+> Nothing in this document authorizes any Stripe operation. No Stripe products, prices, customers, subscriptions, or Checkout configurations were created, queried, or modified in preparing it.
+
+## 1. Agreement lifecycle **[APPROVED OI-13]**
+
+There is **one** versioned *Website Development & Maintenance Services Agreement*. Each project gets a **project-specific order summary** that is incorporated by reference.
+
+```mermaid
+stateDiagram-v2
+  [*] --> not_presented
+  not_presented --> presented: order summary issued
+  presented --> accepted_pending_payment: client accepts (checkbox + submit)
+  accepted_pending_payment --> effective: deposit verified by webhook
+  accepted_pending_payment --> expired: Checkout abandoned past expiry [PROPOSED]
+  presented --> superseded: new order summary / agreement version
+  accepted_pending_payment --> superseded: material change before payment
+  effective --> reacceptance_required: material contractual change
+  reacceptance_required --> effective: client re-accepts new version
+```
+
+- The owner-authored draft (v1.0, outside the repository) makes the agreement effective "upon electronic acceptance and successful initial payment." **[APPROVED OI-34]** Electronic acceptance (`agreement.accepted`) and service activation (`agreement.effective`, triggered by deposit verification) are recorded as **separate events**.
+- **[APPROVED OI-34]** The current agreement is **not legally finalized**. Qualified legal review is required before production (DEP-03). Phase 3 test mode may use the draft only with a visible "DRAFT — not for production use" marker **[PROPOSED]**.
+
+## 2. Agreement versioning and immutable copy **[APPROVED OI-13]**
+
+Each agreement version record holds:
+- the version label (for example `1.0`)
+- the canonical text (stored immutably)
+- a SHA-256 hash of the canonical bytes
+- the effective-from date
+- a status (`draft` / `approved` / `retired`)
+- the approval reference
+
+Rules **[PROPOSED]**:
+- Version records are insert-only. A text change is a new version.
+- The hash is computed over a canonical serialization (UTF-8, normalized line endings) and verified on read.
+- Clients are only ever shown `approved` versions in production.
+
+## 3. Acceptance evidence **[APPROVED OI-13]**
+
+| Evidence | Source |
+|---|---|
+| Agreement version ID and document hash | Version record |
+| Order summary ID and its snapshot hash **[PROPOSED]** | Order summary |
+| Client business legal name, project ID | Project record |
+| Signer user ID and **verified email** (OTP-verified) | Auth **[APPROVED OI-28]** |
+| Signer's **full legal name** | Acceptance form, required **[APPROVED OI-28]** |
+| **Business legal name** | Acceptance form, required; must match the order summary or be flagged for staff review **[APPROVED OI-28; matching rule PROPOSED]** |
+| Signer's **position or title** | Acceptance form, required **[APPROVED OI-28]** |
+| **Authority confirmation**: a *separate*, unchecked-by-default checkbox, distinct from the agreement acceptance checkbox | Acceptance form **[APPROVED OI-28]**. Final wording requires legal review (DEP-03). |
+| Scope and price snapshot (package, cents values, maintenance price) | Order summary |
+| Acceptance timestamp (server UTC) | Server |
+| IP address, user agent, request ID | Server request **[PROPOSED]** |
+| Checkbox state was unchecked by default, then affirmatively checked | UI contract and server validation |
+
+**Workflow: accept agreement**
+
+| Element | Specification |
+|---|---|
+| Actors | Client (authorized signer) |
+| Preconditions | Active membership. Order summary `presented`. Agreement version `approved` (or `draft` in test mode). No existing effective acceptance for this order summary. |
+| Inputs | Explicit `accepted = true`; explicit, separate `authority_confirmed = true`; signer full legal name, business legal name, title |
+| Records | `agreement_acceptances` (insert-only) |
+| Transitions | `presented → accepted_pending_payment` |
+| Permissions | Client membership on the project. Staff **cannot** accept on a client's behalf (03 §4). |
+| Failure states | Stale order summary (superseded) → reject and reload; hash mismatch → reject and alert |
+| Idempotency | One acceptance per (order summary, signer). A resubmission returns the existing record. |
+| Audit | `agreement.accepted` |
+| Negative tests | Pre-checked or missing checkbox value rejected; acceptance for another project rejected; acceptance of a superseded summary rejected |
+
+## 4. Order summaries and reacceptance
+
+The order summary is an immutable snapshot. It holds:
+- the package key
+- package total, deposit, and balance (cents)
+- the maintenance price (cents/month)
+- the Stripe Price IDs used (§5–§6)
+- included scope items
+- optional project notes approved by staff **[PROPOSED]**
+
+**Material change** (requires a new order summary and re-acceptance) **[APPROVED OI-13]**. **[PROPOSED]** definition:
+- any change to price, deposit, balance, maintenance rate, package, or scope
+- a new agreement version with substantive changes
+
+Non-material corrections, such as a typo in the business name, are audited staff edits with no price effect, pending owner confirmation of this definition.
+
+## 5. Package pricing and live Stripe catalog reference **[APPROVED OI-14, OI-15]**
+
+### 5.1 Package pricing (integer cents)
+
+| Package key | Package | Total | Deposit (20%) | Balance (80%) |
+|---|---|---|---|---|
+| `essential` | Essential | 80000 ($800.00) | 16000 ($160.00) | 64000 ($640.00) |
+| `professional` | Professional | 149500 ($1,495.00) | 29900 ($299.00) | 119600 ($1,196.00) |
+| `advanced` | Advanced | 249500 ($2,495.00) | 49900 ($499.00) | 199600 ($1,996.00) |
+| `signature` | Signature | 349500 ($3,495.00) | 69900 ($699.00) | 279600 ($2,796.00) |
+| `prestige` | Prestige | 499500 ($4,995.00) | 99900 ($999.00) | 399600 ($3,996.00) |
+
+Maintenance: **9900 cents ($99.00) per month**.
+
+### 5.2 Live catalog reference — owner-supplied
+
+> **LIVE MODE IDENTIFIERS.** These are Stripe Price **identifiers**, not credentials. They were supplied by the owner as previously verified against the live catalog. They were **not** queried from or verified against Stripe in this change set. Production integration must re-verify each ID's amount, currency, type (one-time vs recurring), interval, and active status in the authorized live environment before use **[VERIFY-PROVIDER, OI-39]**. They must never be used in non-production environments.
+
+| Package | Deposit Price ID (one-time) | Balance Price ID (one-time) |
+|---|---|---|
+| Essential | `price_1UeTToGhzSDGlgsAGdFFdvH5` | `price_1UeTVuGhzSDGlgsAjhF4PVBa` |
+| Professional | `price_1UeTXyGhzSDGlgsAlp8GFdH1` | `price_1UeTYvGhzSDGlgsAUT6n2Wbk` |
+| Advanced | `price_1UeTaZGhzSDGlgsAuMiOBTxu` | `price_1UeTbSGhzSDGlgsAU4xNByks` |
+| Signature | `price_1UeTcIGhzSDGlgsAxytYFM2U` | `price_1UeTcrGhzSDGlgsAOFvImCjA` |
+| Prestige | `price_1UeTdvGhzSDGlgsAGsSJXCqB` | `price_1UeTeKGhzSDGlgsAhJassjEw` |
+
+| Product | Recurring Price ID (monthly) |
+|---|---|
+| Website Care & Maintenance ($99/month) | `price_1UeCtAGhzSDGlgsAoVGWX4eh` |
+
+Catalog rules **[APPROVED OI-14]**:
+- Existing live products, prices, customers, and subscriptions are preserved.
+- Legacy and custom products stay preserved and are excluded from standard package selection.
+- No new or duplicate prices are created, and no inline (`price_data`) pricing is used.
+- The mapping is versioned. A change to any ID is a recorded change (08 §6).
+- **[PROPOSED]** The application keeps a versioned catalog mapping (package key → environment → Price IDs, plus expected cents). At startup or deploy time, a verification compares the Stripe price amounts against the expected cents, and fails closed on mismatch.
+
+## 6. Test-mode catalog mapping **[APPROVED OI-30] — creation BLOCKED (DEP-01)**
+
+**[APPROVED OI-30]** The test catalog must match §5.1 exactly: five packages, each with a one-time deposit price and a one-time balance price, plus one recurring maintenance price of 9900 cents per month, all in USD. The Owner has narrowly authorized creating these **test-mode** products and prices. That authorization does not extend to Stripe integration code, webhook deployment, or any live-mode change.
+
+Required procedure for the creation action:
+1. Verify the credential is test mode (`livemode: false`) **before** any write. A live-mode credential aborts the action.
+2. Search the existing test-mode products and prices for matches, and reuse them instead of creating duplicates.
+3. Create only what is missing. Use idempotency keys and metadata `catalog_key` (for example `essential.deposit`) **[PROPOSED]**.
+4. Verify each price's amount, currency, type, and interval after creation.
+5. Record the resulting Price IDs in the table below. Price IDs are identifiers, not credentials. Credentials are never committed.
+
+**Status (2026-11-23): blocked.** In this documentation session, `api.stripe.com` was initially not reachable from the session environment. A credential was then supplied, and Stripe identified it as a **live-mode** key (`sk_live_` prefix) and rejected it as invalid. Work stopped before any search or write. **No Stripe object was created or modified.** A valid test-mode key is required (DEP-01). No placeholder IDs are recorded.
+
+**Owner instruction (2026-11-23):** make **no Stripe API requests** until the Owner separately authorizes a verified test-mode credential workflow. DEP-01 remains blocked until then.
+
+| Package | Test Deposit Price ID | Test Balance Price ID |
+|---|---|---|
+| Essential | *unresolved* | *unresolved* |
+| Professional | *unresolved* | *unresolved* |
+| Advanced | *unresolved* | *unresolved* |
+| Signature | *unresolved* | *unresolved* |
+| Prestige | *unresolved* | *unresolved* |
+| Maintenance (recurring) | *unresolved* | — |
+
+Phase 3 cannot begin implementation until these IDs are recorded and verified to match the §5.1 amounts.
+
+## 7. Integer-cents calculation policy **[APPROVED OI-15]**
+
+- All amounts are integer USD cents. Floating-point arithmetic on money is prohibited.
+- `deposit = round_half_up(total × 20 / 100)` using integer arithmetic. **[PROPOSED]** formula: `deposit = (total × 20 + 50) div 100` for non-negative totals.
+- `balance = total − deposit`. Invariant: `deposit + balance = total`.
+- All five standard packages produce exact cents (§5.1). Rounding matters only for possible future non-standard totals.
+- Snapshots are immutable once the order summary is presented.
+- Discounts, taxes, refunds, disputes, and maintenance charges are **separate** ledger entries. They never alter the snapshot (§12).
+- **[PROPOSED]** Verification: the configured Stripe deposit and balance price amounts must equal the calculated values. A mismatch blocks Checkout creation.
+
+## 8. Initial Checkout composition **[APPROVED OI-17]**
+
+| Attribute | Value |
+|---|---|
+| Checkout mode | `subscription` |
+| Line item 1 | Package **deposit** Price ID (one-time), quantity 1 |
+| Line item 2 | **Maintenance** Price ID (recurring monthly, 9900), quantity 1 |
+| First invoice total | **deposit + 9900 cents**: one deposit charge plus **one** maintenance period. Never deposit + 19800. |
+| Subsequent billing | 9900 cents monthly from the subscription billing anchor (purchase date) |
+| Discounts | **None.** No discount is applied to the initial Checkout. Deposit-stage adjustments are unsupported until OI-47 is decided **[PENDING OI-47]**. |
+
+Expected initial totals:
+
+| Package | Deposit | + Maintenance | = Initial charge |
+|---|---|---|---|
+| Essential | 16000 | 9900 | **25900 ($259.00)** |
+| Professional | 29900 | 9900 | **39800 ($398.00)** |
+| Advanced | 49900 | 9900 | **59800 ($598.00)** |
+| Signature | 69900 | 9900 | **79800 ($798.00)** |
+| Prestige | 99900 | 9900 | **109800 ($1,098.00)** |
+
+**[VERIFY-PROVIDER]** One-time prices in subscription-mode Checkout are added to the first invoice only. Confirm this against current Stripe documentation in Phase 3.
+
+**Workflow: start initial Checkout**
+
+| Element | Specification |
+|---|---|
+| Actors | Client |
+| Preconditions | Acceptance exists in `accepted_pending_payment` for the current order summary. No verified deposit. No open initial session for this project (or reuse it) **[PROPOSED]**. |
+| Server actions | Resolve the Price IDs from the order summary snapshot (not from client input). Create or reuse the Stripe Customer for the client business. Create the Checkout Session with metadata `project_id`, `order_summary_id`, `acceptance_id`, `environment`. |
+| Records | `checkout_sessions` (session ID, type `initial`, status) |
+| Idempotency | Stripe idempotency key derived from `order_summary_id` and attempt number **[PROPOSED]** |
+| Concurrency | A unique constraint allows at most one *open* initial session per project. Double-click returns the same session. |
+| Failure states | Price verification mismatch → block and alert; Stripe API error → retryable message, no state change |
+| Audit | `checkout.session_created` |
+
+## 9. Subscription billing lifecycle **[APPROVED OI-16, OI-17]**
+
+- The subscription starts at initial purchase and bills during development. The agreement must accurately disclose prelaunch and postlaunch services. **[APPROVED OI-16]**
+- Renewal outcomes are recorded from webhooks only. **Stripe payment status is authoritative.** **[APPROVED OI-26]**
+- **Service model [APPROVED, Owner instruction 2026-11-23]:** the $99/month Website Care & Maintenance subscription is provided on a **commercially reasonable** basis. The specifications define **no guaranteed uptime percentage and no fixed response times**. Monitoring signals (02 §8) and internal queue targets are operational tools, not client commitments.
+- **[APPROVED OI-21]** Closing a portal account does **not** cancel the Stripe subscription. Cancellation is a separate, explicit billing action (§15).
+
+### 9.1 Failed maintenance payment recovery **[APPROVED OI-26]**
+
+| Step | Rule |
+|---|---|
+| T0 | `invoice.payment_failed` for a $99 renewal is recorded. Recovery starts. |
+| Recovery period | **Seven full calendar days** after T0: calendar days, **never** business days. Recovery ends at 23:59:59 America/Detroit on the 7th calendar day after T0's local date (02 §13) **[APPROVED OI-26, OI-43]**. |
+| During recovery | Stripe's configured payment retries **[VERIFY-PROVIDER]** run, with automated reminders to the client (07 §4). Account access is unchanged. |
+| Recovered | A verified `invoice.paid` for the failed invoice ends recovery. No hold is placed. |
+| Unresolved at end | A `maintenance_payment_hold` is placed automatically (§14), and the project enters Owner review (§9.1.1). |
+| Hold effect | Pauses **new publication** and **nonessential maintenance**. The client **keeps portal access**. An **already-published website is not disabled automatically**. |
+| Clearing | Cleared automatically on verified payment recovery (webhook). |
+| Exceptions | Owner-only, documented reason, reauthentication, audit (03 §12). |
+| Notice | Notice requirements must be reconciled with the final agreement (draft §12 says seven calendar days after written notice) (DEP-03). |
+
+### 9.1.1 Failed payment to service termination lifecycle **[APPROVED OI-46]**
+
+A failed maintenance payment **never** removes a website by itself.
+
+| Stage | Trigger | Effects | Already-published website |
+|---|---|---|---|
+| 1. Failed payment | Stripe reports an unsuccessful maintenance payment | Recovery begins (§9.1) | Online |
+| 2. Recovery period | Seven full calendar days | Notifications. Payment-method updates through the Customer Portal (§9.2). Stripe retries. | Online |
+| 3. Billing hold | Recovery period ends without verified recovery | `maintenance_payment_hold`. New publishing and nonessential maintenance are paused. | Online. **Never** taken offline automatically. |
+| 4. Owner review | Hold placed. An Owner review queue item is created. | The Owner chooses to: continue collection and recovery; authorize a documented exception; or initiate documented service termination | Online |
+| 5. Authorized termination | The Owner records the termination, with reason and reauthentication | The effective cancellation date is documented. The post-cancellation milestones (§15.1) are computed from it: **M1** at 12 business days and **M2** at 60 calendar days, subject to the final agreement. | Not deliberately taken offline. Maintenance may cease after M1. Remaining services may be deactivated only after M2 and the required notices (06 §8.4). |
+
+Stripe configuration **[APPROVED OI-46; VERIFY-PROVIDER, DEP-06]**:
+- Prefer a recoverable `past_due` or `unpaid` subscription state over automatic cancellation after retries, where supported.
+- Verify Stripe Billing's actual behavior before implementation.
+
+Internal service-termination state **[APPROVED OI-46; states PROPOSED]**:
+- This state is separate from the Stripe subscription status: `none → under_owner_review → termination_authorized → effective → maintenance_ceased → offboarded | transferred`, plus `withdrawn` before `effective`.
+- An **unexpected** `customer.subscription.deleted`, meaning one that matches no authorized termination, creates a `stripe_cancellation_exception` Owner review item. It is **not** authorization to start the transition or remove a website.
+- Duplicate or contradictory transitions are prevented. At most one active termination is allowed per project (unique constraint). Repeated events are idempotent. A conflicting event, such as a recovery payment after termination was authorized, goes to Owner review.
+- Billing and termination audit history is complete (03 §11).
+- Final termination, milestone, and notice terms require legal review (DEP-03).
+
+### 9.2 Stripe Customer Portal **[APPROVED OI-29]**
+
+The hosted Stripe Customer Portal is **in the MVP**.
+
+| Feature | Setting |
+|---|---|
+| Payment method management | Enabled |
+| Invoice and payment history | Enabled |
+| Subscription information | Enabled (view) |
+| Self-service subscription cancellation | **Disabled** until a separately approved cancellation workflow is implemented |
+| Plan/price switching, quantity changes | Disabled **[PROPOSED]** |
+
+- Portal sessions are created on the server for the authenticated client's own Stripe Customer only (03 §4).
+- **[VERIFY-PROVIDER OI-39]** Confirm the Customer Portal configuration options in Phase 3.
+- Customer Portal configuration is a Stripe change, so it is made in test mode only, under Phase 3 authorization.
+- The draft agreement §7 refers to cancelling "through the designated billing portal". Because self-service cancellation is disabled, that wording must be aligned with §15.1 (DEP-03).
+
+## 10. Final Checkout **[APPROVED OI-17]**
+
+| Attribute | Value |
+|---|---|
+| Mode | `payment` |
+| Line item | Package **balance** Price ID (one-time), quantity 1 |
+| Amount | Balance from the order summary snapshot (§5.1) |
+| Preconditions **[PROPOSED]** | Agreement `effective`. Deposit verified. The approval gate is satisfied for the current released preview (05 §7). No open final session. Balance not already settled. |
+| Records | `checkout_sessions` (type `final`) |
+| Idempotency, concurrency, audit | As in §8 |
+
+Whether final payment may be requested *before* client approval is not specified by the baseline. **[PROPOSED]** It may not, matching the draft agreement §3, which says the review comes before the final payment request.
+
+**Adjusted balances [APPROVED OI-27]:**
+- When an Owner-authorized discount, credit, or partial waiver reduces the amount owed, the **remaining amount still requires verified payment**.
+- The standard Stripe balance prices remain unchanged.
+- The adjusted amount is collected through **Stripe Checkout with an Owner-authorized discount applied to the existing standard final-balance price** **[APPROVED OI-44]** (§10.1). It is **not** collected with inline pricing or new prices.
+- A fully waived balance requires no Checkout. It is recorded as a `waiver` ledger entry (§12).
+- **Deposit-stage adjustments:** OI-44 covers the final balance only. Adjustments to the initial deposit Checkout are **[PENDING OI-47]**.
+
+### 10.1 Adjusted final-balance Checkout **[APPROVED OI-44]**
+
+| # | Requirement |
+|---|---|
+| 1 | Only the Owner may authorize a financial adjustment |
+| 2 | Fresh high-risk reauthentication (03 §7) |
+| 3–7 | An insert-only `balance_adjustments` record holds: the original package amount; the original remaining balance; the authorized discount or credit; the adjusted amount due; and the reason, authorizing Owner, and timestamp. All amounts are integer cents. |
+| 8 | Immutable financial history. A matching ledger entry (§12) is posted. Corrections are new records, not edits. |
+| 9 | Revised order summary and client re-acceptance where the change is materially necessary (§4) |
+| 10 | Publication requires verified payment of the adjusted amount or an authorized settlement (G4, 06 §2) |
+| 11 | A successful Stripe payment is never fabricated |
+| 12 | The discount applies **only** to the intended final-balance Checkout Session |
+| 13 | The recurring **$99 maintenance subscription is never discounted** |
+| 14 | Stripe's actual support for the mechanism is verified before implementation (DEP-06) |
+
+Mechanism constraints **[PROPOSED; VERIFY-PROVIDER]**:
+- The final Checkout is `payment` mode with a single line item: the standard balance Price ID. The maintenance subscription is never part of this session, so a session-level discount cannot reach it.
+- The discount is applied at the **Checkout Session** level only. It is restricted to the balance product, limited to a single redemption, and linked to the `balance_adjustments` record in metadata. It is **never** attached to the Stripe Customer or the subscription.
+- Webhook verification (§11): the session's total must equal the adjusted amount due, and the discount must equal the authorized discount. Any mismatch quarantines the event, and payment is not verified.
+- Creating discount objects (for example coupons) is a Stripe change. This document authorizes none. Test-mode creation requires Phase 3 authorization; live creation requires production authorization.
+- If Stripe cannot meet these constraints, **escalate to the Owner**. No inline pricing or alternative mechanism may be substituted silently.
+
+## 11. Verified webhook handling **[APPROVED OI-17]**
+
+Rules:
+1. Every event's Stripe signature is verified against the environment's webhook secret using the raw request body. Unverified requests are rejected (400) and logged.
+2. **Idempotency.** `webhook_events.stripe_event_id` is unique. A duplicate delivery returns 200 and has no side effects.
+3. **Ordering.** Handlers are order-independent. State changes are derived from object state (re-fetching the object from Stripe where needed **[PROPOSED]**), not from event order alone.
+4. **A successful redirect is never proof of payment.** The success page shows "payment processing" until the webhook-derived state is `verified`.
+5. **Environment check.** The event's `livemode` must match the environment. A mismatch is rejected and alerted.
+6. **Metadata check.** `project_id` and `order_summary_id` must resolve, and the amounts must equal the snapshot. A mismatch → quarantine the event for Owner review; it never marks anything verified.
+
+**[PROPOSED]** Events in scope **[VERIFY-PROVIDER]**:
+
+| Event | Effect |
+|---|---|
+| `checkout.session.completed` | Record completion. Deposit or balance verified only if `payment_status = paid`. |
+| `checkout.session.async_payment_succeeded` / `_failed` | Delayed payment methods |
+| `invoice.paid` | Ledger: deposit and first maintenance (initial); maintenance renewals |
+| `invoice.payment_failed` | Failed payment record; hold evaluation (OI-26) |
+| `customer.subscription.created` / `updated` / `deleted` | Subscription state mirror. A `deleted` event that matches no authorized termination creates an Owner exception review item. It never starts the transition and never removes a site. **[APPROVED OI-46]** |
+| `charge.refunded` / `refund.*` | Refund ledger entries |
+| `charge.dispute.created` / `closed` | Dispute ledger entries and holds (OI-37) |
+
+**Payment verification definition [APPROVED OI-17; wording PROPOSED]:** A deposit or balance is **verified** only when a signature-verified Stripe event for the corresponding Checkout Session or invoice has been processed, the amount and currency match the immutable snapshot, and the corresponding ledger entry is posted.
+
+## 12. Financial ledger **[APPROVED OI-15, OI-17, OI-19]**
+
+The ledger is append-only. Entries are never edited. Corrections are reversing entries **[PROPOSED]**.
+
+| Entry type | Source |
+|---|---|
+| `deposit_charge` | Webhook |
+| `maintenance_charge` | Webhook (initial and renewals) |
+| `balance_charge` | Webhook |
+| `refund` | Webhook (policy: OI-35) |
+| `dispute_opened` / `dispute_won` / `dispute_lost` | Webhook (OI-37) |
+| `tax` | Webhook, if tax is enabled (OI-36) |
+| `discount` | Owner-authorized **[APPROVED OI-27]** |
+| `credit` | Owner-authorized **[APPROVED OI-27]** |
+| `partial_waiver` | Owner-authorized **[APPROVED OI-27]** |
+| `waiver` (full balance) | Owner-authorized. Recorded as a waiver, **never** as a payment. **[APPROVED OI-27]** |
+| `refund_discretionary` | Owner-authorized refund decision record, paired with the webhook `refund` entry (§15.2) |
+
+Owner-authorized entries (`discount`, `credit`, `partial_waiver`, `waiver`) **[APPROVED OI-27]**:
+- Owner only, with fresh reauthentication.
+- A written reason and an immutable audit record.
+- The original package price snapshot and the transaction history are preserved.
+- A **material** financial change requires an updated order summary and client re-acceptance (§4).
+
+**Tax readiness [APPROVED OI-36]:** each ledger entry carries a `service_category`: `development`, `maintenance`, or `marketing_future`. This lets tax be determined separately per category. Taxability is **not** assumed for any category.
+
+Each entry holds:
+- `project_id` and type
+- signed integer cents and currency
+- Stripe object IDs
+- the related snapshot
+- `posted_at`
+- actor (for manual entries)
+- reason and amendment reference (for adjustments)
+- audit event ID
+
+There is **no** entry type or action that records a payment as received without a Stripe event. **[APPROVED OI-19]**
+
+## 13. Reconciliation **[APPROVED OI-17]**
+
+**[PROPOSED]**
+- A scheduled job (daily) compares, per project, the ledger totals against Stripe invoice, charge, and refund data and against the order summary snapshot.
+- A mismatch creates an Owner queue item and an alert. It never auto-corrects payment state.
+- A backfill job can replay missed webhooks by listing events, using the same idempotent handler.
+
+## 14. Holds **[APPROVED OI-17, OI-25, OI-26, OI-37]**
+
+A hold is a record holding: type, trigger source, `placed_at`, `placed_by` (for manual holds), reason, `cleared_at`, and clearing evidence. Every placement and clearance is audited.
+
+| Hold type | Trigger | Blocks | Never does | Clears when |
+|---|---|---|---|---|
+| `maintenance_payment_hold` | §9.1 recovery period ends unresolved **[APPROVED OI-26]** | New publication (gate G8); nonessential maintenance | Disable a live site; remove portal access; cancel the subscription | Verified payment recovery, or Owner exception **[APPROVED OI-26]** |
+| `approval_nonresponsive_hold`: a **fulfillment** hold, never a billing hold | Owner or Admin, from day 21 after documented outreach **[APPROVED OI-25, OI-45]** | Active development and nonessential fulfillment **[APPROVED OI-45]**; new publication through G8 **[PROPOSED]** | Count as approval; restrict portal or preview access; block client approval or revision requests; cancel the subscription; waive a balance; affect a published site | Owner at any time, with a reason; Admin only after a qualifying client response **[APPROVED OI-45]** (05 §7.2) |
+| `dispute_risk_hold` | Owner decision when a dispute warrants it **[APPROVED OI-37]** | New publication (G8) | Take down a live site because a dispute exists | Owner clears it with a reason |
+| `owner_manual_hold` | Owner action **[PROPOSED]** | New publication (G8) | — | Owner clears it with a reason |
+
+System holds (Stripe-derived) clear only when the underlying Stripe state resolves, or by a documented Owner exception. **[APPROVED OI-26]**
+
+## 15. Cancellation, refunds, tax, and disputes
+
+### 15.1 Subscription cancellation and post-cancellation milestones **[APPROVED OI-35, revised 2026-11-23]**
+
+**Approved policy (revised 2026-11-23; see the [Owner sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md)).** Two distinct milestones follow cancellation of the $99/month hosting and maintenance subscription. Both are counted from the **effective cancellation date**.
+
+| Milestone | Deadline (02 §13) | Spotlight may, subject to contractual obligations and required notices | This milestone does **not** mean |
+|---|---|---|---|
+| **M1: maintenance cessation** | **12 business days** after the effective cancellation date | Discontinue active maintenance, and discontinue **designated recurring database/infrastructure expenditures**, subject to contractual and security obligations | It is not the transfer deadline. The website is not deliberately taken offline, and there is no intentional degradation. |
+| **M2: final transfer and offboarding** | **60 calendar days** after the effective cancellation date | After the required notices, deactivate the remaining agency-managed services. This may make the website unavailable. | It does not cancel a client-owned domain registration, and it does not end obligations that survive termination. |
+
+| Term | Definition |
+|---|---|
+| Cancellation request date | When the client's cancellation request is received and recorded (portal form or written notice, §15.1.1) |
+| Effective cancellation date | When the subscription actually ends. **[PROPOSED]** This is the end of the current paid billing period, matching draft agreement §7, pending legal review (DEP-03). |
+| M1 deadline | 23:59:59 America/Detroit on the 12th business day after the effective cancellation date. The trigger date is excluded, subject to legal confirmation. **[APPROVED OI-35, OI-43]** |
+| M2 deadline | 23:59:59 America/Detroit on the 60th calendar day after the effective cancellation date. The trigger date is excluded, subject to legal confirmation. **[APPROVED OI-35 (revised), OI-43]** |
+| Designated recurring database/infrastructure expenditures | Which resources are designated is defined by the final agreement (DEP-03). **[PROPOSED]** Each project records its designated resources in an inventory. Nothing is treated as designated for a production client until counsel-approved text exists. |
+
+**Website availability between M1 and M2 [APPROVED, Owner instruction 2026-11-23]:**
+- The website may keep running on the remaining agency-managed services. **Continued functionality is not guaranteed** once required infrastructure has been discontinued.
+- Spotlight does **not** implement intentional website degradation. **[PROPOSED examples]** No deliberate disabling, throttling, warning banners, or feature removal designed to pressure the client.
+
+**Procedure [APPROVED OI-35, revised]:**
+1. Record the request date and the effective cancellation date, as separate fields.
+2. At the effective cancellation date, notify the client of the M1 and M2 dates and the responsibilities that pass to them: **hosting, domain registration and renewals, DNS, website security, maintenance, backups, monitoring, and other ongoing operational services**.
+3. Provide the contractually required transfer materials and reasonable transition assistance up to M2 (draft agreement §8).
+4. On or after M1: Owner-authorized, audited discontinuation of maintenance and designated recurring expenditures (06 §8.4).
+5. Send the required notices before M2. Their content and timing follow the final agreement (DEP-03). **[PROPOSED]** Reminders at M1, 30 days before M2, and 7 days before M2.
+6. After M2, and only once the required notices are recorded: Owner-authorized, audited deactivation of the remaining agency-managed services (06 §8.4). This is never automatic deletion.
+7. The agency's ongoing service obligations end as the final agreement provides. Obligations that survive termination legally or contractually remain.
+
+**Domain registration [APPROVED, Owner instruction 2026-11-23]:**
+- Where a domain is registered for a client, the **initial registration term is one year from its actual purchase or registration date**. The registration date and the registrar-reported expiry are recorded **[PROPOSED]**. Neither is derived from project or cancellation dates.
+- **Domain registration is separate from hosting.** A registration does not guarantee hosting or website functionality, and deactivating hosting does not affect the registration.
+- Cancellation **never** automatically cancels, deletes, transfers, or lets lapse a client-owned domain. Renewal responsibility after the initial term, ownership, and transfer mechanics follow the final agreement (DEP-03). Registrar behavior is verified under DEP-06.
+
+**Safeguards [APPROVED OI-35]:**
+- Legal responsibilities are **not** described as disappearing automatically.
+- Applicable records are retained (07 §6), and legal holds apply.
+- **Enforcement requires legal review** (DEP-03). The milestone terms are incorporated only from the final counsel-approved agreement; this specification does not draft contract wording. Until that agreement exists, M1 and M2 are not enforced against production clients.
+- **[APPROVED OI-46]** A failed payment never starts the milestones. Only an Owner-authorized, documented service termination (§9.1.1, stage 5) or a confirmed client cancellation does, from the documented effective cancellation date. A Stripe cancellation webhook alone is never authorization to discontinue services or remove a website.
+
+#### 15.1.1 Cancellation request handling **[APPROVED OI-29, OI-35; workflow PROPOSED]**
+
+Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
+
+| Element | Specification |
+|---|---|
+| Channels | An authenticated portal cancellation request form, or written notice to the Provider (draft agreement §7) recorded by staff |
+| Records | `cancellation_requests`: requester, channel, request date, effective cancellation date, M1 deadline, M2 deadline, notices sent, status |
+| States | `received → confirmed → scheduled (cancel at period end in Stripe) → effective → maintenance_ceased (on or after M1) → offboarded (on or after M2, after notices) / transferred` |
+| Stripe action | The Owner or an authorized process sets the subscription to cancel at period end. This happens in production only under production authorization. |
+| Audit | `cancellation.requested`, `cancellation.confirmed`, `cancellation.effective`, `cancellation.milestones_notified`, `cancellation.notice_sent`, `cancellation.maintenance_ceased`, `cancellation.services_deactivated`, `cancellation.transferred` |
+| Independence | Cancelling the subscription does not cancel an outstanding development agreement or remove development payment obligations (draft agreement §7) |
+
+### 15.2 Refunds and cancellation accounting **[APPROVED OI-35; amounts DEFERRED to legal review]**
+
+- **Development deposit refunds:** the draft agreement §7 lets the Provider keep payment reasonably attributable to work performed and to non-recoverable expenses, and refund any unearned balance. Final terms require legal review (DEP-03).
+- **Remaining-balance obligations:** cancelling the subscription does not remove the development balance for work properly performed.
+- **Discretionary refund authority:** **Owner only**, with a documented reason, reauthentication, and an audit event.
+- **Accounting:** a refund is a `refund` ledger entry derived from the Stripe webhook, linked to a `refund_discretionary` decision record. The original charge entries are never edited.
+
+### 15.3 Tax readiness **[APPROVED OI-36]**
+
+- The financial architecture is tax-ready: service categories (§12), Stripe product tax codes per category, and Stripe Tax support where appropriate **[VERIFY-PROVIDER]**.
+- No taxability is assumed.
+- **Production tax collection is not activated** without qualified tax review and Owner authorization (DEP-04). Test mode runs without tax collection.
+
+### 15.4 Disputes and chargebacks **[APPROVED OI-37]**
+
+| Requirement | Specification |
+|---|---|
+| Tracking | `charge.dispute.*` webhooks create and update `disputes` records and ledger entries |
+| Notification | Immediate Owner notification (07 §4) |
+| Deadlines | Store the Stripe evidence due date, with reminders before it **[PROPOSED: 7, 3, 1 days]** |
+| Evidence | An evidence package compiled from authoritative records: agreement acceptance and version hash, order summary, payment records, communications log, preview approvals, and fulfillment and publication records |
+| Authority | Response submission and settlement are **Owner only** |
+| Holds | A `dispute_risk_hold` may be applied when appropriate (§14) |
+| Prohibited | Automatic website takedown merely because a dispute exists; fabricated or altered evidence; automatic concession |
+| Outcome | Won or lost outcomes are recorded in the ledger and audit log |
+
+### 15.5 Deferred items
+
+| Item | Dependency |
+|---|---|
+| Final agreement text, including signer authority wording, notice terms, refund terms, domain initial term and transfer, the M1 (12 business days) and M2 (60 calendar days) milestone clauses, and the definition of designated infrastructure | DEP-03 |
+| Tax determination and Stripe Tax production configuration | DEP-04 |
+| Live Price ID verification | DEP-02 |
+
+## 16. Payment-related acceptance tests **[PROPOSED]**
+
+| ID | Test |
+|---|---|
+| T-PAY-01 | For each package, the initial Checkout's first invoice totals deposit + 9900 cents (table §8). The maintenance line appears exactly once. |
+| T-PAY-02 | `deposit + balance = total` and the deposit equals `round_half_up(20%)` for all packages and for property-based random totals |
+| T-PAY-03 | A webhook with an invalid signature is rejected and changes no state |
+| T-PAY-04 | Visiting the success URL without a processed webhook leaves the deposit `pending` and intake locked |
+| T-PAY-05 | Replaying the same event ID (×N, concurrently) posts each ledger entry exactly once |
+| T-PAY-06 | Out-of-order delivery (`invoice.paid` before `checkout.session.completed`) produces the correct final state |
+| T-PAY-07 | An event whose amount differs from the snapshot is quarantined and never verifies payment |
+| T-PAY-08 | A `livemode` mismatch for the environment is rejected |
+| T-PAY-09 | Final Checkout cannot be created before deposit verification and current-release approval |
+| T-PAY-10 | No API or UI path exists that records a payment as received without a Stripe event (code search plus negative API test) |
+| T-PAY-11 | A client cannot create a Checkout Session for another project (cross-tenant) |
+| T-PAY-12 | Price verification mismatch blocks Checkout creation |
+| T-AGR-01 | The acceptance checkbox renders unchecked. The server rejects acceptance without an explicit true value. |
+| T-AGR-02 | Initial Checkout cannot be created without a current acceptance |
+| T-AGR-03 | Acceptance evidence includes every §3 field. The stored hash matches the version text. |
+| T-AGR-04 | A material change moves the state to `reacceptance_required` and blocks gated actions until re-acceptance |
+| T-AGR-05 | Staff cannot accept on a client's behalf |
+| T-AGR-06 | Acceptance is rejected unless the separate authority checkbox is explicitly true and legal name, business legal name, and title are present (OI-28) |
+| T-AGR-07 | `agreement.accepted` and `agreement.effective` are distinct events. `effective` occurs only after deposit verification (OI-34). |
+| T-BIL-01 | A failed renewal places `maintenance_payment_hold` only after 7 full calendar days unresolved. Recovery within the window places no hold. (OI-26) |
+| T-BIL-02 | `maintenance_payment_hold` blocks publication, keeps portal access, and issues no request that disables a live site |
+| T-BIL-03 | A verified recovery payment clears the hold automatically |
+| T-BIL-04 | The Customer Portal session opens only for the caller's own customer. Cancellation is not offered in the portal configuration. (OI-29) |
+| T-BIL-05 | A full waiver creates a `waiver` entry, creates no Stripe payment, and satisfies G4 with the disclosure flag (OI-27) |
+| T-BIL-06 | Adjustments require Owner, reauthentication, and a reason. Admin attempts are rejected and audited. |
+| T-BIL-07 | Cancellation records hold a request date and an effective date separately. M1 is computed 12 business days, and M2 60 calendar days, after the effective date using the approved calendar (OI-35, OI-43). |
+| T-BIL-08 | No automated process cancels, deletes, or lets lapse a client-owned domain |
+| T-BIL-09 | A dispute webhook notifies the Owner, records the deadline, and triggers no takedown (OI-37) |
+| T-BIL-10 | Ledger entries carry a service category. Tax collection is disabled outside authorized production configuration. (OI-36) |
+| T-BIL-11 | The adjusted final Checkout has only the balance line item. The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
+| T-BIL-12 | After an adjusted final payment, no discount is attached to the customer or subscription, and the next maintenance renewal invoice is exactly 9900 cents |
+| T-BIL-13 | The adjustment record contains every §10.1 field. An Admin attempt is rejected and audited. |
+| T-BIL-14 | Through day 7 of recovery: no hold, no termination state, no discontinuation or deactivation request. After the period: the hold is placed and an Owner review item exists. (OI-46) |
+| T-BIL-15 | An unexpected `customer.subscription.deleted` creates an exception review. No transition starts, and the site is unaffected. |
+| T-BIL-16 | Duplicate termination authorizations or duplicate webhooks produce exactly one termination and one set of M1 and M2 deadlines |
+| T-BIL-17 | Maintenance discontinuation is rejected before M1. Deactivating remaining services is rejected before M2 or without the required notices recorded. (OI-35) |
+| T-BIL-18 | No code path or configuration deliberately degrades a client website (code review checklist and negative test) |
+| T-BIL-19 | Domain expiry is taken from the actual registration date and registrar record. Cancellation, M1, and M2 make no registrar call that cancels, deletes, or transfers the domain. |

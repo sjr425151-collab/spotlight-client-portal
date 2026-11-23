@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.7.0 |
-| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value. |
+| Version | 0.7.1 |
+| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value; v0.7.1 records provider verification of the `livemode` field and clarifies `tax_behavior` (§6.1, §6.3), with no change to any catalog value or procedure. |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63, OI-64, OI-65 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
@@ -202,7 +202,7 @@ Attributes common to every entry:
 | Price | `lookup_key` | the row's lookup key |
 | Price | metadata `catalog_key`, `catalog_version`, `expected_unit_amount` | the row's key, `1`, and the row's cents as a string |
 | Price | `active` | `true` |
-| Price | not set | `tax_behavior` (left unspecified pending DEP-04, because it can be set only once), `nickname`, `transfer_lookup_key`, tiers |
+| Price | not set | `tax_behavior` (left unspecified pending DEP-04, because once it is set to `inclusive` or `exclusive` it cannot be changed), `nickname`, `transfer_lookup_key`, tiers |
 
 **Versioning:** `catalog_version` and the `spotlight_v1_` prefix identify this manifest. Any change to an amount, name, or structure is a new version (`v2`), recorded in 08, with new objects. Existing objects are never edited to fit a new version. Retiring an old version is a separate, Owner-authorized Stripe change.
 
@@ -249,9 +249,9 @@ Idempotency:
 ### 6.3 Execution constraints **[PROPOSED]**
 
 - The credential is a restricted **test-mode** key limited to the permissions in [OPEN-ISSUES.md DEP-01](../OPEN-ISSUES.md#dep-01-detail--stripe-test-mode-catalog).
-- **Test-mode preflight (fail closed).** The presence of a `livemode` field on the Balance object has **not** been verified against current Stripe documentation in this repository **[VERIFY-PROVIDER, DEP-06]**. The preflight therefore never treats a missing or unexpected field as a pass:
+- **Test-mode preflight (fail closed).** **Provider-verified (2026-11-23):** Stripe's official OpenAPI specification (version `2026-09-30.endive`, `github.com/stripe/openapi` commit `2dcbcfb`) defines `livemode` as a **required boolean** on the Balance, Product, and Price objects ("If the object exists in live mode, the value is `true`. If the object exists in test mode, the value is `false`."). List responses do not carry `livemode`; only the objects inside them do. The preflight still never treats a missing or unexpected field as a pass:
   1. **Before the run:** the Owner attests, from the Stripe Dashboard, that the key was created in **test mode** and begins `rk_test_`. The agent cannot see the key, because the proxy injects it.
-  2. **Before the run:** the Balance object's `livemode` field, and the `livemode` field on Product and Price objects, are confirmed in the current official Stripe API reference and recorded (DEP-06). If any of them cannot be confirmed, the run does not start, and the preflight is escalated to the Owner.
+  2. **Before the run:** the Balance object's `livemode` field, and the `livemode` field on Product and Price objects, are confirmed in the current official Stripe API reference and recorded (DEP-06). If any of them cannot be confirmed, the run does not start, and the preflight is escalated to the Owner. **Satisfied 2026-11-23** by the OpenAPI verification above. It is re-checked if the API version used for the run differs from `2026-09-30.endive`.
   3. **First request:** `GET /v1/balance`. The run continues only if the response is HTTP 200 **and** `livemode` is present **and** is exactly the boolean `false`. A missing field, `null`, `true`, any other value, or any error aborts the run before any other request.
   4. **Every later response:** each returned product or price must carry `livemode` exactly `false`, under the same rule. List responses are checked object by object. A list with no objects proves nothing about the mode and does not replace step 3.
 - Only list, retrieve, and create requests on products and prices are made. No object is updated, archived, or deleted.

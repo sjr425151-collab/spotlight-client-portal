@@ -531,7 +531,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Status:** Approved.
 - **Provenance:** Owner final reconciliation instructions, 2026-11-23.
 - **Dependencies:** DEP-06 (Stripe discount capability), DEP-03 (disclosure).
-- **Related open item:** OI-47 (deposit-stage adjustments, which OI-44 does not cover). **OI-55 (approved 2026-11-23):** after the OI-17 revision, the Owner-authorized discount is applied to the automatic final-balance invoice instead of a Stripe Checkout. Every other requirement above is unchanged.
+- **Related open item:** OI-47 (deposit-stage adjustments, which OI-44 does not cover). **OI-55 (approved 2026-11-23):** after the OI-17 revision, the Owner-authorized discount is applied to the automatic final-balance invoice instead of a Stripe Checkout. Every other requirement above is unchanged. Collecting a discounted final balance stays blocked until separate Owner authorization.
 - **Affected sections:** 04 §10–§10.1, §12; 03 §4, §12; 06 §2.
 
 ### OI-45 — Day-21 preview approval hold
@@ -594,8 +594,9 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - restricted to the balance product, with a single redemption
   - never attached to the Stripe Customer or the subscription
   - the invoice total and discount are verified against the authorized adjusted amount, and any mismatch is quarantined
-- **Status:** Approved.
-- **Provenance:** Owner instruction, 2026-11-23 ("I approve OI-55 option A").
+- **Collection block:** no discounted final balance may be collected until the Owner separately authorizes it in writing. Standard balances and full waivers are unaffected.
+- **Status:** Approved (mechanism). Collection of discounted final balances: **blocked** pending separate Owner authorization.
+- **Provenance:** Owner instructions, 2026-11-23 ("I approve OI-55 option A - no discounted final balance can be collected"; confirmed "Keep in place").
 - **Dependencies:** DEP-06 (Stripe verification of an invoice-level discount restricted to the balance product).
 - **Affected sections:** 04 §10–§10.1, §16 (T-BIL-11); 03 §4; OI-44.
 
@@ -652,7 +653,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-45 | Day-21 preview approval hold | Approved | 4 | 05 §7.2; 04 §14 | — | — |
 | OI-48 | Theme mode: dark-only MVP | Approved | 1 | 07 §10 | DEP-08 (future light variant) | — |
 | OI-49 | Temporary logo compositing | Approved | 1 | 07 §10.1 | DEP-08 | Owner asset approval |
-| OI-55 | Adjusted final-balance collection vehicle | Approved | 3 | 04 §10–§10.1 | DEP-06 | Provider (Stripe invoice discounts) |
+| OI-55 | Adjusted final-balance collection vehicle | Approved; collection blocked | 3 | 04 §10–§10.1 | DEP-06; separate Owner authorization to collect | Provider (Stripe invoice discounts) |
 | OI-46 | Involuntary subscription cancellation | Approved | 3 | 04 §9.1.1; 06 §8.4 | DEP-03, DEP-06 | Legal; provider (Stripe `past_due` behavior) |
 
 ## 4. Current authorization status
@@ -681,7 +682,7 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.6.0 | 2026-11-23 | Final Phase 1 refinements. OI-48 approved (dark-only MVP, light-theme compatibility preserved). OI-49 approved (temporary logo compositing; master preserved). The CSP `'unsafe-inline'` limitation is tracked as the Phase 2 security requirement DEP-13 / T-SEC-03. Production gating test added. | Claude Code | Owner (Owner instruction, 2026-11-23 (final Phase 1 refinements)) |
 | 0.7.0 | 2026-11-23 | Phase 2 security specification finalization (documentation only): spec 03 v0.4.0 drafted for Owner sign-off, with Supabase and Next.js provider verification evidence in the new 03A. **No Owner decision changed.** All new design detail is [PROPOSED]. Opened OI-50 to OI-52; added DEP-14; DEP-13 designed. | Claude Code | Pending owner review |
 | 0.8.0 | 2026-11-23 | **OI-17 revised (Owner instruction): automatic final-balance collection.** The payment method is saved at the initial Checkout under the legal-adviser-approved *Authorization for Final Payment* clause (04 §3.1, verbatim). The client's final approval (**Approve Website & Authorize Final Payment**) authorizes an automatic charge, with Stripe invoice and receipt, a Stripe-hosted completion option on failure, no publication before verified payment, duplicate-charge controls, and recovery without recharging. The separate final Checkout is removed from 01, 03, 04, 05, 06, 07 and README. Opened OI-55 (OI-44 collection vehicle). Documentation only. | Claude Code | Owner (instruction, 2026-11-23); OI-55 pending |
-| 0.8.1 | 2026-11-23 | **OI-55 approved (option A).** Owner-authorized final-balance discounts are applied to the automatic final-balance invoice, with every OI-44 safeguard unchanged. The interim block on adjusted final balances is lifted. 04 §10–§10.1, T-BIL-11 and 03 §4 updated. | Claude Code | Owner (instruction, 2026-11-23) |
+| 0.8.1 | 2026-11-23 | **OI-55 approved (option A).** Owner-authorized final-balance discounts are applied to the automatic final-balance invoice, with every OI-44 safeguard unchanged. **The block on collecting discounted final balances stays in place** until separate written Owner authorization. 04 §10–§10.1, T-BIL-11 and 03 §4 updated. | Claude Code | Owner (instructions, 2026-11-23) |
 
 ## 6. Change-control rules
 

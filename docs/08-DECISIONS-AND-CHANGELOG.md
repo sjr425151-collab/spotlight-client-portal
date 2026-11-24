@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.13.0 |
+| Version | 0.14.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -32,7 +32,7 @@ All specifications in this repository use these labels:
 |---|---|
 | **[APPROVED OI-nn]** | Owner-approved architectural requirement traced to decision OI-nn. Binding. |
 | **[PROPOSED]** | Engineering detail proposed by the documentation author. Not binding until the owner approves the specification containing it. |
-| **[PENDING OI-nn]** | Open owner decision tracked in [OPEN-ISSUES.md](../OPEN-ISSUES.md) Part 2 (currently OI-50 to OI-52). It must not be assumed. |
+| **[PENDING OI-nn]** | Open owner decision tracked in [OPEN-ISSUES.md](../OPEN-ISSUES.md) Part 2 (currently OI-72). It must not be assumed. |
 | **DEP-nn** | Implementation or production dependency (verification, review, asset, or setup) tracked in OPEN-ISSUES.md Part 3. It is not an open policy decision. |
 | **[DEFERRED]** | Legal, commercial, or brand policy deferred until production readiness. Placeholder only. |
 | **[VERIFY-PROVIDER]** | Behavior or capability of a third-party provider (Stripe, Supabase, Vercel, Resend, etc.) that must be verified against current provider documentation and plan limits during authorized implementation. |
@@ -769,7 +769,22 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-16 (the Owner switches the required status checks after merge).
 - **Affected sections:** `.github/workflows/ci.yml`; `scripts/ci/classify-changes.mjs`; docs/DEVELOPMENT.md §5; CLAUDE.md §6, §8; AUTHORIZATIONS.md §4.
 
-## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-70)
+### OI-71 — Gate-interface coverage, publication holds, and financial classification
+
+- **Decision (Owner direction, 2026-11-24), mapped onto the existing WP-0 contracts.** No new interface is added: 01 §7 says the single gate evaluator reads only `private.project_financial_status` and `private.project_fulfillment_status`, so each item extends one of them additively (`ALTER TYPE … ADD ATTRIBUTE`, with `contract_version` incremented in that interface).
+  1. **G1 derives from an authoritative agreement eligibility interface.** That interface is `private.project_financial_status`, owned by WP-B, which owns agreements and order summaries (01 §7). WP-B adds `agreement_state` and `agreement_effective`: effective for the current order summary, with no `reacceptance_required` (06 §2 G1). Source: acceptance and order-summary records (04 §1).
+  2. **G6 derives from an authoritative deployment and domain readiness interface.** That interface is `private.project_fulfillment_status`, owned by WP-C, which owns publication and deployment records (01 §7). WP-C adds `domain_ready`, `domain_check_id`, and `domain_checked_at`. Source: domain readiness results within the freshness window (06 §5).
+  3. **A centralized, fail-closed publication hold evaluator.** G8 is computed in the single gate evaluator (06 §2, owned by WP-C) from `active_billing_holds ∪ active_fulfillment_holds`. It fails closed if either interface reports `implemented = false` or cannot be read. Each hold keeps its authoritative domain and owner:
+     - `maintenance_payment_hold`, `dispute_risk_hold`, and `owner_manual_hold` are WP-B hold records (04 §14; Owner-only placement per 03 §4), reported in `active_billing_holds`. In this attribute, "billing" means "recorded by WP-B under 04 §14".
+     - `approval_nonresponsive_hold` is a WP-C fulfillment hold (05 §7.1), reported in `active_fulfillment_holds`.
+     - There is no shared hold table. Both packages use `public.hold_type`.
+  4. **Financial classification retained.** The payment and subscription domains are financial; agreement, fulfillment, approval, and deployment are general (`private.domain_is_financial`; `src/domain/contracts`). The rest of the Owner's item 4 (Admin receives only derived operational eligibility, with no direct access to restricted financial records) conflicts with the approved 03 §4 row "View payments and ledger: Admin ✅ (read)". It is escalated as **OI-72** and is not implemented until the Owner decides.
+- **Status:** Approved (items 1–3 and the classification in item 4). The Admin access restriction is pending in OI-72.
+- **Provenance:** Owner direction, 2026-11-24 ("For OI-71, my architectural direction is: …").
+- **Dependencies:** OI-72.
+- **Affected sections:** 01 §7 (gate interfaces), 06 §2 (G1, G6, G8); implemented in WP-B and WP-C migrations, `src/domain/contracts/gates.ts` (`GATE_SOURCES`).
+
+## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-71)
 
 Phase = the earliest original OI-02 phase whose implementation the decision governs. "Prod" = production launch. Since OI-67, phases 3, 4 and 5 correspond to WP-B, WP-C and WP-D, and release placement is given by the [R1]/[R2] tags in the specs (OI-68).
 
@@ -838,6 +853,7 @@ Phase = the earliest original OI-02 phase whose implementation the decision gove
 | OI-68 | Release scope: R1 and R2 | Approved | WP-B, WP-C | 01 §9; 04; 05; 06; 07 | DEP-03, DEP-06, DEP-07, DEP-12 | Legal (R1 approval wording) |
 | OI-69 | Test-only legal fixtures | Approved | WP-B | CLAUDE.md §5; 04 §1–§2 | — | — |
 | OI-70 | Path-aware, fail-closed CI; dependency patches | Approved | All | ci.yml; DEVELOPMENT §5 | DEP-16 | — |
+| OI-71 | Gate-interface coverage, publication holds, financial classification | Approved (Admin restriction pending OI-72) | WP-B, WP-C | 01 §7; 06 §2 | OI-72 | — |
 
 ## 4. Current authorization status
 
@@ -871,11 +887,12 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.12.4 | 2026-11-23 | **DEP-01 catalog created and verified** in sandbox "Spotlight Client Portal - Development" by run `dep01-20261123T220040Z-290aebd0` (48 requests; 10 products and 11 prices created, 1 product reused; all 11 entries verified, `livemode: false` throughout). 04 v0.7.4 records the Product and Price IDs and the execution record (§6.5). OI-30 status updated. DEP-01 complete on merge. The Stripe API suspension in CLAUDE.md §5 is unchanged and still applies to any further request. Phase 3 is not authorized. | Claude Code | Owner (resumed-run authorization, 2026-11-23) |
 | 0.12.5 | 2026-11-24 | Status wording only: CLAUDE.md §1 and §5, README, and the §4 authorization table now record the OI-30 catalog exception as used and closed (DEP-01 complete; PR #12 post-merge CI passed), and its execution authorization as completed and expired. The suspension of Stripe API requests is unchanged and still requires a separate, narrowly scoped written Owner authorization for any further request. No decision, restriction, or catalog value changed. | Claude Code | Owner (instruction, 2026-11-24) |
 | 0.13.0 | 2026-11-24 | **Execution model correction (WP-A), approved by the Owner on 2026-11-23** (reply "APPROVE" to the consolidated execution plan). New decisions **OI-67** (risk-tier authorization, work packages, canonical CURRENT-STATE and AUTHORIZATIONS documents, evidence carried in implementation PRs), **OI-68** (R1/R2 release scope), **OI-69** (test-only legal fixtures), and **OI-70** (path-aware, fail-closed CI; dependency security patch exception). **OI-50** (A), **OI-51** (A), and **OI-52** (C) decided. Dated revisions of OI-01, OI-02, OI-04, OI-17, OI-18, OI-22, OI-25, OI-26, OI-29, OI-33, OI-44, OI-45, and OI-55 record release sequencing; no requirement removed. Specs 01 (v0.4.0), 04 (v0.8.0, adds §17 payment architecture invariants), 05 (v0.4.0), 06 (v0.5.0), 07 (v0.4.0), and this register approved as amended. CLAUDE.md rewritten (every security control preserved; CLAUDE.md section numbers cited in entries and rows before v0.13.0 refer to its earlier numbering); README slimmed. Corrected stale records: 04 §6 DEP-01 status, OPEN-ISSUES DEP-01 current status and DEP-10 required checks. Grants recorded as AUTH-001 to AUTH-003. CI: classifier, aggregate `CI result`, Playwright cache and bounded install, PR-only cancellation. | Claude Code | Owner (consolidated execution plan approval, 2026-11-23) |
+| 0.14.0 | 2026-11-24 | **WP-0 integrated** (PR #15, merge commit `60954d4`). **OI-71 decided** by Owner direction and mapped onto the existing gate interfaces: G1 through `project_financial_status` (WP-B), G6 through `project_fulfillment_status` (WP-C), and G8 as a fail-closed union of both hold lists in the single gate evaluator, with each hold kept in its owning domain. The financial classification of the payment and subscription domains is retained. The Owner's Admin-access restriction conflicts with the approved 03 §4 row and is escalated as OI-72. No spec text is changed. | Claude Code | Owner (direction, 2026-11-24) |
 
 ## 6. Change-control rules
 
 1. **Decision changes.** A change to any recorded decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
-2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-71 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-17 onward). Authorization records use AUTH-nnn IDs (currently AUTH-004 onward). When the owner resolves one, it is recorded in this register under that same ID.
+2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-73 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-17 onward). Authorization records use AUTH-nnn IDs (currently AUTH-004 onward). When the owner resolves one, it is recorded in this register under that same ID.
 3. **Specification changes.** Changes to specifications 01–07 go through a pull request. Each spec carries a version and status header. A spec moves from *Draft* to *Approved* only on owner sign-off recorded in §5.
 4. **Precedence.** (a) Owner-approved decisions in this register. (b) Approved specifications 01–07. (c) CLAUDE.md for operating procedure. (d) README. A lower-precedence document must never be used to override a higher one.
 5. **Conflicts.** Any conflict between documents, or between a document and an owner decision, is **escalated** to the owner as an open issue. It is never silently resolved by an author or agent.

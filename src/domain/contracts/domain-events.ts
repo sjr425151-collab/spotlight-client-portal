@@ -59,6 +59,48 @@ export const DOMAIN_EVENT_TYPES = [
 
 export type RegisteredDomainEventType = (typeof DOMAIN_EVENT_TYPES)[number]["type"];
 
+// --- WP-B section (registered in supabase/migrations/20261124160000_wpb_agreements.sql) ---
+const wpb = (type: string, domain: StateDomain, consumers: readonly OwnerPackage[] = []) =>
+  ({ type, domain, owner: "WP-B", schemaVersion: 1, consumers }) as const satisfies DomainEventType;
+
+/** WP-B's own event types (01 §7). Additive; WP-0's list above is unchanged. */
+export const WP_B_DOMAIN_EVENT_TYPES: readonly DomainEventType[] = [
+  wpb("agreement.effective", "agreement"),
+  wpb("agreement.reacceptance_required", "agreement"),
+  wpb("order_summary.issued", "agreement"),
+  wpb("payment.balance_due", "payment"),
+  wpb("payment.balance_invoice_opened", "payment"),
+  wpb("payment.balance_verified", "payment", ["WP-C"]),
+  wpb("payment.balance_failed", "payment"),
+  wpb("payment.hold_placed", "payment"),
+  wpb("payment.hold_cleared", "payment"),
+  wpb("payment.refund_recorded", "payment"),
+  wpb("payment.dispute_opened", "payment"),
+  wpb("payment.dispute_closed", "payment"),
+  wpb("subscription.status_changed", "subscription"),
+  wpb("subscription.payment_failed", "subscription"),
+  wpb("subscription.payment_recovered", "subscription"),
+  wpb("subscription.cancellation_exception", "subscription"),
+  wpb("subscription.cancellation_requested", "subscription"),
+  wpb("subscription.termination_authorized", "subscription"),
+  wpb("subscription.termination_effective", "subscription"),
+];
+
+/**
+ * What WP-B's durable consumer requires of `release.approved` (schema version 1), emitted by
+ * WP-C: `project_id` set, `subject_type` "preview_release", `subject_id` the approved release
+ * ID, and `payload.approval_id` the client approval ID (both UUIDs). The consumer is
+ * idempotent per event, and the obligation it creates is unique per order summary and per
+ * project, so replays, repeated approvals, and later releases never create a second invoice.
+ */
+export const RELEASE_APPROVED_CONSUMER_CONTRACT = {
+  eventType: "release.approved",
+  schemaVersion: 1,
+  subjectType: "preview_release",
+  payloadKeys: ["approval_id"],
+  consumer: "wpb.final_balance_invoice",
+} as const;
+
 /** Limits enforced by the database (`private.payload_is_safe`). */
 export const DOMAIN_EVENT_PAYLOAD_MAX_BYTES = 8192;
 export const NOTIFICATION_PAYLOAD_MAX_BYTES = 2048;

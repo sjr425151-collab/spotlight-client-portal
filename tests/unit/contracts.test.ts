@@ -212,13 +212,15 @@ describe("WP-0 gate interfaces (06 §2)", () => {
     expect(sqlComposite("project_fulfillment_status")).toEqual([...FULFILLMENT_STATUS_ATTRIBUTES]);
   });
 
-  it("covers G1-G8; G6 is supplied by WP-C, and only G1 awaits its WP-B attribute (OI-71)", () => {
+  it("covers G1-G8; G1 is supplied by WP-B and G6 by WP-C, so no gate is unassigned (OI-71)", () => {
     expect(Object.keys(GATE_SOURCES)).toEqual(["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"]);
+    // OI-71 item 1 (WP-B): G1 comes from the financial interface.
+    expect(GATE_SOURCES.G1).toBe("financial");
     expect(
       Object.entries(GATE_SOURCES)
         .filter(([, source]) => source === null)
         .map(([g]) => g),
-    ).toEqual(["G1"]);
+    ).toEqual([]);
     expect(GATE_SOURCES.G6).toBe("fulfillment");
   });
 

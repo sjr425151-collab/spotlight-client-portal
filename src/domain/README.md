@@ -16,3 +16,4 @@ Modules:
 - `uploads.ts`, `svg-sanitize.ts`, `image-safety.ts` (WP-C, spec 05 §5): upload rules mirrored from the database, content and magic-byte validation, the allowlist SVG sanitizer, and raster dimension limits with metadata stripping.
 - `intake.ts` (WP-C, spec 05 §3): intake fields mirrored from the database.
 - `publication.ts` (WP-C, spec 05 §7, 06 §2): the gate-result shape (fail-closed parsing) and the R1 approval wording. Gates are evaluated only in the database.
+- `billing/` (WP-B, spec 04): integer-cents package pricing (`pricing.ts`) and the verbatim 04 §3.1 clause and OI-69 fixture label (`agreement.ts`). Both are checked against the WP-B migrations and spec 04 by `tests/unit/wpb-contracts.test.ts`. The deadline calendar lives only in the database (`private.add_business_days`, `private.end_of_local_day`), so it is computed in one place (02 §13).

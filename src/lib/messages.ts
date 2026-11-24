@@ -93,6 +93,55 @@ export const MESSAGES = {
   already_registered: "A deployment target is already registered.",
   target_in_use: "That deployment target belongs to another project.",
   verification_recorded: "Live verification was recorded.",
+  // Agreement and payments (WP-B)
+  agreement_accepted: "Agreement accepted. You can now make the initial payment.",
+  explicit_acceptance_required:
+    "Please tick both boxes to accept the agreement and confirm your authority.",
+  signer_details_required:
+    "Please enter your full legal name, the business legal name, and your title.",
+  order_summary_superseded: "This order summary has been replaced. Please review the current one.",
+  already_accepted: "This order summary has already been accepted.",
+  hash_mismatch: "This agreement could not be verified. Spotlight Marketing has been alerted.",
+  agreement_version_not_usable:
+    "This agreement version is not available. Spotlight Marketing has been alerted.",
+  email_not_verified: "Your email address must be verified before you can accept.",
+  acceptance_required: "Please accept the current agreement before paying.",
+  deposit_already_verified: "Your deposit has already been received.",
+  catalog_mismatch: "Payment is temporarily unavailable. Spotlight Marketing has been alerted.",
+  price_verification_failed:
+    "Payment is temporarily unavailable. Spotlight Marketing has been alerted.",
+  checkout_in_progress: "A payment is already in progress for this project.",
+  checkout_unavailable: "Payment is temporarily unavailable. Please try again.",
+  reconciliation_required:
+    "Your payment is being checked. Please do not pay again; we will contact you.",
+  payments_unavailable: "Online payment is not available in this environment.",
+  stripe_rejected: "Payment could not be started. Please try again.",
+  cancellation_received:
+    "Your cancellation request was received. We will confirm the effective date.",
+  order_summary_issued: "Order summary issued.",
+  // OI-81: once the deposit is verified, the accepted pricing is fixed.
+  price_change_after_deposit:
+    "The deposit has been paid, so this project's total, deposit and balance cannot change.",
+  no_usable_agreement_version: "No approved agreement version is available.",
+  hold_placed: "Hold placed.",
+  hold_cleared: "Hold cleared.",
+  hold_type_not_manual: "That hold type cannot be placed manually.",
+  // Final-payment authorization (WP-B, OI-74)
+  recovery_unavailable: "The secure card page is not available right now. Please try again.",
+  deposit_required: "The initial payment must be received first.",
+  authorization_active: "A card is already saved for the final balance.",
+  new_acceptance_required:
+    "Automatic final payment was turned off. Please contact Spotlight Marketing to set it up again.",
+  card_saved: "Thank you. Stripe will confirm your card shortly.",
+  authorization_revoked:
+    "Automatic final payment is turned off. You can pay the final balance on its Stripe invoice page.",
+  no_authorization: "There is no saved card to turn off.",
+  authorization_revoked_staff: "Revocation recorded. Automatic final payment is off.",
+  revocation_reviewed: "Revocation review recorded.",
+  signer_required:
+    "Only the person who accepted the agreement can turn off automatic final payment.",
+  client_reauthentication_required:
+    "For your security, please sign in again with a new code, then turn off automatic final payment within five minutes.",
 } as const;
 
 export type MessageCode = keyof typeof MESSAGES;

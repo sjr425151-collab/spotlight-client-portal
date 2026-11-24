@@ -9,12 +9,19 @@
  * order; `tests/unit/contracts.test.ts` checks them. Until an owning package implements its
  * function, it returns `implemented: false` and no satisfied input, so no gate can pass.
  *
- * OI-71 (decided): G1 derives from the financial interface (WP-B adds `agreement_state` and
- * `agreement_effective`), G6 from the fulfillment interface (WP-C added `domain_ready`,
+ * OI-71 (decided): G1 derives from the financial interface (WP-B added `agreement_state` and
+ * `agreement_effective`, contract version 2; OI-74 added `payment_authorization_ready` and
+ * `payment_authorization_state`, contract version 3), G6 from the fulfillment interface (WP-C added `domain_ready`,
  * `domain_check_id`, `domain_checked_at`, contract version 2), and G8 is the fail-closed
  * union of both hold lists in the single evaluator. Extending a status type is additive.
  */
-import type { DepositState, FinalBalanceState, HoldType, IntakeState } from "./state-domains";
+import type {
+  AgreementState,
+  DepositState,
+  FinalBalanceState,
+  HoldType,
+  IntakeState,
+} from "./state-domains";
 
 export const FINANCIAL_STATUS_ATTRIBUTES = [
   "project_id",
@@ -27,6 +34,11 @@ export const FINANCIAL_STATUS_ATTRIBUTES = [
   "balance_settled_by_adjustment",
   "active_billing_holds",
   "evidence",
+  // WP-B, contract versions 2-3 (OI-71 item 1, OI-74): FINANCIAL_STATUS_WPB_ATTRIBUTES.
+  "agreement_state",
+  "agreement_effective",
+  "payment_authorization_ready",
+  "payment_authorization_state",
 ] as const;
 
 export const FULFILLMENT_STATUS_ATTRIBUTES = [
@@ -60,6 +72,12 @@ export interface ProjectFinancialStatus {
   balance_settled_by_adjustment: boolean;
   active_billing_holds: HoldType[];
   evidence: Record<string, unknown>;
+  /** WP-B, contract_version 2 (OI-71 item 1): G1 is `agreement_effective`. */
+  agreement_state: AgreementState;
+  agreement_effective: boolean;
+  /** WP-B, contract_version 3 (OI-74): intake needs a ready payment authorization. */
+  payment_authorization_ready: boolean;
+  payment_authorization_state: PaymentAuthorizationState;
 }
 
 export interface ProjectFulfillmentStatus {
@@ -89,13 +107,33 @@ export const GATE_CONTRACT_VERSION = 1;
 export const FINANCIAL_STATUS_MIN_CONTRACT_VERSION = 1;
 export const FULFILLMENT_STATUS_CONTRACT_VERSION = 2;
 
+// --- WP-B section (OI-71 item 1; supabase/migrations/20261124160100_wpb_payments_ledger.sql) ---
+/** Attributes WP-B added to `private.project_financial_status`, in order (additive). */
+export const FINANCIAL_STATUS_WPB_ATTRIBUTES = [
+  "agreement_state",
+  "agreement_effective",
+  // OI-74 (04 §8.1): WP-C's intake precondition reads payment_authorization_ready.
+  "payment_authorization_ready",
+  "payment_authorization_state",
+] as const;
+/** `contract_version` reported by the WP-B implementation of the financial interface. */
+export const FINANCIAL_CONTRACT_VERSION = 3;
+
+/** `payment_authorization_state` values (04 §8.1); `none` until one is established. */
+export const PAYMENT_AUTHORIZATION_STATES = [
+  "none",
+  "active",
+  "payment_method_unavailable",
+  "revoked",
+] as const;
+export type PaymentAuthorizationState = (typeof PAYMENT_AUTHORIZATION_STATES)[number];
+
 /**
- * Gates G1-G8 (06 §2) and the interface that supplies each (OI-71). `null` marks a gate whose
- * owning package has not yet published its attribute: G1 stays `null` until WP-B adds
- * `agreement_effective` (the evaluator already reads it and fails closed until then).
+ * Gates G1-G8 (06 §2) and the interface that supplies each (OI-71). Every gate now has a
+ * published source: WP-B supplies G1 (`agreement_effective`), WP-C supplies G6.
  */
 export const GATE_SOURCES = {
-  G1: null,
+  G1: "financial", // WP-B, OI-71 item 1
   G2: "financial",
   G3: "fulfillment",
   G4: "financial",

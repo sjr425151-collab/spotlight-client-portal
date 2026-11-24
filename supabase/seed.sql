@@ -54,3 +54,9 @@ select set_config('request.jwt.claims', '', true);
 -- only place the mocked malware scanner may release a file from quarantine. Hosted
 -- databases are never seeded, so they have no row and the mock is refused there.
 insert into private.runtime_environment (app_env) values ('development');
+
+-- WP-B (OI-69): mark this database as non-production and install the test-only agreement
+-- fixture. Production never runs this seed, so production has no environment row and every
+-- fixture and test-mode path fails closed there.
+insert into private.environment_settings (app_env) values ('development');
+select private.install_test_agreement_fixture();

@@ -131,7 +131,11 @@ export const PUBLICATION_STATES = [
 ] as const;
 export type PublicationState = (typeof PUBLICATION_STATES)[number];
 
-/** Hold types (04 §14). Which gate interface reports each is open in OI-71. */
+/**
+ * Hold types (04 §14). OI-71 item 3 (decided): `maintenance_payment_hold`, `dispute_risk_hold`
+ * and `owner_manual_hold` are WP-B records reported in `active_billing_holds`;
+ * `approval_nonresponsive_hold` is a WP-C hold reported in `active_fulfillment_holds`.
+ */
 export const HOLD_TYPES = [
   "maintenance_payment_hold",
   "approval_nonresponsive_hold",

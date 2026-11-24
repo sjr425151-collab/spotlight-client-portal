@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.16.1 |
+| Version | 0.17.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -811,6 +811,19 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** none.
 - **Affected sections:** 04 §10 (preconditions note). No other text changes.
 
+### OI-78 — AUTH-005 policy decisions, WP-S approval, and integration order
+
+- **Decision (Owner, 2026-11-24; formal record "AUTH-005 outstanding policy decisions"):**
+  1. **Pending client invitations remain valid** when a Sales Representative's assignment ends. Invitations belong to the agency's project and customer relationship, not the representative. Owner and authorized Admin users retain visibility and revocation. The former representative immediately loses all access to the project and all invitation-management capabilities.
+  2. **Ended assignments are hidden** from the representative's customer list. Historical assignment and transaction attribution records are preserved internally for authorized audit and future commission infrastructure. Assignment termination revokes project access at the **next authorization check**, including requests from previously authenticated sessions; no reliance on UI filtering or stale token claims.
+  3. **WP-S approved** as the separate work package for Sales Representative authorization infrastructure. The documented role-separation refinements are approved: explicit client identity checks, prevention of Sales Representative project memberships, the two narrowly scoped WP-C function replacements, and T-SALES-23 to T-SALES-25. All existing stop conditions and least-privilege requirements are retained. Regression coverage is added for assignment termination, pending invitations, existing authenticated sessions, and historical attribution preservation (T-SALES-26 to T-SALES-28).
+  4. **Integration order approved:** (1) PR #18; (2) WP-C; (3) WP-B rebased on WP-C; (4) WP-S following explicit AUTH-005 activation; (5) integrated R1 end-to-end and security verification; (6) real Stripe test-mode verification following explicit AUTH-002 activation.
+- **Authorization:** documentation finalization only. AUTH-005 is **not** granted or activated by this decision; its scope is final (AUTHORIZATIONS §3A). PR #18 is not merged by the agent; WP-S, WP-B, WP-C, AUTH-002, AUTH-003, Stripe, and production are unchanged.
+- **Status:** Approved.
+- **Provenance:** Owner decisions and integration direction, 2026-11-24 ("Formal Owner decisions and integration direction"; "This authorizes documentation finalization only.").
+- **Dependencies:** AUTH-005 grant and activation (Owner); AUTH-005 entry criteria.
+- **Affected sections:** 03 §4.1, §13 (v0.5.2); AUTHORIZATIONS AUTH-005 (v1.4.0); CURRENT-STATE §2, §6, §8, §9 (v1.5.0).
+
 ### OI-76 — Collection timing statement
 
 - **Decision (option A, Owner, 2026-11-24):** OI-73 and the payment-before-publication architecture are retained. The authoritative sequence is explicit client approval → authorized automatic final-balance collection → independently verified payment → publication. The earlier reference to collection after successful publication was inconsistent with the approved architecture; no reversal of OI-73 is intended.
@@ -827,7 +840,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Architecture approved with refinements (Owner, 2026-11-24):** (1) `private.is_staff()` stays Owner/Admin only; no existing privileged permission is widened. (2) Explicit, assignment-scoped Sales capabilities through the approved authorization architecture. (3) The initial assignment is created by one atomic authorized operation together with the customer and project; no orphaned records, unauthorized assignments, or partial creation. (4) Every later operation requires an active assignment, MFA, a live session, tenant isolation, and audit. (5) Permitted: create customers and projects, prepare catalog-controlled orders, initiate onboarding invitations, view explicitly permitted commercial information, for assigned customers only. (6) Not permitted: unrestricted financial records, pricing changes, refunds, holds, fulfillment, recording client approvals, publication, staff management, unassigned customers. (7) Transaction creator, assigned representative, and approval actor stay separate; commission processing and commission-beneficiary functionality are deferred. (8) Owner/Admin capabilities are preserved, and permissions are explicit in the role matrix (03 §4, Sales Representative column).
 - **Design (03 §4.1):** `private.is_staff()` keeps meaning Owner or Admin, because every existing staff policy and function keys on it (21 uses in the Phase 2 migration, 9 in WP-B, 32 in WP-C); adding a role that `is_staff()` accepts would give Sales Representatives Admin-level access to every customer. Sales access is granted only through a new assignment record and assignment-scoped SECURITY DEFINER functions.
 - **Authorization:** implementation changes Phase 2 security objects (`public.staff_role`, `invitations.intended_role` check, `private.is_staff()`, `private.create_invitation`, the app's role context and guards). AUTH-001 does not permit that. A **separate Tier 2 grant** is required (proposed as **AUTH-005**, work package WP-S; AUTHORIZATIONS §3A); until it is granted and activated, this is documentation only.
-- **Status:** Approved (requirement). Mechanics proposed.
+- **Status:** Approved (requirement). Mechanics proposed; the role-separation refinements, policy decisions, and WP-S were approved in **OI-78**.
 - **Provenance:** Owner decisions, 2026-11-24 ("A distinct Sales Representative role is a required R1 business capability."; formal record "OI-77 — DECIDED: OPTION A", uploaded document; restated in the formal decisions of 2026-11-24 with the same eight refinements and the instruction to prepare a narrowly scoped Tier 2 authorization proposal, not to implement before it is reviewed and activated).
 - **Mechanics review (2026-11-24, no decision change):** a read-only review of the pushed WP-B (`ae482c4`) and WP-C (`bd03be1`) branches found that narrowing `is_staff()` alone would let a Sales user holding a project membership pass WP-C's client check and record a client approval, contrary to refinement 6. The proposed mechanics now keep Sales Representatives out of the client role entirely and name two WP-C function replacements (03 v0.5.1 §4.1; T-SALES-23 to T-SALES-25; AUTH-005 revised).
 - **Dependencies:** AUTH-005 review and activation (Owner).
@@ -857,7 +870,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-03 (revocation effect; re-authorization after revocation), DEP-06 and DEP-15 (test-mode confirmation of the 04 §8.2 items), AUTH-002 coverage of setup-mode Checkout Sessions (Owner confirmation, CURRENT-STATE §6).
 - **Affected sections:** 01 §9.1, §9.2 (v0.4.1); 04 §8, §8.1, §8.2, §10, §11, §16, §17 (v0.9.0); 05 §3, §7, §11 (v0.4.2); README.
 
-## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-77)
+## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-78)
 
 Phase = the earliest original OI-02 phase whose implementation the decision governs. "Prod" = production launch. Since OI-67, phases 3, 4 and 5 correspond to WP-B, WP-C and WP-D, and release placement is given by the [R1]/[R2] tags in the specs (OI-68).
 
@@ -931,7 +944,8 @@ Phase = the earliest original OI-02 phase whose implementation the decision gove
 | OI-73 | Final-balance collection order relative to publication (option A: approved order kept) | Approved | WP-B, WP-C | 04 §10; 06 §2 G4 | — | — |
 | OI-75 | Recovery and revocation scope: independent of the maintenance subscription (option A) | Approved | WP-B | 04 §8.1; AUTH-002 | — | — |
 | OI-76 | Collection timing statement (option A: OI-73 retained) | Approved | WP-B, WP-C | — | — | — |
-| OI-77 | Sales Representative role (R1) | Approved (requirement; mechanics proposed) | WP-S (proposed), WP-B | 01 §6; 03 §3, §4, §4.1, §13; OI-03 | AUTH-005 (proposed) | — |
+| OI-77 | Sales Representative role (R1) | Approved (requirement; mechanics proposed, refinements approved in OI-78) | WP-S (proposed), WP-B | 01 §6; 03 §3, §4, §4.1, §13; OI-03 | AUTH-005 (scope final, not granted) | — |
+| OI-78 | AUTH-005 policy decisions; WP-S approval; integration order | Approved | WP-S | 03 §4.1, §13; AUTHORIZATIONS AUTH-005; CURRENT-STATE §8 | AUTH-005 grant and activation | — |
 | OI-74 | Mandatory payment method retention; R1 automatic final charge | Approved | WP-B, WP-C | 01 §9; 04 §8–§17; 05 §3, §7 | DEP-03, DEP-06, DEP-15 | Legal (revocation) |
 
 ## 4. Current authorization status
@@ -970,11 +984,12 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.15.0 | 2026-11-24 | **Integration closure (PR #16 merged at `3f3b59d`).** OI-71 revised: mapping approved, no additional gate interface, G8 fails closed, eligibility revalidated before deployment. **OI-72 decided (option A):** Admin receives derived operational states only; financial records are Owner-restricted, enforced at the database and server layers; 03 v0.4.5 (§4) and 05 v0.4.1 (§9) amended. **AUTH-004** granted: scoped Tier 2 storage policies for WP-C upload and quarantine paths (local and CI). Parallel WP-B/WP-C boundaries approved (CURRENT-STATE §8); the `release.approved` consumer must be durably idempotent per approved release and financial obligation (04 §10). AUTH-002 remains inactive. | Claude Code | Owner (integration closure authorization, 2026-11-24) |
 | 0.16.0 | 2026-11-24 | **OI-74 decided** (Owner): mandatory payment method retention; automatic off-session final charge moved to R1; card only; setup-mode recovery; authorization revocation. **OI-73 decided** (option A, Owner): the approved order is kept; collection is not conditioned on publication. **OI-75 decided** (option A, Owner): recovery and revocation are independent of the maintenance subscription. AUTHORIZATIONS v1.2.0: AUTH-002 scope amended to include setup-mode Checkout Sessions for recovery (still inactive). **OI-76 opened** (Owner workflow statement vs OI-73). **OI-76 decided** (option A: OI-73 retained). **OI-77 decided** (option A with eight refinements: Sales Representative role, R1; 03 v0.5.0 with a Sales Representative matrix column and T-SALES-01 to T-SALES-22). AUTHORIZATIONS v1.3.0: AUTH-005 proposed (WP-S), not granted. Specs: 01 v0.4.1, 04 v0.9.0, 05 v0.4.2. Tier 0 Stripe documentation record (04 §8.2). Integration closure merged at `19b68cb` (PR #17; post-merge CI run #43 `success`). |
 | 0.16.1 | 2026-11-24 | OI-76 and OI-77 formal decisions restated by the Owner and recorded (no decision change). **AUTH-005 revised** after a mechanics review of the WP-B and WP-C branches: client-role separation, two WP-C function replacements, Owner review points (AUTHORIZATIONS v1.3.1). 03 v0.5.1 (§4.1; T-SALES-23 to T-SALES-25). CURRENT-STATE v1.4.1. |
+| 0.17.0 | 2026-11-24 | **OI-78 decided** (Owner): pending client invitations survive assignment end; ended assignments hidden from the representative, history and attribution preserved; termination effective at the next authorization check; WP-S approved; role-separation refinements approved; integration order approved. 03 v0.5.2 (§4.1; T-SALES-26 to T-SALES-28). AUTHORIZATIONS v1.4.0: AUTH-005 scope final with policy decisions, entry and exit criteria, and coordination; not granted. CURRENT-STATE v1.5.0. OPEN-ISSUES v0.17.0 (next unused OI-79). |
 
 ## 6. Change-control rules
 
 1. **Decision changes.** A change to any recorded decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
-2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-78 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-17 onward). Authorization records use AUTH-nnn IDs (currently AUTH-005 onward). When the owner resolves one, it is recorded in this register under that same ID.
+2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-79 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-17 onward). Authorization records use AUTH-nnn IDs (currently AUTH-005 onward). When the owner resolves one, it is recorded in this register under that same ID.
 3. **Specification changes.** Changes to specifications 01–07 go through a pull request. Each spec carries a version and status header. A spec moves from *Draft* to *Approved* only on owner sign-off recorded in §5.
 4. **Precedence.** (a) Owner-approved decisions in this register. (b) Approved specifications 01–07. (c) CLAUDE.md for operating procedure. (d) README. A lower-precedence document must never be used to override a higher one.
 5. **Conflicts.** Any conflict between documents, or between a document and an owner decision, is **escalated** to the owner as an open issue. It is never silently resolved by an author or agent.

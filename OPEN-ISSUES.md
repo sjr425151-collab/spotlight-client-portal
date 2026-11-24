@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.16.0 |
+| Version | 0.17.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-78** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-79** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-77)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-78)
 
-All 70 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-77).
+All 71 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-78).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -90,7 +90,8 @@ All 70 issues listed here are decided at the architectural level. The authoritat
 | OI-74 | Mandatory payment method retention; automatic final charge in R1; card only; setup-mode recovery; revocation | Decided (2026-11-24) | DEP-03, DEP-06, DEP-15 |
 | OI-75 | Recovery and revocation scope: final-balance authorization only, independent of the maintenance subscription (option A) | Decided (2026-11-24) | — |
 | OI-76 | Collection timing statement: OI-73 retained (option A) | Decided (2026-11-24) | — |
-| OI-77 | Sales Representative role (R1); assignment-scoped, `is_staff()` unchanged (option A, eight refinements) | Decided (2026-11-24) | AUTH-005 (proposed) |
+| OI-77 | Sales Representative role (R1); assignment-scoped, `is_staff()` unchanged (option A, eight refinements) | Decided (2026-11-24) | AUTH-005 (scope final, not granted) |
+| OI-78 | AUTH-005 policy decisions (pending invitations, ended assignments, termination), WP-S approval, integration order | Decided (2026-11-24) | AUTH-005 grant and activation |
 
 ---
 
@@ -104,7 +105,7 @@ OI-73 was decided on 2026-11-24 (option A); its decision and the implications co
 
 OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-**None open.** OI-76 (option A) and OI-77 (Sales Representative role) were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+**None open.** OI-76 (option A), OI-77 (Sales Representative role), and OI-78 (AUTH-005 policy decisions) were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
 ---
 

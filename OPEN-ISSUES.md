@@ -4,7 +4,7 @@
 |---|---|
 | Version | 0.14.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-72** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-73** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-70)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-71)
 
-All 63 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-70).
+All 64 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-71).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -84,6 +84,7 @@ All 63 issues listed here are decided at the architectural level. The authoritat
 | OI-68 | Release scope: R1 and R2 | Decided (2026-11-23) | DEP-03, DEP-06, DEP-07, DEP-12 |
 | OI-69 | Test-only legal fixtures | Decided (2026-11-23) | — |
 | OI-70 | Path-aware, fail-closed CI; dependency security patch exception | Decided (2026-11-23) | DEP-16 |
+| OI-71 | Gate-interface coverage, publication holds, financial classification (mapped onto the existing interfaces) | Decided (2026-11-24); Admin-access restriction pending in OI-72 | OI-72 |
 
 ---
 
@@ -93,20 +94,21 @@ OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11
 
 | ID | Title | Blocks | Status |
 |---|---|---|---|
-| OI-71 | Gate-interface coverage and financial classification (raised by WP-0) | The WP-C gate evaluator (06 §2); not WP-0 | Open |
+| OI-72 | Admin access to payment and ledger records (conflict between the Owner's OI-71 direction and 03 §4) | The RLS of WP-B's payment, ledger, and billing-hold tables, and the visibility of financial queues (05 §9) | Open |
 
-### OI-71 — Gate-interface coverage and financial classification
+### OI-72 — Admin access to payment and ledger records
 
-Raised while implementing WP-0 (2026-11-24). WP-0 implements exactly what 01 §7 lists and leaves these points undecided. Every option below is additive (`ALTER TYPE … ADD ATTRIBUTE`), so WP-0 needs no change whichever is chosen.
+Raised by the WP-0 integration (2026-11-24). OI-71 (decided) is in 08.
 
-1. **G1 and G6 have no interface.** 06 §2 says the single gate evaluator reads only `project_financial_status` and `project_fulfillment_status`, but 01 §7 lists neither G1 (valid agreement, 04 §1) nor G6 (domain readiness, 06 §5) in either interface.
-   - *Recommendation:* add `agreement_state` and `agreement_effective` to the financial status (WP-B owns agreements), and `domain_ready` with its evidence to the fulfillment status (WP-C owns publication).
-2. **Which interface reports `owner_manual_hold` and `dispute_risk_hold`.** 01 §7 puts "billing holds" in the financial status and "fulfillment holds" in the fulfillment status. `maintenance_payment_hold` is clearly billing and `approval_nonresponsive_hold` is clearly fulfillment (04 §14), but the other two are not classified.
-   - *Recommendation:* both in the financial status, since 04 §14 owns them and the Owner places them under financial authority (03 §4).
-3. **Which domain events and audit actions are `financial`** (hidden from Admin, 03 §4). The spec defines the Admin rule but not the classification.
-   - *WP-0 interim rule [PROPOSED]:* the payment and subscription domains are financial; agreement, fulfillment, approval, and deployment are general. Implemented in `private.domain_is_financial` and `src/domain/contracts/audit-actions.ts`.
-   - *Decide:* confirm, or move agreement events to financial.
-
+- **Conflict:**
+  - *The Owner's direction (OI-71 item 4):* Admin receives only the minimum derived operational eligibility needed for fulfillment, with no direct access to restricted financial records.
+  - *Approved 03 §4 (Phase 2 approval):* the row "View payments and ledger" grants **Admin ✅ (read)**. That row is not marked [PROPOSED], so it is binding until changed.
+  - *Related:* 05 §9 lists derived queues that reveal financial state (awaiting deposit, payment recovery, disputes, billing hold Owner review, awaiting final payment, reconciliation mismatches) without saying who sees each one.
+- **Options:**
+  - **A.** Amend 03 §4 so that Admin sees derived eligibility only: for example "deposit verified: yes/no", "final payment verified: yes/no", and "publication-blocking hold: yes/no, type". Payment and ledger records, amounts, and the financial queues (payment recovery, disputes, billing hold review, reconciliation) become Owner-only. Non-financial queues (awaiting deposit, intake, approval, ready for review) stay visible to Admin as derived yes/no states.
+  - **B.** Keep 03 §4 as approved: Admin has read access to payments and the ledger.
+- **Recommendation:** A, which matches the Owner's direction. WP-B would then expose the derived flags through a staff-readable, non-financial projection, not by granting Admin read access on ledger or payment tables.
+- **Impact if A:** 03 §4 row, version, and 08 §5 entry; WP-B RLS on its new tables (within AUTH-001: policies on new tables only, with no change to Phase 2 objects); WP-C queue visibility. Until decided, WP-B builds its payment and ledger tables with **Owner-only** read access, the more restrictive reading. No Admin read path is added in either direction until this is decided.
 ---
 
 ## Part 3 — Implementation and production dependencies
@@ -130,7 +132,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 | DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | **Complete (2026-11-23; merged to `main` in PR #4, merge commit `45d05f6`).** `src/proxy.ts` sets a per-request nonce CSP with `'strict-dynamic'` and no `'unsafe-inline'` for scripts or styles; no inline style attributes remain. Verified by T-SEC-03 and T-SEC-04 (e2e) and the Lighthouse budgets (T-PERF-01). |
 | DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment | Granted under AUTH-003 (not yet active). OI-50 and OI-51 decided. |
 | DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | WP-B | Not started. Runs under AUTH-002 once its activation conditions are met. |
-| DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | Not started |
+| DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | **Complete** (Owner-reported, 2026-11-24). `main` reports `protected: true` via the GitHub API; the ruleset check list is not readable from the agent session. |
 
 ### DEP-01 detail — Stripe test-mode catalog
 

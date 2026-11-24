@@ -10,6 +10,8 @@
 | Precedence | Below every approved decision (08) and approved specification (01–07). Where this proposal conflicts with them, they win and the conflict is listed in §16. |
 
 > **Reconciliation note (2026-11-23, conflict resolution with `main` at `55e5610`; documentation only).** The §1 audit is a point-in-time snapshot taken at `main` `8749ba4`. It is kept unchanged as the evidence of that moment. Since then, on `main`: Phase 2 was merged (PR #4, merge commit `45d05f6`), so the "Phase 2 is merged" prerequisite in §1, §15 and §16 is now met; OI-53 and OI-54 were decided; OI-63 (hybrid webhook testing), OI-64 and OI-65 (Stripe test-mode catalog design) were decided; DEP-15 (Stripe test-mode webhook verification) was added; and the next unused IDs are OI-66 and DEP-16. Phase 3 is still **not authorized**, and DEP-01 is still blocked. This note changes no part of the proposal, and the proposal remains **PROPOSED**. None of OI-56 to OI-62 is decided.
+>
+> **ID correction (2026-11-24, documentation only).** The next unused IDs stated above are superseded: on `main`, OI-66 was decided on 2026-11-23, and the governance correction (PR #14) allocates OI-67 to OI-70 and DEP-16. The next unused IDs are therefore **OI-71** and **DEP-17**. OI-56 to OI-62 remain allocated to this proposal and are not renumbered. Under OI-67 this proposal stays a draft outside the commercial release critical path.
 
 **How to read this document.** Findings are labeled:
 

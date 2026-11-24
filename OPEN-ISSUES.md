@@ -4,8 +4,8 @@
 |---|---|
 | Version | 0.13.0 (draft for owner review) |
 | Status | Draft |
-| Next unused issue ID | **OI-66** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
-| Next unused dependency ID | **DEP-16** |
+| Next unused issue ID | **OI-71** (OI-56 to OI-62 are allocated in this proposal, PR #6. On `main`, OI-66 was decided on 2026-11-23, and OI-67 to OI-70 are allocated by the governance correction, PR #14.) |
+| Next unused dependency ID | **DEP-17** (DEP-16 is allocated by PR #14) |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
 Rules:

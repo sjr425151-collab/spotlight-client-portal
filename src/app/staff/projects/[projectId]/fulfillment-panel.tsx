@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { TextField } from "@/components/ui/field";
+import { INTAKE_FIELDS } from "@/domain/intake";
 import { GATE_LABELS, INTAKE_STATE_LABELS, parseGateResult } from "@/domain/publication";
 import type { StaffContext } from "@/server/auth/guards";
 import { callRpc } from "@/server/services/fulfillment";
@@ -110,7 +111,7 @@ export async function FulfillmentPanel({
     callRpc(db, "publication_gate_report", { p_project_id: projectId }),
     db
       .from("intake_submissions")
-      .select("id, version, status, source, submitted_at")
+      .select("id, version, status, source, submitted_at, content")
       .eq("project_id", projectId)
       .order("version", { ascending: false })
       .limit(5),
@@ -205,6 +206,49 @@ export async function FulfillmentPanel({
       </Section>
 
       <Section id="intake" title={`Intake: ${INTAKE_STATE_LABELS[intakeState] ?? intakeState}`}>
+        {latestSubmitted ? (
+          <details>
+            <summary className="cursor-pointer text-sm text-fg-muted">
+              Correct intake on the client&apos;s behalf (creates version{" "}
+              {latestSubmitted.version + 1})
+            </summary>
+            <form action={act.correctIntakeAction} className="mt-3 flex flex-col gap-3">
+              <Hidden projectId={projectId} />
+              {INTAKE_FIELDS.map((field) => {
+                const value = (latestSubmitted.content as Record<string, unknown>)[field.key];
+                return (
+                  <label
+                    key={field.key}
+                    className="flex flex-col gap-2 text-sm font-medium text-fg"
+                  >
+                    {field.label}
+                    <textarea
+                      name={field.key}
+                      rows={field.kind === "list" || field.kind === "textarea" ? 3 : 1}
+                      defaultValue={
+                        Array.isArray(value)
+                          ? value.join("\n")
+                          : typeof value === "string"
+                            ? value
+                            : ""
+                      }
+                      className={inputClass}
+                    />
+                  </label>
+                );
+              })}
+              <TextField
+                label="Reason for the correction (required, audited)"
+                name="reason"
+                required
+                maxLength={1000}
+              />
+              <Button type="submit" variant="secondary">
+                Save correction as a new version
+              </Button>
+            </form>
+          </details>
+        ) : null}
         {intakeState === "submitted" && latestSubmitted ? (
           <Card>
             <form action={act.reviewIntakeAction} className="flex flex-col gap-3">
@@ -234,6 +278,14 @@ export async function FulfillmentPanel({
               {u.rejection_code ? ` (${u.rejection_code})` : ""}
               {u.processing_note ? ` (${u.processing_note})` : ""}
               {u.used ? " · used" : ""}
+              {u.status === "quarantined" ? (
+                <form action={act.retryScanAction} className="ml-2 inline">
+                  <Hidden projectId={projectId} extra={{ uploadId: u.id }} />
+                  <Button type="submit" variant="ghost" className="h-8 px-2">
+                    Retry scan
+                  </Button>
+                </form>
+              ) : null}
             </li>
           ))}
         </ul>

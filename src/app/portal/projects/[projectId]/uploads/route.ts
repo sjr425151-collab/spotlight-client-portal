@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
 import { requireProjectAccess } from "@/server/auth/guards";
 import { uuidSchema } from "@/server/services/invitations";
 import { acceptUpload, isUploadCategory } from "@/server/services/fulfillment";
@@ -18,12 +16,15 @@ export async function POST(
   const { projectId } = await params;
   const ctx = await requireProjectAccess(projectId);
   const back = ctx.staffRole ? `/staff/projects/${projectId}` : `/portal/projects/${projectId}`;
+  // 303 See Other: the browser follows a form POST with a GET (a 307 would re-POST the file).
+  const seeOther = (query: string) =>
+    new Response(null, { status: 303, headers: { Location: `${back}?${query}` } });
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   const category = String(form?.get("category") ?? "");
   const replaces = String(form?.get("replaces") ?? "");
   if (!(file instanceof File) || file.size === 0 || !isUploadCategory(category)) {
-    redirect(`${back}?error=invalid_input`);
+    return seeOther("error=invalid_input");
   }
   const result = await acceptUpload(
     await createUserClient(),
@@ -32,5 +33,5 @@ export async function POST(
     file,
     uuidSchema.safeParse(replaces).success ? replaces : null,
   );
-  redirect(result.ok ? `${back}?notice=upload_${result.outcome}` : `${back}?error=${result.error}`);
+  return seeOther(result.ok ? `notice=upload_${result.outcome}` : `error=${result.error}`);
 }

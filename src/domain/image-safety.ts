@@ -6,8 +6,8 @@
  * - Metadata is stripped from the served copy: JPEG APP1-APP15 and COM segments (EXIF,
  *   including GPS location, XMP, IPTC), PNG ancillary text and EXIF chunks, and WEBP EXIF
  *   and XMP chunks. The original stays in quarantine.
- * Limits are [PROPOSED] values recorded in OI-73: 12,000 pixels per side and 100 megapixels.
- * HEIC conversion needs an image codec, which is not an approved dependency (OI-73); HEIC
+ * Limits are approved in OI-79 item 4 (05 §5.4): 12,000 pixels per side and 100 megapixels.
+ * HEIC conversion needs an image codec, which is not an approved dependency (OI-80); HEIC
  * files therefore stay held in processing and are never served.
  */
 

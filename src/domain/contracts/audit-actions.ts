@@ -8,8 +8,8 @@
  *
  * Category: `financial` rows are hidden from Admin by the existing `audit_events` policy
  * (03 §4). The rule used here is the same as for domain events: actions in the payment
- * and subscription domains are financial, everything else is general. Pending Owner
- * confirmation in OI-71.
+ * and subscription domains are financial, everything else is general (confirmed in OI-71
+ * item 4).
  */
 import type { OwnerPackage } from "./domain-events";
 import type { StateDomain } from "./state-domains";
@@ -94,6 +94,7 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   c("upload.accessed", "fulfillment", "05 §4"),
   c("upload.exception_requested", "fulfillment", "05 §5"),
   c("upload.exception_decided", "fulfillment", "05 §5"),
+  c("upload.access_revoked", "fulfillment", "05 §5.5"),
   c("preview.draft_recorded", "approval", "05 §6"),
   c("preview.revision_requested", "approval", "05 §8"),
   c("preview.revision_classified", "approval", "05 §8"),

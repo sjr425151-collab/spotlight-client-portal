@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 import { intakeFromForm } from "@/domain/intake";
 import { requireOwner, requireStaff } from "@/server/auth/guards";
 import { uuidSchema } from "@/server/services/invitations";
-import { callRpc, verifyLiveDeployment, type Result } from "@/server/services/fulfillment";
+import {
+  callRpc,
+  retryUploadScan,
+  verifyLiveDeployment,
+  type Result,
+} from "@/server/services/fulfillment";
 import { createUserClient } from "@/server/supabase/clients";
 
 /**
@@ -350,4 +355,10 @@ export async function resolveIncidentAction(formData: FormData) {
       p_resolution: text(formData, "resolution").slice(0, 2000),
     }),
   );
+}
+
+export async function retryScanAction(formData: FormData) {
+  await requireStaff();
+  const result = await retryUploadScan(await createUserClient(), text(formData, "uploadId"));
+  done(formData, result, result.ok ? `upload_${String(result.data.outcome)}` : "saved");
 }

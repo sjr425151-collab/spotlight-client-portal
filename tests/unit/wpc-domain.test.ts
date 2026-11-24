@@ -14,8 +14,8 @@ import {
 } from "@/domain/intake";
 import {
   GATE_IDS,
-  R1_APPROVAL_LABEL,
-  R1_FORBIDDEN_APPROVAL_WORDS,
+  APPROVAL_DISCLOSURE,
+  APPROVAL_LABEL,
   parseGateResult,
 } from "@/domain/publication";
 import { sanitizeSvg } from "@/domain/svg-sanitize";
@@ -293,6 +293,42 @@ describe("raster image safety (05 §5.3 rule 5)", () => {
     expect(p.ok && imageDimensions("image/png", p.bytes)).toEqual({ width: 10, height: 10 });
   });
 
+  it("T-UP-11: rejects malformed headers and hostile dimensions before any full decode", () => {
+    const truncatedPng = png(10, 10).slice(0, 20);
+    expect(processRasterImage("image/png", truncatedPng)).toEqual({
+      ok: false,
+      code: "processing_failed",
+    });
+    const badJpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0xff, 0xff, 0x00]);
+    expect(processRasterImage("image/jpeg", badJpeg)).toEqual({
+      ok: false,
+      code: "processing_failed",
+    });
+    // A 65,535 x 65,535 JPEG header (a classic decompression bomb) is refused from the header.
+    expect(processRasterImage("image/jpeg", jpeg(65_535, 65_535))).toEqual({
+      ok: false,
+      code: "image_too_large",
+    });
+    expect(processRasterImage("image/png", png(0, 10))).toEqual({
+      ok: false,
+      code: "image_too_large",
+    });
+  });
+
+  it("T-UP-11: processing a maximum-size hostile input stays within time and memory bounds", () => {
+    const hostile = new Uint8Array(25_000_000);
+    hostile.set(jpeg(MAX_IMAGE_SIDE + 1, 10));
+    const start = performance.now();
+    const before = process.memoryUsage().heapUsed;
+    expect(processRasterImage("image/jpeg", hostile)).toEqual({
+      ok: false,
+      code: "image_too_large",
+    });
+    expect(validateContent("photo", "image/jpeg", hostile).ok).toBe(true);
+    expect(performance.now() - start).toBeLessThan(5_000);
+    expect(process.memoryUsage().heapUsed - before).toBeLessThan(200_000_000);
+  });
+
   it("holds formats it cannot process (HEIC) instead of serving them", () => {
     expect(processRasterImage("image/heic", bytes([0, 0, 0, 0x18], "ftypheic")).ok).toBe(false);
   });
@@ -354,8 +390,12 @@ describe("publication gate results (06 §2; T-PUB-04)", () => {
     ).toBe(false);
   });
 
-  it("uses an R1 approval label that does not imply an automatic charge (T-LC-15)", () => {
-    for (const word of R1_FORBIDDEN_APPROVAL_WORDS) expect(R1_APPROVAL_LABEL).not.toMatch(word);
+  it("uses the approved approval label and discloses automatic collection (T-LC-14; 04 §10)", () => {
+    expect(APPROVAL_LABEL).toBe("Approve Website & Authorize Final Payment");
+    expect(APPROVAL_DISCLOSURE).toMatch(/automatic charge/);
+    expect(APPROVAL_DISCLOSURE).toMatch(/same invoice/);
+    expect(APPROVAL_DISCLOSURE).toMatch(/never creates a second charge/);
+    expect(APPROVAL_DISCLOSURE).not.toMatch(/\$\s?\d/); // no amount until WP-B provides it (OI-80)
   });
 });
 

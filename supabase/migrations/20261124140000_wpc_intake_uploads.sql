@@ -693,12 +693,6 @@ begin
           or (private.wpc_is_staff_aal2() and exists (select 1 from public.projects where id = p_project_id))) then
     return private.fail('forbidden');
   end if;
-  if not private.wpc_intake_unlocked(p_project_id) then
-    return private.fail('intake_locked');
-  end if;
-  if exists (select 1 from public.projects where id = p_project_id and archived_at is not null) then
-    return private.fail('project_archived');
-  end if;
   if v_name = '' or p_bytes is null or p_bytes < 1 then
     return private.fail('invalid_input');
   end if;
@@ -718,6 +712,14 @@ begin
   end if;
   if p_bytes > v_max then
     return private.fail('file_too_large');
+  end if;
+  -- Preconditions after input validation, so a disallowed type or size is reported as such
+  -- (both are refusals; neither order lets anything through).
+  if not private.wpc_intake_unlocked(p_project_id) then
+    return private.fail('intake_locked');
+  end if;
+  if exists (select 1 from public.projects where id = p_project_id and archived_at is not null) then
+    return private.fail('project_archived');
   end if;
 
   perform pg_advisory_xact_lock(hashtextextended('uploads:' || p_project_id::text, 0));

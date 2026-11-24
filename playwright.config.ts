@@ -39,13 +39,21 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
+      // WP-C pages in the states reachable without WP-B; after the auth project so the two
+      // never enroll MFA factors for the same seeded users at the same time.
+      name: "wpc",
+      testMatch: /wpc\.spec\.ts/,
+      dependencies: ["auth"],
+      use: { ...devices["Desktop Chrome"], launchOptions },
+    },
+    {
       name: "desktop-chromium",
-      testIgnore: /production-gating|auth\./,
+      testIgnore: /production-gating|auth\.|wpc\./,
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
       name: "mobile-chromium",
-      testIgnore: /production-gating|auth\./,
+      testIgnore: /production-gating|auth\.|wpc\./,
       use: { ...devices["Pixel 7"], launchOptions },
     },
     {

@@ -56,6 +56,8 @@ export const MESSAGES = {
   quota_files: "This project has reached its 100-file limit.",
   quota_bytes: "This project has reached its 2 GB storage limit.",
   exception_requested: "Your request was sent for review.",
+  scan_backoff: "The scanner failed recently. Wait a few minutes before retrying.",
+  scan_retries_exhausted: "The scan failed five times. The file stays in quarantine for review.",
   // WP-C: previews and approvals (05 §6-§8)
   preview_released: "The preview was released to the client.",
   preview_approved: "Thank you. Your approval of this preview was recorded.",

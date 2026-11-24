@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { EICAR_SIGNATURE } from "@/domain/uploads";
-import { runUploadPipeline } from "@/server/uploads/pipeline";
+import { recordScanVerdict, runUploadPipeline } from "@/server/uploads/pipeline";
 import { mockScanner } from "@/server/uploads/scanner";
 
 import { withDb } from "../support/db";
@@ -22,6 +22,7 @@ const PROJECT_B = "20000000-0000-4000-8000-0000000000b0";
 const BUCKET = "project-assets";
 
 let originalFinancialFunction = "";
+let addedReadyAttribute = false;
 let clientA: SupabaseClient;
 let clientB: SupabaseClient;
 
@@ -65,6 +66,18 @@ beforeAll(async () => {
       "select pg_get_functiondef('private.project_financial_status(uuid)'::regprocedure) as def",
     );
     originalFinancialFunction = rows[0].def;
+    // WP-B's approved attribute (04 §8.1), added for the test only if WP-B has not yet, and
+    // removed again afterwards.
+    const { rows: attr } = await db.query(
+      `select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
+         and attname = 'payment_authorization_ready' and not attisdropped`,
+    );
+    addedReadyAttribute = attr.length === 0;
+    if (addedReadyAttribute) {
+      await db.query(
+        "alter type private.project_financial_status add attribute payment_authorization_ready boolean",
+      );
+    }
     // Fixture: Project A's deposit is verified; every other project keeps the real answer.
     await db.query(`
       create or replace function private.project_financial_status(p_project_id uuid)
@@ -74,6 +87,7 @@ beforeAll(async () => {
           'project_id', p_project_id, 'contract_version', 1,
           'implemented', p_project_id = '${PROJECT_A}', 'deposit_state', 'verified',
           'deposit_verified', p_project_id = '${PROJECT_A}', 'final_balance_state', 'not_due',
+          'payment_authorization_ready', p_project_id = '${PROJECT_A}',
           'balance_verified_or_settled', false, 'balance_settled_by_adjustment', false,
           'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb));
       $fixture$`);
@@ -86,7 +100,15 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await freeQuota();
-  await withDb((db) => db.query(originalFinancialFunction));
+  await withDb(async (db) => {
+    // Drop the test attribute first: the original stub must match the type it was written for.
+    if (addedReadyAttribute) {
+      await db.query(
+        "alter type private.project_financial_status drop attribute payment_authorization_ready",
+      );
+    }
+    await db.query(originalFinancialFunction);
+  });
 });
 
 describe("upload pipeline end to end (05 §5.3)", () => {
@@ -153,6 +175,48 @@ describe("upload pipeline end to end (05 §5.3)", () => {
       p_upload_id: req.upload_id,
     });
     expect(denied.ok).toBe(false);
+  });
+
+  it("T-UP-17: a late malicious verdict revokes a released file at once and deletes it", async () => {
+    const bytes = png();
+    const req = await request(clientA, "logo", "image/png", bytes.length, "late.png");
+    const outcome = await runUploadPipeline(
+      adminClient(),
+      {
+        uploadId: req.upload_id,
+        projectId: PROJECT_A,
+        category: "logo",
+        declaredMime: "image/png",
+        quarantinePath: req.quarantine_path,
+      },
+      bytes,
+      mockScanner,
+    );
+    expect(outcome).toBe("available");
+    const released = `${PROJECT_A}/assets/${req.upload_id}`;
+    expect((await clientA.storage.from(BUCKET).download(released)).error).toBeNull();
+    const { data: row } = await adminClient()
+      .from("asset_uploads")
+      .select("sha256")
+      .eq("id", req.upload_id)
+      .single();
+    // A delayed malicious callback from the vendor, for an attempt that is no longer current.
+    const late = await recordScanVerdict(
+      adminClient(),
+      req.upload_id,
+      null,
+      "mock_scanner",
+      { verdict: "malicious", engineVersion: "mock-1", signature: "late" },
+      row!.sha256 as string,
+    );
+    expect(late).toMatchObject({ status: "rejected", revoked: true });
+    expect((await clientA.storage.from(BUCKET).download(released)).data).toBeNull();
+    expect((await clientA.storage.from(BUCKET).createSignedUrl(released, 60)).data).toBeNull();
+    expect((await adminClient().storage.from(BUCKET).download(released)).data).toBeNull(); // deleted
+    const { data: access } = await clientA.rpc("record_asset_access", {
+      p_upload_id: req.upload_id,
+    });
+    expect(access).toMatchObject({ ok: false, error: "not_available" });
   });
 
   it("T-UP-09: a file failing the scan is rejected, never released, and both parties are notified", async () => {
@@ -240,6 +304,7 @@ describe("upload pipeline end to end (05 §5.3)", () => {
   it("a client cannot record a scan result or release a file (no self-certification)", async () => {
     const { error } = await clientA.rpc("record_scan_result", {
       p_upload_id: "00000000-0000-4000-8000-000000000000",
+      p_attempt_id: "00000000-0000-4000-8000-000000000000",
       p_scanner: "mock_scanner",
       p_engine_version: "1",
       p_verdict: "clean",

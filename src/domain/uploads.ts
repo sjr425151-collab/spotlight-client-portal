@@ -4,7 +4,7 @@
  * The per-category limits mirror `private.upload_max_bytes` in
  * `supabase/migrations/20261124140000_wpc_intake_uploads.sql`; `tests/unit/wpc-uploads.test.ts`
  * checks that they agree. Sizes use decimal megabytes (1 MB = 1,000,000 bytes), the stricter
- * reading (OI-73). The database is the authority; this module rejects early and validates
+ * reading, approved in OI-79 item 1 (05 §5.4). The database is the authority; this module rejects early and validates
  * the actual bytes, which the database never sees.
  */
 

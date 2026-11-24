@@ -64,18 +64,21 @@ export function parseGateResult(value: unknown): GateResult {
 }
 
 /**
- * R1 approval action label (05 §7; OI-68). It must not state or imply an automatic charge.
- * [PROPOSED; counsel confirms, DEP-03].
+ * Approval action label (05 §7; 04 §10; T-LC-14). R1 uses the same label as R2 since OI-74:
+ * the approval authorizes automatic collection of the final balance. Final wording is for
+ * counsel (DEP-03).
  */
-export const R1_APPROVAL_LABEL = "Approve Website & Continue to Final Payment";
+export const APPROVAL_LABEL = "Approve Website & Authorize Final Payment";
 
-/** Words the R1 approval screen must never use (T-LC-15). */
-export const R1_FORBIDDEN_APPROVAL_WORDS = [
-  /automatic/i,
-  /auto-?charge/i,
-  /will be charged/i,
-  /authorize.*payment/i,
-];
+/**
+ * Approval screen disclosure (05 §7; 04 §10, §8.1). No amount is shown until WP-B's
+ * interface provides the order-summary snapshot balance (OI-80 item 3).
+ */
+export const APPROVAL_DISCLOSURE =
+  "Approving this version makes the outstanding balance from your order summary due and " +
+  "authorizes its automatic charge to the payment method saved at your deposit. If that " +
+  "charge fails or needs your confirmation, you will be able to pay the same invoice on a " +
+  "secure Stripe-hosted page. Approving again never creates a second charge.";
 
 /** Client-facing label for a publication state (05 §1: display only, never a gate). */
 export const PUBLICATION_STATE_LABELS: Record<string, string> = {
@@ -90,7 +93,7 @@ export const PUBLICATION_STATE_LABELS: Record<string, string> = {
 };
 
 export const INTAKE_STATE_LABELS: Record<string, string> = {
-  locked: "Available once your deposit is verified",
+  locked: "Available once your deposit and saved payment method are verified",
   open: "Ready for your information",
   submitted: "Submitted, under review",
   accepted_by_staff: "Accepted",

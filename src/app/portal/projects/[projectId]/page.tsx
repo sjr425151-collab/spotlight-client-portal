@@ -11,7 +11,8 @@ import { INTAKE_FIELDS } from "@/domain/intake";
 import {
   INTAKE_STATE_LABELS,
   PUBLICATION_STATE_LABELS,
-  R1_APPROVAL_LABEL,
+  APPROVAL_DISCLOSURE,
+  APPROVAL_LABEL,
 } from "@/domain/publication";
 import { CATEGORY_RULES, REJECTION_GUIDANCE } from "@/domain/uploads";
 import { messageFor } from "@/lib/messages";
@@ -153,8 +154,7 @@ export default async function ClientProjectPage({ params, searchParams }: Props)
               approve it.
             </p>
             <p className="text-sm text-fg-muted" data-testid="final-balance-disclosure">
-              After you approve, your final balance from your order summary becomes due, and you
-              will be shown a secure Stripe page to pay it.
+              {APPROVAL_DISCLOSURE}
             </p>
             <form action={approvePreviewAction} className="flex flex-col gap-3">
               <input type="hidden" name="projectId" value={projectId} />
@@ -167,7 +167,7 @@ export default async function ClientProjectPage({ params, searchParams }: Props)
                 <input type="checkbox" name="confirm" value="yes" required />I have reviewed version{" "}
                 {s.current_release.release_number} and approve it.
               </label>
-              <Button type="submit">{R1_APPROVAL_LABEL}</Button>
+              <Button type="submit">{APPROVAL_LABEL}</Button>
             </form>
             <form action={requestRevisionsAction} className="flex flex-col gap-3">
               <input type="hidden" name="projectId" value={projectId} />

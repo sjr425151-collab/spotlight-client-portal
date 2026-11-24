@@ -5,7 +5,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/config/env";
 import { UPLOAD_CATEGORIES, sanitizeFileName, type UploadCategory } from "@/domain/uploads";
 import { observeLiveSite } from "@/server/publication/verifier";
-import { runUploadPipeline, type PipelineOutcome } from "@/server/uploads/pipeline";
+import {
+  runUploadPipeline,
+  scanStoredUpload,
+  type PipelineOutcome,
+} from "@/server/uploads/pipeline";
 import { scannerFor } from "@/server/uploads/scanner";
 import { createAdminClient } from "@/server/supabase/admin";
 
@@ -99,4 +103,32 @@ export async function verifyLiveDeployment(
     p_key_pages_ok: observed.keyPagesOk,
     p_forms_ok: observed.formsOk,
   });
+}
+
+/**
+ * Retries the scan of a quarantined upload (05 §5.4 item 8). The staff caller is
+ * authorized by reading the upload through RLS; the database refuses the new attempt while
+ * backing off or after the last allowed attempt.
+ */
+export async function retryUploadScan(user: SupabaseClient, uploadId: string): Promise<Result> {
+  const { data: upload } = await user
+    .from("asset_uploads")
+    .select("id, project_id, category, declared_mime, quarantine_path, status")
+    .eq("id", uploadId)
+    .maybeSingle();
+  if (!upload || upload.status !== "quarantined" || !isUploadCategory(String(upload.category))) {
+    return { ok: false, error: "not_found" };
+  }
+  const outcome = await scanStoredUpload(
+    await createAdminClient(),
+    {
+      uploadId: upload.id,
+      projectId: upload.project_id,
+      category: upload.category,
+      declaredMime: upload.declared_mime,
+      quarantinePath: upload.quarantine_path,
+    },
+    scannerFor(env.APP_ENV),
+  );
+  return { ok: true, data: { outcome } };
 }

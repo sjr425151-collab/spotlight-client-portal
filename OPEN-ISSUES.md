@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.15.0 |
+| Version | 0.16.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-73** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-75** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -15,7 +15,7 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-72)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-72, OI-74)
 
 All 65 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-72).
 
@@ -86,6 +86,7 @@ All 65 issues listed here are decided at the architectural level. The authoritat
 | OI-70 | Path-aware, fail-closed CI; dependency security patch exception | Decided (2026-11-23) | DEP-16 |
 | OI-71 | Gate-interface coverage, publication holds, financial classification (mapped onto the existing interfaces) | Decided (2026-11-24; revised 2026-11-24) | — |
 | OI-72 | Admin access to payment and financial records: derived operational states only (option A) | Decided (2026-11-24) | — |
+| OI-74 | Mandatory payment method retention; automatic final charge in R1; card only; setup-mode recovery; revocation | Decided (2026-11-24) | DEP-03, DEP-06, DEP-15 |
 
 ---
 
@@ -93,7 +94,19 @@ All 65 issues listed here are decided at the architectural level. The authoritat
 
 OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11-23 in the consolidated execution plan approval; their decisions are recorded in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-**None open.** OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+
+### OI-73 — Final-balance collection order relative to publication **[PENDING OI-73]**
+
+- **Conflict.** The Owner's "Mandatory Payment Method Retention" requirement (2026-11-24) lists "successful production publication is independently verified" as a precondition for charging the remaining balance. The approved design is the reverse: the counsel-approved clause (04 §3.1, verbatim, not editable) says the balance becomes due "upon my final approval" and that "publication of the website is contingent upon successful payment", and gate G4 (06 §2) requires a verified final payment before publication.
+- **Option A (recommended): keep the approved order.** Exact implications:
+  1. Sequence: client approves the current release → balance due → the single final-balance invoice is charged automatically (OI-74) → verified `invoice.paid` → G4 passes → Owner publication authorization with reauthentication → deployment of exactly that release → live verification.
+  2. The client pays **before** the site is live. Verified publication is **not** a precondition of collection; that condition from the requirement is not implemented.
+  3. Client protection comes from existing approved controls: approval is bound to an immutable release ID; a deployment that does not match the authorized release fails verification (T-PUB-06, T-PUB-19); a failed deployment after payment keeps the paid status and goes to recovery with no new charge (04 §17 invariants 8 and 11; 06 §8.1); refunds remain a Tier 3 Owner action under 04 §15.2 (amounts deferred to legal review).
+  4. Residual risk accepted: if publication can never be completed (for example, domain readiness is never achieved), the client has paid; resolution is recovery or an Owner refund decision, never an automatic refund.
+  5. No change to the §3.1 clause, OI-17, G4, or spec 06. No legal text is drafted.
+- **Option B: publish first, then charge.** Removes G4, reverses OI-17, requires new counsel-approved clause text (DEP-03), and allows an unpaid live site. Not recommended.
+- **Until decided:** specs keep the approved order (option A behavior); nothing in WP-B depends on the answer except that the publication condition is not added.
 
 ---
 
@@ -162,7 +175,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 - The calendar convention, including trigger-date exclusion (OI-43).
 - Disclosure of adjusted final balances (OI-44).
 - Refund terms (OI-35), domain ownership and transfer, IP ownership (OI-32; draft §5, §8), and dispute terms (OI-37).
-- **R1 final-payment wording (OI-68):** confirm that the 04 §3.1 *Authorization for Final Payment* clause is consistent with R1, where the client's approval makes the balance due and the client pays on the Stripe-hosted invoice page rather than by automatic charge, and approve the R1 approval-button and screen wording (04 §10, 05 §7).
+- **R1 final-payment wording (OI-68, revised by OI-74):** the hosted-only R1 question is superseded; R1 now charges automatically under the §3.1 clause. Counsel confirms the R1 approval screen wording (**Approve Website & Authorize Final Payment**), the card-retention disclosure, and the contractual effect of revoking the authorization and of re-authorizing after revocation (04 §8.1).
 - Unused-upload deletion terms (OI-42), coordinated with DEP-05.
 
 ### DEP-06 detail — provider verification items added by OI-43 to OI-46
@@ -171,6 +184,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 - **Stripe (OI-47, approved 2026-11-23):** a subscription-mode Checkout Session created with no discounts and with promotion codes disabled, so neither the deposit nor the maintenance line can be reduced.
 - **Stripe (OI-17 revised, 2026-11-23):** saving the payment method in subscription-mode Checkout for a later off-session, one-off charge; an automatically charged one-off invoice using the standard balance Price ID; the events for failed charges and required authentication; the Stripe-hosted page for completing the same invoice; idempotency keys; and, for OI-55 (approved, option A), an invoice-level discount restricted to the balance product.
 - **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
+- **Stripe (OI-74, 2026-11-24; documentation facts in 04 §8.2):** in test mode, confirm where subscription-mode Checkout stores the card (subscription default or Customer); card-wallet behavior under `allowed_payment_method_types: ["card"]`; an automatic off-session charge of the one-off invoice with an explicit `default_payment_method`; `invoice.payment_action_required` and hosted completion of the same invoice; finalizing an invoice without an automatic attempt when the authorization is not active; setup-mode Checkout for an existing Customer; and the `payment_method.detached`, `payment_method.automatically_updated`, `setup_intent.succeeded`, and `setup_intent.setup_failed` events.
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
 - **Domain registrar (to be selected; revised OI-35):** registration date and expiry data, auto-renew settings, the transfer (auth code) process, and confirmation that hosting deactivation cannot affect a registration.
 - **Vercel / infrastructure (revised OI-35):** discontinuing designated per-client resources at M1 independently of the remaining hosting.

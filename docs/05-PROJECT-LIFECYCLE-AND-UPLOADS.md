@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.1 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. |
+| Version | 0.4.2 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. |
 | Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68, OI-72 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
@@ -51,7 +51,7 @@ Transition rules:
 | Element | Specification |
 |---|---|
 | Actors | Client (primary), Admin (audited corrections) |
-| Preconditions | Deposit `verified` **[APPROVED baseline journey step 6]** |
+| Preconditions | Deposit `verified` **[APPROVED baseline journey step 6]**, **and** `payment_authorization_ready` from the financial status interface (04 §8.1) **[APPROVED OI-74]** |
 | Inputs | Business legal and display name, contact info (phone, email, address), service areas, services offered, logo(s), photos, brand guidelines (optional), website preferences (style references, color preferences, pages wanted), domain information (existing domain / needs domain) |
 | Records | `intake_submissions` (versioned drafts; the submitted version is immutable) |
 | States | `open → submitted → accepted_by_staff` or `changes_requested → submitted` |
@@ -131,8 +131,8 @@ Rules:
 |---|---|
 | Actors | Client with active membership on the project |
 | Preconditions | A release in `released` state is the project's current release |
-| Inputs | Explicit approval action on that release ID, plus an optional comment. **[R2]** The action is labeled **Approve Website & Authorize Final Payment** **[APPROVED OI-17, revised 2026-11-23]**. **[R1, OI-68]** The label must not state or imply an automatic charge, for example **Approve Website & Continue to Final Payment** **[PROPOSED; counsel confirms, DEP-03]**. |
-| Payment authorization **[APPROVED OI-17, revised 2026-11-23 and by OI-68]** | The approval makes the previously disclosed outstanding balance due and creates the single final-balance invoice (04 §10). **[R1]** The client then pays it on the Stripe-hosted page. **[R2]** The approval also authorizes its automatic collection (04 §3.1). **[PROPOSED]** The approval screen shows that amount from the order summary snapshot before the client confirms. Approving an already-approved release, or approving after the balance is pending, verified, or settled, never starts a second charge. |
+| Inputs | Explicit approval action on that release ID, plus an optional comment. The action is labeled **Approve Website & Authorize Final Payment** **[APPROVED OI-17, revised 2026-11-23; R1 by OI-74]**. |
+| Payment authorization **[APPROVED OI-17, revised 2026-11-23, by OI-68, and by OI-74]** | The approval makes the previously disclosed outstanding balance due, creates the single final-balance invoice (04 §10), and authorizes its automatic collection (04 §3.1). With an `active` payment authorization (04 §8.1) the invoice is charged automatically; otherwise, or when the charge fails or needs authentication, the client pays the same invoice on its Stripe-hosted page. **[PROPOSED]** The approval screen shows that amount from the order summary snapshot before the client confirms. Approving an already-approved release, or approving after the balance is pending, verified, or settled, never starts a second charge. |
 | Records | `preview_approvals` (release ID, user ID, timestamp, IP/UA **[PROPOSED]**) — insert-only. The final-balance charge record references the approval ID (04 §10). |
 | Gate rule | The approval gate passes only if an approval exists **for the current released release ID** |
 | Silence | **Never** treated as approval. No timer converts silence into approval. **[APPROVED OI-18, OI-25]** |
@@ -233,7 +233,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 
 | ID | Test |
 |---|---|
-| T-LC-01 | Intake routes and actions are denied until the deposit is `verified` |
+| T-LC-01 | Intake routes and actions are denied until the deposit is `verified` and `payment_authorization_ready` is true (OI-74; 04 T-PAY-18) |
 | T-LC-02 | No API exists to set deposit or balance state directly. Only the webhook handler changes them. |
 | T-LC-03 | Derived queues match the state for seeded fixture projects in every combination |
 | T-LC-04 | A submitted intake version is immutable. Staff edits create audited new versions. |
@@ -242,7 +242,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-LC-07 | An unreleased internal draft does not supersede the current approval |
 | T-LC-08 | No scheduled job or timer creates an approval |
 | T-LC-09 | Staff cannot create an approval record |
-| T-LC-14 | **[R2]** The approval action is labeled "Approve Website & Authorize Final Payment". Approving the current release starts exactly one final-balance charge (04 T-PAY-13). Approving a superseded release starts none. |
+| T-LC-14 | **[R1, OI-74]** The approval action is labeled "Approve Website & Authorize Final Payment". Approving the current release starts exactly one final-balance charge (04 T-PAY-13). Approving a superseded release starts none. |
 | T-UP-01 | Each category rejects files over its size limit and disallowed types |
 | T-UP-02 | Renamed executables, extension/MIME mismatches, and polyglots are rejected |
 | T-UP-03 | Malicious SVG (script, `onload`, external `href`) is sanitized. The sanitized output contains no active content. |

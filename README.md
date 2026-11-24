@@ -22,10 +22,10 @@ This repository contains the approved specifications, the application foundation
 4. Intake and secure, scanned asset uploads, unlocked by verified payment.
 5. Client status tracking and a derived administrative fulfillment queue.
 6. Explicit client approval of a specific, immutable preview release.
-7. Final balance collected on a single Stripe-hosted invoice, verified by webhook.
+7. Final balance charged automatically to the card authorized and saved at the deposit Checkout, on a single invoice with a Stripe-hosted fallback, verified by webhook (OI-74).
 8. Owner publication authorization behind server-enforced gates, then staff-executed deployment of exactly the authorized release, with audit evidence and live verification.
 
-**R2, fulfillment automation:** automated preview delivery and reminders, the automatic off-session final charge with hosted fallback, payment recovery and the Stripe Customer Portal, adjusted balances, deployment orchestration, transactional email through Resend, and post-publication inquiries.
+**R2, fulfillment automation:** automated preview delivery and reminders, payment recovery and the Stripe Customer Portal, adjusted balances, deployment orchestration, transactional email through Resend, and post-publication inquiries.
 
 **Not in scope:** a full client dashboard, AI agents, Google Sheets/Drive or CRM integrations, marketing automation, automatic upsell purchases, and multi-agency tenancy. See [01 §4](docs/01-PROJECT-OVERVIEW.md#4-exclusions-and-future-roadmap).
 

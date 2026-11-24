@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.0 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). |
+| Version | 0.4.1 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). v0.4.1 (**OI-74**, 2026-11-24): the automatic off-session final charge and mandatory payment method retention move to R1 (§9.1 items 10 and 13; §9.2 item 2). |
 | Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41, OI-67, OI-68 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
@@ -58,7 +58,7 @@ flowchart LR
   C -->|accept| D[Initial Checkout]
   D -->|verified webhook| E[Intake]
   E --> F[Development] --> G[Released preview]
-  G -->|explicit approval| H[Final-balance invoice: R1 hosted page, R2 automatic charge]
+  G -->|explicit approval| H[Final-balance invoice: automatic charge, hosted fallback]
   H -->|verified webhook| I{All gates pass?}
   I -->|Owner authorizes| J[Publish] --> K[Live verification] --> L[Confirmation + optional inquiry]
 ```
@@ -153,10 +153,10 @@ A release candidate is accepted only when every item passes in **staging with St
 7. **Financial integrity.** The ledger is append-only in integer cents. A state change and its ledger entry commit in one transaction. Reconciliation quarantines and alerts on any mismatch (T-PAY-02, T-ARC-06, T-ARC-07).
 8. **Refunds and disputes.** Refunds, disputes, and chargebacks from Stripe are recorded in the ledger, and disputes apply the OI-37 rules. Issuing a refund is a Tier 3 Owner action recorded by the portal (T-BIL-09, T-ARC-08).
 9. **Separate state domains.** Agreement, payment, subscription, fulfillment, approval, and deployment are tracked separately. Gates are computed from records, never from an editable status (T-LC-02, T-LC-03).
-10. **Intake and uploads.** Intake is locked until the deposit is verified, and can be saved and resumed. Uploads are private, validated by content, quarantined and scanned before release, and within the OI-20 limits (T-LC-01, T-LC-04, T-UP-01 to 09).
+10. **Intake and uploads.** Intake is locked until the deposit is verified and a reusable card is authorized (OI-74), and can be saved and resumed. Uploads are private, validated by content, quarantined and scanned before release, and within the OI-20 limits (T-LC-01, T-LC-04, T-UP-01 to 09).
 11. **Status and queue.** The client status page shows only authoritative state. The admin queue is derived from records (T-LC-03).
 12. **Approval.** Staff record an immutable preview release. The client explicitly approves that release; a new release invalidates the old approval for publication; staff outreach is recorded (T-LC-05 to 09, T-LC-11 to 13, T-LC-15).
-13. **Final balance.** Approval creates exactly one final-balance invoice for the snapshot balance, paid on the Stripe-hosted invoice page and verified only by webhook. No adjustment is offered (T-PAY-09, T-PAY-12, T-PAY-17, T-BIL-22).
+13. **Final balance.** Approval creates exactly one final-balance invoice for the snapshot balance, charged automatically off-session to the authorized saved card (the same invoice's Stripe-hosted page is the fallback) and verified only by webhook (OI-74; T-PAY-13, T-PAY-14, T-PAY-18 to T-PAY-26). No adjustment is offered (T-PAY-09, T-PAY-12, T-PAY-17, T-BIL-22).
 14. **Publication authorization.** The server issues it only when gates G1–G8 pass, with the Owner's fresh reauthentication, for exactly one release (T-PUB-01 to 05, T-PUB-07, T-PUB-11, T-PUB-12, T-PUB-17).
 15. **Staff-assisted publication.** Staff deploy exactly the authorized release to the client's isolated deployment and record the deployment, live verification, and rollback reference. A deployment that does not match the authorization fails verification. A failed deployment after verified payment keeps the paid status and goes to recovery with no new charge (T-PUB-06, T-PUB-08 to 10, T-PUB-15, T-PUB-18, T-PUB-19).
 16. **Subscription lifecycle.** Failed maintenance renewals are recorded from webhooks; the 7-day recovery period, `maintenance_payment_hold`, and Owner review apply; an unexpected Stripe cancellation creates an exception review; cancellation requests record the request and effective dates and compute M1 and M2 (T-BIL-01 to 03, T-BIL-07, T-BIL-08, T-BIL-14 to 19). M1 and M2 are not enforced against production clients until counsel-approved terms exist (04 §15.1).
@@ -166,7 +166,7 @@ A release candidate is accepted only when every item passes in **staging with St
 
 R2 is accepted when the R1 criteria still pass and the following pass:
 1. Automated preview delivery, the OI-25 reminders, and the day-21 queue (T-LC-10).
-2. The automatic off-session final charge, with the hosted fallback on failure or required authentication (T-PAY-13, T-PAY-14, T-LC-14).
+2. *(Moved to R1 by OI-74: the automatic off-session final charge, T-PAY-13, T-PAY-14, T-LC-14.)*
 3. Portal-sent payment recovery reminders (07 §13) and the Customer Portal (T-BIL-04).
 4. Adjusted final balances (T-BIL-05, T-BIL-06, T-BIL-11 to 13, T-BIL-21).
 5. Portal-driven deployment from the publication authorization (06 §8.1).

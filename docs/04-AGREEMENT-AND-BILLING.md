@@ -2,15 +2,15 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.8.0 |
-| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). |
+| Version | 0.9.0 |
+| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). v0.9.0 (**OI-74**, Owner decision 2026-11-24): mandatory payment method retention; the automatic off-session final-balance charge moves to R1; card only; payment authorization record (§8.1); setup-mode payment method recovery and authorization revocation (§8.1); Tier 0 provider-documentation record (§8.2); tests T-PAY-18 to T-PAY-26. The §3.1 clause is unchanged. The collection-order question is **[PENDING OI-73]** and changes nothing here until decided. |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63–OI-66, OI-68, OI-69 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
 > Nothing in this document authorizes any Stripe operation. Stripe operations are authorized only by an active record in [AUTHORIZATIONS.md](AUTHORIZATIONS.md).
 
-**Release placement [APPROVED OI-68]:** everything in this document is **[R1]** unless tagged **[R2]**. R2 items: the automatic off-session final charge (§10), the Customer Portal (§9.2), portal-sent payment recovery reminders (§9.1), and adjusted final balances (§10 "Adjusted balances", §10.1).
+**Release placement [APPROVED OI-68]:** everything in this document is **[R1]** unless tagged **[R2]**. R2 items: the Customer Portal (§9.2), portal-sent payment recovery reminders (§9.1), and adjusted final balances (§10 "Adjusted balances", §10.1). **Revised by OI-74 (2026-11-24):** the automatic off-session final-balance charge (§10) is **R1**.
 
 ## 1. Agreement lifecycle **[APPROVED OI-13]**
 
@@ -334,6 +334,8 @@ WP-B uses these IDs for test-mode implementation. They are recorded and verified
 | Deposit | **Mandatory [APPROVED OI-47, Option A]**: the standard 20% deposit price for the package (§5.1), for all five standard packages. It is never reduced, credited, or waived. |
 | Discounts | **None [APPROVED OI-47, Option A].** No discount, coupon, promotion code, credit, or waiver is ever applied to the initial Checkout, so neither the deposit nor the maintenance line can be reduced there. **[PROPOSED; VERIFY-PROVIDER]** The Checkout Session is created without discounts and with promotion codes disabled. |
 | Payment method for the final balance **[APPROVED OI-17, revised 2026-11-23]** | Stripe securely saves the payment method on the client business's Stripe Customer for later **off-session** collection of the final balance (§10), under the client's explicit authorization in the accepted agreement (§3.1). The portal never stores card data. |
+| Allowed payment methods **[APPROVED OI-74]** | **Card only.** Every Checkout Session (initial and setup-mode recovery, §8.1) is created with `allowed_payment_method_types: ["card"]` (verified parameter, §8.2). Delayed and bank-debit methods are excluded, so `checkout.session.async_payment_*` events are not expected for these sessions. Whether card wallets are offered under this filter is verified in test mode **[VERIFY-PROVIDER]**. |
+| Reusable payment method is mandatory **[APPROVED OI-74]** | Onboarding (intake, 05 §3) unlocks only when the deposit is verified **and** an `active` payment authorization (§8.1) with a reusable card attached to the client business's Customer exists. A verified deposit alone does not unlock intake. |
 
 Expected initial totals:
 
@@ -347,7 +349,7 @@ Expected initial totals:
 
 **[VERIFY-PROVIDER]** One-time prices in subscription-mode Checkout are added to the first invoice only. Confirm this against current Stripe documentation in WP-B (AUTH-002).
 
-**[VERIFY-PROVIDER] [R1, OI-68]** Confirm in WP-B how subscription-mode Checkout saves the payment method for a later off-session, one-off charge (for example, as the Customer's default invoice payment method), and whether any Checkout consent setting or displayed terms are needed alongside §3.1 (DEP-06).
+**Mechanism (verified in part, §8.2):** `payment_intent_data.setup_future_usage` applies only to `payment`-mode Checkout, so it is **not** used; the approved subscription-mode Checkout (OI-17) is kept. After the verified `checkout.session.completed`, the server retrieves the payment method used for the first invoice, records it in the authorization (§8.1), and names it explicitly on the final-balance invoice (§10). **[VERIFY-PROVIDER] [R1, OI-68]** Confirm in WP-B how subscription-mode Checkout saves the payment method for a later off-session, one-off charge (for example, as the Customer's default invoice payment method), and whether any Checkout consent setting or displayed terms are needed alongside §3.1 (DEP-06).
 
 **Workflow: start initial Checkout**
 
@@ -361,6 +363,54 @@ Expected initial totals:
 | Concurrency | A unique constraint allows at most one *open* initial session per project. Double-click returns the same session. |
 | Failure states | Price verification mismatch → block and alert; Stripe API error → retryable message, no state change |
 | Audit | `checkout.session_created` |
+
+### 8.1 Payment authorization record and payment method recovery **[APPROVED OI-74; mechanics PROPOSED]**
+
+The **payment authorization** records that the client authorized the final-balance charge under §3.1 and that a reusable card is available for it. It references the acceptance evidence (§3) rather than copying it.
+
+| Attribute | Value |
+|---|---|
+| Table | `payment_authorizations` (WP-B; financial; Owner-only read under OI-72; append-only status history in `payment_authorization_events`) **[PROPOSED]** |
+| Fields | `project_id`, `client_org_id`, `acceptance_id`, `agreement_version_id`, `order_summary_id`, `authorized_at` (the verified deposit time), `authorized_balance_cents` (integer, from the snapshot), `currency`, `stripe_customer_id`, `stripe_payment_method_id`, `status`, evidence IDs (Checkout Session, SetupIntent, and `webhook_events` rows) |
+| Never stored | Card number, CVC, expiry, or any other card data. Brand and last four digits are not stored either; Stripe-hosted pages show them. |
+| Status | `active` (authorized, reusable card attached) · `payment_method_unavailable` (detached, failed, or replaced pending recovery) · `revoked` (the client withdrew the authorization) |
+| Created | Only from a processed, signature-verified `checkout.session.completed` (initial Checkout, `payment_status = paid`) whose payment method is attached to the client business's Customer. A redirect never creates or changes it (§11 rule 4). |
+| Gate interface | `private.project_financial_status` gains `payment_authorization_ready` (boolean) and `payment_authorization_state` (additive, `contract_version` incremented, OI-71 rule). WP-C reads it for the intake precondition (05 §3). Admin sees only the derived state (OI-72). |
+| Audit (financial) | `payment_authorization.established`, `payment_authorization.unavailable`, `payment_authorization.revoked`, `payment_method.recovery_session_created`, `payment_method.replaced` |
+
+**Payment method recovery (setup mode) [APPROVED OI-74]:**
+
+| Element | Specification |
+|---|---|
+| When | No reusable card after the deposit; `payment_method.detached`; a failed final-balance charge caused by the card (expired, declined); or before collection when the authorization is `payment_method_unavailable` |
+| Mechanism | A Stripe-hosted Checkout Session in `setup` mode for the client business's **existing** Customer, card only. Setup Intents default to `usage = off_session` (§8.2). It saves a card and **never charges**: every payment still goes through the single invoice workflow (§10), so no competing collection mechanism exists. |
+| Verification | The replacement becomes the authorization's payment method only from a processed, verified `checkout.session.completed` (setup mode) or `setup_intent.succeeded`, re-read from Stripe (invariant 5). Status returns to `active`. |
+| Idempotency and concurrency | Outbound request row and derived idempotency key (invariant 2); at most one open setup session per project (unique constraint). |
+| Not used for | A failed or authentication-required final-balance invoice: the same invoice's Stripe-hosted page remains the completion path (§10). |
+
+**Revocation [APPROVED OI-74; workflow PROPOSED; contractual effect PENDING DEP-03]:**
+- The client business's authorized signer may revoke the authorization in the portal, with fresh reauthentication; the Owner may record a revocation received outside the portal. Both are immutable, audited, and create an Owner review item.
+- After revocation, **no automatic charge is attempted**. When the balance becomes due, the final-balance invoice is payable only on its Stripe-hosted page, and publication still requires a verified payment (06 G4).
+- A late or replayed event can never re-activate a revoked authorization. Re-establishing one requires a new acceptance of the current agreement version (§3) **[PROPOSED; most restrictive reading until counsel answers]**.
+- The contractual consequences of revocation are for counsel (DEP-03). No legal text is drafted here (CLAUDE.md §5).
+
+### 8.2 Provider documentation record (Tier 0, AUTH-000, 2026-11-24)
+
+Read from `docs.stripe.com` (public documentation only; no Stripe API request). Each item still needs test-mode confirmation under AUTH-002 before it counts as verified against Stripe (DEP-06, DEP-15).
+
+| # | Fact (documentation) | Consequence |
+|---|---|---|
+| 1 | Checkout `payment_intent_data` is "a subset of parameters to be passed to PaymentIntent creation for Checkout Sessions in `payment` mode" | `setup_future_usage` is not available in the approved subscription-mode Checkout; not used |
+| 2 | `allowed_payment_method_types` (for example `card`) filters the dynamically eligible payment methods for a Checkout Session; `payment_method_collection` (subscription mode) defaults to `always` | Card-only filter on every Checkout Session; a payment method is always collected |
+| 3 | `setup_intent_data` applies to `setup` mode; `currency` is required in `setup` mode unless `allowed_payment_method_types` is set | Setup-mode recovery sets the card filter |
+| 4 | A SetupIntent's `usage` defaults to `off_session` | Recovery cards are usable for the off-session charge |
+| 5 | Invoice `default_payment_method` "must belong to the customer"; if not set, the invoice uses the subscription's default payment method, if any, then the Customer's `invoice_settings.default_payment_method` | The one-off final-balance invoice always sets `default_payment_method` to the authorization's card explicitly |
+| 6 | Invoice `collection_method` defaults to `charge_automatically`; `auto_advance` defaults to `false` | Automatic collection sets `auto_advance` deliberately; it is never left to the default |
+| 7 | Detaching a payment method "is permanent and irreversible" | `payment_method.detached` makes the authorization `payment_method_unavailable` |
+| 8 | Event types exist: `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `invoice.payment_action_required`, `payment_method.detached`, `payment_method.automatically_updated`, `setup_intent.succeeded`, `setup_intent.setup_failed` | Added to §11 |
+| 9 | Off-session charging requires explicit customer consent for that specific use, stated in the terms | Provided by the counsel-approved §3.1 clause; confirmation is part of DEP-03 |
+
+Not settled by documentation (test mode, AUTH-002): where subscription-mode Checkout stores the payment method (subscription default or Customer); wallet behavior under the card filter; and finalizing a `charge_automatically` invoice without an automatic attempt when the authorization is not `active`.
 
 ## 9. Subscription billing lifecycle **[APPROVED OI-16, OI-17]**
 
@@ -419,7 +469,7 @@ The hosted Stripe Customer Portal is **in the MVP**.
 | Plan/price switching, quantity changes | Disabled **[PROPOSED]** |
 
 - Portal sessions are created on the server for the authenticated client's own Stripe Customer only (03 §4).
-- **[R2, OI-68]** The Customer Portal is delivered in R2. In R1, clients pay and update payment details on Stripe-hosted invoice pages.
+- **[R2, OI-68]** The Customer Portal is delivered in R2. In R1, clients pay on Stripe-hosted invoice pages and replace a card through setup-mode recovery (§8.1, OI-74).
 - **[VERIFY-PROVIDER OI-39]** Confirm the Customer Portal configuration options in WP-B.
 - Customer Portal configuration is a Stripe Dashboard change made by the Owner, in the sandbox under AUTH-002, and in production only under production authorization.
 - The draft agreement §7 refers to cancelling "through the designated billing portal". Because self-service cancellation is disabled, that wording must be aligned with §15.1 (DEP-03).
@@ -432,20 +482,20 @@ The remaining 80% balance is **not** collected through a separate checkout. The 
 
 | | R1 | R2 |
 |---|---|---|
-| Collection | The client pays the final-balance invoice on its **Stripe-hosted invoice page** **[VERIFY-PROVIDER]** | Stripe charges the invoice **automatically, off-session**, to the payment method saved at the initial Checkout (§8), under the §3.1 authorization. The hosted page is the fallback. |
-| Approval action label | Wording that does not state or imply an automatic charge, for example **Approve Website & Continue to Final Payment** **[PROPOSED; counsel confirms, DEP-03]** | **Approve Website & Authorize Final Payment** |
-| Payment method saved at the initial Checkout | Yes, once WP-B verifies the Stripe behavior (§8) | Yes |
+| Collection | **Revised by OI-74:** Stripe charges the invoice **automatically, off-session**, to the authorization's card (§8.1), under the §3.1 authorization. The same invoice's Stripe-hosted page is the fallback. | Same as R1 |
+| Approval action label | **Approve Website & Authorize Final Payment** (OI-17 revised; R1 by OI-74) | **Approve Website & Authorize Final Payment** |
+| Payment method saved at the initial Checkout | Yes, mandatory (§8, §8.1) | Yes |
 
 Every other rule in this section applies to both releases: one invoice per project and order summary, verification only by webhook, no publication before verified payment, and no second charge.
 
 | Attribute | Value |
 |---|---|
 | Trigger | The client's explicit approval of the current released preview (05 §7). Never a timer, staff action, or silence (OI-18). |
-| Invoice collection **[PROPOSED; VERIFY-PROVIDER]** | R1: sent for payment on the Stripe-hosted page. R2: charged automatically. The R1 to R2 change is a configuration of the same invoice workflow, not a second workflow. |
+| Invoice collection **[PROPOSED; VERIFY-PROVIDER]** | Charged automatically in R1 and R2 (OI-74), with `collection_method = charge_automatically`, `default_payment_method` set to the authorization's card, and `auto_advance` set deliberately (§8.2). The hosted-page fallback uses the same invoice; there is no second workflow. |
 | Stripe object **[PROPOSED; VERIFY-PROVIDER]** | A one-off Stripe **invoice** for the client business's Customer with a single line item, the package **balance** Price ID (one-time), quantity 1. It is charged automatically to the saved payment method. The maintenance subscription is never part of this invoice. |
 | Amount | Balance from the order summary snapshot (§5.1), or the adjusted amount due under §10.1 |
 | Invoice and receipt | Stripe generates the itemized invoice and the payment receipt, delivered electronically (§3.1; 07 §4) |
-| Preconditions **[PROPOSED]** | Agreement `effective`. Deposit verified. An approval exists for the current released preview (05 §7). Balance `due` (not already pending, verified, or settled). No open final-balance invoice for the project. |
+| Preconditions **[PROPOSED; extended by OI-74]** | Agreement `effective`. Deposit verified. An approval exists for the current released preview (05 §7). Balance `due` (not already pending, verified, or settled). No open final-balance invoice for the project. For an **automatic** attempt, additionally: the payment authorization is `active` and its card is attached. Otherwise the invoice is created without an automatic attempt and is payable only on its Stripe-hosted page (§8.1) **[VERIFY-PROVIDER]**. Collection is single-flight: the `final_balance_charges` row is locked for the attempt, and the unique constraint holds. Publication is **not** a precondition of collection **[PENDING OI-73]**. |
 | Records | `final_balance_charges` **[PROPOSED]** (project, order summary, approval ID, Stripe invoice ID, amount, status) |
 | Idempotency and concurrency **[PROPOSED]** | At most one final-balance invoice per project and order summary (unique constraint). The Stripe idempotency key is derived from `order_summary_id` and the approval ID. A repeated approval, a double click, or a retried job returns the existing invoice and never creates a second charge. Retries pay the **same** invoice. |
 | Audit | `balance.collection_authorized` (with the approval ID), `balance.charge_attempted`, `balance.charge_succeeded` / `balance.charge_failed`, `balance.action_required` |
@@ -512,7 +562,11 @@ Rules:
 | Event | Effect |
 |---|---|
 | `checkout.session.completed` | Record completion of the initial Checkout. Deposit verified only if `payment_status = paid`. |
-| `checkout.session.async_payment_succeeded` / `_failed` | Delayed payment methods |
+| `checkout.session.async_payment_succeeded` / `_failed` | Delayed payment methods. Not expected under the card-only rule (OI-74); if received, quarantined for Owner review. |
+| `checkout.session.completed` (setup mode) / `setup_intent.succeeded` | Payment method recovery: the replacement card becomes the authorization's payment method (§8.1) |
+| `setup_intent.setup_failed` | Recovery attempt failed; authorization stays `payment_method_unavailable` |
+| `payment_method.detached` | Authorization becomes `payment_method_unavailable`; recovery is offered (§8.1) |
+| `payment_method.automatically_updated` | Card details updated by the network; recorded as evidence; the payment method ID is unchanged **[VERIFY-PROVIDER]** |
 | `invoice.paid` | Ledger: deposit and first maintenance (initial); maintenance renewals; **final balance** (the final-balance invoice, §10). The balance is verified only when the invoice is paid and its amount matches the snapshot or the authorized adjusted amount. |
 | `invoice.payment_failed` | Failed payment record; hold evaluation (OI-26). For the final-balance invoice: balance `failed`, and the client is offered the Stripe-hosted completion option (§10). |
 | `invoice.payment_action_required` | Final-balance invoice needs additional authentication: the client is offered the Stripe-hosted completion option (§10) |
@@ -686,11 +740,20 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-PAY-10 | No API or UI path exists that records a payment as received without a Stripe event (code search plus negative API test) |
 | T-PAY-11 | A client cannot create a Checkout Session for another project (cross-tenant) |
 | T-PAY-12 | Price verification mismatch blocks Checkout creation and final-balance invoice creation |
-| T-PAY-13 | **[R2]** Approval (**Approve Website & Authorize Final Payment**) creates exactly one final-balance invoice for the snapshot balance, charged to the saved payment method. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice or charge. |
-| T-PAY-14 | **[R2]** A failed charge or a required authentication leaves the balance unverified, offers the Stripe-hosted completion option for the same invoice, and blocks publication until a verified `invoice.paid` |
+| T-PAY-13 | **[R1, OI-74]** Approval (**Approve Website & Authorize Final Payment**) creates exactly one final-balance invoice for the snapshot balance, charged to the saved payment method. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice or charge. |
+| T-PAY-14 | **[R1, OI-74]** A failed charge or a required authentication leaves the balance unverified, offers the Stripe-hosted completion option for the same invoice, and blocks publication until a verified `invoice.paid` |
 | T-PAY-15 | The accepted agreement version contains the §3.1 clause verbatim (text hash check) |
 | T-PAY-16 | **Test-mode verification (OI-63, DEP-15):** for each in-scope event type (§11), an event produced by a real **test-mode** Stripe object is delivered with a real test-mode signing secret and processed with the same outcome as its synthetic CI counterpart. A `livemode: true` event is rejected. Not run in CI. |
-| T-PAY-17 | **[R1]** Approval creates exactly one final-balance invoice for the snapshot balance, payable on its Stripe-hosted page. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice. The balance becomes `verified` only from a verified `invoice.paid`. The R1 approval screen does not state or imply an automatic charge. |
+| T-PAY-17 | **Retired by OI-74** (superseded by T-PAY-13 in R1). The ID is not reused. |
+| T-PAY-18 | **[OI-74]** A verified deposit without a reusable card attached leaves `payment_authorization_ready = false` and intake locked. A success redirect never creates or changes an authorization. |
+| T-PAY-19 | **[OI-74]** With no `active` authorization (none, `payment_method_unavailable`, or `revoked`), approval makes no automatic charge attempt; the same single invoice is payable only on its hosted page; publication stays blocked until a verified `invoice.paid`. |
+| T-PAY-20 | **[OI-74]** `payment_method.detached` makes the authorization `payment_method_unavailable`; a setup-mode recovery session (card only) is offered; the replacement becomes active only from a verified event; the recovery session never charges. |
+| T-PAY-21 | **[OI-74]** N concurrent approvals, retried jobs, and replayed events produce exactly one outbound request row, one final-balance invoice, and at most one successful charge |
+| T-PAY-22 | **[OI-74]** A deployment failure after a verified final payment creates, retries, or re-attempts no charge, and the paid state is kept (invariants 8, 11) |
+| T-PAY-23 | **[OI-74]** Authorization records and recovery sessions are isolated: another tenant cannot read, create, or act on them; Admin sees only the derived state (OI-72); a client cannot start recovery for another project |
+| T-PAY-24 | **[OI-74]** Every Checkout Session is created with the card-only filter, and no code path creates a PaymentIntent or charge outside the single invoice workflow (code search plus test) |
+| T-PAY-25 | **[OI-74]** Client revocation (with reauthentication) and Owner-recorded revocation are immutable and audited; afterwards no automatic attempt is made; a late or replayed event cannot re-activate a revoked authorization |
+| T-PAY-26 | **[OI-74]** The final-balance invoice always names the authorization's card as `default_payment_method` and never relies on Customer or subscription defaults; the charged amount equals the authorized snapshot balance |
 | T-AGR-01 | The acceptance checkbox renders unchecked. The server rejects acceptance without an explicit true value. |
 | T-AGR-02 | Initial Checkout cannot be created without a current acceptance |
 | T-AGR-03 | Acceptance evidence includes every §3 field. The stored hash matches the version text. |
@@ -739,7 +802,8 @@ These invariants apply to every payment workflow in R1 and R2. They make explici
 | 9 | Refunds, disputes, chargebacks | Recorded from webhooks into the ledger (§12, §15.2, §15.4). Issuing a refund or responding to a dispute is a Tier 3 Owner action; the portal records the decision and the webhook result. |
 | 10 | Version-specific evidence | Payment records reference the order summary snapshot and acceptance; the final-balance invoice references the approval ID and the approved release (05 §7). |
 | 11 | Successful payment, failed deployment | The paid state is never reversed by a deployment failure. The publication goes to recovery (06 §8.1). |
-| 12 | Off-session authentication and hosted fallback **[R2]** | When the automatic charge fails or needs authentication, the same invoice's hosted page is offered (§10). R1 uses the hosted page from the start. |
+| 12 | Off-session authentication and hosted fallback **[R1, OI-74]** | When the automatic charge fails or needs authentication, the same invoice's hosted page is offered (§10). No new invoice and no second charge. |
+| 14 | Authorized reusable card **[OI-74]** | No automatic final-balance attempt is made unless the payment authorization (§8.1) is `active`. Recovery saves a card and never charges. |
 | 13 | No unverified payment | Redirects, client-side callbacks, and client-provided assertions never change payment state (§11 rule 4). |
 
 Acceptance tests **[PROPOSED]**:

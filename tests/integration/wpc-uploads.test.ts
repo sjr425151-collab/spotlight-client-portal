@@ -20,17 +20,45 @@ import { adminClient, signInWithCode } from "../support/local-supabase";
 const PROJECT_A = "20000000-0000-4000-8000-0000000000a0";
 const PROJECT_B = "20000000-0000-4000-8000-0000000000b0";
 const BUCKET = "project-assets";
+const RUN = Date.now().toString(36);
 
 let originalFinancialFunction = "";
 let addedReadyAttribute = false;
 let clientA: SupabaseClient;
 let clientB: SupabaseClient;
 
-const png = () =>
-  new Uint8Array([
-    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0, 4,
-    0, 0, 0, 4, 8, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x49, 0x45, 0x4e, 0x44, 0, 0, 0, 0,
+/**
+ * A minimal PNG with a unique tEXt chunk per call. Unique bytes matter: a malicious verdict
+ * blocks those exact bytes in every upload, permanently (05 §5.5 rule 3), and that evidence
+ * persists across runs on a local database. The served copy strips tEXt chunks.
+ */
+let pngCount = 0;
+const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+const chunk = (type: string, data: number[]) => [
+  ...u32(data.length),
+  ...[...type].map((ch) => ch.charCodeAt(0)),
+  ...data,
+  0,
+  0,
+  0,
+  0, // CRC (not checked by the pipeline's header parser)
+];
+const png = () => {
+  const tag = [...`run-${RUN}-${pngCount++}`].map((ch) => ch.charCodeAt(0));
+  return new Uint8Array([
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a,
+    ...chunk("IHDR", [...u32(4), ...u32(4), 8, 6, 0, 0, 0]),
+    ...chunk("tEXt", tag),
+    ...chunk("IEND", []),
   ]);
+};
 
 async function request(
   client: SupabaseClient,

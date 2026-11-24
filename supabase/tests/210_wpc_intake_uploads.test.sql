@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(75);
+select plan(81);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
 returns void language plpgsql as $$
@@ -38,16 +38,27 @@ begin
 end;
 $$;
 grant execute on function pg_temp.act_as(uuid, text, interval), pg_temp.as_server() to authenticated, service_role;
+-- The upload's current scan attempt (05 §5.5), as the server learns it from record_content_check.
+create function pg_temp.cur(p_name text) returns uuid language sql as $$
+  select current_scan_attempt_id from public.asset_uploads where original_name = p_name;
+$$;
+grant execute on function pg_temp.cur(text) to service_role;
 
 -- Test-only fixture of private.project_financial_status (WP-B interface; OI-71 attribute
 -- names). jsonb_populate_record keeps it valid whatever attributes WP-B adds.
 create table private.test_financial_fixture (project_id uuid primary key, data jsonb not null);
+-- WP-B's approved attributes (OI-71 item 1; 04 §8.1), added only if WP-B has not yet.
 do $$
 begin
   if not exists (select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
                  and attname = 'agreement_effective' and not attisdropped) then
     alter type private.project_financial_status add attribute agreement_state public.agreement_state,
       add attribute agreement_effective boolean;
+  end if;
+  if not exists (select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
+                 and attname = 'payment_authorization_ready' and not attisdropped) then
+    alter type private.project_financial_status add attribute payment_authorization_ready boolean,
+      add attribute payment_authorization_state text;
   end if;
 end;
 $$;
@@ -57,7 +68,7 @@ language sql stable security definer set search_path = '' as $$
     jsonb_build_object('project_id', p_project_id, 'contract_version', 1, 'implemented', false,
       'deposit_state', 'not_started', 'deposit_verified', false, 'final_balance_state', 'not_due',
       'balance_verified_or_settled', false, 'balance_settled_by_adjustment', false,
-      'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb)
+      'payment_authorization_ready', false, 'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb)
     || coalesce((select f.data from private.test_financial_fixture f where f.project_id = p_project_id), '{}'::jsonb));
 $$;
 
@@ -87,8 +98,19 @@ select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
 select is(public.save_intake_draft('20000000-0000-4000-8000-0000000000a0', '{}') ->> 'error', 'intake_locked',
   'T-LC-01: a pending deposit keeps intake locked');
 reset role;
--- An interface that raises reads as "not verified" (fail closed).
+-- OI-74: a verified deposit alone is not enough; the payment authorization must be ready.
+update private.test_financial_fixture set data = '{"implemented": true, "deposit_verified": true, "payment_authorization_ready": false}';
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
+select is(public.save_intake_draft('20000000-0000-4000-8000-0000000000a0', '{}') ->> 'error', 'intake_locked',
+  'T-LC-01: a verified deposit without a ready payment authorization keeps intake locked (OI-74)');
+reset role;
 update private.test_financial_fixture set data = '{"implemented": true, "deposit_verified": true}';
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
+select is(public.save_intake_draft('20000000-0000-4000-8000-0000000000a0', '{}') ->> 'error', 'intake_locked',
+  'T-LC-01: a missing payment_authorization_ready attribute fails closed');
+reset role;
+-- An interface that raises reads as "not verified" (fail closed).
+update private.test_financial_fixture set data = '{"implemented": true, "deposit_verified": true, "payment_authorization_ready": true}';
 select ok(private.wpc_deposit_verified('20000000-0000-4000-8000-0000000000a0'), 'deposit reads as verified from the interface');
 select ok(not private.wpc_deposit_verified('20000000-0000-4000-8000-0000000000b0'),
   'a project without a verified deposit reads as not verified');
@@ -156,8 +178,9 @@ select ok((public.submit_intake('20000000-0000-4000-8000-0000000000a0',
   'the client resubmits');
 reset role;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
-select is(public.correct_intake('20000000-0000-4000-8000-0000000000a0', pg_temp.complete_content(), 'fix') ->> 'error', 'forbidden',
-  'the Owner does not edit intake (03 §4: Admin corrects on the client''s behalf)');
+-- OI-79 item 7 (03 §4 v0.5.4): the Owner may correct intake too, but never without a reason.
+select is(public.correct_intake('20000000-0000-4000-8000-0000000000a0', pg_temp.complete_content(), '  ') ->> 'error', 'reason_required',
+  'T-LC-17: an Owner correction without a reason is rejected');
 select ok((public.review_intake((select id from public.intake_submissions where project_id = '20000000-0000-4000-8000-0000000000a0'
   and status = 'submitted' order by version desc limit 1), 'accepted', null) ->> 'ok')::boolean, 'the Owner accepts version 2');
 reset role;
@@ -174,6 +197,23 @@ select is((select array_agg(source || ':' || status order by version) from publi
   'T-LC-04: earlier versions are preserved unchanged');
 select is((select count(*)::int from public.audit_events where action = 'intake.edited_by_staff'
   and reason = 'Client phoned in a corrected number'), 1, 'the correction is audited with its reason');
+-- T-LC-17: the Owner corrects with a reason; the original submission stays unchanged and
+-- readable by the client; a client can never correct.
+select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
+select is((public.correct_intake('20000000-0000-4000-8000-0000000000a0',
+  pg_temp.complete_content() || '{"contact_email": "office@example.test"}', 'Owner: client emailed a new address') ->> 'version')::int, 4,
+  'T-LC-17: the Owner corrects intake with a reason, as a new version');
+reset role;
+select is((select actor_role || '|' || reason from public.audit_events where action = 'intake.edited_by_staff'
+  and reason = 'Owner: client emailed a new address'), 'owner|Owner: client emailed a new address',
+  'T-LC-17: the correction records the actor role and reason');
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
+select is((select content ->> 'contact_phone' || '|' || source from public.intake_submissions
+  where project_id = '20000000-0000-4000-8000-0000000000a0' and version = 1), '555-0100|client',
+  'T-LC-17: the original submission is unchanged and readable by the client');
+select is(public.correct_intake('20000000-0000-4000-8000-0000000000a0', pg_temp.complete_content(), 'client edit') ->> 'error',
+  'forbidden', 'T-LC-17: a client cannot correct intake');
+reset role;
 
 -- Cross-tenant (T-TEN-01, T-TEN-02 for the new tables).
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000b1');
@@ -255,34 +295,38 @@ select is(public.complete_upload((select id from public.asset_uploads where orig
   'quarantined', 'a completed upload enters quarantine');
 select is(public.record_content_check((select id from public.asset_uploads where original_name = 'logo2.png'), true, 'image/png', null) ->> 'status',
   'scanning', 'a content-valid file moves to scanning, still in quarantine');
-select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'logo2.png'), 'mock_scanner', '1', 'clean', repeat('c', 64)) ->> 'error',
+select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'logo2.png'), pg_temp.cur('logo2.png'), 'mock_scanner', '1', 'clean', repeat('c', 64)) ->> 'error',
   'hash_mismatch', 'a scan result must be bound to the exact stored bytes');
 select is(public.release_upload((select id from public.asset_uploads where original_name = 'logo2.png'), repeat('d', 64), 900) ->> 'error',
   'not_found', 'nothing is released before a clean scan');
+-- 05 §5.5 rule 4: the mismatched result returned the file to quarantine; a new attempt opens.
+select public.record_content_check((select id from public.asset_uploads where original_name = 'logo2.png'), true, 'image/png', null);
 -- DEP-07: without a development runtime marker the mock scanner cannot release anything.
 reset role;
 delete from private.runtime_environment;
 select pg_temp.as_server();
-select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'logo2.png'), 'mock_scanner', '1', 'clean', repeat('b', 64)) ->> 'held',
+select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'logo2.png'), pg_temp.cur('logo2.png'), 'mock_scanner', '1', 'clean', repeat('b', 64)) ->> 'held',
   'scanner_not_permitted', 'DEP-07: outside a development database a mock "clean" leaves the file in quarantine');
 reset role;
 insert into private.runtime_environment (app_env) values ('test');
 select pg_temp.as_server();
 select is(public.record_content_check((select id from public.asset_uploads where original_name = 'logo2.png'), true, 'image/png', null) ->> 'status',
   'scanning', 'the file is re-checked');
-select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'logo2.png'), 'vendor_x', '1', 'clean', repeat('b', 64)) ->> 'held',
+select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'logo2.png'), pg_temp.cur('logo2.png'), 'vendor_x', '1', 'clean', repeat('b', 64)) ->> 'held',
   'scanner_not_permitted', 'DEP-07: no real scanner is permitted yet');
 select is(public.record_content_check((select id from public.asset_uploads where original_name = 'logo2.png'), true, 'image/png', null) ->> 'status',
   'scanning', 'the file is re-checked again');
-select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'logo2.png'), 'mock_scanner', '1', 'clean', repeat('b', 64)) ->> 'status',
+select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'logo2.png'), pg_temp.cur('logo2.png'), 'mock_scanner', '1', 'clean', repeat('b', 64)) ->> 'status',
   'processing', 'a clean mock scan in a test database moves the file to processing');
+-- 05 §5.5 rule 5: processing re-read the stored quarantine object and confirmed its hash.
+select public.confirm_source_hash((select id from public.asset_uploads where original_name = 'logo2.png'), repeat('b', 64));
 select is(public.release_upload((select id from public.asset_uploads where original_name = 'logo2.png'), repeat('d', 64), 880) ->> 'released_path',
   '20000000-0000-4000-8000-0000000000a0/assets/' || (select id from public.asset_uploads where original_name = 'logo2.png'),
   'release writes the record for the released path only after the clean scan');
 -- T-UP-09: a malicious file is rejected and both parties are notified.
 select public.complete_upload((select id from public.asset_uploads where original_name = 'evil.png'), 1000, repeat('e', 64));
 select public.record_content_check((select id from public.asset_uploads where original_name = 'evil.png'), true, 'image/png', null);
-select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'evil.png'), 'mock_scanner', '1', 'malicious', repeat('e', 64), 'EICAR') ->> 'status',
+select is(public.record_scan_result((select id from public.asset_uploads where original_name = 'evil.png'), pg_temp.cur('evil.png'), 'mock_scanner', '1', 'malicious', repeat('e', 64), 'EICAR') ->> 'status',
   'rejected', 'T-UP-09: a failed scan rejects the asset');
 select is(public.release_upload((select id from public.asset_uploads where original_name = 'evil.png'), repeat('e', 64), 1000) ->> 'error',
   'not_found', 'T-UP-09: a rejected asset can never be released');

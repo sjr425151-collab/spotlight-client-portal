@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, anon, service_role;
 grant execute on all functions in schema extensions to authenticated, anon, service_role;
-select plan(40);
+select plan(46);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
 returns void language plpgsql as $$
@@ -53,9 +53,24 @@ select set_config('storage.allow_delete_query', 'true', true);
 insert into storage.objects (bucket_id, name) values
   ('project-assets', 'quarantine/20000000-0000-4000-8000-0000000000a0/q-a'),
   ('project-assets', 'quarantine/20000000-0000-4000-8000-0000000000b0/q-b'),
-  ('project-assets', '20000000-0000-4000-8000-0000000000a0/assets/rel-a'),
-  ('project-assets', '20000000-0000-4000-8000-0000000000b0/assets/rel-b'),
+  ('project-assets', '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1'),
+  ('project-assets', '20000000-0000-4000-8000-0000000000b0/assets/32000000-0000-4000-8000-0000000000b1'),
   ('project-assets', '20000000-0000-4000-8000-0000000000a0/brand/legacy-a');
+
+-- Released objects are readable only through an `available` upload record (05 §5.5 rule 3).
+insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes, original_name,
+  status, quarantine_path, released_path, size_bytes, sha256, released_sha256, released_bytes, uploaded_by)
+values
+  ('32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0', gen_random_uuid(), 1, 'logo', 'image/png', 10,
+   'a.png', 'available', 'quarantine/20000000-0000-4000-8000-0000000000a0/32000000-0000-4000-8000-0000000000a1',
+   '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1', 10, repeat('a', 64), repeat('a', 64), 10, '00000000-0000-4000-8000-0000000000a1'),
+  ('32000000-0000-4000-8000-0000000000b1', '20000000-0000-4000-8000-0000000000b0', gen_random_uuid(), 1, 'logo', 'image/png', 10,
+   'b.png', 'available', 'quarantine/20000000-0000-4000-8000-0000000000b0/32000000-0000-4000-8000-0000000000b1',
+   '20000000-0000-4000-8000-0000000000b0/assets/32000000-0000-4000-8000-0000000000b1', 10, repeat('b', 64), repeat('b', 64), 10, '00000000-0000-4000-8000-0000000000b1');
+-- An object placed under a released path without an available upload record (never readable).
+insert into storage.objects (bucket_id, name) values
+  ('project-assets', '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a9'),
+  ('project-assets', '20000000-0000-4000-8000-0000000000a0/assets/not-a-uuid');
 
 -- ---------------------------------------------------------------------------
 -- 1. Existing Phase 2 policies are unchanged; the WP-C policies only narrow (AUTH-004)
@@ -77,7 +92,8 @@ select is((select count(*)::int from pg_policies where schemaname = 'storage' an
   'no permissive write policy exists: no user JWT can write, copy, or move any object');
 select is((select array_agg(policyname::text order by policyname) from pg_policies where schemaname = 'storage'
   and tablename = 'objects' and policyname like 'project_assets_%' and permissive = 'RESTRICTIVE'),
-  array['project_assets_quarantine_isolated', 'project_assets_released_server_delete_only',
+  array['project_assets_quarantine_isolated', 'project_assets_released_requires_available',
+        'project_assets_released_server_delete_only',
         'project_assets_released_server_update_only', 'project_assets_released_server_write_only',
         'project_assets_staff_aal2'],
   'the WP-C storage policies are all RESTRICTIVE');
@@ -93,7 +109,7 @@ select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
 select is((select count(*)::int from storage.objects where name like 'quarantine/%'), 0,
   'client A cannot list or read any quarantined object, including their own project''s');
 select is((select array_agg(name order by name) from storage.objects where bucket_id = 'project-assets'),
-  array['20000000-0000-4000-8000-0000000000a0/assets/rel-a', '20000000-0000-4000-8000-0000000000a0/brand/legacy-a'],
+  array['20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0/brand/legacy-a'],
   'client A reads only Project A released and Phase 2 paths (T-UP-06)');
 select throws_ok($$ insert into storage.objects (bucket_id, name) values ('project-assets', 'quarantine/20000000-0000-4000-8000-0000000000a0/x') $$,
   '42501', null, 'client A cannot write into their own quarantine area');
@@ -107,7 +123,7 @@ select is(pg_temp.rows_affected($q$update storage.objects set name = '20000000-0
   where name = 'quarantine/20000000-0000-4000-8000-0000000000a0/q-a'$q$), 0,
   'client A cannot move a quarantined object into the released area');
 select is(pg_temp.rows_affected($q$update storage.objects set metadata = '{"x":1}'
-  where name = '20000000-0000-4000-8000-0000000000a0/assets/rel-a'$q$), 0,
+  where name = '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1'$q$), 0,
   'client A cannot alter a released object');
 select is(pg_temp.rows_affected($q$delete from storage.objects where bucket_id = 'project-assets'$q$), 0,
   'client A cannot delete any object');
@@ -174,8 +190,8 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- 6. Function-level release controls (no client or staff self-certification)
 -- ---------------------------------------------------------------------------
-select ok(not has_function_privilege('authenticated', 'public.record_scan_result(uuid, text, text, text, text, text)', 'execute')
-  and not has_function_privilege('authenticated', 'private.record_scan_result(uuid, text, text, text, text, text)', 'execute'),
+select ok(not has_function_privilege('authenticated', 'public.record_scan_result(uuid, uuid, text, text, text, text, text)', 'execute')
+  and not has_function_privilege('authenticated', 'private.record_scan_result(uuid, uuid, text, text, text, text, text)', 'execute'),
   'authenticated users cannot execute the scan-result recorder (no self-certification)');
 select ok(not has_function_privilege('authenticated', 'public.release_upload(uuid, text, bigint)', 'execute')
   and not has_function_privilege('authenticated', 'private.release_upload(uuid, text, bigint)', 'execute'),
@@ -185,9 +201,9 @@ select ok(not has_function_privilege('authenticated', 'public.complete_upload(uu
   and not has_function_privilege('authenticated', 'public.record_processing_outcome(uuid, text, text)', 'execute')
   and not has_function_privilege('authenticated', 'public.purge_failed_uploads()', 'execute'),
   'every pipeline step is service_role only');
-select ok(not has_function_privilege('anon', 'public.record_scan_result(uuid, text, text, text, text, text)', 'execute'),
+select ok(not has_function_privilege('anon', 'public.record_scan_result(uuid, uuid, text, text, text, text, text)', 'execute'),
   'anon cannot execute the scan-result recorder');
-select ok(has_function_privilege('service_role', 'public.record_scan_result(uuid, text, text, text, text, text)', 'execute'),
+select ok(has_function_privilege('service_role', 'public.record_scan_result(uuid, uuid, text, text, text, text, text)', 'execute'),
   'the server (service_role) records scan results');
 select ok(not has_table_privilege('authenticated', 'private.runtime_environment', 'select')
   and not has_table_privilege('service_role', 'private.runtime_environment', 'insert'),
@@ -196,16 +212,43 @@ select ok(not has_table_privilege('authenticated', 'private.runtime_environment'
 -- A JWT claiming service_role does not help a session running as authenticated.
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
-select throws_ok($$ select public.record_scan_result(gen_random_uuid(), 'mock_scanner', '1', 'clean', repeat('a', 64)) $$,
+select throws_ok($$ select public.record_scan_result(gen_random_uuid(), gen_random_uuid(), 'mock_scanner', '1', 'clean', repeat('a', 64)) $$,
   '42501', null, 'a forged service_role claim on the authenticated role cannot record a scan');
 reset role;
 
 -- Defense in depth: even with EXECUTE, the definer refuses non-service-role callers.
 select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
-select is(private.record_scan_result(gen_random_uuid(), 'mock_scanner', '1', 'clean', repeat('a', 64)) ->> 'error',
+select is(private.record_scan_result(gen_random_uuid(), gen_random_uuid(), 'mock_scanner', '1', 'clean', repeat('a', 64)) ->> 'error',
   'forbidden', 'the scan recorder itself refuses a caller whose JWT role is not service_role');
 select is(private.release_upload(gen_random_uuid(), repeat('a', 64), 1) ->> 'error',
   'forbidden', 'the release function itself refuses a caller whose JWT role is not service_role');
+
+-- ---------------------------------------------------------------------------
+-- 7. Revocation through the storage policy (05 §5.5 rule 3; T-UP-17)
+-- ---------------------------------------------------------------------------
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
+select is((select count(*)::int from storage.objects where name like '20000000-0000-4000-8000-0000000000a0/assets/%'), 1,
+  'a member reads only released objects backed by an available upload (none without a record)');
+reset role;
+-- A late malicious verdict revokes the released file (05 §5.5 rule 3).
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+select is(private.record_scan_result('32000000-0000-4000-8000-0000000000a1', null, 'mock_scanner', '1', 'malicious',
+  repeat('a', 64), 'EICAR') ->> 'revoked', 'true', 'a malicious verdict after release revokes the file');
+select set_config('request.jwt.claims', '', true);
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
+select is((select count(*)::int from storage.objects where name = '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1'), 0,
+  'T-UP-17: the revoked object is unreadable immediately, before the server deletes it');
+reset role;
+select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
+select is((select count(*)::int from storage.objects where name = '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1'), 0,
+  'T-UP-17: staff cannot read the revoked object either');
+select is((select count(*)::int from storage.objects where name = '20000000-0000-4000-8000-0000000000b0/assets/32000000-0000-4000-8000-0000000000b1'), 1,
+  'revocation affects only the revoked upload');
+reset role;
+select is((select qual from pg_policies where schemaname = 'storage' and tablename = 'objects'
+  and policyname = 'project_assets_released_requires_available'),
+  '((bucket_id <> ''project-assets''::text) OR private.released_object_readable(name))',
+  'the revocation policy is restrictive, select-only, and scoped to the released path class');
 
 select * from finish();
 rollback;

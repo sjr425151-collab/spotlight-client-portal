@@ -48,12 +48,18 @@ grant execute on function pg_temp.act_as(uuid, text, interval), pg_temp.as_owner
 
 -- Test-only fixture of the WP-B interface. All financial inputs pass by default here.
 create table private.test_financial_fixture (project_id uuid primary key, data jsonb not null);
+-- WP-B's approved attributes (OI-71 item 1; 04 §8.1), added only if WP-B has not yet.
 do $$
 begin
   if not exists (select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
                  and attname = 'agreement_effective' and not attisdropped) then
     alter type private.project_financial_status add attribute agreement_state public.agreement_state,
       add attribute agreement_effective boolean;
+  end if;
+  if not exists (select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
+                 and attname = 'payment_authorization_ready' and not attisdropped) then
+    alter type private.project_financial_status add attribute payment_authorization_ready boolean,
+      add attribute payment_authorization_state text;
   end if;
 end;
 $$;
@@ -63,7 +69,7 @@ language sql stable security definer set search_path = '' as $$
     jsonb_build_object('project_id', p_project_id, 'contract_version', 1, 'implemented', false,
       'deposit_state', 'not_started', 'deposit_verified', false, 'final_balance_state', 'not_due',
       'balance_verified_or_settled', false, 'balance_settled_by_adjustment', false,
-      'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb)
+      'payment_authorization_ready', false, 'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb)
     || coalesce((select f.data from private.test_financial_fixture f where f.project_id = p_project_id), '{}'::jsonb));
 $$;
 create function pg_temp.fin(p jsonb) returns void language sql as $$
@@ -71,7 +77,7 @@ create function pg_temp.fin(p jsonb) returns void language sql as $$
 $$;
 insert into private.test_financial_fixture values ('20000000-0000-4000-8000-0000000000a0',
   '{"implemented": true, "agreement_state": "effective", "agreement_effective": true, "deposit_state": "verified",
-    "deposit_verified": true, "final_balance_state": "verified", "balance_verified_or_settled": true,
+    "deposit_verified": true, "payment_authorization_ready": true, "final_balance_state": "verified", "balance_verified_or_settled": true,
     "balance_settled_by_adjustment": false, "active_billing_holds": [], "evidence": {"order_summary_id": "fin-secret-ref"}}');
 
 create function pg_temp.qa_items(p_fail_area text default null) returns jsonb language sql as $$
@@ -245,7 +251,7 @@ select pg_temp.fin('{"deposit_verified": false}');
 select is(pg_temp.failing(), 'G2', 'T-PUB-01: G2 fails alone when the deposit is not verified');
 select is(pg_temp.try_start(), 'G2', 'T-PUB-07: a deposit change after authorization blocks deployment');
 select ok(not pg_temp.reauthorize(), 'T-PUB-01: authorization is rejected with G2 failing');
-select pg_temp.fin('{"deposit_verified": true}');
+select pg_temp.fin('{"deposit_verified": true, "payment_authorization_ready": true}');
 -- G4
 select ok(pg_temp.reauthorize(), 're-authorized');
 select pg_temp.fin('{"balance_verified_or_settled": false}');

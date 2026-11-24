@@ -37,10 +37,16 @@ language sql stable security definer set search_path = '' as $$
   select private.is_staff() and private.is_aal2() and private.session_is_active();
 $$;
 
--- An active client member of the project (never staff), in a live session (03 §4 "M").
+-- An active client member of the project, in a live session (03 §4 "M"). OI-78 (amended):
+-- the caller must hold no staff role of any kind (`staff_role_of(...) is null`), so a
+-- staff-role holder is never a client member however `private.is_staff()` is later defined.
 create function private.wpc_is_client_member(p_project_id uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
-  select not private.is_staff() and private.session_is_active()
+  select (select auth.uid()) is not null
+     and private.staff_role_of((select auth.uid())) is null
+     and not exists (select 1 from public.staff_roles s
+                      where s.user_id = (select auth.uid()) and s.status = 'active')
+     and private.session_is_active()
      and private.is_project_member(p_project_id);
 $$;
 
@@ -55,6 +61,25 @@ begin
   return v ->> 'project_id' = p_project_id::text
      and v -> 'implemented' = 'true'::jsonb
      and v -> 'deposit_verified' = 'true'::jsonb;
+exception
+  when others then
+    return false;
+end;
+$$;
+
+-- Intake precondition (05 §3; OI-74; T-LC-01): deposit verified AND a ready payment
+-- authorization, both read only through the WP-B interface as JSON. A missing attribute,
+-- a non-boolean value, an error, or an unimplemented interface keeps intake locked.
+create function private.wpc_intake_unlocked(p_project_id uuid) returns boolean
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v jsonb;
+begin
+  v := to_jsonb(private.project_financial_status(p_project_id));
+  return coalesce(v ->> 'project_id' = p_project_id::text
+     and v -> 'implemented' = 'true'::jsonb
+     and v -> 'deposit_verified' = 'true'::jsonb
+     and v -> 'payment_authorization_ready' = 'true'::jsonb, false);
 exception
   when others then
     return false;
@@ -203,7 +228,7 @@ begin
    where s.project_id = p_project_id and s.status = 'submitted'
    order by s.version desc limit 1;
   if v_latest is null then
-    return case when private.wpc_deposit_verified(p_project_id)
+    return case when private.wpc_intake_unlocked(p_project_id)
                 then 'open'::public.intake_state else 'locked'::public.intake_state end;
   end if;
   select r.decision into v_decision from public.intake_reviews r where r.submission_id = v_latest;
@@ -226,7 +251,7 @@ begin
   if not private.wpc_is_client_member(p_project_id) then
     return private.fail('forbidden');
   end if;
-  if not private.wpc_deposit_verified(p_project_id) then
+  if not private.wpc_intake_unlocked(p_project_id) then
     return private.fail('intake_locked');
   end if;
   v_state := private.intake_state_of(p_project_id);
@@ -259,7 +284,7 @@ begin
   if not private.wpc_is_client_member(p_project_id) then
     return private.fail('forbidden');
   end if;
-  if not private.wpc_deposit_verified(p_project_id) then
+  if not private.wpc_intake_unlocked(p_project_id) then
     return private.fail('intake_locked');
   end if;
   perform pg_advisory_xact_lock(hashtextextended('intake:' || p_project_id::text, 0));
@@ -329,16 +354,17 @@ exception
 end;
 $$;
 
--- Audited staff correction (03 §4: Admin corrects on the client's behalf). Creates a new
--- submitted version; the prior versions are untouched (T-LC-04). The corrected version
--- needs a staff review like any other submission.
+-- Audited staff correction (03 §4; OI-79 item 7): the Owner or an Admin corrects on the
+-- client's behalf, with a required reason. Creates a new submitted version recording the
+-- actor, time, and reason; the original submission and every earlier version are untouched
+-- (T-LC-04, T-LC-17). The corrected version needs a staff review like any other.
 create function private.correct_intake(p_project_id uuid, p_content jsonb, p_reason text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v_version integer;
   v_id uuid;
 begin
-  if not (private.wpc_is_staff_aal2() and private.staff_role_of((select auth.uid())) = 'admin') then
+  if not (private.wpc_is_staff_aal2() and private.staff_role_of((select auth.uid())) in ('owner', 'admin')) then
     return private.fail('forbidden');
   end if;
   if not private.wpc_text_ok(p_reason, 1000) then
@@ -377,7 +403,7 @@ create type public.upload_status as enum (
 );
 
 -- 05 §5.2 per-file limits. Sizes use decimal megabytes (1 MB = 1,000,000 bytes), the
--- stricter reading (OI-73). Mirrors src/domain/uploads.ts (unit-tested).
+-- reading approved in OI-79 item 1 (05 §5.4). Mirrors src/domain/uploads.ts (unit-tested).
 create function private.upload_max_bytes(p_category public.upload_category, p_mime text) returns bigint
 language sql immutable set search_path = '' as $$
   select case
@@ -468,14 +494,31 @@ create table public.asset_uploads (
   completed_at timestamptz,
   status_changed_at timestamptz not null default now(),
   purged_at timestamptz,
+  -- Scan authority (05 §5.5). The current attempt is the only one whose results can move the
+  -- upload toward release; failed attempts are bounded, with backoff after scanner errors.
+  current_scan_attempt_id uuid,
+  scan_failures integer not null default 0 check (scan_failures between 0 and 5),
+  next_scan_at timestamptz,
+  -- Processing re-read the stored quarantine object and confirmed its hash for this attempt.
+  source_verified_attempt_id uuid,
+  -- A malicious verdict for these bytes, at any time, blocks release permanently (05 §5.5 rule 3).
+  malware_detected boolean not null default false,
+  revoked_at timestamptz,
   unique (asset_id, version),
   constraint asset_uploads_paths check (
     quarantine_path = 'quarantine/' || project_id || '/' || id
     and (released_path is null or released_path = project_id || '/assets/' || id)),
   constraint asset_uploads_available_shape check (
-    (status = 'available') = (released_path is not null and released_sha256 is not null and released_bytes is not null)),
+    (status <> 'available' or (released_path is not null and released_sha256 is not null and released_bytes is not null))
+    and ((released_path is null) = (released_sha256 is null) and (released_path is null) = (released_bytes is null))
+    and (released_path is null or status in ('available', 'rejected'))),
+  -- A released file can only leave `available` by revocation after a malicious verdict.
+  constraint asset_uploads_revocation_shape check (
+    (revoked_at is not null) = (released_path is not null and status = 'rejected')
+    and (revoked_at is null or malware_detected)),
   constraint asset_uploads_rejected_shape check ((status = 'rejected') = (rejection_code is not null)),
-  constraint asset_uploads_used_shape check (used = (used_at is not null) and (not used or status = 'available')),
+  constraint asset_uploads_malware_shape check (not malware_detected or status = 'rejected'),
+  constraint asset_uploads_used_shape check (used = (used_at is not null) and (not used or released_path is not null)),
   constraint asset_uploads_purge_shape check (purged_at is null or status = 'failed_upload')
 );
 create index asset_uploads_project_idx on public.asset_uploads (project_id, status);
@@ -505,12 +548,18 @@ begin
   if old.used and not new.used then
     raise exception 'the used flag never reverts (OI-42)' using errcode = '42501';
   end if;
+  if old.malware_detected and not new.malware_detected then
+    raise exception 'a malware detection never reverts (05 §5.5)' using errcode = '42501';
+  end if;
   if new.status is distinct from old.status then
     if not (
          (old.status = 'uploading' and new.status in ('failed_upload', 'quarantined'))
       or (old.status = 'quarantined' and new.status in ('rejected', 'scanning'))
       or (old.status = 'scanning' and new.status in ('rejected', 'processing', 'quarantined'))
-      or (old.status = 'processing' and new.status in ('available', 'rejected'))
+      or (old.status = 'processing' and new.status in ('available', 'rejected', 'quarantined'))
+      -- Revocation (05 §5.5 rule 3): only a malicious verdict takes a released file back.
+      or (old.status = 'available' and new.status = 'rejected' and new.malware_detected
+          and new.rejection_code = 'malware_detected')
     ) then
       raise exception 'invalid upload transition % -> %', old.status, new.status using errcode = '23514';
     end if;
@@ -522,19 +571,70 @@ $$;
 create trigger asset_uploads_guard before update or delete on public.asset_uploads
   for each row execute function private.asset_uploads_guard();
 
--- Insert-only scan evidence. Written only by private.record_scan_result (service_role).
-create table public.upload_scan_results (
+-- Scan attempts (05 §5.5 rule 2). Each entry into `scanning` creates one, bound to the
+-- server-computed hash of the stored quarantine object. Insert-only except for one closure.
+create table public.upload_scan_attempts (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity unique,
   upload_id uuid not null references public.asset_uploads (id) on delete restrict,
   project_id uuid not null references public.projects (id) on delete restrict,
+  attempt_number integer not null check (attempt_number between 1 and 5),
+  expected_sha256 text not null check (expected_sha256 ~ '^[0-9a-f]{64}$'),
+  started_at timestamptz not null default now(),
+  closed_at timestamptz,
+  outcome text check (outcome in ('clean', 'malicious', 'error', 'scanner_not_permitted', 'hash_mismatch', 'invalid')),
+  unique (upload_id, attempt_number),
+  constraint upload_scan_attempts_closure check ((closed_at is null) = (outcome is null))
+);
+create index upload_scan_attempts_upload_idx on public.upload_scan_attempts (upload_id, seq desc);
+
+create function private.upload_scan_attempts_guard() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if tg_op = 'DELETE' or old.closed_at is not null
+     or (new.id, new.seq, new.upload_id, new.project_id, new.attempt_number, new.expected_sha256, new.started_at)
+        is distinct from
+        (old.id, old.seq, old.upload_id, old.project_id, old.attempt_number, old.expected_sha256, old.started_at) then
+    raise exception 'a scan attempt is immutable except for its single closure' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+create trigger upload_scan_attempts_guard before update or delete on public.upload_scan_attempts
+  for each row execute function private.upload_scan_attempts_guard();
+
+alter table public.asset_uploads
+  add constraint asset_uploads_current_attempt_fk foreign key (current_scan_attempt_id) references public.upload_scan_attempts (id),
+  add constraint asset_uploads_source_verified_fk foreign key (source_verified_attempt_id) references public.upload_scan_attempts (id);
+
+-- Insert-only scan evidence. Written only by private.record_scan_result (service_role),
+-- always after taking the upload row lock, so `seq` is the acceptance order per upload and
+-- the lock is held until commit (05 §5.5 rule 1). Timestamps and UUIDs never decide
+-- authority. Every result is kept; `authoritative` says whether it was allowed to act.
+create table public.upload_scan_results (
+  id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity unique,
+  upload_id uuid not null references public.asset_uploads (id) on delete restrict,
+  project_id uuid not null references public.projects (id) on delete restrict,
+  attempt_id uuid references public.upload_scan_attempts (id),
+  claimed_attempt_id uuid,
   scanner text not null check (scanner ~ '^[a-z][a-z0-9_]{1,40}$'),
   engine_version text not null check (char_length(engine_version) between 1 and 100),
-  verdict text not null check (verdict in ('clean', 'malicious', 'error')),
+  verdict text not null check (verdict in ('clean', 'malicious', 'error', 'invalid')),
   signature text check (signature is null or char_length(signature) <= 200),
   scanned_sha256 text not null check (scanned_sha256 ~ '^[0-9a-f]{64}$'),
-  scanned_at timestamptz not null default now()
+  hash_matches boolean not null,
+  authoritative boolean not null,
+  disposition text not null check (disposition in (
+    'clean_accepted', 'malicious_accepted', 'error_quarantined', 'scanner_not_permitted', 'hash_mismatch',
+    'invalid_result', 'stale_attempt', 'duplicate', 'not_scanning', 'unknown_attempt')),
+  scanned_at timestamptz not null default now(),
+  constraint upload_scan_results_authority check (
+    authoritative = (disposition in ('clean_accepted', 'malicious_accepted', 'error_quarantined',
+                                     'scanner_not_permitted', 'hash_mismatch', 'invalid_result')))
 );
-create index upload_scan_results_upload_idx on public.upload_scan_results (upload_id, scanned_at desc);
+create index upload_scan_results_upload_idx on public.upload_scan_results (upload_id, seq desc);
+create index upload_scan_results_malicious_idx on public.upload_scan_results (scanned_sha256) where verdict = 'malicious';
 create trigger upload_scan_results_insert_only before update or delete on public.upload_scan_results
   for each row execute function private.wpc_insert_only();
 
@@ -593,7 +693,7 @@ begin
           or (private.wpc_is_staff_aal2() and exists (select 1 from public.projects where id = p_project_id))) then
     return private.fail('forbidden');
   end if;
-  if not private.wpc_deposit_verified(p_project_id) then
+  if not private.wpc_intake_unlocked(p_project_id) then
     return private.fail('intake_locked');
   end if;
   if exists (select 1 from public.projects where id = p_project_id and archived_at is not null) then
@@ -734,38 +834,225 @@ begin
 end;
 $$;
 
+-- Bounded scan retries (05 §5.4 item 8): at most 5 attempts. After a scanner error the next
+-- attempt waits, on the approved outbox schedule (07 §3: 1 min, 5 min, 30 min, 2 h, 12 h).
+-- After the last failure the file stays quarantined and goes to the Upload review queue.
+create function private.scan_max_attempts() returns integer language sql immutable set search_path = '' as $$ select 5 $$;
+create function private.scan_retry_backoff(p_failures integer) returns interval
+language sql immutable set search_path = '' as $$
+  select (array[interval '1 minute', interval '5 minutes', interval '30 minutes', interval '2 hours',
+                interval '12 hours'])[least(greatest(p_failures, 1), 5)];
+$$;
+
+-- Opens a new scan attempt and moves the upload to scanning (05 §5.5 rule 2). Internal.
+create function private.open_scan_attempt(p_upload public.asset_uploads) returns uuid
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_id uuid;
+begin
+  insert into public.upload_scan_attempts (upload_id, project_id, attempt_number, expected_sha256)
+  values (p_upload.id, p_upload.project_id,
+          (select coalesce(max(a.attempt_number), 0) + 1 from public.upload_scan_attempts a where a.upload_id = p_upload.id),
+          p_upload.sha256)
+  returning id into v_id;
+  update public.asset_uploads set status = 'scanning', current_scan_attempt_id = v_id, source_verified_attempt_id = null
+   where id = p_upload.id;
+  return v_id;
+end;
+$$;
+
 -- Content validation result (magic bytes, polyglots; 05 §5.3 rule 1). A failure rejects;
--- a pass moves the file to scanning. The file stays in quarantine either way.
+-- a pass opens a scan attempt. The file stays in quarantine either way. A retry after a
+-- failed attempt passes through here again (the server re-reads and re-validates the
+-- stored object) and is refused while backing off or once the attempts are exhausted.
 create function private.record_content_check(p_upload_id uuid, p_passed boolean, p_detected_mime text, p_code text)
 returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v public.asset_uploads;
+  v_attempt uuid;
 begin
   if not private.wpc_is_service_role() then
     return private.fail('forbidden');
   end if;
   select * into v from public.asset_uploads where id = p_upload_id for update;
-  if not found or v.status <> 'quarantined' then
+  if not found or v.status <> 'quarantined' or v.malware_detected then
     return private.fail('not_found');
   end if;
   if not coalesce(p_passed, false) then
     perform private.reject_upload_internal(v, coalesce(nullif(p_code, ''), 'content_invalid'));
     return jsonb_build_object('ok', true, 'status', 'rejected');
   end if;
-  update public.asset_uploads set status = 'scanning', detected_mime = left(p_detected_mime, 100) where id = v.id;
-  return jsonb_build_object('ok', true, 'status', 'scanning');
+  if v.scan_failures >= private.scan_max_attempts() then
+    return private.fail('scan_retries_exhausted');
+  end if;
+  if v.next_scan_at is not null and v.next_scan_at > now() then
+    return jsonb_build_object('ok', false, 'error', 'scan_backoff', 'next_scan_at', v.next_scan_at);
+  end if;
+  update public.asset_uploads set detected_mime = left(p_detected_mime, 100) where id = v.id;
+  v_attempt := private.open_scan_attempt(v);
+  return jsonb_build_object('ok', true, 'status', 'scanning', 'attempt_id', v_attempt);
 end;
 $$;
 
--- Scan evidence (service_role only; AUTH-004: no client self-certification). The result is
--- bound to the sha256 of the stored quarantine object. Malicious: rejected (blocks access
--- and fulfillment, OI-31). Error: back to quarantined for a retry. Clean: processing, but
--- only for a scanner permitted in this environment; otherwise the file stays in quarantine.
+-- Revokes access to a released file after a late malicious verdict (05 §5.5 rule 3).
+-- The released object becomes unreadable at once through the storage policy
+-- `project_assets_released_requires_available`; the server also deletes the object.
+create function private.revoke_released_upload(p_upload public.asset_uploads) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  update public.asset_uploads
+     set status = 'rejected', rejection_code = 'malware_detected', malware_detected = true, revoked_at = now()
+   where id = p_upload.id;
+  perform private.record_audit_event('upload.access_revoked', 'asset_uploads', p_upload.id::text, p_upload.project_id,
+    null, jsonb_build_object('reason', 'malware_detected', 'used', p_upload.used));
+  perform private.enqueue_notification('upload.access_revoked', 'upload.access_revoked:' || p_upload.id || ':1',
+    'upload_access_revoked', 1, p_upload.project_id, null, '{}', array['owner']::public.notification_recipient_role[],
+    jsonb_build_object('upload_id', p_upload.id, 'used', p_upload.used));
+  perform private.enqueue_notification('upload.rejected', 'upload.rejected:' || p_upload.id || ':1',
+    'upload_rejected', 1, p_upload.project_id, null, array[p_upload.uploaded_by],
+    array['staff']::public.notification_recipient_role[],
+    jsonb_build_object('upload_id', p_upload.id, 'code', 'malware_detected', 'guidance', 're_upload'));
+end;
+$$;
+
+-- Scan evidence (service_role only; AUTH-004: no client self-certification), 05 §5.5.
+--   1. The upload row is locked before anything is inserted, so `seq` is the acceptance order
+--      and two submissions for one upload never interleave.
+--   2. Only a result naming the upload's current, still-open attempt while it is `scanning`
+--      may act. Results for an earlier or unknown attempt, duplicates, and results arriving
+--      in any other state are stored as non-authoritative and change nothing.
+--   3. Exception: `malicious` always acts, from any attempt, in any state but terminal
+--      rejection or failure; a released file is revoked. Release is then blocked forever.
+--   4. `error`, an unpermitted scanner, a hash that differs from the stored object, or an
+--      unrecognized verdict closes the attempt and returns the file to quarantine; only a
+--      clean result of a newer attempt can count after that.
 create function private.record_scan_result(
-  p_upload_id uuid, p_scanner text, p_engine_version text, p_verdict text, p_scanned_sha256 text,
-  p_signature text default null
+  p_upload_id uuid, p_attempt_id uuid, p_scanner text, p_engine_version text, p_verdict text,
+  p_scanned_sha256 text, p_signature text default null
 ) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v public.asset_uploads;
+  v_attempt public.upload_scan_attempts;
+  v_verdict text := case when p_verdict in ('clean', 'malicious', 'error') then p_verdict else 'invalid' end;
+  v_hash_ok boolean;
+  v_disposition text;
+  v_outcome text;
+begin
+  if not private.wpc_is_service_role() then
+    return private.fail('forbidden');
+  end if;
+  select * into v from public.asset_uploads where id = p_upload_id for update;
+  if not found or v.sha256 is null then
+    return private.fail('not_found');
+  end if;
+  select * into v_attempt from public.upload_scan_attempts where id = p_attempt_id and upload_id = v.id;
+  v_hash_ok := coalesce(p_scanned_sha256 = v.sha256, false);
+
+  -- Malware always wins (rule 3).
+  if v_verdict = 'malicious' then
+    insert into public.upload_scan_results (upload_id, project_id, attempt_id, claimed_attempt_id, scanner,
+      engine_version, verdict, signature, scanned_sha256, hash_matches, authoritative, disposition)
+    values (v.id, v.project_id, v_attempt.id, p_attempt_id, p_scanner, p_engine_version, 'malicious',
+      left(p_signature, 200), coalesce(p_scanned_sha256, v.sha256), v_hash_ok, true, 'malicious_accepted');
+    perform private.record_audit_event('upload.scan_recorded', 'asset_uploads', v.id::text, v.project_id, null,
+      jsonb_build_object('scanner', p_scanner, 'verdict', 'malicious', 'attempt_id', p_attempt_id,
+        'authoritative', true, 'prior_status', v.status));
+    update public.upload_scan_attempts set closed_at = now(), outcome = 'malicious'
+     where upload_id = v.id and closed_at is null;
+    if v.status = 'available' then
+      perform private.revoke_released_upload(v);
+      return jsonb_build_object('ok', true, 'status', 'rejected', 'revoked', true, 'released_path', v.released_path);
+    elsif v.status in ('quarantined', 'scanning', 'processing') then
+      update public.asset_uploads set malware_detected = true, rejection_code = 'malware_detected', status = 'rejected'
+       where id = v.id;
+      perform private.reject_upload_internal(
+        (select u from public.asset_uploads u where u.id = v.id), 'malware_detected');
+      return jsonb_build_object('ok', true, 'status', 'rejected', 'revoked', false);
+    elsif v.status = 'rejected' and not v.malware_detected then
+      update public.asset_uploads set malware_detected = true where id = v.id;
+    end if;
+    return jsonb_build_object('ok', true, 'status', v.status, 'revoked', false);
+  end if;
+
+  -- Non-authoritative results (rule 2). A non-clean result for the current attempt still
+  -- acts after that attempt's clean result while the file is not yet released (`processing`):
+  -- a clean result followed by an error, an invalid result, a hash mismatch, or an
+  -- unpermitted scanner returns the file to quarantine (T-UP-17). A repeated clean is a
+  -- duplicate and never acts.
+  v_disposition := case
+    when v_attempt.id is null then 'unknown_attempt'
+    when v_attempt.id is distinct from v.current_scan_attempt_id then 'stale_attempt'
+    when v.status = 'scanning' and v_attempt.closed_at is null then null
+    when v.status = 'processing' and not (v_verdict = 'clean' and v_hash_ok and private.scanner_permitted(p_scanner)) then null
+    when v.status in ('scanning', 'processing') then 'duplicate'
+    else 'not_scanning'
+  end;
+  if v_disposition is not null then
+    insert into public.upload_scan_results (upload_id, project_id, attempt_id, claimed_attempt_id, scanner,
+      engine_version, verdict, signature, scanned_sha256, hash_matches, authoritative, disposition)
+    values (v.id, v.project_id, v_attempt.id, p_attempt_id, p_scanner, p_engine_version, v_verdict,
+      left(p_signature, 200), coalesce(p_scanned_sha256, repeat('0', 64)), v_hash_ok, false, v_disposition);
+    perform private.record_audit_event('upload.scan_recorded', 'asset_uploads', v.id::text, v.project_id, null,
+      jsonb_build_object('scanner', p_scanner, 'verdict', v_verdict, 'attempt_id', p_attempt_id,
+        'authoritative', false, 'disposition', v_disposition));
+    return jsonb_build_object('ok', true, 'status', v.status, 'authoritative', false, 'disposition', v_disposition);
+  end if;
+
+  -- The current attempt (rules 4 and 5).
+  v_disposition := case
+    when not v_hash_ok then 'hash_mismatch'
+    when v_verdict = 'invalid' then 'invalid_result'
+    when v_verdict = 'error' then 'error_quarantined'
+    when not private.scanner_permitted(p_scanner) then 'scanner_not_permitted'
+    else 'clean_accepted'
+  end;
+  v_outcome := case v_disposition when 'clean_accepted' then 'clean' when 'error_quarantined' then 'error'
+    when 'invalid_result' then 'invalid' else v_disposition end;
+  insert into public.upload_scan_results (upload_id, project_id, attempt_id, claimed_attempt_id, scanner,
+    engine_version, verdict, signature, scanned_sha256, hash_matches, authoritative, disposition)
+  values (v.id, v.project_id, v_attempt.id, p_attempt_id, p_scanner, p_engine_version, v_verdict,
+    left(p_signature, 200), coalesce(p_scanned_sha256, repeat('0', 64)), v_hash_ok, true, v_disposition);
+  update public.upload_scan_attempts set closed_at = now(), outcome = v_outcome
+   where id = v_attempt.id and closed_at is null;
+  perform private.record_audit_event('upload.scan_recorded', 'asset_uploads', v.id::text, v.project_id, null,
+    jsonb_build_object('scanner', p_scanner, 'verdict', v_verdict, 'attempt_id', p_attempt_id,
+      'authoritative', true, 'disposition', v_disposition));
+
+  if v_disposition = 'clean_accepted' then
+    update public.asset_uploads set status = 'processing', scan_failures = 0, next_scan_at = null where id = v.id;
+    return jsonb_build_object('ok', true, 'status', 'processing', 'authoritative', true);
+  end if;
+  update public.asset_uploads
+     set status = 'quarantined', scan_failures = least(v.scan_failures + 1, private.scan_max_attempts()),
+         next_scan_at = case when v_disposition = 'error_quarantined'
+                             then now() + private.scan_retry_backoff(v.scan_failures + 1) end
+   where id = v.id;
+  if v_disposition = 'hash_mismatch' then
+    return jsonb_build_object('ok', false, 'error', 'hash_mismatch', 'status', 'quarantined');
+  end if;
+  return jsonb_build_object('ok', true, 'status', 'quarantined', 'authoritative', true,
+    'held', case when v_disposition = 'scanner_not_permitted' then 'scanner_not_permitted' end,
+    'retries_exhausted', v.scan_failures + 1 >= private.scan_max_attempts());
+exception
+  when check_violation then
+    return private.fail('invalid_input');
+end;
+$$;
+
+-- The authoritative scan result for an upload: the last authoritative result by sequence.
+create function private.authoritative_scan(p_upload_id uuid) returns public.upload_scan_results
+language sql stable security definer set search_path = '' as $$
+  select r.* from public.upload_scan_results r
+  where r.upload_id = p_upload_id and r.authoritative
+  order by r.seq desc limit 1;
+$$;
+
+-- Processing re-reads the stored quarantine object and reports its server-computed hash
+-- before producing a derivative (05 §5.5 rule 5). A different hash means the stored object
+-- changed after scanning: the upload is rejected and can never be released.
+create function private.confirm_source_hash(p_upload_id uuid, p_sha256 text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
   v public.asset_uploads;
@@ -774,37 +1061,23 @@ begin
     return private.fail('forbidden');
   end if;
   select * into v from public.asset_uploads where id = p_upload_id for update;
-  if not found or v.status <> 'scanning' then
+  if not found or v.status <> 'processing' then
     return private.fail('not_found');
   end if;
-  if p_scanned_sha256 is distinct from v.sha256 then
-    return private.fail('hash_mismatch');
+  if p_sha256 is distinct from v.sha256 then
+    perform private.reject_upload_internal(v, 'stored_object_changed');
+    return jsonb_build_object('ok', false, 'error', 'stored_object_changed', 'status', 'rejected');
   end if;
-  insert into public.upload_scan_results (upload_id, project_id, scanner, engine_version, verdict, signature, scanned_sha256)
-  values (v.id, v.project_id, p_scanner, p_engine_version, p_verdict, left(p_signature, 200), p_scanned_sha256);
-  perform private.record_audit_event('upload.scan_recorded', 'asset_uploads', v.id::text, v.project_id, null,
-    jsonb_build_object('scanner', p_scanner, 'verdict', p_verdict));
-  if p_verdict = 'malicious' then
-    perform private.reject_upload_internal(v, 'malware_detected');
-    return jsonb_build_object('ok', true, 'status', 'rejected');
-  elsif p_verdict = 'error' then
-    update public.asset_uploads set status = 'quarantined' where id = v.id;
-    return jsonb_build_object('ok', true, 'status', 'quarantined');
-  elsif not private.scanner_permitted(p_scanner) then
-    update public.asset_uploads set status = 'quarantined' where id = v.id;
-    return jsonb_build_object('ok', true, 'status', 'quarantined', 'held', 'scanner_not_permitted');
-  end if;
-  update public.asset_uploads set status = 'processing' where id = v.id;
-  return jsonb_build_object('ok', true, 'status', 'processing');
-exception
-  when check_violation then
-    return private.fail('invalid_input');
+  update public.asset_uploads set source_verified_attempt_id = v.current_scan_attempt_id where id = v.id;
+  return jsonb_build_object('ok', true);
 end;
 $$;
 
--- Processing outcome (sanitized SVG, metadata-stripped images; 05 §5.3 rules 3-5).
--- Release requires the latest scan of this exact content to be clean, by a permitted
--- scanner, and the released object to sit at the project's released path.
+-- Release (05 §5.5 rule 6). All of: status `processing`; the authoritative result (last by
+-- sequence) is a clean result of the current attempt, by a permitted scanner, for the exact
+-- stored bytes; processing confirmed the stored object's hash for that attempt; and no
+-- malicious result has ever been recorded for these bytes, for this or any upload. The
+-- released hash is computed by the server from the object it wrote to the released path.
 create function private.release_upload(
   p_upload_id uuid, p_released_sha256 text, p_released_bytes bigint
 ) returns jsonb
@@ -820,18 +1093,27 @@ begin
   if not found or v.status <> 'processing' then
     return private.fail('not_found');
   end if;
-  select * into v_scan from public.upload_scan_results
-   where upload_id = v.id order by scanned_at desc, id desc limit 1;
-  if v_scan.verdict is distinct from 'clean' or v_scan.scanned_sha256 is distinct from v.sha256
+  v_scan := private.authoritative_scan(v.id);
+  if v_scan.disposition is distinct from 'clean_accepted' or v_scan.verdict is distinct from 'clean'
+     or v_scan.attempt_id is distinct from v.current_scan_attempt_id
+     or v_scan.scanned_sha256 is distinct from v.sha256 or not v_scan.hash_matches
      or not private.scanner_permitted(v_scan.scanner) then
     return private.fail('scan_not_clean');
+  end if;
+  if v.malware_detected or exists (
+       select 1 from public.upload_scan_results m where m.verdict = 'malicious'
+        and (m.upload_id = v.id or m.scanned_sha256 = v.sha256)) then
+    return private.fail('malware_detected');
+  end if;
+  if v.source_verified_attempt_id is distinct from v.current_scan_attempt_id then
+    return private.fail('source_not_verified');
   end if;
   update public.asset_uploads
      set status = 'available', released_path = v.project_id || '/assets/' || v.id,
          released_sha256 = p_released_sha256, released_bytes = p_released_bytes
    where id = v.id;
   perform private.record_audit_event('upload.released', 'asset_uploads', v.id::text, v.project_id, null,
-    jsonb_build_object('released_bytes', p_released_bytes));
+    jsonb_build_object('released_bytes', p_released_bytes, 'attempt_id', v.current_scan_attempt_id));
   return jsonb_build_object('ok', true, 'status', 'available',
     'released_path', v.project_id || '/assets/' || v.id);
 exception
@@ -1002,11 +1284,14 @@ language sql security invoker set search_path = '' as $$ select private.fail_upl
 create function public.record_content_check(p_upload_id uuid, p_passed boolean, p_detected_mime text, p_code text)
 returns jsonb
 language sql security invoker set search_path = '' as $$ select private.record_content_check(p_upload_id, p_passed, p_detected_mime, p_code); $$;
-create function public.record_scan_result(p_upload_id uuid, p_scanner text, p_engine_version text, p_verdict text,
-  p_scanned_sha256 text, p_signature text default null) returns jsonb
+create function public.record_scan_result(p_upload_id uuid, p_attempt_id uuid, p_scanner text, p_engine_version text,
+  p_verdict text, p_scanned_sha256 text, p_signature text default null) returns jsonb
 language sql security invoker set search_path = '' as $$
-  select private.record_scan_result(p_upload_id, p_scanner, p_engine_version, p_verdict, p_scanned_sha256, p_signature);
+  select private.record_scan_result(p_upload_id, p_attempt_id, p_scanner, p_engine_version, p_verdict, p_scanned_sha256,
+    p_signature);
 $$;
+create function public.confirm_source_hash(p_upload_id uuid, p_sha256 text) returns jsonb
+language sql security invoker set search_path = '' as $$ select private.confirm_source_hash(p_upload_id, p_sha256); $$;
 create function public.record_processing_outcome(p_upload_id uuid, p_outcome text, p_note text) returns jsonb
 language sql security invoker set search_path = '' as $$ select private.record_processing_outcome(p_upload_id, p_outcome, p_note); $$;
 create function public.release_upload(p_upload_id uuid, p_released_sha256 text, p_released_bytes bigint) returns jsonb
@@ -1018,7 +1303,7 @@ language sql security invoker set search_path = '' as $$ select private.purge_fa
 -- 5. Privileges
 -- ---------------------------------------------------------------------------
 revoke all on function
-  private.wpc_is_staff_aal2(), private.wpc_is_client_member(uuid), private.wpc_deposit_verified(uuid),
+  private.wpc_is_staff_aal2(), private.wpc_is_client_member(uuid), private.wpc_deposit_verified(uuid), private.wpc_intake_unlocked(uuid),
   private.detroit_days_since(timestamptz), private.wpc_text_ok(text, integer),
   private.intake_allowed_keys(), private.intake_required_keys(), private.intake_content_valid(jsonb),
   private.intake_content_complete(jsonb), private.intake_submissions_guard(), private.wpc_insert_only(),
@@ -1031,9 +1316,12 @@ revoke all on function
   private.reject_upload_internal(public.asset_uploads, text),
   private.complete_upload(uuid, bigint, text), private.fail_upload(uuid, text),
   private.record_content_check(uuid, boolean, text, text),
-  private.record_scan_result(uuid, text, text, text, text, text),
+  private.record_scan_result(uuid, uuid, text, text, text, text, text),
   private.release_upload(uuid, text, bigint), private.record_processing_outcome(uuid, text, text),
   private.purge_failed_uploads(), private.record_asset_access(uuid),
+  private.scan_max_attempts(), private.scan_retry_backoff(integer),
+  private.open_scan_attempt(public.asset_uploads), private.revoke_released_upload(public.asset_uploads),
+  private.authoritative_scan(uuid), private.confirm_source_hash(uuid, text), private.upload_scan_attempts_guard(),
   private.request_upload_exception(uuid, text, text, bigint, integer, bigint, text),
   private.decide_upload_exception(uuid, boolean, text)
 from public, anon, authenticated, service_role;
@@ -1045,8 +1333,8 @@ revoke all on function
   public.decide_upload_exception(uuid, boolean, text),
   public.complete_upload(uuid, bigint, text), public.fail_upload(uuid, text),
   public.record_content_check(uuid, boolean, text, text),
-  public.record_scan_result(uuid, text, text, text, text, text), public.record_processing_outcome(uuid, text, text),
-  public.release_upload(uuid, text, bigint), public.purge_failed_uploads()
+  public.record_scan_result(uuid, uuid, text, text, text, text, text), public.record_processing_outcome(uuid, text, text),
+  public.release_upload(uuid, text, bigint), public.purge_failed_uploads(), public.confirm_source_hash(uuid, text)
 from public, anon, authenticated, service_role;
 
 -- End-user actions (authenticated): each definer function re-authorizes the caller.
@@ -1067,23 +1355,24 @@ to authenticated;
 grant execute on function
   private.complete_upload(uuid, bigint, text), private.fail_upload(uuid, text),
   private.record_content_check(uuid, boolean, text, text),
-  private.record_scan_result(uuid, text, text, text, text, text), private.record_processing_outcome(uuid, text, text),
-  private.release_upload(uuid, text, bigint), private.purge_failed_uploads(),
+  private.record_scan_result(uuid, uuid, text, text, text, text, text), private.record_processing_outcome(uuid, text, text),
+  private.release_upload(uuid, text, bigint), private.purge_failed_uploads(), private.confirm_source_hash(uuid, text),
   public.complete_upload(uuid, bigint, text), public.fail_upload(uuid, text),
   public.record_content_check(uuid, boolean, text, text),
-  public.record_scan_result(uuid, text, text, text, text, text), public.record_processing_outcome(uuid, text, text),
-  public.release_upload(uuid, text, bigint), public.purge_failed_uploads()
+  public.record_scan_result(uuid, uuid, text, text, text, text, text), public.record_processing_outcome(uuid, text, text),
+  public.release_upload(uuid, text, bigint), public.purge_failed_uploads(), public.confirm_source_hash(uuid, text)
 to service_role;
 
 -- Tables: SELECT through RLS only; nobody writes directly (definer functions only).
 revoke all on table public.intake_submissions, public.intake_reviews, public.upload_exceptions,
-  public.asset_uploads, public.upload_scan_results from public, anon, authenticated;
+  public.asset_uploads, public.upload_scan_results, public.upload_scan_attempts from public, anon, authenticated;
 revoke insert, update, delete, truncate, references, trigger on table public.intake_submissions,
-  public.intake_reviews, public.upload_exceptions, public.asset_uploads, public.upload_scan_results from service_role;
+  public.intake_reviews, public.upload_exceptions, public.asset_uploads, public.upload_scan_results,
+  public.upload_scan_attempts from service_role;
 grant select on table public.intake_submissions, public.intake_reviews, public.upload_exceptions,
   public.asset_uploads to authenticated;
 -- Scan evidence is staff-visible only.
-grant select on table public.upload_scan_results to authenticated;
+grant select on table public.upload_scan_results, public.upload_scan_attempts to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 6. Row Level Security (03 §8-§9)
@@ -1093,6 +1382,7 @@ alter table public.intake_reviews enable row level security;
 alter table public.upload_exceptions enable row level security;
 alter table public.asset_uploads enable row level security;
 alter table public.upload_scan_results enable row level security;
+alter table public.upload_scan_attempts enable row level security;
 
 create policy intake_submissions_select on public.intake_submissions for select to authenticated
   using (private.can_access_project(project_id));
@@ -1104,13 +1394,15 @@ create policy asset_uploads_select on public.asset_uploads for select to authent
   using (private.can_access_project(project_id));
 create policy upload_scan_results_select on public.upload_scan_results for select to authenticated
   using ((select private.is_staff()));
+create policy upload_scan_attempts_select on public.upload_scan_attempts for select to authenticated
+  using ((select private.is_staff()));
 
 do $$
 declare
   t text;
 begin
   foreach t in array array['intake_submissions', 'intake_reviews', 'upload_exceptions', 'asset_uploads',
-                           'upload_scan_results'] loop
+                           'upload_scan_results', 'upload_scan_attempts'] loop
     execute format(
       'create policy %I on public.%I as restrictive for all to authenticated
          using (not (select private.is_staff()) or ((select private.is_aal2()) and (select private.session_is_active())))

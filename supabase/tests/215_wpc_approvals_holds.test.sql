@@ -34,12 +34,18 @@ grant execute on function pg_temp.act_as(uuid, text, interval) to authenticated,
 
 -- Test-only fixture of the WP-B interface (rolled back): deposits verified for A and B.
 create table private.test_financial_fixture (project_id uuid primary key, data jsonb not null);
+-- WP-B's approved attributes (OI-71 item 1; 04 §8.1), added only if WP-B has not yet.
 do $$
 begin
   if not exists (select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
                  and attname = 'agreement_effective' and not attisdropped) then
     alter type private.project_financial_status add attribute agreement_state public.agreement_state,
       add attribute agreement_effective boolean;
+  end if;
+  if not exists (select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
+                 and attname = 'payment_authorization_ready' and not attisdropped) then
+    alter type private.project_financial_status add attribute payment_authorization_ready boolean,
+      add attribute payment_authorization_state text;
   end if;
 end;
 $$;
@@ -49,12 +55,12 @@ language sql stable security definer set search_path = '' as $$
     jsonb_build_object('project_id', p_project_id, 'contract_version', 1, 'implemented', false,
       'deposit_state', 'not_started', 'deposit_verified', false, 'final_balance_state', 'not_due',
       'balance_verified_or_settled', false, 'balance_settled_by_adjustment', false,
-      'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb)
+      'payment_authorization_ready', false, 'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb)
     || coalesce((select f.data from private.test_financial_fixture f where f.project_id = p_project_id), '{}'::jsonb));
 $$;
 insert into private.test_financial_fixture values
-  ('20000000-0000-4000-8000-0000000000a0', '{"implemented": true, "deposit_state": "verified", "deposit_verified": true}'),
-  ('20000000-0000-4000-8000-0000000000b0', '{"implemented": true, "deposit_state": "verified", "deposit_verified": true}');
+  ('20000000-0000-4000-8000-0000000000a0', '{"implemented": true, "deposit_state": "verified", "deposit_verified": true, "payment_authorization_ready": true}'),
+  ('20000000-0000-4000-8000-0000000000b0', '{"implemented": true, "deposit_state": "verified", "deposit_verified": true, "payment_authorization_ready": true}');
 
 -- Accepted intake for both projects (fixture rows, written as the table owner).
 insert into public.intake_submissions (id, project_id, version, status, content, created_by, submitted_by, submitted_at)
@@ -244,7 +250,7 @@ select is((private.project_fulfillment_status('20000000-0000-4000-8000-000000000
 select is((select count(*)::int from public.preview_approvals where project_id = '20000000-0000-4000-8000-0000000000b0'), 0,
   'T-LC-11: placing the hold never creates an approval');
 select is((select data from private.test_financial_fixture where project_id = '20000000-0000-4000-8000-0000000000b0'),
-  '{"implemented": true, "deposit_state": "verified", "deposit_verified": true}'::jsonb,
+  '{"implemented": true, "deposit_state": "verified", "deposit_verified": true, "payment_authorization_ready": true}'::jsonb,
   'T-LC-13: the hold does not touch billing state');
 
 -- T-ROLE-05: Admin cannot clear without a qualifying client response; the Owner can.

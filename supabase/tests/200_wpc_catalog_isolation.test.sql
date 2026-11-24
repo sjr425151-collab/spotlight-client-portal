@@ -29,7 +29,7 @@ grant execute on function pg_temp.act_as(uuid, text) to authenticated;
 create temp table wpc_tables (name text primary key, client_visible boolean not null);
 insert into wpc_tables values
   ('intake_submissions', true), ('intake_reviews', true), ('upload_exceptions', true), ('asset_uploads', true),
-  ('upload_scan_results', false), ('preview_drafts', false), ('preview_releases', true),
+  ('upload_scan_results', false), ('upload_scan_attempts', false), ('preview_drafts', false), ('preview_releases', true),
   ('preview_release_assets', true), ('preview_approvals', true), ('preview_revision_requests', true),
   ('revision_classifications', false), ('approval_outreach_records', false), ('approval_holds', false),
   ('approval_hold_resumption_decisions', false), ('qa_results', false), ('qa_performance_exceptions', false),
@@ -42,7 +42,7 @@ grant select on wpc_tables to authenticated;
 -- 1. Catalog
 -- ---------------------------------------------------------------------------
 select is((select count(*)::int from wpc_tables w join pg_class c on c.relname = w.name
-  and c.relnamespace = 'public'::regnamespace where c.relrowsecurity), 23, 'RLS is enabled on all 23 WP-C tables');
+  and c.relnamespace = 'public'::regnamespace where c.relrowsecurity), 24, 'RLS is enabled on all 24 WP-C tables');
 select is((select array_agg(w.name order by w.name) from wpc_tables w
   where has_table_privilege('authenticated', 'public.' || w.name, 'insert')
      or has_table_privilege('authenticated', 'public.' || w.name, 'update')
@@ -54,10 +54,10 @@ select is((select array_agg(w.name order by w.name) from wpc_tables w
   'no API role can write a WP-C table directly; anon cannot read one (definer functions only)');
 select is((select count(*)::int from wpc_tables w where
   (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = w.name and p.permissive = 'RESTRICTIVE'
-     and p.policyname in (w.name || '_staff_aal2', w.name || '_active_user')) = 2), 23,
+     and p.policyname in (w.name || '_staff_aal2', w.name || '_active_user')) = 2), 24,
   'every WP-C table carries the restrictive staff-aal2 and active-user policies');
 select is((select count(*)::int from wpc_tables w join pg_attribute a on a.attrelid = ('public.' || w.name)::regclass
-  and a.attname = 'project_id' and a.attnotnull), 23, 'every WP-C table carries a non-null project_id (03 §8)');
+  and a.attname = 'project_id' and a.attnotnull), 24, 'every WP-C table carries a non-null project_id (03 §8)');
 select is((select count(*)::int from pg_policies p join wpc_tables w on w.name = p.tablename
   where p.schemaname = 'public' and p.permissive = 'PERMISSIVE' and p.cmd <> 'SELECT'), 0,
   'no permissive write policy exists on any WP-C table');
@@ -81,8 +81,13 @@ insert into public.asset_uploads (id, project_id, asset_id, version, category, d
 values ('32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0', gen_random_uuid(), 1, 'logo',
   'image/png', 10, 'a.png', 'scanning', 'quarantine/20000000-0000-4000-8000-0000000000a0/32000000-0000-4000-8000-0000000000a1',
   10, repeat('a', 64), '00000000-0000-4000-8000-0000000000a1');
-insert into public.upload_scan_results (upload_id, project_id, scanner, engine_version, verdict, scanned_sha256)
-values ('32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0', 'mock_scanner', '1', 'clean', repeat('a', 64));
+insert into public.upload_scan_attempts (id, upload_id, project_id, attempt_number, expected_sha256)
+values ('3b000000-0000-4000-8000-0000000000a1', '32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0',
+        1, repeat('a', 64));
+insert into public.upload_scan_results (upload_id, project_id, attempt_id, claimed_attempt_id, scanner, engine_version, verdict,
+  scanned_sha256, hash_matches, authoritative, disposition)
+values ('32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0', '3b000000-0000-4000-8000-0000000000a1',
+        '3b000000-0000-4000-8000-0000000000a1', 'mock_scanner', '1', 'clean', repeat('a', 64), true, true, 'clean_accepted');
 insert into public.preview_drafts (project_id, commit_sha, recorded_by)
 values ('20000000-0000-4000-8000-0000000000a0', repeat('a', 40), '00000000-0000-4000-8000-000000000002');
 insert into public.preview_releases (id, project_id, release_number, commit_sha, deployment_id, preview_url, released_by)
@@ -178,7 +183,7 @@ $$;
 grant execute on function pg_temp.visible_tables(), pg_temp.writable_tables() to authenticated;
 
 select is((select count(*)::int from wpc_tables w where (xpath('/row/c/text()',
-  query_to_xml(format('select count(*) as c from public.%I', w.name), false, true, '')))[1]::text::int > 0), 23,
+  query_to_xml(format('select count(*) as c from public.%I', w.name), false, true, '')))[1]::text::int > 0), 24,
   'fixture: every WP-C table has a Project A row');
 
 -- ---------------------------------------------------------------------------

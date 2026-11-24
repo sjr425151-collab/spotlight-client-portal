@@ -550,6 +550,7 @@ declare
   v_holds public.hold_type[];
   v_hold_ids uuid[];
   v_state public.intake_state;
+  v_revoked_assets boolean := false;
 begin
   if not exists (select 1 from public.projects where id = p_project_id) then
     return row(p_project_id, 2::smallint, false, 'locked'::public.intake_state, false, null::uuid, false, null::uuid,
@@ -565,6 +566,9 @@ begin
      order by q.seq desc limit 1;
     select * into v_sec from public.security_check_results s where s.release_id = v_release.id
      order by s.seq desc limit 1;
+    v_revoked_assets := exists (select 1 from public.preview_release_assets m
+      join public.asset_uploads u on u.id = m.upload_id
+      where m.release_id = v_release.id and u.status <> 'available');
   end if;
   select * into v_domain from public.domain_readiness_checks d where d.project_id = p_project_id
    order by d.seq desc limit 1;
@@ -575,7 +579,9 @@ begin
     p_project_id, 2::smallint, true,
     v_state, v_state = 'accepted_by_staff',
     v_release.id, v_approval is not null, v_approval,
-    v_release.id is not null and private.qa_result_passes(v_qa),
+    -- 06 §6 "approved assets only": a release whose manifest holds an asset that is no longer
+    -- available (for example revoked after a late malicious verdict) fails G5.
+    v_release.id is not null and private.qa_result_passes(v_qa) and not v_revoked_assets,
     v_release.id is not null and private.security_result_passes(v_sec),
     v_holds,
     jsonb_build_object(
@@ -583,7 +589,8 @@ begin
       'current_release_commit_sha', v_release.commit_sha,
       'qa_result_id', v_qa.id, 'qa_release_id', v_qa.release_id,
       'security_result_id', v_sec.id, 'security_release_id', v_sec.release_id,
-      'fulfillment_hold_ids', to_jsonb(v_hold_ids)),
+      'fulfillment_hold_ids', to_jsonb(v_hold_ids),
+      'release_assets_unavailable', v_revoked_assets),
     v_domain.id is not null and private.domain_check_passed(v_domain)
       and v_domain.checked_at > now() - private.domain_freshness_window(),
     v_domain.id, v_domain.checked_at
@@ -1474,7 +1481,9 @@ begin
   if not private.wpc_is_service_role() then
     return private.fail('forbidden');
   end if;
-  if private.staff_role_of(p_requested_by) is null then
+  -- OI-78 (amended): only an Owner or Admin may be the requester, whatever other staff
+  -- roles exist now or later.
+  if coalesce(private.staff_role_of(p_requested_by)::text, '') not in ('owner', 'admin') then
     return private.fail('forbidden');
   end if;
   select * into v from public.publication_deployments where id = p_deployment_id;
@@ -1597,7 +1606,7 @@ begin
 end;
 $$;
 
--- Upload review SLA and domain expiry horizon for the queue (05 §9 [PROPOSED]; OI-73).
+-- Upload review SLA and domain expiry horizon for the queue (05 §5.4, OI-79 items 2 and 3).
 create function private.upload_review_sla() returns interval language sql immutable set search_path = '' as $$ select interval '24 hours' $$;
 create function private.domain_expiry_horizon() returns integer language sql immutable set search_path = '' as $$ select 60 $$;
 
@@ -1641,7 +1650,7 @@ begin
       return next jsonb_build_object('queue', 'awaiting_deposit', 'project_id', p.id, 'project_name', p.name,
         'detail', jsonb_build_object('deposit_requirement', 'unsatisfied'));
     end if;
-    if v_state in ('open', 'changes_requested') and private.wpc_deposit_verified(p.id) then
+    if v_state in ('open', 'changes_requested') and private.wpc_intake_unlocked(p.id) then
       return next jsonb_build_object('queue', 'intake_pending', 'project_id', p.id, 'project_name', p.name,
         'detail', jsonb_build_object('intake_state', v_state));
     end if;
@@ -1742,11 +1751,13 @@ begin
 
     for item in
       select jsonb_build_object('queue', 'upload_review', 'project_id', p.id, 'project_name', p.name,
-        'subject_id', u.id, 'detail', jsonb_build_object('status', u.status, 'code', coalesce(u.rejection_code, u.processing_note),
+        'subject_id', u.id, 'detail', jsonb_build_object('status', u.status, 'code', coalesce(u.rejection_code, u.processing_note,
+            case when u.scan_failures >= private.scan_max_attempts() then 'scan_retries_exhausted' end),
           'name', u.original_name))
       from public.asset_uploads u
       where u.project_id = p.id
-        and ((u.status in ('quarantined', 'scanning', 'processing') and u.status_changed_at < now() - private.upload_review_sla())
+        and ((u.status in ('quarantined', 'scanning', 'processing') and u.created_at < now() - private.upload_review_sla())
+             or (u.status = 'quarantined' and u.scan_failures >= private.scan_max_attempts())
              or (u.status = 'processing' and u.processing_note is not null)
              or (u.status = 'rejected' and not exists (
                    select 1 from public.asset_uploads n where n.asset_id = u.asset_id and n.version > u.version)))
@@ -1771,6 +1782,63 @@ begin
   end loop;
 end;
 $$;
+
+-- Dispute evidence interface (04 §15.4; T-ARC-10). Read-only and Owner-only (fresh session
+-- at aal2). WP-B's `dispute_evidence_package` includes this result in full. Every value is
+-- read from the authoritative WP-C record as stored; nothing is altered or synthesized.
+-- `p_release_id` narrows the result to one release (for example the release whose approval
+-- made the disputed balance due); null returns every release of the project. No role holds
+-- EXECUTE: it is called inside WP-B's SECURITY DEFINER function, as the Owner who called it.
+create function private.wpc_dispute_evidence(p_project_id uuid, p_release_id uuid default null) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_releases uuid[];
+begin
+  if not (private.is_owner() and private.is_aal2() and private.session_is_active()) then
+    return private.fail('forbidden');
+  end if;
+  if not exists (select 1 from public.projects where id = p_project_id) then
+    return private.fail('not_found');
+  end if;
+  if p_release_id is not null and not exists (
+       select 1 from public.preview_releases where id = p_release_id and project_id = p_project_id) then
+    return private.fail('not_found');
+  end if;
+  select coalesce(array_agg(r.id order by r.release_number), '{}') into v_releases
+    from public.preview_releases r
+   where r.project_id = p_project_id and (p_release_id is null or r.id = p_release_id);
+
+  return jsonb_build_object('ok', true, 'contract_version', 1, 'project_id', p_project_id,
+    'release_filter', p_release_id, 'generated_at', now(),
+    'preview_releases', (select coalesce(jsonb_agg(to_jsonb(r) order by r.release_number), '[]'::jsonb)
+      from public.preview_releases r where r.id = any (v_releases)),
+    'preview_release_assets', (select coalesce(jsonb_agg(to_jsonb(m) order by m.release_id, m.upload_id), '[]'::jsonb)
+      from public.preview_release_assets m where m.release_id = any (v_releases)),
+    'preview_approvals', (select coalesce(jsonb_agg(to_jsonb(a) order by a.approved_at, a.id), '[]'::jsonb)
+      from public.preview_approvals a where a.release_id = any (v_releases)),
+    'revision_requests', (select coalesce(jsonb_agg(to_jsonb(q) order by q.requested_at, q.id), '[]'::jsonb)
+      from public.preview_revision_requests q where q.release_id = any (v_releases)),
+    'outreach', (select coalesce(jsonb_agg(to_jsonb(o) order by o.occurred_on, o.recorded_at, o.id), '[]'::jsonb)
+      from public.approval_outreach_records o where o.release_id = any (v_releases)),
+    'approval_holds', (select coalesce(jsonb_agg(to_jsonb(h) order by h.placed_at, h.id), '[]'::jsonb)
+      from public.approval_holds h where h.project_id = p_project_id
+        and (p_release_id is null or h.release_id = p_release_id)),
+    'qa_results', (select coalesce(jsonb_agg(to_jsonb(x) order by x.seq), '[]'::jsonb)
+      from public.qa_results x where x.release_id = any (v_releases)),
+    'qa_performance_exceptions', (select coalesce(jsonb_agg(to_jsonb(e) order by e.approved_at, e.id), '[]'::jsonb)
+      from public.qa_performance_exceptions e where e.release_id = any (v_releases)),
+    'security_results', (select coalesce(jsonb_agg(to_jsonb(x) order by x.seq), '[]'::jsonb)
+      from public.security_check_results x where x.release_id = any (v_releases)),
+    'publication_authorizations', (select coalesce(jsonb_agg(to_jsonb(a) order by a.authorized_at, a.id), '[]'::jsonb)
+      from public.publication_authorizations a where a.release_id = any (v_releases)),
+    'deployments', (select coalesce(jsonb_agg(to_jsonb(d) order by d.seq), '[]'::jsonb)
+      from public.publication_deployments d where d.release_id = any (v_releases)),
+    'live_verifications', (select coalesce(jsonb_agg(to_jsonb(x) order by x.seq), '[]'::jsonb)
+      from public.deployment_verifications x
+      join public.publication_deployments d on d.id = x.deployment_id where d.release_id = any (v_releases)));
+end;
+$$;
+revoke all on function private.wpc_dispute_evidence(uuid, uuid) from public, anon, authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- 10. Exposed RPC wrappers (SECURITY INVOKER)

@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.1 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. |
+| Version | 0.4.4 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. v0.4.3 (**OI-79**, Owner decision 2026-11-24): resolved values for uploads, image limits, scanner retries, the quarantine review threshold, domain-expiry warnings, release precondition, and intake corrections (§3, §5.4). v0.4.4 (Owner direction, 2026-11-24): authoritative scan-result rules (§5.5) after the PR #19 CI root cause; tests T-UP-14 to T-UP-19. No release requirement is weakened. |
 | Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68, OI-72 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
@@ -50,10 +50,10 @@ Transition rules:
 
 | Element | Specification |
 |---|---|
-| Actors | Client (primary), Admin (audited corrections) |
-| Preconditions | Deposit `verified` **[APPROVED baseline journey step 6]** |
+| Actors | Client (primary); Owner and Admin (audited corrections, **[APPROVED OI-79 item 7]**) |
+| Preconditions | Deposit `verified` **[APPROVED baseline journey step 6]**, **and** `payment_authorization_ready` from the financial status interface (04 §8.1) **[APPROVED OI-74]** |
 | Inputs | Business legal and display name, contact info (phone, email, address), service areas, services offered, logo(s), photos, brand guidelines (optional), website preferences (style references, color preferences, pages wanted), domain information (existing domain / needs domain) |
-| Records | `intake_submissions` (versioned drafts; the submitted version is immutable) |
+| Records | `intake_submissions` (versioned drafts; the submitted version is immutable). Staff corrections create a new version and never alter the original submission; each correction records the actor, time, and a required reason **[APPROVED OI-79 item 7]**. |
 | States | `open → submitted → accepted_by_staff` or `changes_requested → submitted` |
 | Autosave | Drafts are saved server-side **[PROPOSED]** |
 | Failure states | Validation errors per field; upload errors (§5) |
@@ -117,6 +117,29 @@ Rules:
 6. **[APPROVED]** Resumable large uploads must be addressed. **[VERIFY-PROVIDER OI-39]** Check Supabase Storage resumable (TUS) support and object size limits against the 250 MB video limit.
 7. Quota is checked at upload-URL issuance and again at completion **[PROPOSED]**. Concurrent uploads must not exceed quota (a transactional reservation).
 
+### 5.4 Resolved values **[APPROVED OI-79, Owner 2026-11-24]**
+
+| # | Item | Value |
+|---|---|---|
+| 1 | Units in §5.1–§5.2 | **Decimal**: 1 MB = 1,000,000 bytes; 1 GB = 1,000,000,000 bytes |
+| 2 | Upload review queue (§9): "quarantined beyond the SLA" | A file still quarantined **24 hours** after upload is flagged for review |
+| 3 | Domain expiries queue (§9): "approaching the end of the initial term" | Warning **60 days** before the registration's expiry |
+| 4 | Decompression-bomb limits (§5.3 rule 5) | At most **12,000 px per side and 100 megapixels**. Dimensions are read from the file header and checked **before** any full decode; decoding is bounded in memory and processing time; malformed or oversized images are rejected before expensive processing wherever possible. No unapproved dependency is introduced (OI-80) |
+| 6 | Release precondition (§6) | A preview can be released only when intake is `accepted_by_staff`. **No override** |
+| 7 | Intake corrections (§3) | Owner and Admin; original submission, correction history, actor, and reason preserved; existing authorization and tenant isolation apply |
+| 8 | Scanner errors (§5.3) | The file stays **quarantined**. Bounded retries with backoff; after the last retry the file goes to the Upload review queue. No unscanned file is ever released |
+
+Item 5 (security findings) is in 06 §2 and §7.
+
+### 5.5 Authoritative scan results **[Owner direction, 2026-11-24; implements §5.3 "no unscanned file is released"]**
+
+1. **Deterministic order.** Every scan result carries a database-assigned, strictly increasing sequence number. Every insert takes the upload row lock first, so sequence order is the order in which results were accepted for that upload. Timestamps and random IDs never decide authority.
+2. **Scan attempts.** Each entry into `scanning` creates a new scan attempt. A result must name the current attempt; a result for an earlier attempt, a duplicate, or a replay is recorded as **non-authoritative** and never moves the upload toward release.
+3. **Malware always wins.** A `malicious` result is accepted and acted on in **any** non-terminal state and from any attempt, including after a clean result: the upload is rejected, and if it was already available, access is revoked, audited, and the Owner is alerted. A malicious result for the same bytes at any time permanently blocks release.
+4. **Errors and invalid results.** An `error`, an unpermitted scanner, or an invalid result for the current attempt returns the upload to quarantine (bounded retries, 05 §5.4 item 8); a later clean result counts only if it belongs to a newer attempt.
+5. **Exact bytes.** The authoritative clean result must match the SHA-256 computed by the server from the stored quarantine object. Processing re-reads the object and verifies that hash before producing a derivative; the released object's hash is computed by the server from the object written to the released path.
+6. **Release eligibility** is unchanged and still requires all of: status `processing`, the authoritative result clean by a permitted scanner for the exact stored bytes, and no `malicious` result ever recorded for those bytes.
+
 ## 6. Preview release versioning **[APPROVED OI-18]**
 
 - A **preview release** is an immutable, uniquely identified artifact released to the client. **[PROPOSED]** It is identified by a sequential release number per project, the source commit SHA, the deployment ID, and the preview URL.
@@ -131,8 +154,8 @@ Rules:
 |---|---|
 | Actors | Client with active membership on the project |
 | Preconditions | A release in `released` state is the project's current release |
-| Inputs | Explicit approval action on that release ID, plus an optional comment. **[R2]** The action is labeled **Approve Website & Authorize Final Payment** **[APPROVED OI-17, revised 2026-11-23]**. **[R1, OI-68]** The label must not state or imply an automatic charge, for example **Approve Website & Continue to Final Payment** **[PROPOSED; counsel confirms, DEP-03]**. |
-| Payment authorization **[APPROVED OI-17, revised 2026-11-23 and by OI-68]** | The approval makes the previously disclosed outstanding balance due and creates the single final-balance invoice (04 §10). **[R1]** The client then pays it on the Stripe-hosted page. **[R2]** The approval also authorizes its automatic collection (04 §3.1). **[PROPOSED]** The approval screen shows that amount from the order summary snapshot before the client confirms. Approving an already-approved release, or approving after the balance is pending, verified, or settled, never starts a second charge. |
+| Inputs | Explicit approval action on that release ID, plus an optional comment. The action is labeled **Approve Website & Authorize Final Payment** **[APPROVED OI-17, revised 2026-11-23; R1 by OI-74]**. |
+| Payment authorization **[APPROVED OI-17, revised 2026-11-23, by OI-68, and by OI-74]** | The approval makes the previously disclosed outstanding balance due, creates the single final-balance invoice (04 §10), and authorizes its automatic collection (04 §3.1). With an `active` payment authorization (04 §8.1) the invoice is charged automatically; otherwise, or when the charge fails or needs authentication, the client pays the same invoice on its Stripe-hosted page. **[PROPOSED]** The approval screen shows that amount from the order summary snapshot before the client confirms. Approving an already-approved release, or approving after the balance is pending, verified, or settled, never starts a second charge. |
 | Records | `preview_approvals` (release ID, user ID, timestamp, IP/UA **[PROPOSED]**) — insert-only. The final-balance charge record references the approval ID (04 §10). |
 | Gate rule | The approval gate passes only if an approval exists **for the current released release ID** |
 | Silence | **Never** treated as approval. No timer converts silence into approval. **[APPROVED OI-18, OI-25]** |
@@ -233,7 +256,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 
 | ID | Test |
 |---|---|
-| T-LC-01 | Intake routes and actions are denied until the deposit is `verified` |
+| T-LC-01 | Intake routes and actions are denied until the deposit is `verified` and `payment_authorization_ready` is true (OI-74; 04 T-PAY-18) |
 | T-LC-02 | No API exists to set deposit or balance state directly. Only the webhook handler changes them. |
 | T-LC-03 | Derived queues match the state for seeded fixture projects in every combination |
 | T-LC-04 | A submitted intake version is immutable. Staff edits create audited new versions. |
@@ -242,7 +265,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-LC-07 | An unreleased internal draft does not supersede the current approval |
 | T-LC-08 | No scheduled job or timer creates an approval |
 | T-LC-09 | Staff cannot create an approval record |
-| T-LC-14 | **[R2]** The approval action is labeled "Approve Website & Authorize Final Payment". Approving the current release starts exactly one final-balance charge (04 T-PAY-13). Approving a superseded release starts none. |
+| T-LC-14 | **[R1, OI-74]** The approval action is labeled "Approve Website & Authorize Final Payment". Approving the current release starts exactly one final-balance charge (04 T-PAY-13). Approving a superseded release starts none. |
 | T-UP-01 | Each category rejects files over its size limit and disallowed types |
 | T-UP-02 | Renamed executables, extension/MIME mismatches, and polyglots are rejected |
 | T-UP-03 | Malicious SVG (script, `onload`, external `href`) is sanitized. The sanitized output contains no active content. |
@@ -252,9 +275,21 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-UP-07 | Failed uploads are purged after 7 days |
 | T-UP-08 | Uploading an asset never changes any preview or live site |
 | T-UP-09 | A failed scan makes the asset `rejected`, blocks its download and release use, and sends client and staff notifications (OI-31) |
+| T-UP-10 | **[OI-79]** Limits use decimal units (a file of 1 byte over the decimal limit is rejected) |
+| T-UP-11 | **[OI-79]** An image over 12,000 px on either side or over 100 megapixels, or with a malformed header, is rejected before full decoding; decoding a hostile image stays within the memory and time bounds |
+| T-UP-12 | **[OI-79]** A scanner error keeps the file quarantined; retries are bounded with backoff; exhausting them routes the file to the Upload review queue; the file is never served at any point |
+| T-UP-13 | **[OI-79]** A file quarantined for more than 24 hours appears in the Upload review queue; a domain within 60 days of expiry appears in the Domain expiries queue |
+| T-UP-14 | Several results recorded in one transaction (identical timestamps) are ordered by sequence; release always uses the last accepted result, deterministically |
+| T-UP-15 | Concurrent result submissions for one upload serialize on the row lock; the sequence matches acceptance order; delayed responses for an earlier attempt are non-authoritative |
+| T-UP-16 | An unpermitted-scanner clean result followed by a permitted clean result for a newer attempt releases only through the newer one; the reverse order never releases |
+| T-UP-17 | A clean result followed by a `malicious` result (any attempt, any non-terminal state, or after release) rejects the upload and blocks or revokes access; a clean result followed by an `error` returns it to quarantine |
+| T-UP-18 | A stale or replayed clean result (earlier attempt, duplicate, or re-sent after a newer malicious, error, or invalid result) never supersedes it and never releases the file |
+| T-UP-19 | A result whose SHA-256 differs from the stored quarantine object, or a stored object changed after scanning, blocks release; the released object's hash is server-computed |
 | T-LC-10 | **[R2]** Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) |
 | T-LC-11 | The approval hold cannot be placed without a recorded personal follow-up. Placing it never creates an approval or alters billing. |
 | T-LC-12 | During an approval hold, the client can view the preview, approve it, or request revisions. The approval satisfies G3, and a review queue item is created. (OI-45) |
 | T-LC-13 | An approval hold does not change portal access, subscription status, balances, or any published site |
 | T-LC-15 | **[R1]** A staff-recorded release is immutable once released, requires a commit SHA, deployment ID, and preview URL, and cannot be created by a client. Outreach records for days 3 and 7 are required before the "Approval outreach due" queue clears. The R1 approval screen shows the outstanding balance from the snapshot and does not state or imply an automatic charge. |
+| T-LC-16 | **[OI-79]** Releasing a preview while intake is not `accepted_by_staff` is rejected for every actor; no override exists |
+| T-LC-17 | **[OI-79]** Owner and Admin can correct intake only with a reason; the original submission and every earlier version stay unchanged and readable; actor and reason are recorded; another project's staff-facing intake is unreachable by clients, and a client cannot correct intake |
 | T-UP-10 | Incorporating an asset into a released preview sets `used`. The flag never reverts. Assets that were never incorporated are reported as unused. (OI-42) |

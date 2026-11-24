@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.5 |
-| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). v0.4.2 added §18.1, implementation notes. v0.4.3 records their **Owner approval (OI-53, 2026-11-23)** with the amended N-8 and the corrected N-2 label (Phase 2 remediation D1, D3); no other approved text or value is changed. v0.4.4 updates the §12 adjustment row for OI-47 (approved 2026-11-23) and OI-55; no other approved text or value is changed. v0.4.5 amends the §4 payment-visibility rows for **OI-72** (Owner decision, 2026-11-24): Admin receives derived operational states only; no other approved text or value is changed. |
-| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-47, OI-53–OI-55, OI-72 |
+| Version | 0.5.4 |
+| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). v0.4.2 added §18.1, implementation notes. v0.4.3 records their **Owner approval (OI-53, 2026-11-23)** with the amended N-8 and the corrected N-2 label (Phase 2 remediation D1, D3); no other approved text or value is changed. v0.4.4 updates the §12 adjustment row for OI-47 (approved 2026-11-23) and OI-55; no other approved text or value is changed. v0.4.5 amends the §4 payment-visibility rows for **OI-72** (Owner decision, 2026-11-24): Admin receives derived operational states only; no other approved text or value is changed. v0.5.0 (**OI-77**, Owner decision 2026-11-24): the **Sales Representative** role (§3, §4.1); implementation needs a separate Tier 2 grant. v0.5.1 (mechanics review of the pushed WP-B and WP-C branches, 2026-11-24): §4.1 adds the separation of Sales Representatives from the client role and the direct-access rule, and §13 adds T-SALES-23 to T-SALES-25; no approved text or value is changed. v0.5.2 (**OI-78**, Owner decision 2026-11-24): the §4.1 role-separation mechanics are approved; assignment termination, pending invitations, and attribution history are specified; §13 adds T-SALES-26 to T-SALES-28. v0.5.3 (Owner, 2026-11-24): **OI-83** agreed order-summary pricing visible to Owner, Admin, and assigned Sales Representatives; Sales rate limiting; T-SALES-29, T-SALES-30. v0.5.4 (**OI-79 item 7**): Owner and Admin may correct client intake. |
+| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-47, OI-53–OI-55, OI-72, OI-77, OI-78 |
 | Open issues | None (OI-50 to OI-52 decided; see 08) |
 | Dependencies | DEP-06, DEP-13, DEP-14 |
 | Provider evidence | [03A — Supabase and Next.js Provider Verification](03A-SUPABASE-PROVIDER-VERIFICATION.md). Findings are cited as **F-nn**, unverified items as **U-nn**. |
@@ -64,72 +64,98 @@ Rows in §4 that belong to later phases are enforced by the same framework when 
 
 - **Owner**: one or more Spotlight principals designated by the Owner. Holds every Admin permission, plus financial exceptions, staff management, and publication authorization.
 - **Admin**: Spotlight staff with operational permissions.
+- **Sales Representative [APPROVED OI-77]**: Spotlight staff with the commercial onboarding capabilities in §4.1, limited to the customers and projects assigned to them. No administrative, financial, fulfillment, or publication authority.
 - **Client**: a contact of a client business. Permissions are scoped per project membership.
 - **Fulfillment (future)**: may be defined in the schema as a reserved value. It **must not be assignable**. Any attempt to assign it is rejected and audited **[APPROVED OI-03; enforcement detail PROPOSED: §9.3]**.
 
-Staff roles (Owner, Admin) are global to the single agency. Client access always goes through a project membership.
+Owner and Admin are global to the single agency. A Sales Representative's access always goes through an active **sales assignment** to the project (§4.1). Client access always goes through a project membership. Owner and Admin hold the commercial capabilities of §4.1 for every project through their own rows in §4, with no second account, role switching, or impersonation.
 
 **[PROPOSED]** At least one active Owner must always exist. The database rejects removing or demoting the last active Owner (T-ROLE-08).
 
 ## 4. Permissions matrix
 
-Key: ✅ allowed · ❌ denied · **M** = only for projects where the client holds an active membership.
+Key: ✅ allowed · ❌ denied · **M** = only for projects where the client holds an active membership · **S** = only for projects with an active sales assignment to that Sales Representative (§4.1; **[APPROVED OI-77]**, not implemented until its Tier 2 authorization is active).
 
 **Phase column:**
 - **2**: implemented and tested in Phase 2.
 - **3 / 4 / 5**: enforced by the Phase 2 framework when that phase is authorized.
 
-| Action | Owner | Admin | Client | Fulfillment (disabled) | Phase |
-|---|---|---|---|---|---|
-| Invite / remove staff | ✅ (fresh MFA) | ❌ | ❌ | ❌ | 2 |
-| Change staff role | ✅ (fresh MFA) | ❌ | ❌ | ❌ | 2 |
-| Create client business and project | ✅ | ✅ | ❌ | ❌ | 2 |
-| Invite client contact to a project | ✅ | ✅ | ❌ | ❌ | 2 |
-| Revoke client membership or sessions | ✅ | ✅ | ❌ | ❌ | 2 |
-| Revoke or resend a pending invitation | ✅ | ✅ (client invitations only) | ❌ | ❌ | 2 |
-| Reset a staff member's MFA factor (lost device) | ✅ (fresh MFA) | ❌ | ❌ | ❌ | 2 |
-| View own profile and memberships | ✅ | ✅ | ✅ | ❌ | 2 |
-| Prepare order summary (package selection) | ✅ | ✅ | ❌ | ❌ | 3 |
-| View agreement and order summary | ✅ | ✅ | M | ❌ | 3 |
-| Accept agreement | ❌ | ❌ | M (authorized signer) | ❌ | 3 |
-| Start initial Checkout | ❌ | ❌ | M | ❌ | 3 |
-| Approve the website and authorize the final payment (automatic charge, 04 §10), or complete a failed or authentication-required final payment on the Stripe-hosted page **[APPROVED OI-17, revised 2026-11-23]** | ❌ | ❌ | M | ❌ | 3–4 |
-| View payment records, subscription financial records, transaction amounts, ledger entries, payment method details, detailed dispute evidence, and financial reconciliation **[APPROVED OI-72]** | ✅ | ❌ | M (own invoices) | ❌ | 3 |
-| View derived operational payment states: deposit requirement satisfied or unsatisfied; final balance requirement satisfied or unsatisfied; payment recovery required; publication eligibility; billing-related operational hold; Owner intervention required **[APPROVED OI-72]** | ✅ | ✅ (read; no amounts, records, or evidence) | ❌ | ❌ | 3 |
-| Discount, credit, partial waiver, or full waiver **[APPROVED OI-27]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
-| Hold exceptions (clear a system hold) **[APPROVED OI-26]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
-| Place / clear `owner_manual_hold` or `dispute_risk_hold` | ✅ | ❌ | ❌ | ❌ | 3 |
-| Place `approval_nonresponsive_hold` (day 21+, after documented outreach) **[APPROVED OI-45]** | ✅ | ✅ | ❌ | ❌ | 4 |
-| Clear `approval_nonresponsive_hold` **without** a client response **[APPROVED OI-45]** | ✅ (reason required) | ❌ | ❌ | ❌ | 4 |
-| Clear `approval_nonresponsive_hold` after a qualifying client response **[APPROVED OI-45]** | ✅ | ✅ | ❌ | ❌ | 4 |
-| Approve or request revisions on a held preview **[APPROVED OI-45]** | ❌ | ❌ | M | ❌ | 4 |
-| Authorize a final-balance discount (applied to the automatic final-balance invoice) **[APPROVED OI-44, OI-55]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
-| Billing hold Owner review: continue collection, authorize exception, or initiate documented service termination **[APPROVED OI-46]** | ✅ (reauthentication for exception or termination) | ❌ | ❌ | ❌ | 3 |
-| Resolve an unexpected Stripe cancellation exception **[APPROVED OI-46]** | ✅ | ❌ | ❌ | ❌ | 3 |
-| Record personal follow-up outreach (OI-25) | ✅ | ✅ | ❌ | ❌ | 4 |
-| Respond to or settle a dispute **[APPROVED OI-37]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
-| Discretionary refund decision **[APPROVED OI-35]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
-| Open Stripe Customer Portal for own billing **[APPROVED OI-29]** | ❌ | ❌ | M (billing contact) | ❌ | 3 |
-| Submit subscription cancellation request **[APPROVED OI-35]** | ❌ | ❌ | M | ❌ | 3 |
-| Confirm cancellation / schedule it in Stripe | ✅ | ❌ **[PROPOSED]** | ❌ | ❌ | 3 |
-| Discontinue maintenance and designated recurring infrastructure after M1 (12 business days) **[APPROVED OI-35, revised]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 4 |
-| Deactivate remaining agency-managed services after M2 (60 calendar days) and the required notices **[APPROVED OI-35, revised]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 4 |
-| Submit / edit intake | ❌ | ✅ (correct on client's behalf, audited) **[PROPOSED]** | M | ❌ | 4 |
-| Upload assets | ✅ | ✅ | M | ❌ | 4 |
-| Approve non-standard file types / quota exceptions | ✅ | ✅ (within approved rules) | ❌ | ❌ | 4 |
-| Create internal preview drafts | ✅ | ✅ | ❌ | ❌ | 4 |
-| Release a preview to the client | ✅ | ✅ | ❌ | ❌ | 4 |
-| **Approve a released preview** | ❌ | ❌ | M | ❌ | 4 |
-| Record QA and security checklist results | ✅ | ✅ | ❌ | ❌ | 4 |
-| **Authorize publication** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 4 |
-| Initiate rollback | ✅ (reauthentication) | ❌ **[PROPOSED]** | ❌ | ❌ | 4 |
-| Submit post-publication inquiry | ❌ | ❌ | M | ❌ | 4 |
-| View audit log | ✅ | ✅ (read, non-financial) **[PROPOSED]** | ❌ | ❌ | 2 |
-| Process data export / deletion requests | ✅ | ✅ (prepare; Owner executes deletion) **[PROPOSED]** | Request only | ❌ | 4 |
+| Action | Owner | Admin | Sales Representative | Client | Fulfillment (disabled) | Phase |
+|---|---|---|---|---|---|---|
+| Invite / remove staff | ✅ (fresh MFA) | ❌ | ❌ | ❌ | ❌ | 2 |
+| Change staff role | ✅ (fresh MFA) | ❌ | ❌ | ❌ | ❌ | 2 |
+| Create client business and project | ✅ | ✅ | **S** (atomic create with self-assignment, §4.1) | ❌ | ❌ | 2 |
+| Invite client contact to a project | ✅ | ✅ | **S** | ❌ | ❌ | 2 |
+| Revoke client membership or sessions | ✅ | ✅ | ❌ | ❌ | ❌ | 2 |
+| Revoke or resend a pending invitation | ✅ | ✅ (client invitations only) | **S** (client invitations only) | ❌ | ❌ | 2 |
+| Reset a staff member's MFA factor (lost device) | ✅ (fresh MFA) | ❌ | ❌ | ❌ | ❌ | 2 |
+| View own profile and memberships | ✅ | ✅ | ✅ | ✅ | ❌ | 2 |
+| Prepare order summary (package selection) | ✅ | ✅ | **S** (catalog package key only) | ❌ | ❌ | 3 |
+| View agreement and order summary, including the agreed pricing: total development price, deposit, remaining contractual balance (OI-83) | ✅ | ✅ | **S** | M | ❌ | 3 |
+| Accept agreement | ❌ | ❌ | ❌ | M (authorized signer) | ❌ | 3 |
+| Start initial Checkout | ❌ | ❌ | ❌ | M | ❌ | 3 |
+| Approve the website and authorize the final payment (automatic charge, 04 §10), or complete a failed or authentication-required final payment on the Stripe-hosted page **[APPROVED OI-17, revised 2026-11-23]** | ❌ | ❌ | ❌ | M | ❌ | 3–4 |
+| View payment records, subscription financial records, transaction amounts, ledger entries, payment method details, detailed dispute evidence, and financial reconciliation **[APPROVED OI-72]** | ✅ | ❌ | ❌ | M (own invoices) | ❌ | 3 |
+| View derived operational payment states: deposit requirement satisfied or unsatisfied; final balance requirement satisfied or unsatisfied; payment recovery required; publication eligibility; billing-related operational hold; Owner intervention required **[APPROVED OI-72]** | ✅ | ✅ (read; no amounts, records, or evidence) | **S** (derived states only) | ❌ | ❌ | 3 |
+| Discount, credit, partial waiver, or full waiver **[APPROVED OI-27]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | ❌ | 3 |
+| Hold exceptions (clear a system hold) **[APPROVED OI-26]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | ❌ | 3 |
+| Place / clear `owner_manual_hold` or `dispute_risk_hold` | ✅ | ❌ | ❌ | ❌ | ❌ | 3 |
+| Place `approval_nonresponsive_hold` (day 21+, after documented outreach) **[APPROVED OI-45]** | ✅ | ✅ | ❌ | ❌ | ❌ | 4 |
+| Clear `approval_nonresponsive_hold` **without** a client response **[APPROVED OI-45]** | ✅ (reason required) | ❌ | ❌ | ❌ | ❌ | 4 |
+| Clear `approval_nonresponsive_hold` after a qualifying client response **[APPROVED OI-45]** | ✅ | ✅ | ❌ | ❌ | ❌ | 4 |
+| Approve or request revisions on a held preview **[APPROVED OI-45]** | ❌ | ❌ | ❌ | M | ❌ | 4 |
+| Authorize a final-balance discount (applied to the automatic final-balance invoice) **[APPROVED OI-44, OI-55]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | ❌ | 3 |
+| Billing hold Owner review: continue collection, authorize exception, or initiate documented service termination **[APPROVED OI-46]** | ✅ (reauthentication for exception or termination) | ❌ | ❌ | ❌ | ❌ | 3 |
+| Resolve an unexpected Stripe cancellation exception **[APPROVED OI-46]** | ✅ | ❌ | ❌ | ❌ | ❌ | 3 |
+| Record personal follow-up outreach (OI-25) | ✅ | ✅ | ❌ | ❌ | ❌ | 4 |
+| Respond to or settle a dispute **[APPROVED OI-37]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | ❌ | 3 |
+| Discretionary refund decision **[APPROVED OI-35]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | ❌ | 3 |
+| Open Stripe Customer Portal for own billing **[APPROVED OI-29]** | ❌ | ❌ | ❌ | M (billing contact) | ❌ | 3 |
+| Submit subscription cancellation request **[APPROVED OI-35]** | ❌ | ❌ | ❌ | M | ❌ | 3 |
+| Confirm cancellation / schedule it in Stripe | ✅ | ❌ **[PROPOSED]** | ❌ | ❌ | ❌ | 3 |
+| Discontinue maintenance and designated recurring infrastructure after M1 (12 business days) **[APPROVED OI-35, revised]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | ❌ | 4 |
+| Deactivate remaining agency-managed services after M2 (60 calendar days) and the required notices **[APPROVED OI-35, revised]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | ❌ | 4 |
+| Submit / edit intake | ✅ (correct on client's behalf, with reason, audited) **[APPROVED OI-79]** | ✅ (correct on client's behalf, with reason, audited) **[APPROVED OI-79]** | ❌ | M | ❌ | 4 |
+| Upload assets | ✅ | ✅ | ❌ | M | ❌ | 4 |
+| Approve non-standard file types / quota exceptions | ✅ | ✅ (within approved rules) | ❌ | ❌ | ❌ | 4 |
+| Create internal preview drafts | ✅ | ✅ | ❌ | ❌ | ❌ | 4 |
+| Release a preview to the client | ✅ | ✅ | ❌ | ❌ | ❌ | 4 |
+| **Approve a released preview** | ❌ | ❌ | ❌ | M | ❌ | 4 |
+| Record QA and security checklist results | ✅ | ✅ | ❌ | ❌ | ❌ | 4 |
+| **Authorize publication** | ✅ (reauthentication) | ❌ | ❌ | ❌ | ❌ | 4 |
+| Initiate rollback | ✅ (reauthentication) | ❌ **[PROPOSED]** | ❌ | ❌ | ❌ | 4 |
+| Submit post-publication inquiry | ❌ | ❌ | ❌ | M | ❌ | 4 |
+| View audit log | ✅ | ✅ (read, non-financial) **[PROPOSED]** | ❌ | ❌ | ❌ | 2 |
+| Process data export / deletion requests | ✅ | ✅ (prepare; Owner executes deletion) **[PROPOSED]** | ❌ | Request only | ❌ | 4 |
+
+**Order-summary pricing [APPROVED OI-83]:** the agreed pricing in an order summary (total development price, deposit, remaining contractual balance) is commercial terms, not a financial record, and is visible to Owner, Admin, assigned Sales Representatives, and the project's client. Paid amounts, invoices, ledger entries, refunds, and disputes stay restricted as below.
 
 **Payment visibility [APPROVED OI-72]:** the two rows above are enforced at the **database** layer (RLS on WP-B's payment, ledger, dispute, reconciliation, and billing-hold tables grants Admin no read; the derived states are exposed only through a non-financial, staff-readable projection that carries no amounts, record identifiers of restricted records, payment method details, or dispute evidence) and at the **server** layer (each service authorizes the caller's role before returning data). UI visibility is never the control. Refunds, financial reconciliation, and manual financial hold controls remain Owner-only (rows above).
 
 Owner and Admin **cannot** approve a preview on a client's behalf, accept an agreement on a client's behalf, or record a payment as received. **[APPROVED OI-03, OI-19]**
+
+### 4.1 Sales Representative **[APPROVED OI-77; mechanics PROPOSED]**
+
+| Capability (assigned projects only) | Sales Representative | Owner / Admin |
+|---|---|---|
+| Create the client business and project (the creator is assigned automatically) | ✅ | ✅ (any project, §4) |
+| Select an approved package from the server-controlled catalog and issue the initial order summary (exactly one 20% deposit item plus the $99/month maintenance subscription, 04 §4, §8) | ✅ (package key only; no amount, price, quantity, discount, or term input) | ✅ (§4) |
+| Invite the client contact to the project; resend or revoke that pending invitation | ✅ | ✅ (§4) |
+| View the customer, project, order summary (including its agreed pricing, OI-83), agreement state, and derived commercial progress (deposit and final-balance requirement satisfied or unsatisfied, intake and publication state) | ✅ | ✅ (§4; financial records Owner-only, OI-72) |
+| Unrestricted financial records, pricing changes, refunds, holds, reconciliation, exceptions; fulfillment actions; preview release; recording a client approval; publication authorization or deployment; staff, role, or assignment management; audit log; any unassigned customer | ❌ | per §4 |
+
+- **Enforcement.** `private.is_staff()` keeps its meaning (Owner or Admin), so no existing policy or function is broadened. Sales access is granted only through assignment-scoped helpers and SECURITY DEFINER functions that check an active assignment, `aal2`, and a live staff session; a Sales Representative has no direct table or storage access. Staff MFA enrollment, the 12-hour staff session rule (§5), rate limits (per-user buckets on customer creation and every invitation operation), and audit apply.
+- **Initial assignment [APPROVED OI-77, refinement 3].** A Sales Representative creates the customer, project, and its own assignment in **one atomic authorized operation**. Either all three commit or none do: no orphaned customer or project, no partial creation, and no assignment to another representative or to a project the caller did not just create.
+- **Separation from the client role [APPROVED OI-78; implements OI-77 refinements 1 and 6].** Once `private.is_staff()` means Owner or Admin only, "not `is_staff()`" no longer implies "client". Therefore: (a) a user with an active Sales Representative role never holds or acquires an active project membership: a client invitation addressed to or accepted by such a user is rejected and audited, and the Owner cannot give the Sales role to a user with an active membership; (b) every client-only check is "holds no active staff role of any kind" (`private.staff_role_of(uid) is null`) plus an active membership, never `not private.is_staff()`; (c) every check on a server-reported actor that requires staff names Owner or Admin explicitly. Owner and Admin behavior is unchanged. Without these rules a representative could invite its own address to its own project, accept, and then record a client approval.
+- **Direct access [PROPOSED].** A Sales Representative holds no permissive table, view, or storage access other than reading its own profile. The restrictive `aal2` policies key on `is_staff()` and therefore do not cover Sales; protection comes from the absence of any grant, which T-SALES-23 proves.
+- **Assignment.** `project_sales_assignments` (project, sales user, assigned by, active, timestamps; append-only history). After creation, only Owner and Admin assign and reassign; a Sales Representative can never change any assignment. Reassignment is audited.
+- **Assignment termination [APPROVED OI-78].** Ending an assignment (or revoking the Sales role, or deactivating the user) removes the representative's access to that project at the **next authorization check**, including requests from sessions that authenticated before the change. Every Sales check reads the assignment, role, and session rows live in the database; none relies on UI filtering, cached authorization, or token claims.
+- **Pending invitations at termination [APPROVED OI-78].** Client invitations a representative sent stay valid: they belong to the agency's project and customer relationship, not to the representative. Owner and Admin keep full visibility and can revoke or resend them (§4, unchanged). The former representative immediately loses every invitation-management capability for that project (list, resend, revoke).
+- **Ended assignments and history [APPROVED OI-78].** Ended assignments are hidden from the representative's own customer list and from every Sales function. The append-only assignment history, `order_summaries.issued_by`, and the audit events are preserved unchanged for authorized audit (Owner and Admin) and for future commission infrastructure, which remains deferred.
+- **Attribution.** Transaction creator (`order_summaries.issued_by`), assigned Sales Representative (the assignment), and approval actor (the client, 05 §7) are separate records. **Commission processing and commission-beneficiary functionality are deferred [DEFERRED, OI-77 refinement 7].**
+- **Role assignment.** Only the Owner, with fresh MFA, invites or assigns a Sales Representative (as for any staff role). `fulfillment` remains unassignable.
+- **Owner and Admin authority** is unchanged: their §4 cells are as approved, and the Sales Representative column is explicit (OI-77 refinement 8).
+- **Tests:** T-SALES-01 to T-SALES-30 (§13), including the adversarial set T-SALES-15 to T-SALES-21 and T-SALES-23 to T-SALES-28, and the regression T-SALES-22.
 
 ## 5. Authentication **[APPROVED OI-08; configuration PROPOSED]**
 
@@ -396,6 +422,36 @@ Every database-facing test runs against a **real local Supabase stack**: Postgre
 | T-ROLE-06 | Only the Owner, with reauthentication, can authorize a discount or initiate service termination (OI-44, OI-46) | Negative | 3 |
 | T-ROLE-07 | Staff role changes require Owner role, `aal2`, and fresh MFA | Negative | 2 |
 | T-ROLE-08 | Removing or demoting the last active Owner is rejected | Negative, database | 2 |
+| T-SALES-01 | Only the Owner with fresh MFA can invite or assign the Sales Representative role; `fulfillment` stays unassignable | Negative | R1 (OI-77) |
+| T-SALES-02 | `private.is_staff()` is false for a Sales Representative; every existing staff-only policy and function (Phase 2, WP-0, WP-B, WP-C) denies a Sales Representative (enumerated regression test) | Negative | R1 (OI-77) |
+| T-SALES-03 | Every Sales function requires `aal2` and a live staff session; the app forces MFA enrollment for a Sales Representative | Negative | R1 (OI-77) |
+| T-SALES-04 | A Sales Representative creates a client business and project; the assignment is created in the same transaction; audit events are written | Positive | R1 (OI-77) |
+| T-SALES-05 | A Sales Representative cannot read, list, or act on an unassigned project, customer, invitation, or client profile (including another representative's customers) | Isolation | R1 (OI-77) |
+| T-SALES-06 | A Sales Representative issues an order summary only by catalog package key; no amount, price, quantity, discount, or term can be supplied; the result is exactly one deposit item plus maintenance | Negative | R1 (OI-77, 04 §8) |
+| T-SALES-07 | A Sales Representative invites a client contact only to an assigned project and cannot create a staff invitation | Negative | R1 (OI-77) |
+| T-SALES-08 | A Sales Representative sees only derived commercial progress; no payment, ledger, dispute, reconciliation, hold, or amount records (as for Admin, OI-72) | Negative | R1 (OI-77, OI-72) |
+| T-SALES-09 | A Sales Representative cannot approve, release, publish, authorize publication, place or clear holds, refund, or manage staff or assignments | Negative | R1 (OI-77) |
+| T-SALES-10 | Reassignment by Owner or Admin is audited and changes neither `issued_by` nor any acceptance or approval actor | Positive | R1 (OI-77) |
+| T-SALES-11 | A Sales Representative has no `project-assets` storage access | Isolation | R1 (OI-77) |
+| T-SALES-12 | App guards: a Sales Representative reaches only the sales area; `requireStaff` and the client portal deny it | Negative | R1 (OI-77) |
+| T-SALES-13 | Owner and Admin perform every §4.1 capability with their own accounts, for any project | Positive | R1 (OI-77) |
+| T-SALES-14 | Revoking a Sales Representative's role or assignment ends access immediately (live checks, no cached authorization) | Negative | R1 (OI-77) |
+| T-SALES-15 | Privilege escalation: a Sales Representative cannot change its own or anyone's role (`set_staff_role`, direct `staff_roles` writes, accepting a forged or reused staff invitation), cannot call internal SECURITY DEFINER helpers, and cannot reach `/staff` routes | Adversarial | R1 (OI-77) |
+| T-SALES-16 | Assignment manipulation: direct inserts, updates, or deletes on `project_sales_assignments`, self-assignment to an existing project, and assignment of another representative are all rejected and audited | Adversarial | R1 (OI-77) |
+| T-SALES-17 | Atomic creation: a failure at any step of create-customer-project-assignment leaves no customer, project, or assignment; concurrent duplicate requests create one set | Adversarial | R1 (OI-77) |
+| T-SALES-18 | Revoked assignment or role: every Sales function denies access in the same session immediately after revocation, including requests already authenticated | Adversarial | R1 (OI-77) |
+| T-SALES-19 | Unauthorized order creation: issuing or superseding an order summary for an unassigned project, with injected amount, price, quantity, discount, or term fields, or after acceptance, is rejected | Adversarial | R1 (OI-77) |
+| T-SALES-20 | Stale or weak sessions: `aal1`, a session past the 12-hour staff limit, a revoked session, or a session of a deactivated user is denied for every Sales function | Adversarial | R1 (OI-77) |
+| T-SALES-21 | Cross-tenant: Sales Representative A cannot see or act on B's customers; a client of another project cannot use a Sales function; an invitation token cannot be redirected to an unassigned project | Adversarial, isolation | R1 (OI-77) |
+| T-SALES-22 | Redefining `private.is_staff()` changes no result for existing Owner and Admin users (full Phase 2, WP-0, WP-B, WP-C suites pass unchanged) | Regression | R1 (OI-77) |
+| T-SALES-23 | Direct access: at `aal1` and at `aal2`, a Sales Representative reads no row of any exposed table or view except its own profile, writes none, and reads no storage object (enumerated over every table and view in the merged schema) | Adversarial, isolation | R1 (OI-77) |
+| T-SALES-24 | Client-role separation: a client invitation addressed to or accepted by a Sales Representative is rejected and audited (link and in-portal paths); the Owner cannot set the Sales role on a user with an active membership; every client-only function and policy (Phase 2, WP-B, WP-C, including preview approval, agreement acceptance, and payment-authorization revocation) denies a Sales Representative even when a test fixture inserts a membership row directly | Adversarial | R1 (OI-77) |
+| T-SALES-25 | Server-reported actors: every `service_role` function that takes a requesting user ID and requires staff (for example `record_live_verification`) rejects a Sales Representative's ID | Adversarial | R1 (OI-77) |
+| T-SALES-26 | Assignment termination with existing sessions: a session that authenticated (at `aal2`, within limits) before the assignment ended, the role was revoked, or the user was deactivated is denied on its next call to every Sales function and every `/sales` page, without signing in again; no Sales decision reads a JWT claim beyond `sub`, `session_id`, `aal`, and `amr` | Adversarial, regression | R1 (OI-78) |
+| T-SALES-27 | Pending invitations at termination: a client invitation sent by a representative stays pending and acceptable after the assignment ends; Owner and Admin can list, resend, and revoke it; the former representative cannot list, resend, or revoke it, nor any other invitation of that project | Regression, negative | R1 (OI-78) |
+| T-SALES-28 | Attribution history: ending or reassigning an assignment leaves the assignment history rows, `order_summaries.issued_by`, and audit events unchanged and readable by Owner and Admin; the ended assignment no longer appears in the former representative's customer list or any Sales function result; no API role can update or delete history rows | Regression | R1 (OI-78) |
+| T-SALES-29 | Rate limiting: repeated `sales_create_customer_project` and invitation create, resend, and revoke calls beyond the per-user limit are rejected with the standard failure and audited; another representative's bucket is unaffected | Adversarial | R1 (OI-77) |
+| T-SALES-30 | Pricing visibility: an assigned Sales Representative and an Admin see the agreed total, deposit, and balance of an order summary; neither sees paid amounts, invoices, ledger entries, refunds, or disputes; an unassigned representative sees nothing | Isolation, negative | R1 (OI-83) |
 | T-AUD-01 | Each Phase 2 privileged action produces exactly one audit event, in the same transaction | Integration, database | 2 |
 | T-AUD-02 | `update`/`delete` on `audit_events` are rejected for `authenticated` and `service_role` | Negative, database | 2 |
 | T-AUD-03 | No audit row or application log contains OTPs, invitation tokens, token hashes, cookies, or keys | Static and integration | 2 |

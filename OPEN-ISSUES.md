@@ -4,7 +4,7 @@
 |---|---|
 | Version | 0.16.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-76** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-77** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -100,7 +100,14 @@ OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECI
 
 OI-73 was decided on 2026-11-24 (option A); its decision and the implications confirmed by the Owner are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-**None open.** OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+
+### OI-76 — Owner workflow statement conflicts with OI-73 (collection timing) **[PENDING OI-76]**
+
+- **Conflict.** The Owner's "authoritative R1 commercial onboarding workflow" clarification (2026-11-24) states that the remaining 80% balance is "collected following explicit client approval **and verified successful publication**". OI-73 (option A, decided the same day) and the counsel-approved 04 §3.1 clause ("publication of the website is contingent upon successful payment") require the reverse: approval → verified payment (gate G4) → publication. The two cannot both hold.
+- **Option A (recommended): the statement is shorthand; OI-73 stands.** No change. The balance is collected after explicit approval and before publication; publication requires verified payment.
+- **Option B: reverse OI-73.** Publication first, then collection. Requires removing G4, reversing OI-17, new counsel-approved clause text (DEP-03), and accepting an unpaid live site; WP-B and WP-C gate logic changes.
+- **Until decided:** OI-73 option A remains in force. Nothing is implemented differently.
 
 ---
 

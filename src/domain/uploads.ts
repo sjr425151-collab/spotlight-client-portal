@@ -86,12 +86,7 @@ export type ContentCheck =
   | { readonly ok: false; readonly code: ContentRejection };
 
 export type ContentRejection =
-  | "empty_file"
-  | "type_mismatch"
-  | "unrecognized_type"
-  | "polyglot"
-  | "executable"
-  | "svg_invalid";
+  "empty_file" | "type_mismatch" | "unrecognized_type" | "polyglot" | "executable" | "svg_invalid";
 
 const startsWith = (bytes: Uint8Array, signature: readonly number[], offset = 0) =>
   bytes.length >= offset + signature.length && signature.every((b, i) => bytes[offset + i] === b);
@@ -192,7 +187,8 @@ export const REJECTION_GUIDANCE: Record<string, string> = {
   type_mismatch:
     "The file's contents do not match its type. Export it again in one of the allowed formats and re-upload.",
   unrecognized_type: "We could not recognize this file type. Use one of the allowed formats.",
-  polyglot: "This file contains embedded content that is not allowed. Export a plain copy and re-upload.",
+  polyglot:
+    "This file contains embedded content that is not allowed. Export a plain copy and re-upload.",
   executable: "Programs and scripts cannot be uploaded.",
   empty_file: "The file was empty. Choose the file again and re-upload.",
   svg_invalid: "This SVG could not be read safely. Export it again, or upload a PNG instead.",

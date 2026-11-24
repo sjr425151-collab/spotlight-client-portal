@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.3.0 |
+| Version | 1.4.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-24, by the integration closure PR (OI-71 revision, OI-72, AUTH-004), based on `main` at `3f3b59d` |
+| Last updated | 2026-11-24, by the WP-C implementation PR (branch `wp-c/fulfillment-r1`), based on `main` at `19b68cb` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -30,7 +30,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | WP-A | Governance and specification correction | **Done** (PR #14, merge commit `d6d795a`) |
 | WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI run #39 on `main` concluded `success`, 2026-11-24). OI-71 and OI-72 decided. Integration closed by the integration closure PR. |
 | WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope) | **Ready to start** (§8). Local, mocked, and synthetic-event work under AUTH-001; Stripe sandbox parts need AUTH-002 active. |
-| WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **Ready to start** (§8). AUTH-001, plus AUTH-004 for storage policies; real scanned-file release needs DEP-07. |
+| WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **Implemented, local and CI; in review** (§9). AUTH-001 and AUTH-004. Real scanned-file release needs DEP-07. Open items: OI-73 (values to confirm), OI-74 (fail-closed items needing other authorizations). |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. |
 | WP-E | Legal, tax, and commercial approvals | Owner. Not started (DEP-03, DEP-04, DEP-05). |
 | **R1** release candidate | Complete controlled transaction (01 §9.1) | Not started |
@@ -50,7 +50,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | 06 Publishing and post-launch | 0.5.0 | Approved |
 | 07 Notifications, privacy, design | 0.4.0 | Approved. Retention periods remain provisional (DEP-05). |
 | 08 Decisions and changelog | 0.15.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
-| AUTHORIZATIONS, CURRENT-STATE | 1.1.0, 1.3.0 | Approved |
+| AUTHORIZATIONS, CURRENT-STATE | 1.1.0, 1.4.0 | Approved |
 | CLAUDE.md | rewritten 2026-11-24 | Approved |
 
 ## 4. Dependencies
@@ -113,3 +113,16 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | Authorization | AUTH-001 (AUTH-002 inactive: mocked Stripe client and synthetic signed events only) | AUTH-001 and AUTH-004 |
 
 The integration stream owns cross-package verification, shared-file conflict resolution, migration ordering, and the end-to-end R1 journey test.
+
+## 9. WP-C implementation record (2026-11-24)
+
+| Item | Record |
+|---|---|
+| Branch | `wp-c/fulfillment-r1`, from `19b68cb` (PR #17 merge commit) |
+| Migrations (new files only) | `20261124140000_wpc_intake_uploads.sql`, `20261124140100_wpc_storage_policies.sql`, `20261124140200_wpc_releases_publication.sql`. No merged migration changed (T-MIG-02 check passed). |
+| Storage (AUTH-004) | Four new **restrictive** `storage.objects` policies for `quarantine/<project>/…` and `<project>/assets/…`. `project_assets_select` and `project_assets_staff_aal2` are unchanged, and a test pins their definitions. Quarantine lives under a first path segment that is not a project ID, so the existing permissive policy can never match it. No permissive policy was added. No stop condition arose. |
+| Gate interface | `private.project_fulfillment_status` implemented (contract version 2) with the OI-71 G6 attributes. The single evaluator `private.evaluate_publication_gates` reads only the two interfaces. It fails closed on an error, another project's answer, `implemented = false`, an old contract version, or a missing or non-boolean attribute, and on stale domain evidence. It runs at authorization and again at Start deployment. |
+| Financial dependency | Read only through `private.project_financial_status` (WP-B, still the fail-closed stub). Until WP-B delivers, intake stays locked and G1, G2, G4, and G8 fail. Tests use a rolled-back fixture of that interface. |
+| Events | `release.approved` is emitted once per approved release (dedupe key `release.approved:<release_id>`; payload: release ID and number, approval ID, commit SHA). `publication.authorized` is emitted per authorization. No new event types. |
+| Shared-file changes for the integration stream | Additive only: `GATE_SOURCES.G6 = "fulfillment"`, `FULFILLMENT_STATUS_ATTRIBUTES` (+3), and WP-C audit names. `AUDIT_ACTION_PATTERN` now allows digits after the first letter (05 §7.1 names `approval.reminder_1_sent`); every earlier name still matches. `tests/unit/contracts.test.ts` now applies `alter type … add attribute` from later migrations (WP-B's G1 attributes will be picked up the same way). Tests 050 (reviewed RPC list) and 060 (fulfillment interface rows) are updated for WP-C only. |
+| Evidence | Recorded in the WP-C pull request: pgTAP 546/546, unit 189/189, integration 24/24, e2e 34/34, Lighthouse pass, builds and bundle scan pass, `pnpm audit` clean. No Stripe, hosted service, or production storage was accessed. Nothing was deployed. |

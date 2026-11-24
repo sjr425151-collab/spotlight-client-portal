@@ -20,8 +20,10 @@ export interface Dimensions {
 }
 
 const u16be = (b: Uint8Array, o: number) => ((b[o] ?? 0) << 8) | (b[o + 1] ?? 0);
-const u32be = (b: Uint8Array, o: number) => (((b[o] ?? 0) << 24) >>> 0) + ((b[o + 1] ?? 0) << 16) + ((b[o + 2] ?? 0) << 8) + (b[o + 3] ?? 0);
-const u24le = (b: Uint8Array, o: number) => (b[o] ?? 0) | ((b[o + 1] ?? 0) << 8) | ((b[o + 2] ?? 0) << 16);
+const u32be = (b: Uint8Array, o: number) =>
+  (((b[o] ?? 0) << 24) >>> 0) + ((b[o + 1] ?? 0) << 16) + ((b[o + 2] ?? 0) << 8) + (b[o + 3] ?? 0);
+const u24le = (b: Uint8Array, o: number) =>
+  (b[o] ?? 0) | ((b[o + 1] ?? 0) << 8) | ((b[o + 2] ?? 0) << 16);
 const u14le = (b: Uint8Array, o: number) => ((b[o] ?? 0) | ((b[o + 1] ?? 0) << 8)) & 0x3fff;
 
 function jpegDimensions(b: Uint8Array): Dimensions | null {
@@ -114,7 +116,8 @@ function stripPng(b: Uint8Array): Uint8Array | null {
   return concat(parts);
 }
 
-const u32le = (b: Uint8Array, o: number) => ((b[o] ?? 0) | ((b[o + 1] ?? 0) << 8) | ((b[o + 2] ?? 0) << 16) | ((b[o + 3] ?? 0) << 24)) >>> 0;
+const u32le = (b: Uint8Array, o: number) =>
+  ((b[o] ?? 0) | ((b[o + 1] ?? 0) << 8) | ((b[o + 2] ?? 0) << 16) | ((b[o + 3] ?? 0) << 24)) >>> 0;
 
 /** WEBP: drops the EXIF and XMP chunks, clears their VP8X flags, and fixes the RIFF size. */
 function stripWebp(b: Uint8Array): Uint8Array | null {

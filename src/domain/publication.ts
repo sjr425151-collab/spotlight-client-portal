@@ -70,7 +70,12 @@ export function parseGateResult(value: unknown): GateResult {
 export const R1_APPROVAL_LABEL = "Approve Website & Continue to Final Payment";
 
 /** Words the R1 approval screen must never use (T-LC-15). */
-export const R1_FORBIDDEN_APPROVAL_WORDS = [/automatic/i, /auto-?charge/i, /will be charged/i, /authorize.*payment/i];
+export const R1_FORBIDDEN_APPROVAL_WORDS = [
+  /automatic/i,
+  /auto-?charge/i,
+  /will be charged/i,
+  /authorize.*payment/i,
+];
 
 /** Client-facing label for a publication state (05 §1: display only, never a gate). */
 export const PUBLICATION_STATE_LABELS: Record<string, string> = {

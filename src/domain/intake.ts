@@ -102,7 +102,9 @@ export type IntakeContent = z.infer<typeof intakeDraftSchema>;
 export function missingRequiredFields(content: Record<string, unknown>): string[] {
   const missing = INTAKE_REQUIRED_KEYS.filter((key) => {
     const value = content[key];
-    return Array.isArray(value) ? value.length === 0 : typeof value !== "string" || value.trim() === "";
+    return Array.isArray(value)
+      ? value.length === 0
+      : typeof value !== "string" || value.trim() === "";
   });
   if (
     content.domain_status === "existing" &&

@@ -4,7 +4,7 @@
 |---|---|
 | Version | 0.15.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-73** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-75** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -94,6 +94,32 @@ All 65 issues listed here are decided at the architectural level. The authoritat
 OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11-23 in the consolidated execution plan approval; their decisions are recorded in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
 **None open.** OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+
+### OI-73 — WP-C values the specifications leave unstated (raised by WP-C, 2026-11-24)
+
+WP-C needed concrete values where 05 and 06 give none, or give only a **[PROPOSED]** rule. Each was implemented in its **strictest reasonable reading** and is a single constant, so a decision changes one line. None widens access or weakens a gate. **Owner confirmation requested; nothing here blocks R1 testing.**
+
+| # | Item | Implemented as | Where |
+|---|---|---|---|
+| 1 | "MB" and "GB" in 05 §5.1–§5.2 | Decimal (1 MB = 1,000,000 bytes), the stricter reading | `private.upload_max_bytes`, `src/domain/uploads.ts` |
+| 2 | "Quarantined beyond the SLA" (05 §9 Upload review) | 24 hours | `private.upload_review_sla()` |
+| 3 | "Approaching the end of the initial term" (05 §9 Domain expiries) | 60 days | `private.domain_expiry_horizon()` |
+| 4 | Decompression-bomb limits (05 §5.3 rule 5, **[PROPOSED]**) | 12,000 px per side, 100 megapixels | `src/domain/image-safety.ts` |
+| 5 | G7 "no critical failures" vs the 06 §7 checklist "no high or critical issues" | A failed **critical or high** item blocks G7; there is no security exception mechanism | `private.security_result_passes` |
+| 6 | Release before intake acceptance | A preview can be released only once intake is `accepted_by_staff` (matches the "In development" queue definition) | `private.release_preview` |
+| 7 | Staff intake corrections (03 §4 row, **[PROPOSED]**) | Admin only, as the matrix states (Owner ❌) | `private.correct_intake` |
+| 8 | Scanner error | Returns the file to `quarantined` for a retry and the Upload review queue; never released | `private.record_scan_result` |
+
+### OI-74 — WP-C items that need another authorization or package (raised by WP-C, 2026-11-24)
+
+Each item **fails closed** today. None is a stop condition for the authorized WP-C scope.
+
+| # | Item | Current behaviour | Needs |
+|---|---|---|---|
+| 1 | HEIC conversion to JPEG/WEBP (05 §5.3 rule 4) | HEIC uploads are accepted, scanned, then **held in processing** (`heic_conversion_unavailable`) and never served | An image-codec dependency (for example `sharp`) and an isolated worker: a work-package authorization (CLAUDE.md §8) |
+| 2 | 250 MB videos and resumable uploads (05 §5.3 rule 6, **[VERIFY-PROVIDER OI-39]**) | The database allows 250 MB; the local Storage limit is 50 MiB (`supabase/config.toml`), and uploads pass through the portal server in one request | Provider verification of TUS and object limits (DEP-06, AUTH-003) |
+| 3 | Approval screen shows the outstanding balance from the order-summary snapshot (05 §7, **[PROPOSED]**) | The R1 approval screen states that the final balance becomes due and is paid on a Stripe-hosted page, without an amount | A client-visible amount from WP-B's order-summary records. WP-C does not read WP-B tables; the integration stream wires it |
+| 4 | Real malware scanning (DEP-07) | Mock scanner in development and test only; the database refuses every other scanner, so hosted environments keep files in quarantine | Vendor selection (DEP-07) and a migration registering the scanner |
 
 ---
 

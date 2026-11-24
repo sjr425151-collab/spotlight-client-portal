@@ -18,6 +18,7 @@ import {
   setUserStatusAction,
 } from "../../actions";
 import { StaffShell } from "../../staff-shell";
+import { FulfillmentPanel } from "./fulfillment-panel";
 
 export const metadata: Metadata = { title: "Project", robots: { index: false, follow: false } };
 
@@ -163,6 +164,8 @@ export default async function StaffProjectPage({ params, searchParams }: Props) 
           </form>
         </Card>
       </section>
+
+      <FulfillmentPanel projectId={projectId} ctx={ctx} />
     </StaffShell>
   );
 }

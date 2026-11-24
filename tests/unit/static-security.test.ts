@@ -111,4 +111,60 @@ describe("static security checks", () => {
     );
     expect(offenders.map(({ path }) => path)).toEqual([]);
   });
+
+  it("guards every route handler before it reads the request (spec 03 §10)", () => {
+    const routes = sources.filter(({ path }) => /^src\/app\/.*\/route\.ts$/.test(path));
+    expect(routes.length).toBeGreaterThan(0);
+    const unguarded = routes.flatMap(({ path, text }) =>
+      [
+        ...text.matchAll(
+          /export async function (GET|POST|PUT|PATCH|DELETE)\([^)]*\)[^{]*\{([\s\S]{0,300})/g,
+        ),
+      ]
+        .filter(
+          ([, , body]) =>
+            !/await require(?:User|Client|Staff|Owner|ProjectAccess)\(/.test(body ?? ""),
+        )
+        .map(([, method]) => `${path}: ${method}`),
+    );
+    expect(unguarded).toEqual([]);
+  });
+
+  it("WP-C code has no payment path: publication and recovery never call Stripe (T-PUB-18)", () => {
+    const wpc = sources.filter(({ path }) =>
+      /src\/(server\/(uploads|publication|services\/fulfillment)|app\/(portal|staff)\/(projects|queue))/.test(
+        path,
+      ),
+    );
+    expect(wpc.length).toBeGreaterThan(5);
+    expect(
+      wpc
+        .filter(({ text }) =>
+          /from\s+["'][^"']*stripe|api\.stripe\.com|STRIPE_|\.rpc\(\s*["'][^"']*(?:invoice|charge|payment)/i.test(
+            text,
+          ),
+        )
+        .map(({ path }) => path),
+    ).toEqual([]);
+  });
+
+  it("has no force, override, bypass, or mark-paid capability anywhere (06 §2; T-PUB-04)", () => {
+    const offenders = sources.filter(({ text }) =>
+      /\b(?:force_?publish|forcePublish|skip_?gates?|skipGates?|override_?gates?|overrideGates?|bypass_?gates?|mark_?paid|markPaid)\b/i.test(
+        text,
+      ),
+    );
+    expect(offenders.map(({ path }) => path)).toEqual([]);
+  });
+
+  it("uses the mocked malware scanner only in development and test (DEP-07)", () => {
+    const scanner = sources.find(({ path }) => path === "src/server/uploads/scanner.ts")!.text;
+    expect(scanner).toMatch(
+      /appEnv === "development" \|\| appEnv === "test" \? mockScanner : null/,
+    );
+    const users = sources
+      .filter(({ text }) => /\bmockScanner\b/.test(text))
+      .map(({ path }) => path);
+    expect(users).toEqual(["src/server/uploads/scanner.ts"]);
+  });
 });

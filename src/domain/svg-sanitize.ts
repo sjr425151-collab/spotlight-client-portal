@@ -10,23 +10,98 @@
  */
 
 const ALLOWED_ELEMENTS = new Set([
-  "svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "text",
-  "tspan", "defs", "lineargradient", "radialgradient", "stop", "clippath", "mask", "title",
-  "desc", "symbol", "use", "pattern",
+  "svg",
+  "g",
+  "path",
+  "rect",
+  "circle",
+  "ellipse",
+  "line",
+  "polyline",
+  "polygon",
+  "text",
+  "tspan",
+  "defs",
+  "lineargradient",
+  "radialgradient",
+  "stop",
+  "clippath",
+  "mask",
+  "title",
+  "desc",
+  "symbol",
+  "use",
+  "pattern",
 ]);
 const TEXT_ELEMENTS = new Set(["text", "tspan", "title", "desc"]);
 
 const ALLOWED_ATTRIBUTES = new Set([
-  "id", "class", "d", "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry", "fx", "fy",
-  "width", "height", "viewbox", "preserveaspectratio", "points", "transform", "offset",
-  "fill", "fill-opacity", "fill-rule", "stroke", "stroke-width", "stroke-opacity",
-  "stroke-linecap", "stroke-linejoin", "stroke-miterlimit", "stroke-dasharray",
-  "stroke-dashoffset", "opacity", "stop-color", "stop-opacity", "gradientunits",
-  "gradienttransform", "spreadmethod", "patternunits", "patterncontentunits",
-  "patterntransform", "clip-path", "clip-rule", "clippathunits", "mask", "maskunits",
-  "maskcontentunits", "font-family", "font-size", "font-weight", "font-style", "text-anchor",
-  "dominant-baseline", "letter-spacing", "word-spacing", "dx", "dy", "visibility", "display",
-  "xmlns", "xmlns:xlink", "version", "href", "xlink:href",
+  "id",
+  "class",
+  "d",
+  "x",
+  "y",
+  "x1",
+  "y1",
+  "x2",
+  "y2",
+  "cx",
+  "cy",
+  "r",
+  "rx",
+  "ry",
+  "fx",
+  "fy",
+  "width",
+  "height",
+  "viewbox",
+  "preserveaspectratio",
+  "points",
+  "transform",
+  "offset",
+  "fill",
+  "fill-opacity",
+  "fill-rule",
+  "stroke",
+  "stroke-width",
+  "stroke-opacity",
+  "stroke-linecap",
+  "stroke-linejoin",
+  "stroke-miterlimit",
+  "stroke-dasharray",
+  "stroke-dashoffset",
+  "opacity",
+  "stop-color",
+  "stop-opacity",
+  "gradientunits",
+  "gradienttransform",
+  "spreadmethod",
+  "patternunits",
+  "patterncontentunits",
+  "patterntransform",
+  "clip-path",
+  "clip-rule",
+  "clippathunits",
+  "mask",
+  "maskunits",
+  "maskcontentunits",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "font-style",
+  "text-anchor",
+  "dominant-baseline",
+  "letter-spacing",
+  "word-spacing",
+  "dx",
+  "dy",
+  "visibility",
+  "display",
+  "xmlns",
+  "xmlns:xlink",
+  "version",
+  "href",
+  "xlink:href",
 ]);
 /** Attributes that may carry `url(#id)` and nothing else URL-like. */
 const URL_REFERENCE_ATTRIBUTES = new Set(["fill", "stroke", "clip-path", "mask"]);
@@ -47,7 +122,10 @@ function decodeEntities(value: string): string | null {
   let failed = false;
   const decoded = value.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);?/gi, (_, body: string) => {
     if (body[0] === "#") {
-      const code = body[1] === "x" || body[1] === "X" ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
+      const code =
+        body[1] === "x" || body[1] === "X"
+          ? parseInt(body.slice(2), 16)
+          : parseInt(body.slice(1), 10);
       if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) {
         failed = true;
         return "";
@@ -74,7 +152,8 @@ function safeAttribute(name: string, rawValue: string): string | null {
   if (value === null || value.length > 10_000) return null;
   const flat = compact(value);
   if (NAMESPACE_VALUES[name] !== undefined) return value === NAMESPACE_VALUES[name] ? value : null;
-  if (HREF_ATTRIBUTES.has(name)) return /^#[A-Za-z_][\w.-]*$/.test(value.trim()) ? value.trim() : null;
+  if (HREF_ATTRIBUTES.has(name))
+    return /^#[A-Za-z_][\w.-]*$/.test(value.trim()) ? value.trim() : null;
   if (/(javascript|vbscript|data):/.test(flat) || flat.includes("expression(")) return null;
   if (flat.includes("url(")) {
     if (!URL_REFERENCE_ATTRIBUTES.has(name)) return null;
@@ -92,7 +171,8 @@ export function sanitizeSvg(input: string): SvgSanitizeResult {
   const source = input.replace(/^﻿/, "");
   if (/<!DOCTYPE|<!ENTITY|<!\[CDATA\[/i.test(source)) return { ok: false, code: "svg_invalid" };
 
-  const tokens = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<\/\s*([A-Za-z][\w:.-]*)\s*>|<([A-Za-z][\w:.-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*(\/?)>|([^<]+)|(<)/g;
+  const tokens =
+    /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<\/\s*([A-Za-z][\w:.-]*)\s*>|<([A-Za-z][\w:.-]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*)\s*(\/?)>|([^<]+)|(<)/g;
   const attributePattern = /([^\s=/>]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g;
 
   const out: string[] = [];
@@ -126,7 +206,11 @@ export function sanitizeSvg(input: string): SvgSanitizeResult {
         if (!selfClose) skipDepth++;
         continue;
       }
-      if (rootClosed || (!sawRoot && name !== "svg") || (sawRoot && name === "svg" && stack.length === 0)) {
+      if (
+        rootClosed ||
+        (!sawRoot && name !== "svg") ||
+        (sawRoot && name === "svg" && stack.length === 0)
+      ) {
         return { ok: false, code: "svg_invalid" };
       }
       if (!ALLOWED_ELEMENTS.has(name)) {

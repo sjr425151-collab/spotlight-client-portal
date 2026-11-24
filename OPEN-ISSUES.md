@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.20.0 |
+| Version | 0.21.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
 | Next unused issue ID | **OI-85** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
-| Next unused dependency ID | **DEP-18** |
+| Next unused dependency ID | **DEP-19** |
 | ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -16,7 +16,7 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-83)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-84)
 
 All 76 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-83).
 
@@ -98,6 +98,7 @@ All 76 issues listed here are decided at the architectural level. The authoritat
 | OI-81 | No price change after a verified deposit in R1 | Decided (2026-11-24) | — |
 | OI-82 | Refund and dispute allocation architecture | Decided (2026-11-24) | DEP-03, DEP-06 |
 | OI-83 | Agreed order-summary pricing visible to Owner, Admin, assigned Sales Representatives | Decided (2026-11-24) | — |
+| OI-84 | WP-S commercial capabilities: Sales order inputs and derived scope, no replacement after acceptance, resend as revoke and reissue, invitations in the progress view, order summaries at assignment end | Decided (2026-11-24) | DEP-18 |
 
 ---
 
@@ -115,21 +116,9 @@ OI-76, OI-77, and OI-78 were decided on 2026-11-24; their decisions are in [08](
 
 OI-79 (item by item) and OI-82 (allocation architecture, subject to DEP-03 and DEP-06) were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
 
-### OI-84 — WP-S commercial capabilities: discrepancies between 03 §4.1, AUTH-005, and merged `main` **[PENDING OI-84]**
+OI-84 was decided on 2026-11-24; its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The discrepancies and options considered remain in this file's Git history.
 
-Raised by Main on 2026-11-24 while confirming the Owner's eight WP-S commercial capabilities against the approved specifications and `main` at `8ac8143`. Blocks the AUTH-005 grant package, not this documentation. Main decides none of these.
-
-| Item | Discrepancy (evidence) | Options | Main's recommendation |
-|---|---|---|---|
-| (a) Unapproved mechanics | 03 §4.1 is headed "mechanics PROPOSED". OI-78 approved the role-separation, termination, pending-invitation, and history rules, and the Owner approved rate limits (v0.5.3). The **Enforcement**, **Direct access [PROPOSED]**, and **Assignment** bullets that AUTH-005 implements carry no approval | A: approve them with the AUTH-005 grant; B: revise first | A. Record the approval and update the §4.1 labels in the WP-S PR (AUTH-005 exit criterion 5) |
-| (b) Free-text order inputs | `private.issue_order_summary(p_project_id, p_package_key, p_scope_items, p_project_notes, p_change_reason)` (`20261124160000`) takes scope items (strings of 1 to 300 characters) and project notes as free text, and both are part of the contractual snapshot (04 §4). 03 §4.1 says "package key only; no amount, price, quantity, discount, or term input", and AUTH-005 says "catalog-only inputs". It is unclear whether a Sales Representative may supply scope items and notes | A: Sales supplies the package key, scope items, and the change reason; project notes stay Owner and Admin ("approved by staff", 04 §4 [PROPOSED]); B: Sales has the same inputs as Admin; C: package key only, Owner or Admin adds scope | A. Correct the AUTH-005 wording "catalog-only inputs" to "catalog-only pricing" |
-| (c) Supersede after acceptance | T-SALES-19 requires rejecting a Sales Representative's attempt to supersede an order summary after acceptance. The merged function lets any authorized caller supersede a `presented` summary that already has an acceptance (the reacceptance path), and the AUTH-005 WP-B row says "every other rule unchanged" | A: the WP-S replacement adds one Sales-only rejection (no superseding once the current summary has an acceptance or the deposit is verified); Owner and Admin are unchanged; B: allow Sales to supersede, and amend T-SALES-19 | A. WP-B reviews the added rejection |
-| (d) Invitation resend | Merged `main` has no staff resend operation: Phase 2 has `create_invitation`, `revoke_invitation`, and the invitee's own sign-in-code resend. 03 §4 lists "Revoke or resend a pending invitation" for Owner and Admin as Phase 2, and AUTH-005, T-SALES-27, and T-SALES-29 refer to resend | A: resend is revoke plus a new invitation for every role (both audited and rate-limited; no new object); B: add a resend function (a new object for every role, so the AUTH-005 inventory grows) | A for R1 |
-| (e) Invitation listing | A Sales Representative has no direct table access, and no AUTH-005 function returns a project's pending client invitations. The representative needs them to revoke or resend, and T-SALES-27 tests that the former representative cannot list them | A: `sales_project_progress` also returns the assigned project's client invitations (ID, address, status, timestamps; never the token or its hash); B: a separate `sales_list_invitations` function | A. Add it to the AUTH-005 new-objects row |
-| (f) Order summaries at termination (low) | OI-78 settles pending invitations at termination but does not say whether an order summary a former representative issued stays valid | A: it stays valid for the client to accept, and Owner or Admin may supersede it; B: ending the assignment supersedes it | A, consistent with OI-78 (a) |
-
-Confirmed without discrepancy: atomic customer, project, and assignment creation (§4.1, T-SALES-04, T-SALES-17); Owner and Admin parity (§4, T-SALES-13; today through the `/staff` area and RLS inserts); the customer cannot change the package, the pricing, or the prepared order (the immutable snapshot (04 §4), the client ❌ for order preparation (03 §4), acceptance by snapshot hash (04 §3), and Checkout resolving prices from the snapshot rather than client input (04 §8; `begin_initial_checkout(p_project_id)`), with T-AGR-02, T-PAY-11, T-PAY-12, and T-SALES-24); Checkout is created only by the authorized client after acceptance (03 §4 "Start initial Checkout": client only; the merged function rejects every staff role); termination at the next authorization check (T-SALES-14, T-SALES-18, T-SALES-26); commission processing deferred (OI-77 refinement 7).
-
+**None open.**
 ---
 
 ## Part 3 — Implementation and production dependencies
@@ -155,6 +144,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 | DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | WP-B | Not started. Runs under AUTH-002 once its activation conditions are met. |
 | DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | **Complete** (Owner-reported, 2026-11-24). `main` reports `protected: true` via the GitHub API; the ruleset check list is not readable from the agent session. |
 | DEP-17 | **Hosted scheduler** (04 §13, 05 §5.4, §5.5): bind to a scheduler, with recorded runs and alerting (DEP-12): WP-B's billing job entry points (daily reconciliation, maintenance-recovery evaluation, webhook backfill, release approvals, outbound requests); WP-C's scan retries and revoked-object deletion retries | WP-D (staging, AUTH-003); Owner (production, Tier 3) | Before the R1 release candidate (staging); production launch | Not started. In R1 until then: staff trigger scan retries, the server retries due deletions opportunistically, the Owner retries deletions and runs reconciliation before authorizing publication |
+| DEP-18 | **Standard package scope definitions** (OI-84(b); 03 §4.1, 04 §4): the Owner supplies, for each package key (Essential, Professional, Advanced, Signature, Prestige), the standard contractual deliverables that Sales-issued order summaries copy into the snapshot; loaded into `private.billing_package_scope` by a reviewed migration and recorded under 08 §6. No authoritative definition exists today (`private.billing_packages` holds key, name, and cents only). Because the scope becomes part of the contractual order summary, counsel review (DEP-03) may apply | Owner (content); WP-S (table and loader, AUTH-005) | Before Sales-issued order summaries are used outside local and CI tests, and before R1 release-candidate acceptance | Not started. Until then, Sales issuance fails closed outside the test-only seed |
 
 ### DEP-01 detail — Stripe test-mode catalog
 

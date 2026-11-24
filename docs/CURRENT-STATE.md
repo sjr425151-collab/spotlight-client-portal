@@ -28,7 +28,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | Phase 1, Foundation and CI | Tooling, CI, design tokens | **Done** (PR #2) |
 | Phase 2, Auth, security, tenancy | Invitation-only OTP, MFA, RLS, audit, nonce CSP, private storage policies | **Done, local only** (PR #4) |
 | WP-A | Governance and specification correction | **Done** (PR #14, merge commit `d6d795a`) |
-| WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI on `main`: see this PR). OI-71 decided; OI-72 open. |
+| WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI run #39 on `main` concluded `success`, 2026-11-24). OI-71 decided; OI-72 open. |
 | WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope) | Not started. Local and CI parts covered by AUTH-001; Stripe parts need AUTH-002 active. |
 | WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | Not started. Covered by AUTH-001; release of scanned uploads needs DEP-07. |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. |

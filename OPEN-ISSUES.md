@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.14.0 |
+| Version | 0.15.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
 | Next unused issue ID | **OI-73** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-71)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-72)
 
-All 64 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-71).
+All 65 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-72).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -84,7 +84,8 @@ All 64 issues listed here are decided at the architectural level. The authoritat
 | OI-68 | Release scope: R1 and R2 | Decided (2026-11-23) | DEP-03, DEP-06, DEP-07, DEP-12 |
 | OI-69 | Test-only legal fixtures | Decided (2026-11-23) | — |
 | OI-70 | Path-aware, fail-closed CI; dependency security patch exception | Decided (2026-11-23) | DEP-16 |
-| OI-71 | Gate-interface coverage, publication holds, financial classification (mapped onto the existing interfaces) | Decided (2026-11-24); Admin-access restriction pending in OI-72 | OI-72 |
+| OI-71 | Gate-interface coverage, publication holds, financial classification (mapped onto the existing interfaces) | Decided (2026-11-24; revised 2026-11-24) | — |
+| OI-72 | Admin access to payment and financial records: derived operational states only (option A) | Decided (2026-11-24) | — |
 
 ---
 
@@ -92,23 +93,8 @@ All 64 issues listed here are decided at the architectural level. The authoritat
 
 OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11-23 in the consolidated execution plan approval; their decisions are recorded in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-| ID | Title | Blocks | Status |
-|---|---|---|---|
-| OI-72 | Admin access to payment and ledger records (conflict between the Owner's OI-71 direction and 03 §4) | The RLS of WP-B's payment, ledger, and billing-hold tables, and the visibility of financial queues (05 §9) | Open |
+**None open.** OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-### OI-72 — Admin access to payment and ledger records
-
-Raised by the WP-0 integration (2026-11-24). OI-71 (decided) is in 08.
-
-- **Conflict:**
-  - *The Owner's direction (OI-71 item 4):* Admin receives only the minimum derived operational eligibility needed for fulfillment, with no direct access to restricted financial records.
-  - *Approved 03 §4 (Phase 2 approval):* the row "View payments and ledger" grants **Admin ✅ (read)**. That row is not marked [PROPOSED], so it is binding until changed.
-  - *Related:* 05 §9 lists derived queues that reveal financial state (awaiting deposit, payment recovery, disputes, billing hold Owner review, awaiting final payment, reconciliation mismatches) without saying who sees each one.
-- **Options:**
-  - **A.** Amend 03 §4 so that Admin sees derived eligibility only: for example "deposit verified: yes/no", "final payment verified: yes/no", and "publication-blocking hold: yes/no, type". Payment and ledger records, amounts, and the financial queues (payment recovery, disputes, billing hold review, reconciliation) become Owner-only. Non-financial queues (awaiting deposit, intake, approval, ready for review) stay visible to Admin as derived yes/no states.
-  - **B.** Keep 03 §4 as approved: Admin has read access to payments and the ledger.
-- **Recommendation:** A, which matches the Owner's direction. WP-B would then expose the derived flags through a staff-readable, non-financial projection, not by granting Admin read access on ledger or payment tables.
-- **Impact if A:** 03 §4 row, version, and 08 §5 entry; WP-B RLS on its new tables (within AUTH-001: policies on new tables only, with no change to Phase 2 objects); WP-C queue visibility. Until decided, WP-B builds its payment and ledger tables with **Owner-only** read access, the more restrictive reading. No Admin read path is added in either direction until this is decided.
 ---
 
 ## Part 3 — Implementation and production dependencies

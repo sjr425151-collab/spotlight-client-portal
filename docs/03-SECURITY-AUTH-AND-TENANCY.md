@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.4 |
-| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). v0.4.2 added §18.1, implementation notes. v0.4.3 records their **Owner approval (OI-53, 2026-11-23)** with the amended N-8 and the corrected N-2 label (Phase 2 remediation D1, D3); no other approved text or value is changed. v0.4.4 updates the §12 adjustment row for OI-47 (approved 2026-11-23) and OI-55; no other approved text or value is changed. |
-| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-47, OI-53–OI-55 |
-| Open issues | OI-50, OI-51, OI-52 |
+| Version | 0.4.5 |
+| Status | **Approved** (v0.4.0, Owner, 2026-11-23, with 03A as supporting verification evidence, in the Phase 2 authorization). v0.4.1 amends two §4 permission rows for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). v0.4.2 added §18.1, implementation notes. v0.4.3 records their **Owner approval (OI-53, 2026-11-23)** with the amended N-8 and the corrected N-2 label (Phase 2 remediation D1, D3); no other approved text or value is changed. v0.4.4 updates the §12 adjustment row for OI-47 (approved 2026-11-23) and OI-55; no other approved text or value is changed. v0.4.5 amends the §4 payment-visibility rows for **OI-72** (Owner decision, 2026-11-24): Admin receives derived operational states only; no other approved text or value is changed. |
+| Decisions | OI-03, OI-08, OI-09, OI-19, OI-25–OI-29, OI-31, OI-35, OI-37, OI-39, OI-44–OI-47, OI-53–OI-55, OI-72 |
+| Open issues | None (OI-50 to OI-52 decided; see 08) |
 | Dependencies | DEP-06, DEP-13, DEP-14 |
 | Provider evidence | [03A — Supabase and Next.js Provider Verification](03A-SUPABASE-PROVIDER-VERIFICATION.md). Findings are cited as **F-nn**, unverified items as **U-nn**. |
 
@@ -94,7 +94,8 @@ Key: ✅ allowed · ❌ denied · **M** = only for projects where the client hol
 | Accept agreement | ❌ | ❌ | M (authorized signer) | ❌ | 3 |
 | Start initial Checkout | ❌ | ❌ | M | ❌ | 3 |
 | Approve the website and authorize the final payment (automatic charge, 04 §10), or complete a failed or authentication-required final payment on the Stripe-hosted page **[APPROVED OI-17, revised 2026-11-23]** | ❌ | ❌ | M | ❌ | 3–4 |
-| View payments and ledger | ✅ | ✅ (read) | M (own invoices) | ❌ | 3 |
+| View payment records, subscription financial records, transaction amounts, ledger entries, payment method details, detailed dispute evidence, and financial reconciliation **[APPROVED OI-72]** | ✅ | ❌ | M (own invoices) | ❌ | 3 |
+| View derived operational payment states: deposit requirement satisfied or unsatisfied; final balance requirement satisfied or unsatisfied; payment recovery required; publication eligibility; billing-related operational hold; Owner intervention required **[APPROVED OI-72]** | ✅ | ✅ (read; no amounts, records, or evidence) | ❌ | ❌ | 3 |
 | Discount, credit, partial waiver, or full waiver **[APPROVED OI-27]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
 | Hold exceptions (clear a system hold) **[APPROVED OI-26]** | ✅ (reauthentication) | ❌ | ❌ | ❌ | 3 |
 | Place / clear `owner_manual_hold` or `dispute_risk_hold` | ✅ | ❌ | ❌ | ❌ | 3 |
@@ -125,6 +126,8 @@ Key: ✅ allowed · ❌ denied · **M** = only for projects where the client hol
 | Submit post-publication inquiry | ❌ | ❌ | M | ❌ | 4 |
 | View audit log | ✅ | ✅ (read, non-financial) **[PROPOSED]** | ❌ | ❌ | 2 |
 | Process data export / deletion requests | ✅ | ✅ (prepare; Owner executes deletion) **[PROPOSED]** | Request only | ❌ | 4 |
+
+**Payment visibility [APPROVED OI-72]:** the two rows above are enforced at the **database** layer (RLS on WP-B's payment, ledger, dispute, reconciliation, and billing-hold tables grants Admin no read; the derived states are exposed only through a non-financial, staff-readable projection that carries no amounts, record identifiers of restricted records, payment method details, or dispute evidence) and at the **server** layer (each service authorizes the caller's role before returning data). UI visibility is never the control. Refunds, financial reconciliation, and manual financial hold controls remain Owner-only (rows above).
 
 Owner and Admin **cannot** approve a preview on a client's behalf, accept an agreement on a client's behalf, or record a payment as received. **[APPROVED OI-03, OI-19]**
 

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.0.0 |
+| Version | 1.1.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
-| Next unused ID | **AUTH-004** |
+| Next unused ID | **AUTH-005** |
 
 This file is the single source of truth for **what work is authorized**. It replaces per-phase authorization statements elsewhere. Approving a document or decision never authorizes work by itself; only an active record below does. If this file and any other document disagree about authorization, the more restrictive reading applies and the conflict is escalated (CLAUDE.md §2).
 
@@ -85,6 +85,22 @@ Rules for every tier:
 | Stop conditions | Any production resource would be touched; a cost above the plan the Owner selected; a provider fact contradicting an approved decision (escalate) |
 | Expiry | R1 release-candidate acceptance, or 2027-01-31, whichever comes first |
 | Granted | Owner, 2026-11-23 (consolidated execution plan approval, item 6) |
+
+### AUTH-004 — Tier 2: WP-C storage security policies (local and CI)
+
+| Field | Value |
+|---|---|
+| Tier | 2 (scoped) |
+| Work package | **WP-C** uploads and quarantine (05 §4–§5) |
+| Scope | Storage security policies for WP-C upload functionality inside the existing private `project-assets` bucket |
+| Permitted | Add narrowly scoped `storage.objects` policies for **newly introduced** upload and quarantine paths only. Enforce project membership, tenant isolation, and least privilege. Implement the private quarantine area and the scanner integration contract. Implement upload validation and storage security tests, including mocked scanning and quarantine-release tests. |
+| Prohibited | Broadening any existing Phase 2 access permission; modifying the existing `project_assets_select` or `project_assets_staff_aal2` policies or any other unrelated Phase 2 security object; making any bucket or quarantine path public; letting an unscanned or unsuccessfully scanned file reach approved asset storage; letting a client self-certify a scan result; any production or hosted storage |
+| Environments | Local Supabase stack and CI only |
+| Credentials | None (local development keys only) |
+| Stop conditions | The implementation would need to **modify an existing Phase 2 policy** rather than add a narrowly scoped one: stop that operation and report the exact change required. Also any AUTH-001 stop condition. |
+| Dependencies | DEP-07 blocks **real** scanned-file release only. The quarantine architecture and the mocked scanner interface proceed now. |
+| Expiry | WP-C completion, or Owner revocation |
+| Granted | Owner, 2026-11-24 (integration closure authorization, item 4) |
 
 ## 4. Dependency security patch exception (standing, Tier 1)
 

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.0 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). |
-| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68 |
+| Version | 0.4.1 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. |
+| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68, OI-72 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
 
@@ -218,6 +218,12 @@ Queues are **computed** from authoritative state. They are never maintained by h
 | Upload review | Assets `quarantined` beyond the SLA or `rejected`; type-exception requests |
 | Reconciliation mismatches | 04 §13 |
 | Service inquiries | 06 §11 |
+
+**Queue visibility [APPROVED OI-72]:**
+- **Owner only:** Disputes, Billing hold Owner review, Stripe cancellation exceptions, Reconciliation mismatches, and the detail of Payment recovery (invoice, amounts, attempts).
+- **Owner and Admin, as derived states only** (03 §4): Awaiting deposit and Awaiting final payment show "requirement satisfied / unsatisfied"; Payment recovery shows "payment recovery required"; Blocked by hold shows "billing-related operational hold" or the fulfillment hold type; Ready for publication review shows publication eligibility; any Owner-only queue item appears to Admin only as "Owner intervention required". No amount, payment record, payment method, or dispute evidence is shown to Admin.
+- **Owner and Admin:** all other queues.
+- Enforced by the database and the server, as in 03 §4, not by hiding UI elements.
 
 ## 10. Client notification triggers
 

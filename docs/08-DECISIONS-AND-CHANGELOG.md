@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.18.0 |
+| Version | 0.19.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -811,7 +811,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** none.
 - **Affected sections:** 04 §10 (preconditions note). No other text changes.
 
-### OI-79 — WP-C values the specifications leave unstated **[PENDING OI-79]**
+### OI-79 — WP-C values the specifications leave unstated
 
 - **Origin:** raised by WP-C (PR #19, as its OI-73; renumbered by central allocation, Owner 2026-11-24). Each value is a single constant implemented in its strictest reasonable reading. **They are not collectively approved**; each needs its own Owner decision.
 
@@ -826,7 +826,16 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 | 79.7 | Staff intake corrections (03 §4 row, **[PROPOSED]**) | Admin only, as the matrix states (Owner ❌) | Literal reading of the matrix | Least privilege for the Owner account; the Owner cannot correct intake | Owner and Admin both; or Owner only with reauthentication |
 | 79.8 | Scanner error handling | The file returns to `quarantined` for retry and the Upload review queue; never released | Fails closed | **Protective:** an unscanned file is never served | Mark as `rejected` and require re-upload; or bounded automatic retries, then rejection |
 
-- **Until decided:** the WP-C values stay as implemented (each fails closed or is the stricter reading).
+- **Decision (Owner, 2026-11-24), item by item:**
+  1. Decimal MB and GB.
+  2. Quarantined files flagged for review after **24 hours**.
+  3. Domain-expiry warning at **60 days**.
+  4. **12,000 px per side and 100 megapixels**, with bounded decoding, memory, and processing-time safeguards; malformed or oversized images rejected before expensive processing wherever possible; no unapproved dependency.
+  5. Every failed **high or critical** security finding blocks publication; **no override or exception mechanism** (supersedes 06 §7 "without a recorded exception").
+  6. Staff acceptance of intake is required before preview release; **no override**.
+  7. **Owner and Admin** may correct client intake, preserving the original submission, correction history, actor attribution, and reason; existing authorization and tenant isolation apply.
+  8. Scanner errors keep the file in quarantine; **bounded retries with backoff**; exhausted retries go to the review queue; no unscanned file is ever released.
+- **Status:** Approved. **Affected sections:** 05 §3, §5.4, §11 (v0.4.3; T-LC-16, T-LC-17, T-UP-10 to T-UP-13); 06 §2, §7 (v0.5.1; T-PUB-20); 03 §4 (v0.5.4).
 
 ### OI-80 — WP-C capabilities blocked by other authorizations or packages
 
@@ -840,11 +849,13 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Decision (Owner, 2026-11-24):** prohibited in R1. The original order snapshot is preserved and every financial invariant stays in force (04 §4).
 - **Status:** Approved.
 
-### OI-82 — Refund and dispute allocation on the combined initial charge **[PENDING OI-82]**
+### OI-82 — Refund and dispute allocation
 
 - **Origin:** raised by WP-B (PR #20, as its OI-74).
 - **Owner direction (2026-11-24):** deposit-first allocation is not approved as permanent policy. A deterministic, auditable model that keeps development deposits and maintenance obligations distinct is proposed in 04 §15.2.1; ambiguous allocations fail closed and require Owner reconciliation. **The exact policy needs Owner approval before implementation.**
-- **Until decided:** every refund or dispute on the initial charge other than a full reversal fails closed (04 §15.2.1 rule 2(c)).
+- **Decision (Owner, 2026-11-24):** the allocation model is approved, **subject to counsel review (DEP-03) and actual Stripe provider verification (DEP-06)** (04 §15.2.1): separate development and maintenance obligations; deterministic allocation of verified full reversals; explicit Owner-recorded allocation for partial refunds where supported and verified; unknown or mismatched allocations to an unresolved holding account; no deposit-first, maintenance-first, or proportional assumption; an unresolved allocation blocks the applicable financial gate (G2 or G4); Owner reconciliation with reauthentication, a reason, and immutable audit; append-only reconciliation entries that balance exactly; cumulative reversal limits per obligation; no double-counting across refunds, disputes, duplicates, and out-of-order events; dispute resolution, reinstated funds, and later verified adjustments as new entries without rewriting history; existing dispute holds and authorization restrictions preserved. Tests T-PAY-27 to T-PAY-36.
+- **Not authorized by this decision:** live refunds, Stripe API access, Tier 3 actions, or production activity.
+- **Status:** Approved (architecture).
 - **Dependencies:** DEP-06 (refund metadata or credit-note behavior); DEP-03 (refund terms, OI-35).
 
 ### OI-83 — Visibility of agreed order-summary pricing
@@ -989,10 +1000,10 @@ Phase = the earliest original OI-02 phase whose implementation the decision gove
 | OI-76 | Collection timing statement (option A: OI-73 retained) | Approved | WP-B, WP-C | — | — | — |
 | OI-77 | Sales Representative role (R1) | Approved (requirement; mechanics proposed, refinements approved in OI-78) | WP-S (proposed), WP-B | 01 §6; 03 §3, §4, §4.1, §13; OI-03 | AUTH-005 (scope final, not granted) | — |
 | OI-78 | AUTH-005 policy decisions; WP-S approval; integration order | Approved | WP-S | 03 §4.1, §13; AUTHORIZATIONS AUTH-005; CURRENT-STATE §8 | AUTH-005 grant and activation | — |
-| OI-79 | WP-C unstated values (eight items, individually) | **Open** | WP-C | 05 §5, §9; 06 §2, §7; 03 §4 | — | — |
+| OI-79 | WP-C unstated values (eight items, decided individually) | Approved | WP-C | 05 §3, §5.4; 06 §2, §7; 03 §4 | — | — |
 | OI-80 | WP-C blocked capabilities stay fail-closed | Approved | WP-C | 05 §5.3, §7 | DEP-07 | — |
 | OI-81 | No price change after a verified deposit (R1) | Approved | WP-B | 04 §4 | — | — |
-| OI-82 | Refund and dispute allocation on the combined initial charge | **Open** (proposed policy 04 §15.2.1) | WP-B | 04 §15.2.1 | DEP-03, DEP-06 | Legal (refund terms) |
+| OI-82 | Refund and dispute allocation | Approved (architecture; subject to DEP-03, DEP-06) | WP-B | 04 §15.2.1, §16 | DEP-03, DEP-06 | Legal (refund terms) |
 | OI-83 | Agreed order-summary pricing visible to Owner, Admin, assigned Sales | Approved | WP-B, WP-S | 03 §4, §4.1 | — | — |
 | OI-74 | Mandatory payment method retention; R1 automatic final charge | Approved | WP-B, WP-C | 01 §9; 04 §8–§17; 05 §3, §7 | DEP-03, DEP-06, DEP-15 | Legal (revocation) |
 
@@ -1034,6 +1045,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.16.1 | 2026-11-24 | OI-76 and OI-77 formal decisions restated by the Owner and recorded (no decision change). **AUTH-005 revised** after a mechanics review of the WP-B and WP-C branches: client-role separation, two WP-C function replacements, Owner review points (AUTHORIZATIONS v1.3.1). 03 v0.5.1 (§4.1; T-SALES-23 to T-SALES-25). CURRENT-STATE v1.4.1. |
 | 0.17.0 | 2026-11-24 | **OI-78 decided** (Owner): pending client invitations survive assignment end; ended assignments hidden from the representative, history and attribution preserved; termination effective at the next authorization check; WP-S approved; role-separation refinements approved; integration order approved. 03 v0.5.2 (§4.1; T-SALES-26 to T-SALES-28). AUTHORIZATIONS v1.4.0: AUTH-005 scope final with policy decisions, entry and exit criteria, and coordination; not granted. CURRENT-STATE v1.5.0. OPEN-ISSUES v0.17.0 (next unused OI-79). |
 | 0.18.0 | 2026-11-24 | **Central issue allocation** (Owner): PR #18 keeps OI-73 to OI-78; WP-C's issues become OI-79 and OI-80; WP-B's become OI-81 to OI-83; Main allocates all IDs from now on. OI-80, OI-81, OI-83 decided; OI-79 (itemized) and OI-82 (proposed allocation policy, 04 §15.2.1) open. OI-78 amended: WP-C makes its two security corrections in PR #19. AUTH-005 v1.5.0: rate limiting, pricing view. 01 v0.4.2 (§9.1.1 integrated R1 browser acceptance), 03 v0.5.3, 04 v0.9.1. | Main session | Owner |
+| 0.19.0 | 2026-11-24 | **OI-79 decided** item by item (05 v0.4.3, 06 v0.5.1, 03 v0.5.4). **OI-82 decided** (allocation architecture, subject to DEP-03 and DEP-06; 04 v0.9.2, T-PAY-27 to T-PAY-36). No open issues. WP-C and WP-B directives updated; shared-file plan and migration order recorded. | Main session | Owner |
 
 ## 6. Change-control rules
 

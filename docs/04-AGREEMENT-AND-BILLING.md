@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.9.1 |
-| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). v0.9.0 (**OI-74**, Owner decision 2026-11-24): mandatory payment method retention; the automatic off-session final-balance charge moves to R1; card only; payment authorization record (§8.1); setup-mode payment method recovery and authorization revocation (§8.1); Tier 0 provider-documentation record (§8.2); tests T-PAY-18 to T-PAY-26; OI-75 (scope independent of the maintenance subscription). The §3.1 clause is unchanged. The collection order is unchanged by **OI-73** (option A). v0.9.1 (Owner, 2026-11-24): **OI-81** no price change after a verified deposit in R1 (§4); refund and dispute allocation for the combined initial charge **[PENDING OI-82]** (§15.2.1). |
+| Version | 0.9.2 |
+| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). v0.9.0 (**OI-74**, Owner decision 2026-11-24): mandatory payment method retention; the automatic off-session final-balance charge moves to R1; card only; payment authorization record (§8.1); setup-mode payment method recovery and authorization revocation (§8.1); Tier 0 provider-documentation record (§8.2); tests T-PAY-18 to T-PAY-26; OI-75 (scope independent of the maintenance subscription). The §3.1 clause is unchanged. The collection order is unchanged by **OI-73** (option A). v0.9.1 (Owner, 2026-11-24): **OI-81** no price change after a verified deposit in R1 (§4); refund and dispute allocation (§15.2.1, OI-82). v0.9.2 (**OI-82**, Owner decision 2026-11-24): refund and dispute allocation approved (§15.2.1), subject to counsel review (DEP-03) and test-mode provider verification (DEP-06). |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63–OI-66, OI-68, OI-69 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
@@ -703,26 +703,27 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 - **Discretionary refund authority:** **Owner only**, with a documented reason, reauthentication, and an audit event.
 - **Accounting:** a refund is a `refund` ledger entry derived from the Stripe webhook, linked to a `refund_discretionary` decision record. The original charge entries are never edited.
 
+#### 15.2.1 Reversal allocation: refunds and disputes **[APPROVED OI-82, Owner 2026-11-24; subject to DEP-03 and DEP-06]**
+
+Approval of this architecture authorizes no live refund, Stripe API request, Tier 3 action, or production activity. Deposit-first, maintenance-first, and proportional allocation are **never** used.
+
+1. **Obligations.** Each charge maps to fixed obligations: the initial invoice has a **development deposit** line (snapshot deposit cents) and a **maintenance** line (9900); each later maintenance invoice is one maintenance obligation; the final-balance invoice is one **development balance** obligation. Development and maintenance are separate ledger categories.
+2. **Rules, applied in order to each verified refund or dispute event:**
+   - (a) **Single-obligation charge** (later maintenance or final-balance invoice): allocated to that obligation.
+   - (b) **Verified full reversal** of the initial charge: each line is reversed in full.
+   - (c) **Owner-recorded allocation** (partial refund, only where the provider mechanism is verified, DEP-06): recorded **before** issuance, per line, summing to the refund amount, and referenced from the Stripe refund (metadata or credit-note lines, whichever test mode verifies). A matching verified event posts one ledger entry per line.
+   - (d) **Anything else** (partial dispute; partial refund without a matching allocation; amount or reference mismatch; refund made outside the portal): the amount posts to the **unresolved reversal holding account**; no category is assumed; an Owner reconciliation item is created.
+3. **Gates.** An unresolved reversal blocks the financial gate of every obligation it could affect: G2 for the initial charge, G4 for the final-balance invoice. OI-37 dispute holds and all authorization restrictions apply unchanged.
+4. **Limits and de-duplication.** The cumulative reversal of each obligation (refunds plus lost disputes) can never exceed its original amount; an event that would exceed it is quarantined. Each Stripe refund, dispute, and balance transaction is counted once (unique Stripe IDs), so duplicate and out-of-order events, and a refund and a dispute on the same funds, never double-count.
+5. **Dispute lifecycle.** A dispute opening posts a disputed (withdrawn) entry; a dispute won posts a **reinstatement** entry; a dispute lost leaves the reversal final. Later verified adjustments post new entries. Historical ledger entries are **never rewritten** (§12).
+6. **Owner reconciliation.** Tier 3, with fresh reauthentication and a required reason; recorded immutably in the audit history; it posts append-only reclassification entries from the holding account to the obligations, which must **balance exactly** and respect the limits in rule 4.
+7. **Tests:** T-PAY-27 to T-PAY-36 (§16).
+
 ### 15.3 Tax readiness **[APPROVED OI-36]**
 
 - The financial architecture is tax-ready: service categories (§12), Stripe product tax codes per category, and Stripe Tax support where appropriate **[VERIFY-PROVIDER]**.
 - No taxability is assumed.
 - **Production tax collection is not activated** without qualified tax review and Owner authorization (DEP-04). Test mode runs without tax collection.
-
-#### 15.2.1 Allocation of refunds and disputes on the combined initial charge **[PENDING OI-82; proposed policy]**
-
-The initial Checkout charges the deposit and the first maintenance period together (§8). Deposit-first allocation is **not** approved as policy (Owner, 2026-11-24). Proposed deterministic, auditable model, for Owner approval before implementation:
-
-1. **Unit of allocation.** The initial invoice's line items: the deposit line (snapshot deposit cents, category `development_deposit`) and the maintenance line (9900, category `maintenance`). Later maintenance invoices and the final-balance invoice are single-purpose, so their refunds and disputes are allocated by construction.
-2. **Rules, applied in order to each verified refund or dispute event on the initial charge:**
-   - (a) **Full reversal** (amount equals the full charge): each line is reversed in full.
-   - (b) **Owner-recorded allocation**: a refund issued as a Tier 3 Owner action carries an allocation recorded **before** issuance (deposit cents + maintenance cents = refund amount; each within that line's remaining refundable amount), referenced from the Stripe refund **[VERIFY-PROVIDER: refund metadata, or a credit note with line amounts]**. A matching event posts one ledger entry per line.
-   - (c) **Anything else** (a partial dispute, a partial refund without a matching allocation, an amount mismatch, or a refund made outside the portal): **fail closed**. The amount posts to an `unallocated_reversal` suspense entry; no category is assumed; an Owner reconciliation item is created; G2 is treated as **not satisfied** until the Owner records the allocation. OI-37 dispute holds apply independently.
-3. **Never** deposit-first, maintenance-first, or pro-rata by default.
-4. **Owner reconciliation** (Tier 3, reauthentication, audited): the Owner records the allocation with a reason; append-only reclassification entries move the suspense amount to the line categories; the sum must match exactly.
-5. **Tests (proposed):** full refund; Owner-allocated partial refund; unallocated partial refund (suspense, G2 fails closed); full and partial disputes; Dashboard-originated refund; replayed and out-of-order events.
-
-Until OI-82 is decided, WP-B implements rule 2(c) for every refund or dispute on the initial charge other than a full reversal.
 
 ### 15.4 Disputes and chargebacks **[APPROVED OI-37]**
 
@@ -775,6 +776,16 @@ Until OI-82 is decided, WP-B implements rule 2(c) for every refund or dispute on
 | T-PAY-24 | **[OI-74]** Every Checkout Session is created with the card-only filter, and no code path creates a PaymentIntent or charge outside the single invoice workflow (code search plus test) |
 | T-PAY-25 | **[OI-74]** Client revocation (with reauthentication) and Owner-recorded revocation are immutable and audited; afterwards no automatic attempt is made; a late or replayed event cannot re-activate a revoked authorization |
 | T-PAY-26 | **[OI-74]** The final-balance invoice always names the authorization's card as `default_payment_method` and never relies on Customer or subscription defaults; the charged amount equals the authorized snapshot balance |
+| T-PAY-27 | **[OI-82]** A verified full refund of the initial charge reverses the deposit and maintenance lines in full, in separate categories |
+| T-PAY-28 | **[OI-82]** A partial refund with a matching Owner-recorded allocation posts one entry per line; with a missing or mismatched allocation it posts to the holding account and creates an Owner reconciliation item |
+| T-PAY-29 | **[OI-82]** A partial dispute, or a refund made outside the portal, on the initial charge goes to the holding account; no deposit-first, maintenance-first, or proportional allocation is ever applied (code search plus test) |
+| T-PAY-30 | **[OI-82]** An unresolved reversal on the initial charge fails G2, and on the final-balance invoice fails G4, until the Owner reconciles it |
+| T-PAY-31 | **[OI-82]** Cumulative reversals of an obligation can never exceed its original amount; an exceeding event is quarantined |
+| T-PAY-32 | **[OI-82]** Duplicate, replayed, and out-of-order refund and dispute events, and a refund plus a dispute on the same funds, are counted once |
+| T-PAY-33 | **[OI-82]** Dispute opened, won (reinstatement entry), and lost (reversal final) post new entries; no existing ledger entry is updated or deleted |
+| T-PAY-34 | **[OI-82]** Owner reconciliation requires fresh reauthentication and a reason, is audited immutably, posts append-only entries that balance exactly, and is denied to Admin, Sales, and clients |
+| T-PAY-35 | **[OI-82]** Refunds and disputes on single-obligation charges (later maintenance, final balance) are allocated to that obligation only |
+| T-PAY-36 | **[OI-82]** OI-37 dispute holds apply unchanged during and after allocation |
 | T-AGR-01 | The acceptance checkbox renders unchecked. The server rejects acceptance without an explicit true value. |
 | T-AGR-02 | Initial Checkout cannot be created without a current acceptance |
 | T-AGR-03 | Acceptance evidence includes every §3 field. The stored hash matches the version text. |

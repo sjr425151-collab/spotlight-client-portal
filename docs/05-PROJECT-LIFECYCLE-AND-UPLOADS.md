@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.2 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. |
+| Version | 0.4.3 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. v0.4.3 (**OI-79**, Owner decision 2026-11-24): resolved values for uploads, image limits, scanner retries, the quarantine review threshold, domain-expiry warnings, release precondition, and intake corrections (§3, §5.4). |
 | Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68, OI-72 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
@@ -50,10 +50,10 @@ Transition rules:
 
 | Element | Specification |
 |---|---|
-| Actors | Client (primary), Admin (audited corrections) |
+| Actors | Client (primary); Owner and Admin (audited corrections, **[APPROVED OI-79 item 7]**) |
 | Preconditions | Deposit `verified` **[APPROVED baseline journey step 6]**, **and** `payment_authorization_ready` from the financial status interface (04 §8.1) **[APPROVED OI-74]** |
 | Inputs | Business legal and display name, contact info (phone, email, address), service areas, services offered, logo(s), photos, brand guidelines (optional), website preferences (style references, color preferences, pages wanted), domain information (existing domain / needs domain) |
-| Records | `intake_submissions` (versioned drafts; the submitted version is immutable) |
+| Records | `intake_submissions` (versioned drafts; the submitted version is immutable). Staff corrections create a new version and never alter the original submission; each correction records the actor, time, and a required reason **[APPROVED OI-79 item 7]**. |
 | States | `open → submitted → accepted_by_staff` or `changes_requested → submitted` |
 | Autosave | Drafts are saved server-side **[PROPOSED]** |
 | Failure states | Validation errors per field; upload errors (§5) |
@@ -116,6 +116,20 @@ Rules:
 5. **[APPROVED]** Safe image/video processing. **[PROPOSED]** Run in an isolated worker with dimension and pixel limits (decompression-bomb protection), and strip EXIF location metadata from derivatives.
 6. **[APPROVED]** Resumable large uploads must be addressed. **[VERIFY-PROVIDER OI-39]** Check Supabase Storage resumable (TUS) support and object size limits against the 250 MB video limit.
 7. Quota is checked at upload-URL issuance and again at completion **[PROPOSED]**. Concurrent uploads must not exceed quota (a transactional reservation).
+
+### 5.4 Resolved values **[APPROVED OI-79, Owner 2026-11-24]**
+
+| # | Item | Value |
+|---|---|---|
+| 1 | Units in §5.1–§5.2 | **Decimal**: 1 MB = 1,000,000 bytes; 1 GB = 1,000,000,000 bytes |
+| 2 | Upload review queue (§9): "quarantined beyond the SLA" | A file still quarantined **24 hours** after upload is flagged for review |
+| 3 | Domain expiries queue (§9): "approaching the end of the initial term" | Warning **60 days** before the registration's expiry |
+| 4 | Decompression-bomb limits (§5.3 rule 5) | At most **12,000 px per side and 100 megapixels**. Dimensions are read from the file header and checked **before** any full decode; decoding is bounded in memory and processing time; malformed or oversized images are rejected before expensive processing wherever possible. No unapproved dependency is introduced (OI-80) |
+| 6 | Release precondition (§6) | A preview can be released only when intake is `accepted_by_staff`. **No override** |
+| 7 | Intake corrections (§3) | Owner and Admin; original submission, correction history, actor, and reason preserved; existing authorization and tenant isolation apply |
+| 8 | Scanner errors (§5.3) | The file stays **quarantined**. Bounded retries with backoff; after the last retry the file goes to the Upload review queue. No unscanned file is ever released |
+
+Item 5 (security findings) is in 06 §2 and §7.
 
 ## 6. Preview release versioning **[APPROVED OI-18]**
 
@@ -252,9 +266,15 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-UP-07 | Failed uploads are purged after 7 days |
 | T-UP-08 | Uploading an asset never changes any preview or live site |
 | T-UP-09 | A failed scan makes the asset `rejected`, blocks its download and release use, and sends client and staff notifications (OI-31) |
+| T-UP-10 | **[OI-79]** Limits use decimal units (a file of 1 byte over the decimal limit is rejected) |
+| T-UP-11 | **[OI-79]** An image over 12,000 px on either side or over 100 megapixels, or with a malformed header, is rejected before full decoding; decoding a hostile image stays within the memory and time bounds |
+| T-UP-12 | **[OI-79]** A scanner error keeps the file quarantined; retries are bounded with backoff; exhausting them routes the file to the Upload review queue; the file is never served at any point |
+| T-UP-13 | **[OI-79]** A file quarantined for more than 24 hours appears in the Upload review queue; a domain within 60 days of expiry appears in the Domain expiries queue |
 | T-LC-10 | **[R2]** Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) |
 | T-LC-11 | The approval hold cannot be placed without a recorded personal follow-up. Placing it never creates an approval or alters billing. |
 | T-LC-12 | During an approval hold, the client can view the preview, approve it, or request revisions. The approval satisfies G3, and a review queue item is created. (OI-45) |
 | T-LC-13 | An approval hold does not change portal access, subscription status, balances, or any published site |
 | T-LC-15 | **[R1]** A staff-recorded release is immutable once released, requires a commit SHA, deployment ID, and preview URL, and cannot be created by a client. Outreach records for days 3 and 7 are required before the "Approval outreach due" queue clears. The R1 approval screen shows the outstanding balance from the snapshot and does not state or imply an automatic charge. |
+| T-LC-16 | **[OI-79]** Releasing a preview while intake is not `accepted_by_staff` is rejected for every actor; no override exists |
+| T-LC-17 | **[OI-79]** Owner and Admin can correct intake only with a reason; the original submission and every earlier version stay unchanged and readable; actor and reason are recorded; another project's staff-facing intake is unreachable by clients, and a client cannot correct intake |
 | T-UP-10 | Incorporating an asset into a released preview sets `used`. The flag never reverts. Assets that were never incorporated are reported as unused. (OI-42) |

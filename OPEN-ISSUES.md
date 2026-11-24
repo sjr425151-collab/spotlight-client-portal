@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-75)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-77)
 
-All 68 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-75).
+All 70 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-77).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -89,6 +89,8 @@ All 68 issues listed here are decided at the architectural level. The authoritat
 | OI-73 | Final-balance collection order relative to publication: approved order kept (option A) | Decided (2026-11-24) | — |
 | OI-74 | Mandatory payment method retention; automatic final charge in R1; card only; setup-mode recovery; revocation | Decided (2026-11-24) | DEP-03, DEP-06, DEP-15 |
 | OI-75 | Recovery and revocation scope: final-balance authorization only, independent of the maintenance subscription (option A) | Decided (2026-11-24) | — |
+| OI-76 | Collection timing statement: OI-73 retained (option A) | Decided (2026-11-24) | — |
+| OI-77 | Sales Representative role (R1); assignment-scoped, `is_staff()` unchanged | Decided (2026-11-24; mechanics proposed) | Tier 2 grant |
 
 ---
 
@@ -102,28 +104,7 @@ OI-73 was decided on 2026-11-24 (option A); its decision and the implications co
 
 OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-### OI-76 — Owner workflow statement conflicts with OI-73 (collection timing) **[PENDING OI-76]**
-
-- **Conflict.** The Owner's "authoritative R1 commercial onboarding workflow" clarification (2026-11-24) states that the remaining 80% balance is "collected following explicit client approval **and verified successful publication**". OI-73 (option A, decided the same day) and the counsel-approved 04 §3.1 clause ("publication of the website is contingent upon successful payment") require the reverse: approval → verified payment (gate G4) → publication. The two cannot both hold.
-- **Option A (recommended): the statement is shorthand; OI-73 stands.** No change. The balance is collected after explicit approval and before publication; publication requires verified payment.
-- **Option B: reverse OI-73.** Publication first, then collection. Requires removing G4, reversing OI-17, new counsel-approved clause text (DEP-03), and accepting an unpaid live site; WP-B and WP-C gate logic changes.
-- **Until decided:** OI-73 option A remains in force. Nothing is implemented differently.
-- **Restated 2026-11-24** in the Owner's role-based access clarification with the same wording; restating does not decide it. OI-73 option A remains in force.
-
-### OI-77 — Sales Representative role **[PENDING OI-77]**
-
-- **Conflict.** The Owner's role-based access clarification (2026-11-24) adds a distinct **Sales Representative** role, restricted to its assigned customers, with the commercial onboarding capabilities (create the customer record, select the package, issue the initial order, invite the client contact). The approved roles are Owner, Admin, and Client only (OI-03; 03 §3; 01 §6).
-- **Already covered (no change):** Owner and Admin already hold the commercial capabilities through the permissions matrix (03 §4: create client business and project, invite client contact, prepare order summary), with no second account, role switching, or impersonation. Financial invariants, consent, isolation, gates, and audit already apply to every role. The order summary records its creator (`issued_by`, WP-B) separately from the client signer who accepts (`signer_user_id`) and the client who approves (05 §7). Commission processing is out of scope.
-- **Security finding.** Every staff policy and helper keys on `private.is_staff()`, which is true for **any** row in `public.staff_roles` (21 uses in the Phase 2 migration; more in WP-B and WP-C). Adding a `sales` value to `public.staff_role` would silently give Sales Representatives Admin-level, all-customer access. A Sales role therefore must **not** be added as another `staff_role` value used by `is_staff()`.
-- **Proposed design (minimum change):**
-  1. `is_staff()` keeps its meaning (Owner or Admin). Sales access is granted only by new, separate, assignment-scoped helpers and policies, so no existing policy is broadened.
-  2. A new `project_sales_assignments` record (project, sales user, assigned by, active) defines a Sales Representative's customer scope; every Sales policy requires an active assignment, `aal2`, and a live session (staff MFA rules, 03).
-  3. Sales capabilities, for assigned projects only: create the client business and project (self-assigned on creation), invite the client contact, issue the order summary from the catalog, view the agreement, order summary, and derived payment states (as for Admin under OI-72). Not permitted: financial records, refunds, holds, reconciliation, fulfillment actions, approvals, publication, staff management, or any other customer.
-  4. Attribution is recorded separately: transaction creator (`issued_by`), assigned Sales Representative (the assignment), and approval actor (the client). **Commission attribution** is not recorded in R1 **[proposed DEFERRED]**; no commission processing.
-  5. 03 §3, §4, §13 (new rows and isolation tests), 01 §6, and 08 OI-03 are amended.
-- **Authorization needed:** the design changes Phase 2 security objects (the `staff_role` enum or `staff_roles` check, the staff-invitation `intended_role` check, and new helper functions). AUTH-001 does not permit that (stop condition), so a **separate Tier 2 grant** is required before any implementation.
-- **Options:** A) adopt the proposed design in R1, with a Tier 2 grant; B) defer the Sales role to after R1 and use Owner or Admin accounts for sales in R1 (covered today); C) adopt it with a different scope, stated by the Owner.
-- **Until decided:** no Sales role exists; WP-B and WP-C continue with Owner and Admin only.
+**None open.** OI-76 (option A) and OI-77 (Sales Representative role) were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
 ---
 

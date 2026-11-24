@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Version | 0.4.1 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). v0.4.1 (**OI-74**, 2026-11-24): the automatic off-session final charge and mandatory payment method retention move to R1 (§9.1 items 10 and 13; §9.2 item 2). |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). v0.4.1 (**OI-74**, 2026-11-24): the automatic off-session final charge and mandatory payment method retention move to R1 (§9.1 items 10 and 13; §9.2 item 2); the Sales Representative role (§6, OI-77). |
 | Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41, OI-67, OI-68 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
@@ -80,12 +80,13 @@ The following items are **not** MVP commitments. They are recorded only as futur
 
 One agency (Spotlight Marketing) serves many **client businesses**. Each business has one or more **projects**. Access is granted through **project memberships**, enforced by Supabase RLS, private storage, and server-side authorization. **[APPROVED OI-09]** Details are in 03.
 
-## 6. Roles overview **[APPROVED OI-03]**
+## 6. Roles overview **[APPROVED OI-03, amended by OI-77]**
 
 | Role | Summary |
 |---|---|
 | Owner | Spotlight Marketing principal. Full administrative authority. Sole authority for financial exceptions, staff management, and publication authorization. |
 | Admin | Spotlight staff. Day-to-day project operations. No financial exceptions, staff management, or publication authorization. |
+| Sales Representative | Spotlight staff who onboard customers: create the customer and project, issue the catalog order, and invite the client, for assigned customers only. No administrative, financial, fulfillment, or publication authority (OI-77; 03 §4.1). |
 | Client | An authorized contact of a client business. Access is limited to projects where they hold membership. Only a client can approve their own project's released preview. |
 | Fulfillment (future) | Defined for future use only. **Disabled.** It cannot be assigned in the MVP. |
 

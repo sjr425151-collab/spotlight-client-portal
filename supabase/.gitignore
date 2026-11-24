@@ -1,6 +1,9 @@
 # Supabase
 .branches
-.temp
+.temp/*
+# Tracked on purpose: the CLI reads it to choose the local database image, so it pins the
+# Postgres image CI tests against (OI-11). Change it only with a deliberate upgrade.
+!.temp/postgres-version
 
 # dotenvx
 .env.keys

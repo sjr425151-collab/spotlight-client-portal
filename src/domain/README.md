@@ -9,4 +9,7 @@ Framework-independent business logic (spec 02 §1), for example:
 Rules:
 - Pure TypeScript only. No React, no Next.js APIs, no network or database access, and no `server-only` imports. Enforced by ESLint `no-restricted-imports`.
 - Every module ships with unit tests under `tests/unit/`.
-- **Phase 1 contains no domain modules.** Each workflow arrives with its authorized phase (OI-02). Do not add speculative logic here.
+- Each workflow arrives with its authorized work package (AUTHORIZATIONS.md). Do not add speculative logic here.
+
+Modules:
+- `contracts/` (WP-0, spec 01 §7): the shared contracts WP-B and WP-C build on. State-domain types, the domain-event registry, the notification outbox states, the gate-interface shapes, and the shared audit action names. Each list mirrors the WP-0 migration and is checked against it by `tests/unit/contracts.test.ts`. A package adds its own event types and audit names in its own section, citing the spec.

@@ -8,7 +8,7 @@ These instructions apply to every contributor and AI agent working in this repos
 |---|---|
 | Architecture | Approved |
 | Specification reconciliation | Specs 01, 02 and this file are **approved (final, 2026-11-23)** ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); final approval in the Phase 1 authorization). Spec 03 v0.4.0 is **approved** (2026-11-23, Phase 2 authorization), with 03A as supporting evidence. Spec 04 is **approved for Phase 3 Stripe test-mode implementation only** (2026-11-23); legal review and provider verification remain production conditions. Approving a spec never authorizes its phase. |
-| Stripe test-mode catalog (OI-30) | Narrow exception **used and closed**: the sandbox catalog was created and verified on 2026-11-23 (DEP-01, [04 §6.5](docs/04-AGREEMENT-AND-BILLING.md)). No further Stripe request is authorized; see §5 |
+| Stripe test-mode catalog (OI-30) | Narrow exception **used and closed**: the sandbox catalog was created and verified on 2026-11-23 (DEP-01, [04 §6.5](docs/04-AGREEMENT-AND-BILLING.md)); results merged in PR #12. The catalog execution authorization is **completed and expired**. Any future authenticated Stripe operation requires a separate, explicit written Owner authorization; see §5 |
 | **Implementation** | Phase 1 (Foundation and CI): authorized and merged. **Phase 2 (Auth, security, and tenant isolation): authorized 2026-11-23 and merged** (PR #4, merge commit `45d05f6`), local Supabase with synthetic data only, not deployed. Phases 3–5: **NOT AUTHORIZED**. |
 | **Production launch** | **NOT AUTHORIZED** |
 
@@ -63,7 +63,7 @@ Each phase requires separate written owner authorization. Work only within the a
 
 - Never access, request, print, or commit production or live credentials.
 - Never create, modify, or delete Stripe products, prices, customers, subscriptions, coupons, or Checkout/Portal configurations. Catalog changes are Owner actions.
-- **Single narrow exception (OI-30), now closed:** the Owner authorized creating the approved **test-mode** catalog (04 §6), and nothing else. It was carried out under separate written authorization and completed on 2026-11-23 (DEP-01; IDs in 04 §6.5). It authorizes no further request. The rules that applied before any write:
+- **Single narrow exception (OI-30), now closed:** the Owner authorized creating the approved **test-mode** catalog (04 §6), and nothing else. It was carried out under separate written authorization and completed on 2026-11-23 (DEP-01; IDs in 04 §6.5; PR #12). That execution authorization is **completed and expired**, and it authorizes no further request. The rules that applied before any write:
   - verify the credential is test mode (`livemode: false`), and abort on any live-mode key
   - search for existing matches to avoid duplicates
   - never touch live resources

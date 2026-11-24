@@ -2,10 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.15.0 |
+| Version | 0.19.1 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-75** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
-| Next unused dependency ID | **DEP-17** |
+| Next unused issue ID | **OI-84** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused dependency ID | **DEP-18** |
+| ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
 Rules:
@@ -15,9 +16,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-72)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-83)
 
-All 65 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-72).
+All 76 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-83).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -86,6 +87,17 @@ All 65 issues listed here are decided at the architectural level. The authoritat
 | OI-70 | Path-aware, fail-closed CI; dependency security patch exception | Decided (2026-11-23) | DEP-16 |
 | OI-71 | Gate-interface coverage, publication holds, financial classification (mapped onto the existing interfaces) | Decided (2026-11-24; revised 2026-11-24) | — |
 | OI-72 | Admin access to payment and financial records: derived operational states only (option A) | Decided (2026-11-24) | — |
+| OI-73 | Final-balance collection order relative to publication: approved order kept (option A) | Decided (2026-11-24) | — |
+| OI-74 | Mandatory payment method retention; automatic final charge in R1; card only; setup-mode recovery; revocation | Decided (2026-11-24) | DEP-03, DEP-06, DEP-15 |
+| OI-75 | Recovery and revocation scope: final-balance authorization only, independent of the maintenance subscription (option A) | Decided (2026-11-24) | — |
+| OI-76 | Collection timing statement: OI-73 retained (option A) | Decided (2026-11-24) | — |
+| OI-77 | Sales Representative role (R1); assignment-scoped, `is_staff()` unchanged (option A, eight refinements) | Decided (2026-11-24) | AUTH-005 (scope final, not granted) |
+| OI-78 | AUTH-005 policy decisions (pending invitations, ended assignments, termination), WP-S approval, integration order | Decided (2026-11-24) | AUTH-005 grant and activation |
+| OI-79 | WP-C unstated values, decided item by item | Decided (2026-11-24) | — |
+| OI-80 | WP-C blocked capabilities stay fail-closed; no new dependency or provider access | Decided (2026-11-24) | DEP-07 |
+| OI-81 | No price change after a verified deposit in R1 | Decided (2026-11-24) | — |
+| OI-82 | Refund and dispute allocation architecture | Decided (2026-11-24) | DEP-03, DEP-06 |
+| OI-83 | Agreed order-summary pricing visible to Owner, Admin, assigned Sales Representatives | Decided (2026-11-24) | — |
 
 ---
 
@@ -93,33 +105,15 @@ All 65 issues listed here are decided at the architectural level. The authoritat
 
 OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11-23 in the consolidated execution plan approval; their decisions are recorded in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-**None open.** OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-### OI-73 — WP-C values the specifications leave unstated (raised by WP-C, 2026-11-24)
+OI-73 was decided on 2026-11-24 (option A); its decision and the implications confirmed by the Owner are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-WP-C needed concrete values where 05 and 06 give none, or give only a **[PROPOSED]** rule. Each was implemented in its **strictest reasonable reading** and is a single constant, so a decision changes one line. None widens access or weakens a gate. **Owner confirmation requested; nothing here blocks R1 testing.**
+OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-| # | Item | Implemented as | Where |
-|---|---|---|---|
-| 1 | "MB" and "GB" in 05 §5.1–§5.2 | Decimal (1 MB = 1,000,000 bytes), the stricter reading | `private.upload_max_bytes`, `src/domain/uploads.ts` |
-| 2 | "Quarantined beyond the SLA" (05 §9 Upload review) | 24 hours | `private.upload_review_sla()` |
-| 3 | "Approaching the end of the initial term" (05 §9 Domain expiries) | 60 days | `private.domain_expiry_horizon()` |
-| 4 | Decompression-bomb limits (05 §5.3 rule 5, **[PROPOSED]**) | 12,000 px per side, 100 megapixels | `src/domain/image-safety.ts` |
-| 5 | G7 "no critical failures" vs the 06 §7 checklist "no high or critical issues" | A failed **critical or high** item blocks G7; there is no security exception mechanism | `private.security_result_passes` |
-| 6 | Release before intake acceptance | A preview can be released only once intake is `accepted_by_staff` (matches the "In development" queue definition) | `private.release_preview` |
-| 7 | Staff intake corrections (03 §4 row, **[PROPOSED]**) | Admin only, as the matrix states (Owner ❌) | `private.correct_intake` |
-| 8 | Scanner error | Returns the file to `quarantined` for a retry and the Upload review queue; never released | `private.record_scan_result` |
+OI-76, OI-77, and OI-78 were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
 
-### OI-74 — WP-C items that need another authorization or package (raised by WP-C, 2026-11-24)
-
-Each item **fails closed** today. None is a stop condition for the authorized WP-C scope.
-
-| # | Item | Current behaviour | Needs |
-|---|---|---|---|
-| 1 | HEIC conversion to JPEG/WEBP (05 §5.3 rule 4) | HEIC uploads are accepted, scanned, then **held in processing** (`heic_conversion_unavailable`) and never served | An image-codec dependency (for example `sharp`) and an isolated worker: a work-package authorization (CLAUDE.md §8) |
-| 2 | 250 MB videos and resumable uploads (05 §5.3 rule 6, **[VERIFY-PROVIDER OI-39]**) | The database allows 250 MB; the local Storage limit is 50 MiB (`supabase/config.toml`), and uploads pass through the portal server in one request | Provider verification of TUS and object limits (DEP-06, AUTH-003) |
-| 3 | Approval screen shows the outstanding balance from the order-summary snapshot (05 §7, **[PROPOSED]**) | The R1 approval screen states that the final balance becomes due and is paid on a Stripe-hosted page, without an amount | A client-visible amount from WP-B's order-summary records. WP-C does not read WP-B tables; the integration stream wires it |
-| 4 | Real malware scanning (DEP-07) | Mock scanner in development and test only; the database refuses every other scanner, so hosted environments keep files in quarantine | Vendor selection (DEP-07) and a migration registering the scanner |
+**None open.** OI-79 (item by item) and OI-82 (allocation architecture, subject to DEP-03 and DEP-06) were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
 
 ---
 
@@ -145,6 +139,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 | DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment | Granted under AUTH-003 (not yet active). OI-50 and OI-51 decided. |
 | DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | WP-B | Not started. Runs under AUTH-002 once its activation conditions are met. |
 | DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | **Complete** (Owner-reported, 2026-11-24). `main` reports `protected: true` via the GitHub API; the ruleset check list is not readable from the agent session. |
+| DEP-17 | **Hosted scheduler for billing jobs** (04 §13): bind WP-B's job entry points (daily reconciliation, maintenance-recovery evaluation, webhook backfill) to a scheduler, with recorded runs and alerting (DEP-12) | WP-D (staging, AUTH-003); Owner (production, Tier 3) | Before the R1 release candidate (staging); production launch | Not started |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
@@ -188,7 +183,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 - The calendar convention, including trigger-date exclusion (OI-43).
 - Disclosure of adjusted final balances (OI-44).
 - Refund terms (OI-35), domain ownership and transfer, IP ownership (OI-32; draft §5, §8), and dispute terms (OI-37).
-- **R1 final-payment wording (OI-68):** confirm that the 04 §3.1 *Authorization for Final Payment* clause is consistent with R1, where the client's approval makes the balance due and the client pays on the Stripe-hosted invoice page rather than by automatic charge, and approve the R1 approval-button and screen wording (04 §10, 05 §7).
+- **R1 final-payment wording (OI-68, revised by OI-74):** the hosted-only R1 question is superseded; R1 now charges automatically under the §3.1 clause. Counsel confirms the R1 approval screen wording (**Approve Website & Authorize Final Payment**), the card-retention disclosure, and the contractual effect of revoking the authorization and of re-authorizing after revocation (04 §8.1).
 - Unused-upload deletion terms (OI-42), coordinated with DEP-05.
 
 ### DEP-06 detail — provider verification items added by OI-43 to OI-46
@@ -197,6 +192,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 - **Stripe (OI-47, approved 2026-11-23):** a subscription-mode Checkout Session created with no discounts and with promotion codes disabled, so neither the deposit nor the maintenance line can be reduced.
 - **Stripe (OI-17 revised, 2026-11-23):** saving the payment method in subscription-mode Checkout for a later off-session, one-off charge; an automatically charged one-off invoice using the standard balance Price ID; the events for failed charges and required authentication; the Stripe-hosted page for completing the same invoice; idempotency keys; and, for OI-55 (approved, option A), an invoice-level discount restricted to the balance product.
 - **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
+- **Stripe (OI-74, 2026-11-24; documentation facts in 04 §8.2):** in test mode, confirm where subscription-mode Checkout stores the card (subscription default or Customer); card-wallet behavior under `allowed_payment_method_types: ["card"]`; an automatic off-session charge of the one-off invoice with an explicit `default_payment_method`; `invoice.payment_action_required` and hosted completion of the same invoice; finalizing an invoice without an automatic attempt when the authorization is not active; setup-mode Checkout for an existing Customer; and the `payment_method.detached`, `payment_method.automatically_updated`, `setup_intent.succeeded`, and `setup_intent.setup_failed` events.
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
 - **Domain registrar (to be selected; revised OI-35):** registration date and expiry data, auto-renew settings, the transfer (auth code) process, and confirmation that hosting deactivation cannot affect a registration.
 - **Vercel / infrastructure (revised OI-35):** discontinuing designated per-client resources at M1 independently of the remaining hosting.

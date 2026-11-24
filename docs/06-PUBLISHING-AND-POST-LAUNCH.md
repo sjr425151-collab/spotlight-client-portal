@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.0 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). |
+| Version | 0.5.1 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). |
 | Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68 |
 | Open issues | None |
 | Dependencies | DEP-03, DEP-06, DEP-09 |
@@ -26,7 +26,7 @@ Gates are evaluated **on the server** by a single gate evaluator, at authorizati
 | G4 | Verified final balance (no unresolved contractual balance) | Balance `verified` via webhook (the automatic final-balance charge or its Stripe-hosted completion, 04 §10), **or** `settled_by_adjustment`: verified payments + Owner-authorized discounts, credits, or waivers = owed **[APPROVED OI-27, OI-44]**. The gate output always discloses an adjustment. | 04 §10, §12 |
 | G5 | QA passed | A recorded, release-specific QA result for this release ID (§6), all blocking items passed **[APPROVED OI-33]** | §6 |
 | G6 | Domain readiness | The domain readiness check for this project passed within the freshness window | §5 |
-| G7 | Security checks passed | A recorded security result for this release ID, no critical failures **[APPROVED OI-33]** | §7 |
+| G7 | Security checks passed | A recorded security result for this release ID with **no failed high or critical finding**; no override or exception **[APPROVED OI-33; OI-79 item 5]** | §7 |
 | G8 | Holds cleared | No active publication-blocking hold: `maintenance_payment_hold`, `dispute_risk_hold`, `owner_manual_hold` **[APPROVED OI-26, OI-37]**, and `approval_nonresponsive_hold` **[OI-45; inclusion in G8 PROPOSED]** | 04 §14 |
 
 Rules:
@@ -120,7 +120,7 @@ Critical security failures always block publication. No exception exists.
 - HTTPS enforced, with HSTS.
 - Security headers present.
 - No exposed secrets in the built output.
-- Dependency vulnerability scan: no high or critical issues without a recorded exception.
+- Dependency vulnerability scan: no high or critical issues. **No exception mechanism (OI-79 item 5 supersedes the earlier "without a recorded exception").**
 - Form endpoints have spam and abuse protection.
 - No debug endpoints.
 - Admin and CMS surfaces (if any) protected.
@@ -231,6 +231,7 @@ After `live_verified`, the client sees the in-portal confirmation screen **[R1]*
 | T-PUB-17 | While an approval hold is active, publication is blocked by G8, and the gate output identifies it as a fulfillment hold, not a billing hold (OI-45) |
 | T-PUB-18 | A deployment failure after a verified final payment leaves the balance `verified`, flags the publication for recovery, and creates no Stripe invoice or charge on recovery (asserted with a Stripe mock) |
 | T-PUB-19 | **[R1]** Start deployment is rejected without a valid authorization or when any gate fails at that moment. Recording a deployment whose served build identifier differs from the authorized release fails live verification and opens an incident. A client cannot start or record a deployment, and an Admin cannot create an authorization. |
+| T-PUB-20 | **[OI-79]** A recorded security result with any failed high or critical finding fails G7; no function or role can record an exception or override |
 | T-INQ-01 | **[R2]** Inquiry options appear only after `live_verified` |
 | T-INQ-02 | **[R2]** Submitting an inquiry creates a queue entry and notifications and creates no Stripe objects (asserted with a Stripe mock showing no calls) |
 | T-INQ-03 | **[R2]** Client A cannot submit or view inquiries for project B |

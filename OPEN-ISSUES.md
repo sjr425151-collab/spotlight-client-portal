@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.19.1 |
+| Version | 0.21.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-84** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
-| Next unused dependency ID | **DEP-18** |
+| Next unused issue ID | **OI-85** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused dependency ID | **DEP-19** |
 | ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -16,7 +16,7 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-83)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-84)
 
 All 76 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-83).
 
@@ -98,6 +98,7 @@ All 76 issues listed here are decided at the architectural level. The authoritat
 | OI-81 | No price change after a verified deposit in R1 | Decided (2026-11-24) | — |
 | OI-82 | Refund and dispute allocation architecture | Decided (2026-11-24) | DEP-03, DEP-06 |
 | OI-83 | Agreed order-summary pricing visible to Owner, Admin, assigned Sales Representatives | Decided (2026-11-24) | — |
+| OI-84 | WP-S commercial capabilities: Sales order inputs and derived scope, no replacement after acceptance, resend as revoke and reissue, invitations in the progress view, order summaries at assignment end | Decided (2026-11-24) | DEP-18 |
 
 ---
 
@@ -113,8 +114,11 @@ OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECI
 
 OI-76, OI-77, and OI-78 were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
 
-**None open.** OI-79 (item by item) and OI-82 (allocation architecture, subject to DEP-03 and DEP-06) were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
+OI-79 (item by item) and OI-82 (allocation architecture, subject to DEP-03 and DEP-06) were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
 
+OI-84 was decided on 2026-11-24; its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The discrepancies and options considered remain in this file's Git history.
+
+**None open.**
 ---
 
 ## Part 3 — Implementation and production dependencies
@@ -139,7 +143,8 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 | DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment | Granted under AUTH-003 (not yet active). OI-50 and OI-51 decided. |
 | DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | WP-B | Not started. Runs under AUTH-002 once its activation conditions are met. |
 | DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | **Complete** (Owner-reported, 2026-11-24). `main` reports `protected: true` via the GitHub API; the ruleset check list is not readable from the agent session. |
-| DEP-17 | **Hosted scheduler for billing jobs** (04 §13): bind WP-B's job entry points (daily reconciliation, maintenance-recovery evaluation, webhook backfill) to a scheduler, with recorded runs and alerting (DEP-12) | WP-D (staging, AUTH-003); Owner (production, Tier 3) | Before the R1 release candidate (staging); production launch | Not started |
+| DEP-17 | **Hosted scheduler** (04 §13, 05 §5.4, §5.5): bind to a scheduler, with recorded runs and alerting (DEP-12): WP-B's billing job entry points (daily reconciliation, maintenance-recovery evaluation, webhook backfill, release approvals, outbound requests); WP-C's scan retries and revoked-object deletion retries | WP-D (staging, AUTH-003); Owner (production, Tier 3) | Before the R1 release candidate (staging); production launch | Not started. In R1 until then: staff trigger scan retries, the server retries due deletions opportunistically, the Owner retries deletions and runs reconciliation before authorizing publication |
+| DEP-18 | **Standard package scope definitions** (OI-84(b); 03 §4.1, 04 §4): the Owner supplies, for each package key (Essential, Professional, Advanced, Signature, Prestige), the standard contractual deliverables that Sales-issued order summaries copy into the snapshot; loaded into `private.billing_package_scope` by a reviewed migration and recorded under 08 §6. No authoritative definition exists today (`private.billing_packages` holds key, name, and cents only). Because the scope becomes part of the contractual order summary, counsel review (DEP-03) may apply | Owner (content); WP-S (table and loader, AUTH-005) | Before Sales-issued order summaries are used outside local and CI tests, and before R1 release-candidate acceptance | Not started. Until then, Sales issuance fails closed outside the test-only seed |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
@@ -193,6 +198,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 - **Stripe (OI-17 revised, 2026-11-23):** saving the payment method in subscription-mode Checkout for a later off-session, one-off charge; an automatically charged one-off invoice using the standard balance Price ID; the events for failed charges and required authentication; the Stripe-hosted page for completing the same invoice; idempotency keys; and, for OI-55 (approved, option A), an invoice-level discount restricted to the balance product.
 - **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
 - **Stripe (OI-74, 2026-11-24; documentation facts in 04 §8.2):** in test mode, confirm where subscription-mode Checkout stores the card (subscription default or Customer); card-wallet behavior under `allowed_payment_method_types: ["card"]`; an automatic off-session charge of the one-off invoice with an explicit `default_payment_method`; `invoice.payment_action_required` and hosted completion of the same invoice; finalizing an invoice without an automatic attempt when the authorization is not active; setup-mode Checkout for an existing Customer; and the `payment_method.detached`, `payment_method.automatically_updated`, `setup_intent.succeeded`, and `setup_intent.setup_failed` events.
+- **Stripe (PR #20 review F7, F8, N1; 2026-11-24):** the test-mode acceptance criteria in 04 §8.2 (stop of automatic collection, saved-card fields, and charge linking including multi-payment invoices). F7, F8, and the N1 linking criterion are **mandatory before R1 release-candidate acceptance** together with N1 (04 §15.2.1 rule 9).
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
 - **Domain registrar (to be selected; revised OI-35):** registration date and expiry data, auto-renew settings, the transfer (auth code) process, and confirmation that hosting deactivation cannot affect a registration.
 - **Vercel / infrastructure (revised OI-35):** discontinuing designated per-client resources at M1 independently of the remaining hosting.

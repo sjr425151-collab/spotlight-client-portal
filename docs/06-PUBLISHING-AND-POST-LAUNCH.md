@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.1 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). |
+| Version | 0.5.2 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). v0.5.2 (documentation reconciliation, 2026-11-24): G7 clarification (failed medium and low findings do not fail G7, Owner-confirmed); B1 financial-integrity note for G2 and G4. |
 | Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68 |
 | Open issues | None |
 | Dependencies | DEP-03, DEP-06, DEP-09 |
@@ -26,8 +26,10 @@ Gates are evaluated **on the server** by a single gate evaluator, at authorizati
 | G4 | Verified final balance (no unresolved contractual balance) | Balance `verified` via webhook (the automatic final-balance charge or its Stripe-hosted completion, 04 §10), **or** `settled_by_adjustment`: verified payments + Owner-authorized discounts, credits, or waivers = owed **[APPROVED OI-27, OI-44]**. The gate output always discloses an adjustment. | 04 §10, §12 |
 | G5 | QA passed | A recorded, release-specific QA result for this release ID (§6), all blocking items passed **[APPROVED OI-33]** | §6 |
 | G6 | Domain readiness | The domain readiness check for this project passed within the freshness window | §5 |
-| G7 | Security checks passed | A recorded security result for this release ID with **no failed high or critical finding**; no override or exception **[APPROVED OI-33; OI-79 item 5]** | §7 |
+| G7 | Security checks passed | A recorded security result for this release ID with **no failed high or critical finding**; no override or exception **[APPROVED OI-33; OI-79 item 5]**. Failed medium and low findings are recorded and visible but do not fail G7 (Owner-confirmed, 2026-11-24); no other gate changes | §7 |
 | G8 | Holds cleared | No active publication-blocking hold: `maintenance_payment_hold`, `dispute_risk_hold`, `owner_manual_hold` **[APPROVED OI-26, OI-37]**, and `approval_nonresponsive_hold` **[OI-45; inclusion in G8 PROPOSED]** | 04 §14 |
+
+**G2 and G4 financial integrity (B1, Owner direction 2026-11-24):** WP-B's financial interface reports G2 or G4 as failed while any unresolved financial-integrity anomaly concerns that charge, and both when the charge cannot be determined (04 §15.2.1). An Owner review never re-establishes payment by itself.
 
 Rules:
 - **[APPROVED OI-19]** No override can mark G1–G8 as passed. There is no "force publish."

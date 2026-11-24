@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.8.2 |
+| Version | 1.9.1 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-24, by PR #20 (WP-B rebased on `main` at `bcddb1f`, the §9 WP-B directive implemented, and Main's review blocker B1 corrected; WP-B row in §2 and evidence in §10 only). Previous: PR #18 (OI-73 to OI-83 decided; pre-merge security reconciliation: scan-result authority, billing jobs, dispute evidence; AUTH-005 proposed, not granted), based on `main` at `19b68cb` |
+| Last updated | 2026-11-24, by the post-WP-B documentation reconciliation (29 approved items; OI-84 decided; WP-S directive and AUTH-005 package for Owner review), based on `main` at `8ac8143` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -29,9 +29,9 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | Phase 2, Auth, security, tenancy | Invitation-only OTP, MFA, RLS, audit, nonce CSP, private storage policies | **Done, local only** (PR #4) |
 | WP-A | Governance and specification correction | **Done** (PR #14, merge commit `d6d795a`) |
 | WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI run #39 on `main` concluded `success`, 2026-11-24). OI-71 and OI-72 decided. Integration closed by the integration closure PR. |
-| WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including OI-74, OI-75, OI-81, OI-82, OI-83 | **PR #20: §9 WP-B directive items 1–9 implemented; Main's review accepted it except blocker B1, now corrected (§10.1); awaiting Main's focused re-review and Owner approval (item 10).** Branch `wp-b/billing-ledger`, rebased on `main` at `bcddb1f`. Payment authorization with card-only Checkout, setup-mode recovery and revocation; automatic final-balance collection on the single invoice with a hosted-only fallback; OI-81 price lock; OI-82 obligation allocation, holding account, and Owner reconciliation; billing job entry points; WP-C evidence in the dispute package. Stripe is **mocked only**; provider behavior is unverified until AUTH-002 (DEP-06, DEP-15). Evidence in §10; the exact head and remote CI run are recorded in the PR. |
-| WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **PR #19: §9 WP-C directive items 1–9 implemented, plus the review corrections H1, M1, M2 (Main review of `4174bea`); awaiting Main re-review and Owner approval (item 10).** Branch `wp-c/fulfillment-r1`, merged with `main` at `77a887b`. Authoritative scan results (05 §5.5); tests 64 and 69 unchanged. H1: released objects are server-read only (no user-JWT read, list, or signing); downloads are authorized, audited, re-checked, and private; revoked objects are deleted through durable, leased, bounded, audited deletion records with Owner alerts and an Owner retry (scheduling: DEP-17). M1: malicious bytes are identified by the stored hash and revoked or rejected across all uploads and projects under a content lock. M2: the five WP-C browser tests assert database state and audit evidence. Local evidence: pgTAP 692/692, unit 193/193, integration 44/44, e2e 39/39, Lighthouse pass; remote CI is recorded in the PR. |
-| WP-S | Sales Representative authorization infrastructure (03 §4.1; approved as a separate work package, OI-78) | Not started. Needs AUTH-005 granted and activated, and its entry criteria (AUTHORIZATIONS §3A). |
+| WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including OI-74, OI-75, OI-81, OI-82, OI-83, and B1 | **Done** (PR #20, merge commit `8ac8143`; post-merge CI run #66 `success`). **N1 is a mandatory blocker for R1 release-candidate acceptance** (04 §15.2.1 rule 9; §7). Implementation record in §10. |
+| WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **Done** (PR #19, merge commit `bcddb1f`; post-merge CI run #63 `success`). Review findings H1, M1, M2 closed. |
+| WP-S | Sales Representative authorization infrastructure (03 §4.1; OI-77, OI-78) | **Directive ready (§9); not started.** Requires the Owner's grant of AUTH-005 (package refreshed against `8ac8143`, AUTHORIZATIONS §3A). |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. |
 | WP-E | Legal, tax, and commercial approvals | Owner. Not started (DEP-03, DEP-04, DEP-05). |
 | **R1** release candidate | Complete controlled transaction (01 §9.1) | Not started |
@@ -45,13 +45,14 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 |---|---|---|
 | 01 Project overview | 0.4.2 | Approved (v0.4.1: OI-74, OI-77; v0.4.2: §9.1.1 integrated R1 browser acceptance, Owner direction) |
 | 02 Architecture and environments | 0.4.0 | Approved |
-| 03 Security, auth, tenancy | 0.5.4 (OI-77, OI-78, OI-79, OI-83) | Approved (03A is supporting evidence) |
-| 04 Agreement and billing | 0.9.3 (OI-74, OI-81, OI-82; job and evidence ownership) | Approved for implementation and test mode. **Not approved for production:** legal review (DEP-03) and provider verification (DEP-06) remain conditions, including the OI-82 allocation model. |
-| 05 Lifecycle and uploads | 0.4.4 (OI-74, OI-79; §5.5 scan-result authority) | Approved |
-| 06 Publishing and post-launch | 0.5.1 (OI-79 item 5) | Approved |
+| 03 Security, auth, tenancy | 0.5.6 (OI-77, OI-78, OI-79, OI-83, OI-84; client guard for WP-S) | Approved (03A is supporting evidence) |
+| 04 Agreement and billing | 0.9.5 (OI-74, OI-81, OI-82, OI-84; F3–F6; B1; N1) | Approved for implementation and test mode. **Not approved for production:** legal review (DEP-03) and provider verification (DEP-06) remain conditions. |
+| 05 Lifecycle and uploads | 0.4.5 (OI-74, OI-79; §5.5 rules 1–9) | Approved |
+| 06 Publishing and post-launch | 0.5.2 (OI-79 item 5; G7 clarification; B1 note) | Approved |
 | 07 Notifications, privacy, design | 0.4.0 | Approved. Retention periods remain provisional (DEP-05). |
-| 08 Decisions and changelog | 0.19.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
-| AUTHORIZATIONS, CURRENT-STATE | 1.5.0 (AUTH-002 scope amended, still inactive; AUTH-005 scope final with rate limiting, not granted), 1.8.0 | Approved |
+| 08 Decisions and changelog | 0.21.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
+| AUTHORIZATIONS, CURRENT-STATE | 1.7.0 (AUTH-002 and AUTH-003 inactive; AUTH-005 proposed, package refreshed with OI-84, not granted), 1.9.1 | Approved |
+| OWNER-RUNBOOKS | 0.1.0 | **[PROPOSED]** Owner review |
 | CLAUDE.md | rewritten 2026-11-24 | Approved |
 
 ## 4. Dependencies
@@ -71,15 +72,16 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | DEP-12 | Monitoring vendor | Not started. Shortlist with DEP-07. |
 | DEP-14 | Hosted Supabase staging | Not started. Unblocked by OI-50 and OI-51 (decided); runs under AUTH-003. |
 | DEP-15 | Real test-mode webhook verification | Not started. Runs under AUTH-002. |
-| DEP-16 | Switch required status checks to `CI result` | **Complete** (Owner-reported, 2026-11-24). `main` reports `protected: true` via the GitHub API (**Verified**); the ruleset's check list cannot be read from the agent session. |
-| DEP-17 | Hosted scheduler for billing jobs (04 §13) | Not started. WP-D under AUTH-003 (staging), Tier 3 (production). Required before the R1 release candidate. |
+| DEP-16 | Switch required status checks to `CI result` | **Complete.** Owner-evidenced (ruleset screenshots, 2026-11-24): see §5. |
+| DEP-17 | Hosted scheduler: WP-B billing jobs, WP-C scan retries and revoked-object deletion retries | Not started. WP-D under AUTH-003 (staging), Tier 3 (production). Required before the R1 release candidate. |
+| DEP-18 | Standard package scope definitions for Sales-issued order summaries (OI-84(b)) | Not started. Owner supplies the content; no authoritative definition exists today. Required before Sales order summaries are used outside tests and before R1 release-candidate acceptance. |
 
 ## 5. Verified facts
 
 | Fact | Evidence |
 |---|---|
-| `main` is protected by ruleset `protect-main`: pull request required (0 approvals), force pushes and deletions blocked, and 5 required status checks with "require branches to be up to date": Lint, types, format, unit tests; Lighthouse budgets; Dependency audit; Secret scan; Database, integration, and e2e tests | **Verified** 2026-11-24 via the GitHub API (`/repos/…/rules/branches/main`) |
-| **Discrepancy (open):** the row above predates DEP-16, which reports that the required checks were switched to the aggregate `CI result` (Owner-reported). The agent session cannot read the ruleset's check list (the GitHub tools available here return only `protected: true`). | **Open.** Closes on **Owner-provided evidence**: a ruleset JSON export, or a screenshot of the `protect-main` ruleset's required status checks, reviewed in a documentation PR that records the exact check names |
+| `main` is protected by ruleset `protect-main`: enforcement **Active**; target `main`; pull request required; **required status checks enabled** with "require branches to be up to date"; force pushes and branch creation blocked; repository-admin bypass for pull requests only (agents never use it, CLAUDE.md §7). Required checks (GitHub Actions): `Lint, types, format, unit tests`, `Dependency audit`, `Secret scan (gitleaks, full history)`, `CI result`. Lighthouse and the database, integration, and e2e suite are enforced through `CI result`, which fails closed on any required suite (OI-70) | **Owner-evidenced** (ruleset screenshots, 2026-11-24); a ruleset JSON export would be stronger evidence |
+| `main` at `8ac8143` (PR #20 merge; parents `bcddb1f`, `aa7a20a`; tree identical to the reviewed head). Post-merge CI run #66 (id 45506039608): all 7 jobs `success`, including migrations applied from scratch (T-MIG-01), pgTAP, integration, and e2e. Earlier: `bcddb1f` (PR #19) run #63 `success`; `77a887b` (PR #18) run #59 `success` | **Verified** via the GitHub API, 2026-11-24 |
 | `main` at `19b68cb` (PR #17 merge; parents `3f3b59d`, `33c082b`; tree identical to the reviewed head). Post-merge CI run #43 (id 45322697836): all 7 jobs `success`, including `CI result` | **Verified** via the GitHub API, 2026-11-24 |
 | The `spotlight-client-portal-dev` environment: Limited network; allowlist `github.com`, `api.github.com`, `registry.npmjs.org`, `nodejs.org`, `docs.stripe.com`; no network secrets; no environment variables | **Verified** via the environment API, 2026-11-24 |
 | The Stripe sandbox catalog exists as specified | **Verified** by run `dep01-20261123T220040Z-290aebd0` (04 §6.5) |
@@ -89,12 +91,14 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. Review and merge PR #18 (all issues OI-73 to OI-83 decided). Then WP-C and WP-B apply the §9 directives; neither is merge-ready yet.
-2. Provide evidence of the required status checks on `main` (§5 discrepancy): a ruleset export or settings screenshot showing `CI result` as required.
-3. **AUTH-005** (scope final, v1.5.0) authorizes nothing until you grant it and its entry criteria are met.
-4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items and the OI-82 refund and allocation terms.
-5. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions (the OI-82 provider checks, DEP-06, run under AUTH-002).
-6. When ready for WP-D: create the accounts in AUTH-003.
+1. Review and merge this documentation reconciliation PR.
+2. Review the WP-S directive (§9) and the AUTH-005 package (AUTHORIZATIONS §3A, with OI-84); after this PR merges, Main re-verifies the inventory against the new `main` and presents the final grant package; grant AUTH-005 only when you choose to start WP-S. Confirm the test-only package-scope seed (AUTH-005, OI-84(b)).
+2a. Supply the standard scope for each package (DEP-18), and decide whether counsel review (DEP-03) covers it.
+3. Review OWNER-RUNBOOKS (proposed).
+4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10).
+5. When ready: meet the AUTH-002 activation conditions for the Stripe test-mode criteria (04 §8.2: F7, F8, N1 linking; DEP-15).
+6. When ready for WP-D: create the accounts in AUTH-003 (DEP-14, DEP-17).
+7. Select the malware scanning vendor (DEP-07) and the monitoring vendor (DEP-12).
 
 ## 7. Known follow-ups
 
@@ -104,9 +108,15 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | DEP-07 and DEP-12 verified vendor shortlist | WP-A follow-up |
 | PR #6 (AI operations proposal): header corrected to the current next unused ID; remains a draft outside the release path (OI-67) | Done in PR #6 |
 | Time tracking: each implementation PR description records AI session hours, Owner review hours, and admin hours (OI-67) | From WP-0 onward |
-| Code comments still describe OI-71 as open: `src/domain/contracts/gates.ts` (lines 12, 77), `state-domains.ts` (134), `audit-actions.ts` (12). The merged migration's comment (line 70) is immutable and stays. | **Done in PR #20** (all three TypeScript files corrected; the merged migration's comment stays) |
+| **R1 release-candidate blockers (mandatory before R1 acceptance)** | **N1** (04 §15.2.1 rule 9): (a) safe project attribution of deferred refund and dispute events (WP-B follow-up); (b) Owner runs reconciliation before publication (OWNER-RUNBOOKS §5) until DEP-17; (c) the multi-payment linking criterion passes in test mode (AUTH-002). Also: F7 and F8 test-mode criteria (04 §8.2, DEP-06, DEP-15); the integrated R1 browser suite T-E2E-01 to T-E2E-10 (integration stream); DEP-07, DEP-12, DEP-17; DEP-18 package scope content (OI-84(b)); DEP-03 wording, never presented as legally approved until approved (F10) |
+| **F2** (integration stream; root cause unconfirmed) | Before the T-E2E work: replace the WP-C integration fixture that swaps `private.project_financial_status` by global DDL with real WP-B records; make WP-C assertions report PostgREST `error`; wait for the schema-cache reload after any test DDL |
+| Optional (nonblocking) | L1: atomic write of the OTP spacing file; L2: rate-limit refused upload requests |
+| Low notes (accepted) | N2–N4 (OWNER-RUNBOOKS §6) |
+| Code comments describing OI-71 as open | **Done** (corrected in PRs #19 and #20) |
 
 ## 8. Parallel execution: WP-B and WP-C (approved 2026-11-24)
+
+**Complete:** WP-C merged at `bcddb1f` (PR #19) and WP-B at `8ac8143` (PR #20). The table and plans below are kept as the record.
 
 | Rule | WP-B | WP-C |
 |---|---|---|
@@ -175,58 +185,33 @@ A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, the
 
 | Stream | Next step | Read first | Authorization |
 |---|---|---|---|
-| Integration (primary session) | Wait for the PR #18 merge. When WP-B and WP-C push, reconcile the §8 sequence against their actual branches (migration timestamps, contract-extension placement, shared-file sections) before recommending merge order; never ask either stream to restart. Then own migration ordering, shared-file conflicts, and the end-to-end R1 journey test. Do not start WP-B or WP-C in the integration session. | §8; 08 OI-71, OI-72, OI-74 | AUTH-000; AUTH-001 for cross-package tests |
-| WP-B (PR #20, `wp-b/billing-ledger`) | See **WP-B directive** below | 04 (all, v0.9.1), 03 §4 (v0.5.3), 01 §7, §9.1, §9.1.1 | AUTH-001 only; AUTH-002 **not active** (mocked Stripe, synthetic signed events) |
-| WP-C (PR #19, `wp-c/fulfillment-r1`) | See **WP-C directive** below | 05 (v0.4.2), 06, 03 §4, §13, 01 §7, §9.1, §9.1.1 | AUTH-001 and AUTH-004 |
-| WP-S (`wp-s/sales-representative`, integration stream) | Not started. Starts only when the AUTH-005 entry criteria are met (PR #18, WP-C, and WP-B merged; AUTH-005 granted and activated; re-verification on `main`). Scope, exit criteria, and coordination: AUTHORIZATIONS AUTH-005; tests T-SALES-01 to T-SALES-28 | 03 §3, §4, §4.1, §13; 08 OI-77 | AUTH-005 (proposed) |
+| Integration (primary session) | Merge order and reviews for WP-S; F2 (§7); then the integrated R1 browser and security suite T-E2E-01 to T-E2E-10 and the T-SALES set; track the R1 release-candidate blockers (§7) | §7, §9; 01 §9.1, §9.1.1 | AUTH-000; AUTH-001 for cross-package tests |
+| WP-S (`wp-s/sales-representative`, integration stream) | **WP-S directive** below, only after the Owner grants AUTH-005 and its entry criteria are recorded | 03 §3, §4, §4.1, §13; 08 OI-77, OI-78; AUTHORIZATIONS AUTH-005 | AUTH-005 (proposed, not granted) |
+| WP-B follow-up | N1(a) safe attribution of deferred reversal events, as a small PR before the R1 release candidate | 04 §15.2.1 rules 8–9 | AUTH-001 |
 
-**WP-C directive (PR #19; issue IDs OI-79, OI-80):**
-1. **Fix CI by the identified root cause, and close the inverse case.** Root cause (WP-C, confirmed by Main from `bd03be1`): `release_upload` picks the latest scan result by `scanned_at desc, id desc`; results inserted in one transaction share `now()` (transaction start time), so a random UUID decides authority and tests 64 and 69 fail intermittently. In the current state machine that ordering alone fails closed, but Main found the **inverse risk**: `record_scan_result` accepts a result only while the upload is `scanning`, so a `malicious` verdict that arrives after a clean result (a retried, concurrent, or delayed attempt) is discarded, and the file can still be released. Implement 05 §5.5 in WP-C's own unmerged migration:
-   - an identity sequence on `upload_scan_results`, every insert after the upload row lock; authority by sequence, never by timestamp or UUID;
-   - a scan-attempt identifier created on each entry to `scanning`; results must name the current attempt; earlier-attempt, duplicate, and replayed results are stored as non-authoritative;
-   - `malicious` accepted and acted on in any non-terminal state and from any attempt, including after a clean result or after release (reject, revoke access, audit, alert the Owner); any `malicious` result for the same bytes permanently blocks release;
-   - `error`, unpermitted-scanner, or invalid results return the file to quarantine; only a newer attempt's clean result counts;
-   - the clean result must match the server-computed SHA-256 of the stored quarantine object; processing re-verifies that hash; the released hash is server-computed.
-   Release eligibility and every existing assertion stay as strict as they are; tests 64 and 69 must pass unchanged. Add T-UP-14 to T-UP-19 (identical timestamps, concurrent submissions, unpermitted then permitted clean, clean then malicious or error, stale or replayed results, exact-bytes mismatch). Record the cause and fix in the PR. CI on the exact head is the only accepted evidence (CLAUDE.md §6).
-2. After PR #18 merges, merge `main`. In `OPEN-ISSUES.md` and `docs/CURRENT-STATE.md`, take `main`'s version and re-add only WP-C's §2 row. WP-C's former OI-73 and OI-74 are now **OI-79** and **OI-80**, both decided on `main`; remove WP-C's own copies.
-3. **Security corrections (OI-78 amended; within AUTH-001, own new functions only):** `private.wpc_is_client_member` uses `private.staff_role_of(auth.uid()) is null` plus an active membership, never `not private.is_staff()`; `private.record_live_verification` accepts only `staff_role_of(p_requested_by) in ('owner', 'admin')`. Add pgTAP tests that any staff-role holder is never a client member and that a non-Owner/Admin requester is rejected. No Phase 2 object changes.
-4. Intake also requires `payment_authorization_ready = true` from `private.project_financial_status` (read through `to_jsonb`; a missing attribute fails closed). Update T-LC-01.
-5. Approval action label **Approve Website & Authorize Final Payment** and screen text per 04 §10 and 05 §7 (v0.4.2); no amount shown until the WP-B interface provides it (OI-80 item 3). Final wording is for counsel (DEP-03).
-6. **OI-79 decisions:** decimal units (item 1); 24-hour quarantine flag (2); 60-day domain-expiry warning (3); image limits 12,000 px per side and 100 MP read from the header before any full decode, with bounded memory and processing time and early rejection of malformed images, and no new dependency (4); G7 fails on any failed high or critical finding, with no exception path (5); release requires `accepted_by_staff`, no override (6); Owner **and** Admin may correct intake with a required reason, preserving the original submission and version history (7; 03 §4 row updated); scanner errors keep files quarantined with bounded retries and backoff, then the review queue (8). Tests T-LC-16, T-LC-17, T-UP-10 to T-UP-13, T-PUB-20.
-7. **Browser tests:** add Playwright tests for WP-C pages in the states reachable without WP-B: intake locked for an unpaid project, the staff queue, release recording, upload type rejection, and cross-project denial for pages and asset URLs. The full journey is T-E2E-01 to T-E2E-10 (01 §9.1.1), owned by the integration stream.
-8. **Dispute evidence interface (04 §15.4):** add a read-only, Owner-only SECURITY DEFINER function returning the project's preview releases and approvals with release IDs, outreach log, QA and security results, publication authorization, deployment, and live-verification records, with isolation tests; WP-B consumes it (T-ARC-10).
-9. Keep migrations `20261124140000` to `140200` (WP-C's own unmerged files may be amended before merge); edit shared files only in WP-C's sections (`src/domain/contracts/*`, `GATE_SOURCES.G6`, tests 050 and 060 additive). Do not touch WP-B tables or functions.
-10. Merge-ready when: CI `CI result` succeeds with the full suite on the exact head, the items above are done, and the Owner approves.
+**WP-S directive (definitive; against `main` at `8ac8143`; requires AUTH-005):**
+1. **Entry.** Record the AUTH-005 grant and activation here; re-verify read-only on the current `main` that `private.issue_order_summary`, `private.wpc_is_client_member`, `private.record_live_verification`, and the enumerated Phase 2 objects match AUTH-005; branch `wp-s/sales-representative` from that commit. Any difference is a stop condition.
+2. **Migration A (own file):** `alter type public.staff_role add value 'sales'` (a new enum value cannot be used in the transaction that adds it).
+3. **Migration B (Phase 2 objects, exactly as AUTH-005 lists):**
+   - `invitations_kind_shape` allows `intended_role = 'sales'`;
+   - `private.is_staff()` becomes Owner or Admin only (identical for existing data; 46 call sites and 22 `wpc_is_staff_aal2` uses keep their meaning);
+   - `create_invitation` and `revoke_invitation` allow `kind = 'client'` for a Sales Representative with an active assignment to that project, never to the address of a user with an active staff role; staff invitations stay Owner-only with fresh MFA;
+   - `accept_invitation` rejects a client invitation for an active Sales user and a Sales staff invitation for a user with an active membership; `set_staff_role` rejects `sales` for a user with an active membership.
+4. **New objects:** `public.project_sales_assignments` and its append-only history (Owner and Admin read all; a Sales Representative reads only its own active rows; no direct write by any API role; added to the isolation and restrictive-policy loops); `private.is_sales()`, `private.sales_assigned(uuid)` (active assignment, `aal2`, live session, read live at every call); SECURITY DEFINER functions with `search_path = ''` and public wrappers: `sales_create_customer_project` (business, project, and self-assignment in one transaction), `assign_sales_representative` and `end_sales_assignment` (Owner or Admin, `aal2`, live session, audited), `sales_list_customers` (active assignments only), `sales_project_progress` (derived states through the two gate interfaces plus agreed order-summary pricing, OI-83, plus the assigned project's pending client invitations with minimum fields, OI-84(e); never paid amounts, invoices, ledger entries, refunds, disputes, tokens, or token hashes); **package scope definition (OI-84(b)):** `private.billing_package_scope` and `private.current_package_scope(text)` (no API grant; rows from reviewed migrations only; production content DEP-18; test-only seed labeled "TEST FIXTURE — NOT A DELIVERABLE", pending Owner confirmation).
+5. **Rate limits:** `sales_create_customer_project` and every Sales invitation operation (create, resend, revoke) call `private.consume_rate_limit` with a per-user bucket; exceeding a limit returns the standard failure and is audited.
+6. **WP-B integration:** a new WP-S migration replaces `private.issue_order_summary` with one added caller, `private.sales_assigned(p_project_id)`. For a Sales caller only (OI-84(b), (c)): supplied scope items or project notes are rejected and audited; scope is copied from `private.current_package_scope`, and its version is recorded in the audit metadata; a missing definition fails closed; after the existing row locks, any agreement acceptance or verified deposit on the project rejects the call. The signature, the Owner and Admin path, catalog-only pricing, the OI-81 price lock, and WP-B tables are unchanged; WP-B independently reviews. No WP-C function changes.
+7. **OI-78 and OI-84(f) policies:** pending client invitations and issued order summaries stay valid after an assignment ends (Owner and Admin keep visibility, resend, revoke, replace); the former representative loses all project, order, and invitation access at the next authorization check, including existing sessions; ended assignments are hidden from the representative; history and `issued_by` attribution are preserved. Commission processing stays out of scope.
+7a. **Resend (OI-84(d)):** for every role, resend is `revoke_invitation` followed by `create_invitation` (revoke first, because one pending invitation per address is allowed), composed in `src/server/services/invitations.ts`; the old link and token stop working; the new invitation has a new token and expiry; both steps are audited and rate-limited; no new database object. Owner and Admin get the action in `/staff`, Sales in `/sales`.
+8. **App:** the auth context recognizes `sales` as its own role; a `requireSales` guard (`aal2`, live session, forced MFA enrollment, global sign-out); `requireStaff` stays Owner and Admin; **`requireClient` corrected** (no staff role of any kind plus an active membership; 03 §4.1); a minimal `/sales` area (customers, create customer, project and order summary, invite client, progress); the Owner's staff-role selector offers `sales`.
+9. **Audit (contracts, WP-S section, spec-cited):** `sales.customer_created`, `sales_assignment.created`, `sales_assignment.ended`, `sales_assignment.reassigned`, `sales.rate_limited`, `sales.order_summary_rejected` (reason kind only: scope input, notes input, after acceptance, missing scope definition; OI-84); invitation and order-summary events keep their existing names with the actor's role.
+10. **Tests:** T-SALES-01 to T-SALES-35 (03 §13, including OI-84: T-SALES-31 to T-SALES-35), including the adversarial set, the enumerated regression over every staff-only check, T-SALES-24 for `requireClient`, rate limiting (T-SALES-29), and pricing visibility (T-SALES-30); the full Phase 2, WP-0, WP-B, and WP-C suites pass unchanged. Browser tests for the `/sales` area with database and audit assertions (create, invite, unassigned denial, MFA enforcement, revoked assignment).
+11. **Shared files:** additive, WP-S sections only (`src/domain/contracts/*`, pgTAP 050 reviewed-RPC list, `seed.sql`, `src/lib/messages.ts`); merged migrations are never edited.
+12. **Migration order:** after `20261124160100`; migration A before migration B.
+13. **Exit:** AUTH-005 exit criteria (CI `CI result` on the exact head with the full suite; only listed objects changed; WP-B review of the `issue_order_summary` replacement; documentation and effort recorded; Owner merge).
 
-**WP-B directive (PR #20; issue IDs OI-81, OI-82, OI-83):**
-1. Rebase on `main` after PR #19 merges. Take `main`'s `OPEN-ISSUES.md` and `CURRENT-STATE.md` and re-add only WP-B's §2 row. WP-B's former OI-73, OI-74, and OI-75 are now **OI-81**, **OI-82**, and **OI-83**, all decided on `main`; remove WP-B's own copies.
-2. **OI-74 and OI-75:** `payment_authorizations` and its history (Owner-only read); card-only `allowed_payment_method_types` on every Checkout Session; automatic collection on the single final-balance invoice with `default_payment_method` set to the authorized card and `auto_advance` set deliberately; no automatic attempt when the authorization is not `active` (hosted page only); setup-mode recovery and revocation through the mocked gateway; never write the subscription's payment method; `payment_authorization_ready` and `payment_authorization_state` on `private.project_financial_status` with `contract_version` incremented. Tests T-PAY-13, T-PAY-14, T-PAY-18 to T-PAY-26; T-PAY-17 retired.
-3. **OI-81:** `issue_order_summary` rejects (and audits) any new order summary whose total, deposit, or balance differs from the accepted order summary once the deposit is verified.
-4. **OI-82 (approved architecture, 04 §15.2.1):** separate development-deposit, maintenance, and development-balance obligations; full reversals allocated deterministically; Owner-recorded allocation for partial refunds (recorded before issuance, referenced from the refund; the mechanism stays mocked until DEP-06 verifies it); everything else to the unresolved reversal holding account with an Owner reconciliation item; unresolved reversals fail G2 (initial charge) or G4 (final balance); cumulative reversal limit per obligation; each Stripe refund, dispute, and balance transaction counted once; dispute opened, won (reinstatement), and lost as new entries; Owner reconciliation with fresh reauthentication, a reason, immutable audit, and append-only entries that balance exactly; OI-37 holds unchanged. No deposit-first, maintenance-first, or proportional code path. Tests T-PAY-27 to T-PAY-36. Synthetic events only; no live refund, Stripe API request, or Tier 3 action.
-5. **OI-83:** Admin reads agreed order-summary pricing (total, deposit, balance); paid amounts, invoices, ledger, refunds, and disputes stay Owner-only.
-6. Keep the final-balance trigger on `release.approved` (OI-73). Do not add any Sales condition (WP-S owns that). Client-only checks keep `staff_role_of(...) is null`.
-7. **Browser tests:** agreement acceptance and initial Checkout start with the mocked gateway and a synthetic signed webhook (redirect alone leaves intake locked), the client billing page, and the staff billing section including Admin's derived view.
-8. **Billing jobs (04 §13):** one service-role, idempotent, single-flight, audited entry point per job (daily reconciliation, maintenance-recovery evaluation, webhook backfill), tested by direct invocation (T-ARC-09). The hosted scheduler binding is WP-D's (DEP-17), not WP-B's.
-9. **Dispute evidence (04 §15.4):** `dispute_evidence_package` includes WP-C's evidence interface in full and drops its placeholder note (T-ARC-10).
-10. Merge-ready when: CI `CI result` succeeds with the full suite on the exact rebased head, the items above are done, and the Owner approves. Stripe remains mocked; AUTH-002 stays inactive.
+**Migration order (merged):** `20261123060000` (Phase 2) → `20261124120000` (WP-0) → `20261124140000`, `140100`, `140200` (WP-C) → `20261124160000`, `160100` (WP-B) → WP-S. Re-verified from scratch on each merged tree (T-MIG-01); merged migrations are never edited (T-MIG-02).
 
-**Shared-file reconciliation plan (confirmed):**
-
-| File | Rule |
-|---|---|
-| `docs/CURRENT-STATE.md`, `OPEN-ISSUES.md`, `docs/08-*.md` | `main` (from PR #18) is authoritative. Each package re-adds only its own §2 row and implementation evidence; it allocates no ID and records no decision |
-| `src/domain/contracts/*`, `tests/unit/contracts.test.ts` | Additive, own section only. WP-C sets `GATE_SOURCES.G6`, WP-B sets `GATE_SOURCES.G1`; the second to merge rebases on the first and keeps both |
-| `supabase/tests/050_security_events.test.sql`, `060_shared_contracts.test.sql` | Additive assertions only; plan counts reconciled on rebase. WP-B's change of the financial-status expectation and WP-C's change of the fulfillment-status expectation are both kept |
-| `supabase/seed.sql` | Additive synthetic rows only; no shared IDs reused |
-| `src/lib/messages.ts`, `src/domain/README.md`, `src/app/portal/page.tsx`, `src/app/staff/projects/[projectId]/page.tsx` | Both changes kept; the second branch resolves by union and its CI must pass on the combined result |
-
-**Migration order (confirmed):** `20261123060000` (Phase 2) → `20261124120000` (WP-0) → `20261124140000`, `140100`, `140200` (WP-C) → `20261124160000`, `160100` (WP-B, plus any new WP-B migrations timestamped after `160100`) → WP-S migrations (timestamped after every merged migration). WP-C reads WP-B only through `private.project_financial_status`, so this order is safe; it is re-verified from scratch (T-MIG-01) on each merged tree. Merged migrations are never edited (T-MIG-02).
-
-**Production-readiness carry-forward (must not drop out):** (1) billing job scheduling and daily reconciliation: WP-B job entry points (T-ARC-09) → WP-D hosted scheduler (DEP-17) → staging evidence of scheduled runs and alerts before the R1 release candidate → production evidence before launch; (2) WP-C approval and publication records in dispute evidence: WP-C interface → WP-B package (T-ARC-10) → verified in the integrated R1 suite. Both are listed in 04 §13 and §15.4 as R1 release requirements.
-
-**Updated integration sequence:** PR #18 → PR #19 (WP-C, directive done, CI green) → PR #20 (WP-B, rebased, directive done, CI green) → WP-S (after AUTH-005 grant and entry criteria) → integrated R1 browser and security verification (T-E2E-01 to T-E2E-10, T-SALES) → Stripe test-mode verification (after AUTH-002 activation).
-
-Standing constraints for every stream: no live Stripe and no Stripe request without an active AUTH-002; no production or hosted environment; no change to existing Phase 2 security objects; never merge without Owner approval; never edit a merged migration; OI-73 (option A): never add a publication precondition to collection; publication requires verified payment (G4). OI-75 (option A): final-balance recovery and revocation never write the maintenance subscription's payment method.
+Standing constraints for every stream: no live Stripe and no Stripe request without an active AUTH-002; no production or hosted environment; no change to existing Phase 2 security objects outside an active grant; never merge without Owner approval; never edit a merged migration; OI-73 and OI-76: payment before publication; OI-75: final-balance recovery and revocation never write the maintenance subscription's payment method.
 
 ## 10. WP-B implementation record (PR #20)
 

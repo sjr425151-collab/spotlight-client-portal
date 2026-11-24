@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.1.0 |
+| Version | 1.2.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
 | Next unused ID | **AUTH-005** |
@@ -65,13 +65,13 @@ Rules for every tier:
 | Purpose | Verify the Stripe behavior the R1 design depends on (DEP-06 Stripe items), run the real test-mode webhook verification (DEP-15, T-PAY-16), and exercise the R1 payment journey end to end in test mode |
 | Activation conditions | (1) The Owner creates a **restricted sandbox key** (`rk_test_…`) in sandbox "Spotlight Client Portal - Development" with the permissions below, and enters it only through the secure credential form for `api.stripe.com` on `spotlight-client-portal-dev`. (2) The Owner adds `api.stripe.com`, and any further hosts the Stripe CLI is verified to need, to that environment's allowlist. (3) The environment holds no live-mode credential. (4) The Stripe CLI, if used, is installed at a pinned version verified against its official release checksums. |
 | Key permissions **[PROPOSED; confirmed on the Dashboard at key creation]** | Read: Balance, Products, Prices, Events, Payment Intents, Payment Methods, Setup Intents, Charges. Write: Customers, Checkout Sessions, Invoices, Invoice Items, Subscriptions (test cancellation and status checks only), Test Clocks, Webhook Endpoints (test endpoints only). Everything else: None. |
-| Permitted | Test customers, Checkout Sessions, invoices (including the final-balance invoice in both hosted and automatic collection modes, for verification), Test Clocks, test refunds and test disputes using Stripe's documented test payment methods, event retrieval, and Stripe CLI event forwarding to a local server |
+| Permitted | Test customers, Checkout Sessions, invoices (including the final-balance invoice in both hosted and automatic collection modes, for verification), Test Clocks, test refunds and test disputes using Stripe's documented test payment methods, event retrieval, and Stripe CLI event forwarding to a local server **Amended 2026-11-24 (OI-74, OI-75):** setup-mode Checkout Sessions, card only, for authorized payment-method recovery of the final-balance authorization (04 §8.1). They save a card and never charge. |
 | Owner-only (Dashboard, sandbox) | Customer Portal and Smart Retries settings. The agent records the settings the Owner applied; it does not change them. |
-| Not permitted | Any live-mode request or object; creating or changing products, prices, coupons, or promotion codes; concurrent runs; automatic retry of an ambiguous create (04 §6.4); storing, printing, or committing the key |
+| Not permitted | Any live-mode request or object; creating or changing products, prices, coupons, or promotion codes; concurrent runs; automatic retry of an ambiguous create (04 §6.4); storing, printing, or committing the key; any write to the maintenance subscription's payment method through final-balance recovery or revocation (OI-75) |
 | Stop conditions | Any `livemode: true` signal; a permission error (never broaden the key mid-run); an ambiguous create (reconcile first); an unexpected object; any request outside the permitted list |
 | Every run | Starts with the fail-closed `livemode: false` preflight (04 §6.3), uses idempotency keys, and records a run ID, request count, and results in the WP-B pull request |
 | Expiry | R1 release-candidate acceptance, or 2027-01-31, whichever comes first. The Owner revokes the key at expiry. |
-| Granted | Owner, 2026-11-23 (consolidated execution plan approval, item 6) |
+| Granted | Owner, 2026-11-23 (consolidated execution plan approval, item 6). Scope amended by the Owner, 2026-11-24 ("Amend AUTH-002's permitted test-mode scope to explicitly include setup-mode Checkout Sessions for authorized payment-method recovery. AUTH-002 remains inactive"). The amendment does not activate AUTH-002 or change its activation conditions. |
 
 ### AUTH-003 — Tier 2: hosted non-production environments (WP-D)
 

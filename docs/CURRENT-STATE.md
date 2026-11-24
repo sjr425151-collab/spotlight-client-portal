@@ -17,7 +17,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
 | Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI) |
-| Granted, not yet active | **AUTH-002** (Stripe sandbox), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
+| Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
 
@@ -29,8 +29,8 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | Phase 2, Auth, security, tenancy | Invitation-only OTP, MFA, RLS, audit, nonce CSP, private storage policies | **Done, local only** (PR #4) |
 | WP-A | Governance and specification correction | **Done** (PR #14, merge commit `d6d795a`) |
 | WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI run #39 on `main` concluded `success`, 2026-11-24). OI-71 and OI-72 decided. Integration closed by the integration closure PR. |
-| WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including **OI-74** (payment authorization, card-only, automatic final charge, setup-mode recovery, revocation; 04 §8.1) | **Ready to start** (§8). Local, mocked, and synthetic-event work under AUTH-001; Stripe sandbox parts need AUTH-002 active. |
-| WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope); intake also requires `payment_authorization_ready` (OI-74, 05 §3) | **Ready to start** (§8). AUTH-001, plus AUTH-004 for storage policies; real scanned-file release needs DEP-07. |
+| WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including **OI-74** (payment authorization, card-only, automatic final charge, setup-mode recovery, revocation; 04 §8.1) | **In progress, local** (Owner-reported, 2026-11-24: substantial local implementation and testing; not yet pushed). Local, mocked, and synthetic-event work under AUTH-001; Stripe sandbox parts need AUTH-002 active. |
+| WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope); intake also requires `payment_authorization_ready` (OI-74, 05 §3) | **In progress, local** (Owner-reported, 2026-11-24: substantial local implementation and testing; not yet pushed). AUTH-001, plus AUTH-004 for storage policies; real scanned-file release needs DEP-07. |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. |
 | WP-E | Legal, tax, and commercial approvals | Owner. Not started (DEP-03, DEP-04, DEP-05). |
 | **R1** release candidate | Complete controlled transaction (01 §9.1) | Not started |
@@ -50,7 +50,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | 06 Publishing and post-launch | 0.5.0 | Approved |
 | 07 Notifications, privacy, design | 0.4.0 | Approved. Retention periods remain provisional (DEP-05). |
 | 08 Decisions and changelog | 0.16.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
-| AUTHORIZATIONS, CURRENT-STATE | 1.1.0, 1.4.0 | Approved |
+| AUTHORIZATIONS, CURRENT-STATE | 1.2.0 (AUTH-002 scope amended; still inactive), 1.4.0 | Approved |
 | CLAUDE.md | rewritten 2026-11-24 | Approved |
 
 ## 4. Dependencies
@@ -77,7 +77,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | Fact | Evidence |
 |---|---|
 | `main` is protected by ruleset `protect-main`: pull request required (0 approvals), force pushes and deletions blocked, and 5 required status checks with "require branches to be up to date": Lint, types, format, unit tests; Lighthouse budgets; Dependency audit; Secret scan; Database, integration, and e2e tests | **Verified** 2026-11-24 via the GitHub API (`/repos/…/rules/branches/main`) |
-| **Discrepancy (open):** the row above predates DEP-16, which reports that the required checks were switched to the aggregate `CI result` (Owner-reported). The agent session cannot read the ruleset's check list. | Owner to confirm from GitHub settings (§6) |
+| **Discrepancy (open):** the row above predates DEP-16, which reports that the required checks were switched to the aggregate `CI result` (Owner-reported). The agent session cannot read the ruleset's check list. | **Open** until the actual ruleset is independently verified (§6) |
 | `main` at `19b68cb` (PR #17 merge; parents `3f3b59d`, `33c082b`; tree identical to the reviewed head). Post-merge CI run #43 (id 45322697836): all 7 jobs `success`, including `CI result` | **Verified** via the GitHub API, 2026-11-24 |
 | The `spotlight-client-portal-dev` environment: Limited network; allowlist `github.com`, `api.github.com`, `registry.npmjs.org`, `nodejs.org`, `docs.stripe.com`; no network secrets; no environment variables | **Verified** via the environment API, 2026-11-24 |
 | The Stripe sandbox catalog exists as specified | **Verified** by run `dep01-20261123T220040Z-290aebd0` (04 §6.5) |
@@ -87,13 +87,11 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. Decide **OI-75** (recovery and revocation scope; OPEN-ISSUES Part 2; recommended option A). WP-B proceeds with option A behavior meanwhile.
-2. Review and merge the OI-74 documentation PR; then start WP-B and WP-C in two sessions from its merge commit (§8, §9).
-3. Confirm that AUTH-002's permitted "Checkout Sessions" include **setup-mode** sessions for card recovery (OI-74), or amend AUTH-002. Until then, setup-mode sessions are exercised only with the mocked client. Local and CI work is unaffected.
-4. Confirm the required status checks on `main` (§5 discrepancy).
-5. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
-6. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
-7. When ready for WP-D: create the accounts in AUTH-003.
+1. Review and merge PR #18 (OI-73, OI-74, OI-75; AUTH-002 scope amendment). WP-B and WP-C, already in progress locally, then merge `main` and push; the integration stream reconciles the §8 sequence against their branches (§9).
+2. Confirm the required status checks on `main` (§5 discrepancy). **Stays open until the actual ruleset is independently verified** (for example, a ruleset export or settings screenshot reviewed in a PR).
+3. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
+4. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
+5. When ready for WP-D: create the accounts in AUTH-003.
 
 ## 7. Known follow-ups
 
@@ -121,12 +119,14 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 The integration stream owns cross-package verification, shared-file conflict resolution, migration ordering, and the end-to-end R1 journey test.
 
-**Integration dependencies and merge sequence (OI-74; recommended by the integration stream, 2026-11-24):**
+**Integration dependencies and merge sequence (OI-74; proposed by the integration stream, 2026-11-24; to be reconciled against the actual WP-B and WP-C branches once they are pushed):**
+
+WP-B and WP-C already have substantial local implementation (Owner-reported). Their work is preserved; neither stream restarts. The sequence below is the target order of *dependencies*, not a required PR split: if a branch already contains the contract extension together with its features, it lands in that branch's first PR. No work is duplicated or re-implemented to fit the table.
 
 | # | Merge | Why first |
 |---|---|---|
 | 1 | PR #18 (OI-73, OI-74 documentation) | WP-B and WP-C implement against 04 v0.9.0 and 05 v0.4.2. Branches started from `19b68cb` merge `main` after it (documentation only; no code conflict). |
-| 2 | **Contract extensions, one small PR per package, before feature PRs that depend on them:** WP-B adds `agreement_state`, `agreement_effective`, `payment_authorization_ready`, `payment_authorization_state` to `private.project_financial_status`; WP-C adds `domain_ready`, `domain_check_id`, `domain_checked_at` to `private.project_fulfillment_status`. Each increments `contract_version`; stubs stay fail-closed (`implemented = false`). | WP-C's intake precondition reads `payment_authorization_ready`; the gate evaluator reads G1 and G6. Landing the attributes early removes cross-package waiting. |
+| 2 | **Contract extensions land first within each package's first PR (or as a separate small PR only if the branch already separates them):** WP-B adds `agreement_state`, `agreement_effective`, `payment_authorization_ready`, `payment_authorization_state` to `private.project_financial_status`; WP-C adds `domain_ready`, `domain_check_id`, `domain_checked_at` to `private.project_fulfillment_status`. Each increments `contract_version`; stubs stay fail-closed (`implemented = false`). | WP-C's intake precondition reads `payment_authorization_ready`; the gate evaluator reads G1 and G6. Landing the attributes early removes cross-package waiting. |
 | 3 | Feature PRs in either order, each rebased on `main`, with new timestamped migrations | Migration order is set at merge time by the integration stream; a merged migration is never edited. |
 | 4 | WP-B `release.approved` consumer and the automatic final-balance invoice; WP-C gate evaluator | Both read the other package's contract only through the interfaces and the registered event. |
 | 5 | Integration PR: end-to-end R1 journey test (mocked Stripe, synthetic signed events) | Needs both packages. |
@@ -140,9 +140,9 @@ A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, the
 
 | Stream | Next step | Read first | Authorization |
 |---|---|---|---|
-| Integration (primary session) | Wait for the OI-74 PR (#18) merge and the OI-75 decision; then follow the §8 merge sequence. Then own migration ordering, shared-file conflicts, and the end-to-end R1 journey test. Do not start WP-B or WP-C in the integration session. | §8; 08 OI-71, OI-72, OI-74 | AUTH-000; AUTH-001 for cross-package tests |
-| WP-B (new session, `wp-b/*`) | Agreements and order summaries → Checkout records (card-only, mocked Stripe) → webhook ingestion → ledger → `payment_authorizations` and recovery (04 §8.1) → final-balance invoice with automatic collection (04 §10) → reconciliation, holds, disputes → financial status interface with G1 and `payment_authorization_ready` | 04 (all), 03 §4, 03 §13, 01 §7, §9.1 | AUTH-001 only. AUTH-002 is **not active**: no Stripe credential or request |
-| WP-C (new session, `wp-c/*`) | Intake (precondition includes `payment_authorization_ready`) → uploads and quarantine → releases and approvals (emits `release.approved`) → QA and security evidence → domain readiness (G6) → gate evaluator (G8 fail-closed) → publication authorization and deployment records → derived queues | 05, 06, 03 §4, §13, 01 §7, §9.1 | AUTH-001 and AUTH-004 |
+| Integration (primary session) | Wait for the PR #18 merge. When WP-B and WP-C push, reconcile the §8 sequence against their actual branches (migration timestamps, contract-extension placement, shared-file sections) before recommending merge order; never ask either stream to restart. Then own migration ordering, shared-file conflicts, and the end-to-end R1 journey test. Do not start WP-B or WP-C in the integration session. | §8; 08 OI-71, OI-72, OI-74 | AUTH-000; AUTH-001 for cross-package tests |
+| WP-B (`wp-b/*`, local work in progress) | Continue the existing local work; merge `main` after PR #18; push. Remaining scope as needed: agreements and order summaries → Checkout records (card-only, mocked Stripe) → webhook ingestion → ledger → `payment_authorizations` and recovery (04 §8.1) → final-balance invoice with automatic collection (04 §10) → reconciliation, holds, disputes → financial status interface with G1 and `payment_authorization_ready` | 04 (all), 03 §4, 03 §13, 01 §7, §9.1 | AUTH-001 only. AUTH-002 is **not active**: no Stripe credential or request |
+| WP-C (`wp-c/*`, local work in progress) | Continue the existing local work; merge `main` after PR #18; push. Remaining scope as needed: intake (precondition includes `payment_authorization_ready`) → uploads and quarantine → releases and approvals (emits `release.approved`) → QA and security evidence → domain readiness (G6) → gate evaluator (G8 fail-closed) → publication authorization and deployment records → derived queues | 05, 06, 03 §4, §13, 01 §7, §9.1 | AUTH-001 and AUTH-004 |
 
-Standing constraints for every stream: no live Stripe and no Stripe request without an active AUTH-002; no production or hosted environment; no change to existing Phase 2 security objects; never merge without Owner approval; never edit a merged migration; OI-73 (option A): never add a publication precondition to collection; publication requires verified payment (G4).
+Standing constraints for every stream: no live Stripe and no Stripe request without an active AUTH-002; no production or hosted environment; no change to existing Phase 2 security objects; never merge without Owner approval; never edit a merged migration; OI-73 (option A): never add a publication precondition to collection; publication requires verified payment (G4). OI-75 (option A): final-balance recovery and revocation never write the maintenance subscription's payment method.
 

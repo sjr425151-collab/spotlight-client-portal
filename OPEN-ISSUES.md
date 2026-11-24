@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-74)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-75)
 
-All 67 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-74).
+All 68 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-75).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -88,6 +88,7 @@ All 67 issues listed here are decided at the architectural level. The authoritat
 | OI-72 | Admin access to payment and financial records: derived operational states only (option A) | Decided (2026-11-24) | — |
 | OI-73 | Final-balance collection order relative to publication: approved order kept (option A) | Decided (2026-11-24) | — |
 | OI-74 | Mandatory payment method retention; automatic final charge in R1; card only; setup-mode recovery; revocation | Decided (2026-11-24) | DEP-03, DEP-06, DEP-15 |
+| OI-75 | Recovery and revocation scope: final-balance authorization only, independent of the maintenance subscription (option A) | Decided (2026-11-24) | — |
 
 ---
 
@@ -99,12 +100,7 @@ OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECI
 
 OI-73 was decided on 2026-11-24 (option A); its decision and the implications confirmed by the Owner are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-### OI-75 — Scope of payment-method recovery and revocation relative to the maintenance subscription **[PENDING OI-75]**
-
-- **Ambiguity.** OI-74 approved setup-mode recovery and authorization revocation for the final-balance authorization (04 §8.1). The maintenance subscription (04 §9) charges a payment method too, and the specs do not say whether recovery or revocation changes it. In R1, maintenance payment details are updated on Stripe-hosted invoice pages; the Customer Portal is R2 (04 §9.2).
-- **Option A (recommended): final-balance authorization only.** Recovery replaces the card on the authorization; revocation stops automatic final-balance collection. The subscription's payment method is untouched; maintenance failures follow 04 §9.1. Keeps the payment and subscription domains separate (04 §17 invariant 1) and adds no Stripe write to the subscription.
-- **Option B: also set the replacement card as the subscription's default payment method** (and, on revocation, leave maintenance unchanged). One card for both obligations, but an extra subscription write, and whether a revocation request also covers maintenance billing becomes a counsel question (DEP-03).
-- **Until decided:** option A behavior (04 §8.1).
+**None open.** OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
 ---
 

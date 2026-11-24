@@ -90,7 +90,7 @@ All 70 issues listed here are decided at the architectural level. The authoritat
 | OI-74 | Mandatory payment method retention; automatic final charge in R1; card only; setup-mode recovery; revocation | Decided (2026-11-24) | DEP-03, DEP-06, DEP-15 |
 | OI-75 | Recovery and revocation scope: final-balance authorization only, independent of the maintenance subscription (option A) | Decided (2026-11-24) | — |
 | OI-76 | Collection timing statement: OI-73 retained (option A) | Decided (2026-11-24) | — |
-| OI-77 | Sales Representative role (R1); assignment-scoped, `is_staff()` unchanged | Decided (2026-11-24; mechanics proposed) | Tier 2 grant |
+| OI-77 | Sales Representative role (R1); assignment-scoped, `is_staff()` unchanged (option A, eight refinements) | Decided (2026-11-24) | AUTH-005 (proposed) |
 
 ---
 

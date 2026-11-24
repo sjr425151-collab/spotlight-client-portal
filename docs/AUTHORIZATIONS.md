@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.2.0 |
+| Version | 1.3.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
-| Next unused ID | **AUTH-005** |
+| Next unused ID | **AUTH-006** |
 
 This file is the single source of truth for **what work is authorized**. It replaces per-phase authorization statements elsewhere. Approving a document or decision never authorizes work by itself; only an active record below does. If this file and any other document disagree about authorization, the more restrictive reading applies and the conflict is escalated (CLAUDE.md §2).
 
@@ -101,6 +101,30 @@ Rules for every tier:
 | Dependencies | DEP-07 blocks **real** scanned-file release only. The quarantine architecture and the mocked scanner interface proceed now. |
 | Expiry | WP-C completion, or Owner revocation |
 | Granted | Owner, 2026-11-24 (integration closure authorization, item 4) |
+
+## 3A. Proposed authorizations (not granted)
+
+A record in this section **authorizes nothing**. It becomes a grant only when the Owner approves it in writing and it is moved to §3 with a "Granted" date; it becomes active only when its activation conditions are recorded in [CURRENT-STATE.md](CURRENT-STATE.md).
+
+### AUTH-005 — Tier 2: Sales Representative RBAC foundation (WP-S) — PROPOSED
+
+| Field | Value |
+|---|---|
+| Tier | 2 |
+| Status | **Proposed (2026-11-24). Not granted. Authorizes nothing.** |
+| Decision | OI-77 (option A, with the Owner's eight refinements); 03 §3, §4, §4.1, §13 |
+| Work package | **WP-S** (proposed): Sales Representative RBAC foundation. One pull request on `wp-s/sales-representative`, owned by the integration stream, reviewed by WP-B for the one WP-B function it replaces |
+| Phase 2 objects that may change (exhaustive) | (1) `public.staff_role`: add the value `sales`, in its own migration (a new enum value cannot be used in the transaction that adds it). (2) `invitations_kind_shape` check: allow `intended_role = 'sales'` for staff invitations. (3) `private.is_staff()`: redefine as `staff_role_of(auth.uid()) in ('owner', 'admin')`, identical for existing data. (4) `private.create_invitation` and `private.revoke_invitation`: also allow `kind = 'client'` for a Sales Representative with an active assignment to that project; staff invitations stay Owner-only with fresh MFA. (5) App role handling: `src/server/auth/context.ts`, `src/server/auth/guards.ts`, `src/app/mfa/*`, `src/app/sign-in/*`, and the Owner's staff-role selector (`src/app/staff/team/*`, `src/server/services/staff.ts`) |
+| New objects permitted | `public.project_sales_assignments` and its append-only history, with RLS (Owner and Admin read all; a Sales Representative reads only its own active rows; **no direct write by any API role**) and isolation tests; `private.is_sales()`, `private.sales_assigned(uuid)`; SECURITY DEFINER functions with `search_path = ''` and public wrappers on the Phase 2 pattern: `sales_create_customer_project` (business, project, and self-assignment atomically), `assign_sales_representative` and `end_sales_assignment` (Owner or Admin, `aal2`, live session), `sales_list_customers`, `sales_project_progress` (derived states only, read through the two gate interfaces); Sales audit action names; a minimal `/sales` area |
+| WP-B integration | A new migration that replaces `private.issue_order_summary` with one added condition (an assigned Sales Representative may call it). Signature, catalog resolution, and every other rule unchanged. The merged WP-B migration is never edited |
+| WP-C integration | None. WP-C functions use `wpc_is_staff_aal2` and `requireStaff`, which exclude Sales once `is_staff()` is redefined; T-SALES-02 and T-SALES-22 prove it |
+| Prohibited | Any other change to a Phase 2 policy, function, constraint, or auth flow; widening `is_staff()` or any existing permission; direct table or storage grants or policies for Sales; Sales access to payment, ledger, dispute, reconciliation, hold, or amount records; recording client approvals; commission processing or commission-beneficiary features; hosted or production environments; Stripe |
+| Tests (mandatory) | T-SALES-01 to T-SALES-22 (03 §13), including the adversarial set (privilege escalation, cross-tenant access, assignment manipulation, atomic creation, revoked assignments, unauthorized order creation, stale sessions) and the full existing Phase 2, WP-0, WP-B, and WP-C suites passing unchanged |
+| Migration ordering | Timestamps after every merged migration. Recommended merge **after** WP-C and WP-B, so the enumerated regression (T-SALES-02) runs against the complete R1 staff surface and neither branch rebases onto a changed `is_staff()` |
+| Environments and credentials | Local Supabase stack and CI only; local development keys only |
+| Stop conditions | A Phase 2 object outside the list above must change; any existing test changes result; any permission would widen; a spec conflict; any AUTH-001 stop condition |
+| Expiry (if granted) | WP-S merge, R1 release-candidate acceptance, or 2027-01-31, whichever comes first |
+| Granted | — (pending Owner review) |
 
 ## 4. Dependency security patch exception (standing, Tier 1)
 

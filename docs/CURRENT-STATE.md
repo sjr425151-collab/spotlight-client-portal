@@ -87,12 +87,13 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. Decide **OI-76** (workflow statement vs OI-73 collection timing; OPEN-ISSUES Part 2; recommended option A, no change). Also confirm that the "authorized sales representative" is the Owner or an Admin (03 §4); a separate sales role would need its own decision.
-2. Review and merge PR #18 (OI-73, OI-74, OI-75; AUTH-002 scope amendment). WP-B and WP-C, already in progress locally, then merge `main` and push; the integration stream reconciles the §8 sequence against their branches (§9).
-3. Confirm the required status checks on `main` (§5 discrepancy). **Stays open until the actual ruleset is independently verified** (for example, a ruleset export or settings screenshot reviewed in a PR).
-4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
-5. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
-6. When ready for WP-D: create the accounts in AUTH-003.
+1. Decide **OI-76** (workflow statement vs OI-73 collection timing; OPEN-ISSUES Part 2; recommended option A, no change).
+2. Decide **OI-77** (Sales Representative role; OPEN-ISSUES Part 2). Option A needs a separate Tier 2 grant because it changes Phase 2 security objects.
+3. Review and merge PR #18 (OI-73, OI-74, OI-75; AUTH-002 scope amendment). WP-B and WP-C, already in progress locally, then merge `main` and push; the integration stream reconciles the §8 sequence against their branches (§9).
+4. Confirm the required status checks on `main` (§5 discrepancy). **Stays open until the actual ruleset is independently verified** (for example, a ruleset export or settings screenshot reviewed in a PR).
+5. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
+6. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
+7. When ready for WP-D: create the accounts in AUTH-003.
 
 ## 7. Known follow-ups
 

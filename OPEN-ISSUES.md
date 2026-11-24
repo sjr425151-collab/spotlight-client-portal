@@ -4,7 +4,7 @@
 |---|---|
 | Version | 0.16.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-77** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-78** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -108,6 +108,22 @@ OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECI
 - **Option A (recommended): the statement is shorthand; OI-73 stands.** No change. The balance is collected after explicit approval and before publication; publication requires verified payment.
 - **Option B: reverse OI-73.** Publication first, then collection. Requires removing G4, reversing OI-17, new counsel-approved clause text (DEP-03), and accepting an unpaid live site; WP-B and WP-C gate logic changes.
 - **Until decided:** OI-73 option A remains in force. Nothing is implemented differently.
+- **Restated 2026-11-24** in the Owner's role-based access clarification with the same wording; restating does not decide it. OI-73 option A remains in force.
+
+### OI-77 — Sales Representative role **[PENDING OI-77]**
+
+- **Conflict.** The Owner's role-based access clarification (2026-11-24) adds a distinct **Sales Representative** role, restricted to its assigned customers, with the commercial onboarding capabilities (create the customer record, select the package, issue the initial order, invite the client contact). The approved roles are Owner, Admin, and Client only (OI-03; 03 §3; 01 §6).
+- **Already covered (no change):** Owner and Admin already hold the commercial capabilities through the permissions matrix (03 §4: create client business and project, invite client contact, prepare order summary), with no second account, role switching, or impersonation. Financial invariants, consent, isolation, gates, and audit already apply to every role. The order summary records its creator (`issued_by`, WP-B) separately from the client signer who accepts (`signer_user_id`) and the client who approves (05 §7). Commission processing is out of scope.
+- **Security finding.** Every staff policy and helper keys on `private.is_staff()`, which is true for **any** row in `public.staff_roles` (21 uses in the Phase 2 migration; more in WP-B and WP-C). Adding a `sales` value to `public.staff_role` would silently give Sales Representatives Admin-level, all-customer access. A Sales role therefore must **not** be added as another `staff_role` value used by `is_staff()`.
+- **Proposed design (minimum change):**
+  1. `is_staff()` keeps its meaning (Owner or Admin). Sales access is granted only by new, separate, assignment-scoped helpers and policies, so no existing policy is broadened.
+  2. A new `project_sales_assignments` record (project, sales user, assigned by, active) defines a Sales Representative's customer scope; every Sales policy requires an active assignment, `aal2`, and a live session (staff MFA rules, 03).
+  3. Sales capabilities, for assigned projects only: create the client business and project (self-assigned on creation), invite the client contact, issue the order summary from the catalog, view the agreement, order summary, and derived payment states (as for Admin under OI-72). Not permitted: financial records, refunds, holds, reconciliation, fulfillment actions, approvals, publication, staff management, or any other customer.
+  4. Attribution is recorded separately: transaction creator (`issued_by`), assigned Sales Representative (the assignment), and approval actor (the client). **Commission attribution** is not recorded in R1 **[proposed DEFERRED]**; no commission processing.
+  5. 03 §3, §4, §13 (new rows and isolation tests), 01 §6, and 08 OI-03 are amended.
+- **Authorization needed:** the design changes Phase 2 security objects (the `staff_role` enum or `staff_roles` check, the staff-invitation `intended_role` check, and new helper functions). AUTH-001 does not permit that (stop condition), so a **separate Tier 2 grant** is required before any implementation.
+- **Options:** A) adopt the proposed design in R1, with a Tier 2 grant; B) defer the Sales role to after R1 and use Owner or Admin accounts for sales in R1 (covered today); C) adopt it with a different scope, stated by the Owner.
+- **Until decided:** no Sales role exists; WP-B and WP-C continue with Owner and Admin only.
 
 ---
 

@@ -87,12 +87,13 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. Review and merge the OI-74 documentation PR; then start WP-B and WP-C in two sessions from its merge commit (§8, §9).
-2. Confirm that AUTH-002's permitted "Checkout Sessions" include **setup-mode** sessions for card recovery (OI-74), or amend AUTH-002. Until then, setup-mode sessions are exercised only with the mocked client. Local and CI work is unaffected.
-3. Confirm the required status checks on `main` (§5 discrepancy).
-4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
-5. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
-6. When ready for WP-D: create the accounts in AUTH-003.
+1. Decide **OI-75** (recovery and revocation scope; OPEN-ISSUES Part 2; recommended option A). WP-B proceeds with option A behavior meanwhile.
+2. Review and merge the OI-74 documentation PR; then start WP-B and WP-C in two sessions from its merge commit (§8, §9).
+3. Confirm that AUTH-002's permitted "Checkout Sessions" include **setup-mode** sessions for card recovery (OI-74), or amend AUTH-002. Until then, setup-mode sessions are exercised only with the mocked client. Local and CI work is unaffected.
+4. Confirm the required status checks on `main` (§5 discrepancy).
+5. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
+6. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
+7. When ready for WP-D: create the accounts in AUTH-003.
 
 ## 7. Known follow-ups
 
@@ -120,13 +121,26 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 The integration stream owns cross-package verification, shared-file conflict resolution, migration ordering, and the end-to-end R1 journey test.
 
+**Integration dependencies and merge sequence (OI-74; recommended by the integration stream, 2026-11-24):**
+
+| # | Merge | Why first |
+|---|---|---|
+| 1 | PR #18 (OI-73, OI-74 documentation) | WP-B and WP-C implement against 04 v0.9.0 and 05 v0.4.2. Branches started from `19b68cb` merge `main` after it (documentation only; no code conflict). |
+| 2 | **Contract extensions, one small PR per package, before feature PRs that depend on them:** WP-B adds `agreement_state`, `agreement_effective`, `payment_authorization_ready`, `payment_authorization_state` to `private.project_financial_status`; WP-C adds `domain_ready`, `domain_check_id`, `domain_checked_at` to `private.project_fulfillment_status`. Each increments `contract_version`; stubs stay fail-closed (`implemented = false`). | WP-C's intake precondition reads `payment_authorization_ready`; the gate evaluator reads G1 and G6. Landing the attributes early removes cross-package waiting. |
+| 3 | Feature PRs in either order, each rebased on `main`, with new timestamped migrations | Migration order is set at merge time by the integration stream; a merged migration is never edited. |
+| 4 | WP-B `release.approved` consumer and the automatic final-balance invoice; WP-C gate evaluator | Both read the other package's contract only through the interfaces and the registered event. |
+| 5 | Integration PR: end-to-end R1 journey test (mocked Stripe, synthetic signed events) | Needs both packages. |
+| 6 | After the Owner activates AUTH-002: test-mode verification (DEP-15, the 04 §8.2 open items) | Not before activation. |
+
+Conflict hotspots: `docs/CURRENT-STATE.md` (each package edits only its own §2 row), `src/domain/contracts/*` (own section only), and `GATE_SOURCES` (WP-B sets G1, WP-C sets G6). Draft PR #6 stays outside the release path and is not merged.
+
 ## 9. Resume here (session handoff, 2026-11-24)
 
 A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, then:
 
 | Stream | Next step | Read first | Authorization |
 |---|---|---|---|
-| Integration (primary session) | Wait for the OI-74 PR (#18) merge. Then own migration ordering, shared-file conflicts, and the end-to-end R1 journey test. Do not start WP-B or WP-C in the integration session. | §8; 08 OI-71, OI-72, OI-74 | AUTH-000; AUTH-001 for cross-package tests |
+| Integration (primary session) | Wait for the OI-74 PR (#18) merge and the OI-75 decision; then follow the §8 merge sequence. Then own migration ordering, shared-file conflicts, and the end-to-end R1 journey test. Do not start WP-B or WP-C in the integration session. | §8; 08 OI-71, OI-72, OI-74 | AUTH-000; AUTH-001 for cross-package tests |
 | WP-B (new session, `wp-b/*`) | Agreements and order summaries → Checkout records (card-only, mocked Stripe) → webhook ingestion → ledger → `payment_authorizations` and recovery (04 §8.1) → final-balance invoice with automatic collection (04 §10) → reconciliation, holds, disputes → financial status interface with G1 and `payment_authorization_ready` | 04 (all), 03 §4, 03 §13, 01 §7, §9.1 | AUTH-001 only. AUTH-002 is **not active**: no Stripe credential or request |
 | WP-C (new session, `wp-c/*`) | Intake (precondition includes `payment_authorization_ready`) → uploads and quarantine → releases and approvals (emits `release.approved`) → QA and security evidence → domain readiness (G6) → gate evaluator (G8 fail-closed) → publication authorization and deployment records → derived queues | 05, 06, 03 §4, §13, 01 §7, §9.1 | AUTH-001 and AUTH-004 |
 

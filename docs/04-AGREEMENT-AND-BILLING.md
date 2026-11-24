@@ -393,6 +393,7 @@ The **payment authorization** records that the client authorized the final-balan
 - After revocation, **no automatic charge is attempted**. When the balance becomes due, the final-balance invoice is payable only on its Stripe-hosted page, and publication still requires a verified payment (06 G4).
 - A late or replayed event can never re-activate a revoked authorization. Re-establishing one requires a new acceptance of the current agreement version (§3) **[PROPOSED; most restrictive reading until counsel answers]**.
 - The contractual consequences of revocation are for counsel (DEP-03). No legal text is drafted here (CLAUDE.md §5).
+- **Scope [PENDING OI-75]:** whether setup-mode recovery and revocation also change the **maintenance subscription's** payment method, or only the final-balance authorization. Until decided, WP-B implements them for the final-balance authorization only and never changes the subscription's payment method.
 
 ### 8.2 Provider documentation record (Tier 0, AUTH-000, 2026-11-24)
 
@@ -409,8 +410,11 @@ Read from `docs.stripe.com` (public documentation only; no Stripe API request). 
 | 7 | Detaching a payment method "is permanent and irreversible" | `payment_method.detached` makes the authorization `payment_method_unavailable` |
 | 8 | Event types exist: `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `invoice.payment_action_required`, `payment_method.detached`, `payment_method.automatically_updated`, `setup_intent.succeeded`, `setup_intent.setup_failed` | Added to §11 |
 | 9 | Off-session charging requires explicit customer consent for that specific use, stated in the terms | Provided by the counsel-approved §3.1 clause; confirmation is part of DEP-03 |
+| 10 | Apple Pay and Google Pay have no payment method type of their own (the wallet table's "API enum" column reads "Unsupported"); Checkout, Subscriptions, and SetupIntents support them | Under the card-only filter, wallets are expected to appear as cards; confirmed in test mode |
+| 11 | Invoice finalization takes `auto_advance`; if `false`, "the invoice's state doesn't automatically advance without an explicit action". `hosted_invoice_url` is null until the invoice is finalized | When the authorization is not `active`, the invoice is finalized with `auto_advance = false` and paid only on its hosted page (no automatic attempt) |
+| 12 | A Checkout Session exposes `subscription` (subscription mode) and `setup_intent` (setup mode), both expandable | The server reads the card from these objects after the verified event, never from the redirect |
 
-Not settled by documentation (test mode, AUTH-002): where subscription-mode Checkout stores the payment method (subscription default or Customer); wallet behavior under the card filter; and finalizing a `charge_automatically` invoice without an automatic attempt when the authorization is not `active`.
+Not settled by documentation (test mode, AUTH-002): where subscription-mode Checkout stores the payment method (subscription `default_payment_method` or Customer `invoice_settings`) and that it is attached to the Customer; wallets actually offered under the card filter; and the off-session authentication path of the automatically charged invoice. Second documentation pass: 2026-11-24.
 
 ## 9. Subscription billing lifecycle **[APPROVED OI-16, OI-17]**
 

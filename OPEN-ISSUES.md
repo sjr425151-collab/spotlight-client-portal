@@ -4,7 +4,7 @@
 |---|---|
 | Version | 0.16.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-75** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-76** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -97,7 +97,14 @@ OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11
 
 OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-**None open.** OI-73 was decided on 2026-11-24 (option A); its decision and the implications confirmed by the Owner are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+OI-73 was decided on 2026-11-24 (option A); its decision and the implications confirmed by the Owner are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+
+### OI-75 — Scope of payment-method recovery and revocation relative to the maintenance subscription **[PENDING OI-75]**
+
+- **Ambiguity.** OI-74 approved setup-mode recovery and authorization revocation for the final-balance authorization (04 §8.1). The maintenance subscription (04 §9) charges a payment method too, and the specs do not say whether recovery or revocation changes it. In R1, maintenance payment details are updated on Stripe-hosted invoice pages; the Customer Portal is R2 (04 §9.2).
+- **Option A (recommended): final-balance authorization only.** Recovery replaces the card on the authorization; revocation stops automatic final-balance collection. The subscription's payment method is untouched; maintenance failures follow 04 §9.1. Keeps the payment and subscription domains separate (04 §17 invariant 1) and adds no Stripe write to the subscription.
+- **Option B: also set the replacement card as the subscription's default payment method** (and, on revocation, leave maintenance unchanged). One card for both obligations, but an extra subscription write, and whether a revocation request also covers maintenance billing becomes a counsel question (DEP-03).
+- **Until decided:** option A behavior (04 §8.1).
 
 ---
 

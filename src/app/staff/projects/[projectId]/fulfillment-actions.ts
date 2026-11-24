@@ -7,6 +7,7 @@ import { requireOwner, requireStaff } from "@/server/auth/guards";
 import { uuidSchema } from "@/server/services/invitations";
 import {
   callRpc,
+  retryObjectDeletion,
   retryUploadScan,
   verifyLiveDeployment,
   type Result,
@@ -361,4 +362,11 @@ export async function retryScanAction(formData: FormData) {
   await requireStaff();
   const result = await retryUploadScan(await createUserClient(), text(formData, "uploadId"));
   done(formData, result, result.ok ? `upload_${String(result.data.outcome)}` : "saved");
+}
+
+export async function retryDeletionAction(formData: FormData) {
+  await requireOwner({ returnTo: projectPath(formData) });
+  const id = text(formData, "deletionId");
+  if (!uuidSchema.safeParse(id).success) done(formData, { ok: false, error: "invalid_input" });
+  done(formData, await retryObjectDeletion(await createUserClient(), id), "deletion_completed");
 }

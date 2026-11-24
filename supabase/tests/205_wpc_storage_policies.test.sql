@@ -2,13 +2,13 @@
 -- Evaluates the COMBINED effect of the unchanged Phase 2 policies and the new restrictive
 -- WP-C policies on storage.objects, for every role and path class:
 --   quarantine/<project>/<id>   never reachable with a user JWT (read, list, write, update, delete)
---   <project>/assets/<id>       readable by that project's members and staff (aal2); never writable
+--   <project>/assets/<id>       never readable or writable with a user JWT: server-mediated delivery only (H1)
 --   <project>/<other>           unchanged Phase 2 behaviour
 begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, anon, service_role;
 grant execute on all functions in schema extensions to authenticated, anon, service_role;
-select plan(46);
+select plan(48);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
 returns void language plpgsql as $$
@@ -57,7 +57,7 @@ insert into storage.objects (bucket_id, name) values
   ('project-assets', '20000000-0000-4000-8000-0000000000b0/assets/32000000-0000-4000-8000-0000000000b1'),
   ('project-assets', '20000000-0000-4000-8000-0000000000a0/brand/legacy-a');
 
--- Released objects are readable only through an `available` upload record (05 §5.5 rule 3).
+-- Upload records for the released objects (delivery is decided by the database, H1).
 insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes, original_name,
   status, quarantine_path, released_path, size_bytes, sha256, released_sha256, released_bytes, uploaded_by)
 values
@@ -67,7 +67,7 @@ values
   ('32000000-0000-4000-8000-0000000000b1', '20000000-0000-4000-8000-0000000000b0', gen_random_uuid(), 1, 'logo', 'image/png', 10,
    'b.png', 'available', 'quarantine/20000000-0000-4000-8000-0000000000b0/32000000-0000-4000-8000-0000000000b1',
    '20000000-0000-4000-8000-0000000000b0/assets/32000000-0000-4000-8000-0000000000b1', 10, repeat('b', 64), repeat('b', 64), 10, '00000000-0000-4000-8000-0000000000b1');
--- An object placed under a released path without an available upload record (never readable).
+-- Objects under a released path without an upload record.
 insert into storage.objects (bucket_id, name) values
   ('project-assets', '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a9'),
   ('project-assets', '20000000-0000-4000-8000-0000000000a0/assets/not-a-uuid');
@@ -92,8 +92,8 @@ select is((select count(*)::int from pg_policies where schemaname = 'storage' an
   'no permissive write policy exists: no user JWT can write, copy, or move any object');
 select is((select array_agg(policyname::text order by policyname) from pg_policies where schemaname = 'storage'
   and tablename = 'objects' and policyname like 'project_assets_%' and permissive = 'RESTRICTIVE'),
-  array['project_assets_quarantine_isolated', 'project_assets_released_requires_available',
-        'project_assets_released_server_delete_only',
+  array['project_assets_quarantine_isolated', 'project_assets_released_server_delete_only',
+        'project_assets_released_server_read_only',
         'project_assets_released_server_update_only', 'project_assets_released_server_write_only',
         'project_assets_staff_aal2'],
   'the WP-C storage policies are all RESTRICTIVE');
@@ -109,8 +109,8 @@ select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
 select is((select count(*)::int from storage.objects where name like 'quarantine/%'), 0,
   'client A cannot list or read any quarantined object, including their own project''s');
 select is((select array_agg(name order by name) from storage.objects where bucket_id = 'project-assets'),
-  array['20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0/brand/legacy-a'],
-  'client A reads only Project A released and Phase 2 paths (T-UP-06)');
+  array['20000000-0000-4000-8000-0000000000a0/brand/legacy-a'],
+  'client A reads only Project A Phase 2 paths: released objects are server-read only (T-UP-06, H1)');
 select throws_ok($$ insert into storage.objects (bucket_id, name) values ('project-assets', 'quarantine/20000000-0000-4000-8000-0000000000a0/x') $$,
   '42501', null, 'client A cannot write into their own quarantine area');
 select throws_ok($$ insert into storage.objects (bucket_id, name) values ('project-assets', '20000000-0000-4000-8000-0000000000a0/assets/x') $$,
@@ -158,8 +158,8 @@ reset role;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
 select is((select count(*)::int from storage.objects where name like 'quarantine/%'), 0,
   'Admin at aal2 cannot read quarantined (unscanned) objects');
-select is((select count(*)::int from storage.objects where name like '%/assets/%'), 2,
-  'Admin at aal2 reads released objects of every project');
+select is((select count(*)::int from storage.objects where name like '%/assets/%'), 0,
+  'H1: Admin at aal2 reads no released object with a user JWT (no direct download or signing)');
 select throws_ok($$ insert into storage.objects (bucket_id, name) values ('project-assets', '20000000-0000-4000-8000-0000000000a0/assets/x') $$,
   '42501', null, 'Admin cannot write into the released area with a user JWT');
 select throws_ok($$ insert into storage.objects (bucket_id, name) values ('project-assets', 'quarantine/20000000-0000-4000-8000-0000000000a0/x') $$,
@@ -173,6 +173,8 @@ select is((select count(*)::int from storage.objects where name like 'quarantine
   'the Owner (fresh MFA) cannot read quarantined objects either');
 select is(pg_temp.rows_affected($q$delete from storage.objects where name like '%/assets/%'$q$), 0,
   'the Owner cannot delete released objects with a user JWT');
+select is((select count(*)::int from storage.objects where name like '%/assets/%'), 0,
+  'H1: the Owner (fresh MFA) reads no released object with a user JWT either');
 reset role;
 
 -- ---------------------------------------------------------------------------
@@ -224,11 +226,11 @@ select is(private.release_upload(gen_random_uuid(), repeat('a', 64), 1) ->> 'err
   'forbidden', 'the release function itself refuses a caller whose JWT role is not service_role');
 
 -- ---------------------------------------------------------------------------
--- 7. Revocation through the storage policy (05 §5.5 rule 3; T-UP-17)
+-- 7. Server-mediated delivery and revocation (H1; 05 §5.5 rule 3; T-UP-17)
 -- ---------------------------------------------------------------------------
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
-select is((select count(*)::int from storage.objects where name like '20000000-0000-4000-8000-0000000000a0/assets/%'), 1,
-  'a member reads only released objects backed by an available upload (none without a record)');
+select is((select count(*)::int from storage.objects where name like '20000000-0000-4000-8000-0000000000a0/assets/%'), 0,
+  'H1: a member reads no released object with a user JWT, with or without an upload record');
 reset role;
 -- A late malicious verdict revokes the released file (05 §5.5 rule 3).
 select set_config('request.jwt.claims', '{"role":"service_role"}', true);
@@ -236,19 +238,21 @@ select is(private.record_scan_result('32000000-0000-4000-8000-0000000000a1', nul
   repeat('a', 64), 'EICAR') ->> 'revoked', 'true', 'a malicious verdict after release revokes the file');
 select set_config('request.jwt.claims', '', true);
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
-select is((select count(*)::int from storage.objects where name = '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1'), 0,
-  'T-UP-17: the revoked object is unreadable immediately, before the server deletes it');
+select is(private.record_asset_access('32000000-0000-4000-8000-0000000000a1') ->> 'error', 'not_available',
+  'T-UP-17: the server download route refuses the revoked file from the verdict''s commit on');
 reset role;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
-select is((select count(*)::int from storage.objects where name = '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1'), 0,
-  'T-UP-17: staff cannot read the revoked object either');
-select is((select count(*)::int from storage.objects where name = '20000000-0000-4000-8000-0000000000b0/assets/32000000-0000-4000-8000-0000000000b1'), 1,
+select is(private.record_asset_access('32000000-0000-4000-8000-0000000000a1') ->> 'error', 'not_available',
+  'T-UP-17: staff cannot obtain the revoked file either');
+select is(private.record_asset_access('32000000-0000-4000-8000-0000000000b1') ->> 'ok', 'true',
   'revocation affects only the revoked upload');
 reset role;
-select is((select qual from pg_policies where schemaname = 'storage' and tablename = 'objects'
-  and policyname = 'project_assets_released_requires_available'),
-  '((bucket_id <> ''project-assets''::text) OR private.released_object_readable(name))',
-  'the revocation policy is restrictive, select-only, and scoped to the released path class');
+select is((select row(permissive, roles::text, cmd, qual)::text from pg_policies where schemaname = 'storage'
+  and tablename = 'objects' and policyname = 'project_assets_released_server_read_only'),
+  '(RESTRICTIVE,"{anon,authenticated}",SELECT,"(NOT ((bucket_id = ''project-assets''::text) AND (split_part(name, ''/''::text, 2) = ''assets''::text)))")',
+  'H1: the server-read-only policy is restrictive, select-only, and scoped to the released path class');
+select is((select count(*)::int from pg_proc where proname = 'released_object_readable'), 0,
+  'the record-based read policy and its function are gone (no user-JWT read path remains)');
 
 select * from finish();
 rollback;

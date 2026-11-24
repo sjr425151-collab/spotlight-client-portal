@@ -8,6 +8,7 @@ import { processRasterImage } from "@/domain/image-safety";
 import { sanitizeSvg } from "@/domain/svg-sanitize";
 import { validateContent, type UploadCategory } from "@/domain/uploads";
 
+import { processObjectDeletions } from "./deletions";
 import type { MalwareScanner, ScanVerdict } from "./scanner";
 
 /**
@@ -21,8 +22,9 @@ import type { MalwareScanner, ScanVerdict } from "./scanner";
  * object as stored, never from the request body: the quarantine object is read back after
  * upload, read again before processing (and its hash confirmed), and the released object is
  * read back before release. Each scan attempt is named in its result (rule 2); the database
- * decides authority. A malicious verdict for a released file revokes it (rule 3); the
- * released object is then unreadable through the storage policy and deleted here.
+ * decides authority. A malicious verdict revokes every released file with the same stored
+ * bytes, in any project (rule 3; review M1); the database refuses them from that commit on and
+ * records a durable pending deletion for each object, which is processed here (review H1).
  * Nothing here touches payment state.
  */
 
@@ -46,6 +48,7 @@ type Rpc = {
   attempt_id?: string;
   revoked?: boolean;
   released_path?: string;
+  deletion_ids?: string[];
 };
 
 async function rpc(admin: SupabaseClient, fn: string, args: Record<string, unknown>): Promise<Rpc> {
@@ -83,8 +86,8 @@ export function servedCopy(
 }
 
 /**
- * Records a scan verdict for an attempt. If it revoked a released file, deletes the
- * released object as well (the storage policy already makes it unreadable).
+ * Records a scan verdict for an attempt. If it revoked released files, deletes their objects
+ * through the durable deletion records (a failure is retried and alerts the Owner).
  */
 export async function recordScanVerdict(
   admin: SupabaseClient,
@@ -103,8 +106,8 @@ export async function recordScanVerdict(
     p_scanned_sha256: scannedSha256,
     p_signature: verdict.signature ?? null,
   });
-  if (result.revoked && result.released_path) {
-    await admin.storage.from(BUCKET).remove([result.released_path]);
+  if (Array.isArray(result.deletion_ids) && result.deletion_ids.length > 0) {
+    await processObjectDeletions(admin, result.deletion_ids);
   }
   return result;
 }
@@ -119,6 +122,9 @@ export async function scanStoredUpload(
   upload: PipelineUpload,
   scanner: MalwareScanner | null,
 ): Promise<PipelineOutcome> {
+  // Due deletions of revoked objects are retried here too, until hosted scheduling (DEP-17).
+  // Never affects this upload's outcome.
+  await processObjectDeletions(admin).catch(() => []);
   const stored = await readStored(admin, upload.quarantinePath);
   if (!stored) return "quarantined";
   const storedHash = sha256(stored);

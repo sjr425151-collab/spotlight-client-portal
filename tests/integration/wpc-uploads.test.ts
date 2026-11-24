@@ -2,63 +2,33 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { EICAR_SIGNATURE } from "@/domain/uploads";
+import { deliverAsset } from "@/server/uploads/delivery";
 import { recordScanVerdict, runUploadPipeline } from "@/server/uploads/pipeline";
 import { mockScanner } from "@/server/uploads/scanner";
 
 import { withDb } from "../support/db";
 import { adminClient, signInWithCode } from "../support/local-supabase";
+import {
+  BUCKET,
+  PROJECT_A,
+  PROJECT_B,
+  freeQuota,
+  installDepositFixture,
+  png,
+  type DepositFixture,
+} from "../support/wpc-fixtures";
 
 /**
  * WP-C uploads against the LOCAL Supabase stack (real Auth sessions, the real Storage API,
  * real RLS): T-UP-04 under concurrency, T-UP-05, T-UP-06, T-UP-09, and the AUTH-004
  * combined-policy behaviour through the Storage API (read, list, sign, copy, move, upload).
- *
- * The deposit comes from a test-only fixture of the approved WP-B interface. The original
- * function definition is saved first and restored exactly afterwards.
+ * Server-mediated delivery and durable deletion (review H1) are covered in detail in
+ * wpc-delivery.test.ts.
  */
 
-const PROJECT_A = "20000000-0000-4000-8000-0000000000a0";
-const PROJECT_B = "20000000-0000-4000-8000-0000000000b0";
-const BUCKET = "project-assets";
-const RUN = Date.now().toString(36);
-
-let originalFinancialFunction = "";
-let addedReadyAttribute = false;
+let fixture: DepositFixture;
 let clientA: SupabaseClient;
 let clientB: SupabaseClient;
-
-/**
- * A minimal PNG with a unique tEXt chunk per call. Unique bytes matter: a malicious verdict
- * blocks those exact bytes in every upload, permanently (05 §5.5 rule 3), and that evidence
- * persists across runs on a local database. The served copy strips tEXt chunks.
- */
-let pngCount = 0;
-const u32 = (n: number) => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
-const chunk = (type: string, data: number[]) => [
-  ...u32(data.length),
-  ...[...type].map((ch) => ch.charCodeAt(0)),
-  ...data,
-  0,
-  0,
-  0,
-  0, // CRC (not checked by the pipeline's header parser)
-];
-const png = () => {
-  const tag = [...`run-${RUN}-${pngCount++}`].map((ch) => ch.charCodeAt(0));
-  return new Uint8Array([
-    0x89,
-    0x50,
-    0x4e,
-    0x47,
-    0x0d,
-    0x0a,
-    0x1a,
-    0x0a,
-    ...chunk("IHDR", [...u32(4), ...u32(4), 8, 6, 0, 0, 0]),
-    ...chunk("tEXt", tag),
-    ...chunk("IEND", []),
-  ]);
-};
 
 async function request(
   client: SupabaseClient,
@@ -78,49 +48,8 @@ async function request(
   return data as { ok: boolean; error?: string; upload_id: string; quarantine_path: string };
 }
 
-async function freeQuota() {
-  await withDb((db) =>
-    db.query(
-      `update public.asset_uploads set status = 'failed_upload'
-        where project_id = $1 and status = 'uploading'`,
-      [PROJECT_A],
-    ),
-  );
-}
-
 beforeAll(async () => {
-  await withDb(async (db) => {
-    const { rows } = await db.query(
-      "select pg_get_functiondef('private.project_financial_status(uuid)'::regprocedure) as def",
-    );
-    originalFinancialFunction = rows[0].def;
-    // WP-B's approved attribute (04 §8.1), added for the test only if WP-B has not yet, and
-    // removed again afterwards.
-    const { rows: attr } = await db.query(
-      `select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
-         and attname = 'payment_authorization_ready' and not attisdropped`,
-    );
-    addedReadyAttribute = attr.length === 0;
-    if (addedReadyAttribute) {
-      await db.query(
-        "alter type private.project_financial_status add attribute payment_authorization_ready boolean",
-      );
-    }
-    // Fixture: Project A's deposit is verified; every other project keeps the real answer.
-    await db.query(`
-      create or replace function private.project_financial_status(p_project_id uuid)
-      returns private.project_financial_status
-      language sql stable security definer set search_path = '' as $fixture$
-        select jsonb_populate_record(null::private.project_financial_status, jsonb_build_object(
-          'project_id', p_project_id, 'contract_version', 1,
-          'implemented', p_project_id = '${PROJECT_A}', 'deposit_state', 'verified',
-          'deposit_verified', p_project_id = '${PROJECT_A}', 'final_balance_state', 'not_due',
-          'payment_authorization_ready', p_project_id = '${PROJECT_A}',
-          'balance_verified_or_settled', false, 'balance_settled_by_adjustment', false,
-          'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb));
-      $fixture$`);
-    await db.query("delete from private.rate_limits");
-  });
+  fixture = await installDepositFixture();
   await freeQuota();
   clientA = await signInWithCode("client.a@example.test");
   clientB = await signInWithCode("client.b@example.test");
@@ -128,19 +57,11 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await freeQuota();
-  await withDb(async (db) => {
-    // Drop the test attribute first: the original stub must match the type it was written for.
-    if (addedReadyAttribute) {
-      await db.query(
-        "alter type private.project_financial_status drop attribute payment_authorization_ready",
-      );
-    }
-    await db.query(originalFinancialFunction);
-  });
+  await fixture.restore();
 });
 
 describe("upload pipeline end to end (05 §5.3)", () => {
-  it("quarantines, scans, and releases a clean file; only the released copy is readable", async () => {
+  it("quarantines, scans, and releases a clean file; only the server serves the released copy", async () => {
     const bytes = png();
     const req = await request(clientA, "logo", "image/png", bytes.length, "logo.png");
     expect(req.ok).toBe(true);
@@ -161,9 +82,12 @@ describe("upload pipeline end to end (05 §5.3)", () => {
     expect(outcome).toBe("available");
 
     const released = `${PROJECT_A}/assets/${req.upload_id}`;
-    const ownRead = await clientA.storage.from(BUCKET).download(released);
-    expect(ownRead.error).toBeNull();
-    expect((await ownRead.data!.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    // H1: the released copy reaches the uploader only through the server download route.
+    const delivered = await deliverAsset(clientA, adminClient(), PROJECT_A, req.upload_id);
+    expect(delivered.ok).toBe(true);
+    expect(delivered.ok && delivered.body.size).toBeGreaterThan(0);
+    expect((await clientA.storage.from(BUCKET).download(released)).data).toBeNull();
+    expect((await clientA.storage.from(BUCKET).createSignedUrl(released, 60)).data).toBeNull();
 
     // AUTH-004 combined policies through the Storage API: the quarantined original is
     // unreachable for the uploader too, and nothing can be copied or moved out of it.
@@ -222,7 +146,7 @@ describe("upload pipeline end to end (05 §5.3)", () => {
     );
     expect(outcome).toBe("available");
     const released = `${PROJECT_A}/assets/${req.upload_id}`;
-    expect((await clientA.storage.from(BUCKET).download(released)).error).toBeNull();
+    expect((await deliverAsset(clientA, adminClient(), PROJECT_A, req.upload_id)).ok).toBe(true);
     const { data: row } = await adminClient()
       .from("asset_uploads")
       .select("sha256")
@@ -238,9 +162,18 @@ describe("upload pipeline end to end (05 §5.3)", () => {
       row!.sha256 as string,
     );
     expect(late).toMatchObject({ status: "rejected", revoked: true });
-    expect((await clientA.storage.from(BUCKET).download(released)).data).toBeNull();
+    expect(await deliverAsset(clientA, adminClient(), PROJECT_A, req.upload_id)).toEqual({
+      ok: false,
+      error: "not_available",
+    });
     expect((await clientA.storage.from(BUCKET).createSignedUrl(released, 60)).data).toBeNull();
     expect((await adminClient().storage.from(BUCKET).download(released)).data).toBeNull(); // deleted
+    const { data: deletion } = await adminClient()
+      .from("asset_object_deletions")
+      .select("status, attempts")
+      .eq("upload_id", req.upload_id)
+      .single();
+    expect(deletion).toEqual({ status: "deleted", attempts: 1 });
     const { data: access } = await clientA.rpc("record_asset_access", {
       p_upload_id: req.upload_id,
     });

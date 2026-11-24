@@ -43,6 +43,36 @@ describe("static security checks", () => {
     expect(offenders.map(({ path }) => path)).toEqual([]);
   });
 
+  it("never signs or publishes storage URLs: released assets are server-mediated only (review H1)", () => {
+    const offenders = sources.filter(({ text }) =>
+      /\.createSignedUrls?\s*\(|\.getPublicUrl\s*\(|\.createSignedUploadUrl\s*\(/.test(text),
+    );
+    expect(offenders.map(({ path }) => path)).toEqual([]);
+  });
+
+  it("reads released assets only after the database authorized and audited the access (review H1)", () => {
+    const delivery = sources.find(({ path }) => path === "src/server/uploads/delivery.ts")!.text;
+    const authorize = delivery.indexOf('rpc("record_asset_access"');
+    const read = delivery.indexOf("admin.storage.from(BUCKET).download(");
+    const recheck = delivery.indexOf('.from("asset_uploads")');
+    expect(authorize).toBeGreaterThan(0);
+    expect(read).toBeGreaterThan(authorize);
+    expect(recheck).toBeGreaterThan(read);
+    expect(delivery).toContain('"Cache-Control": "private, no-store, max-age=0"');
+    const route = sources.find(({ path }) =>
+      path.endsWith("portal/projects/[projectId]/assets/[uploadId]/route.ts"),
+    )!.text;
+    expect(route).toContain("downloadAsset(");
+    const service = sources.find(({ path }) => path === "src/server/services/fulfillment.ts")!.text;
+    expect(service).toMatch(
+      /return deliverAsset\(user, await createAdminClient\(\), projectId, uploadId\)/,
+    );
+    expect(route).not.toMatch(/redirect\(|Response\.redirect|Location/);
+    // Storage downloads anywhere in src happen with the secret-key client inside src/server.
+    const downloads = sources.filter(({ text }) => /\.download\s*\(/.test(text));
+    expect(downloads.every(({ path }) => path.startsWith("src/server/uploads/"))).toBe(true);
+  });
+
   it("imports the admin client only from src/server (spec 03 §10)", () => {
     const offenders = sources.filter(
       ({ path, text }) => !path.startsWith("src/server/") && /supabase\/admin["']/.test(text),

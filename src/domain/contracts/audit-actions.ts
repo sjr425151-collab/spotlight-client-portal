@@ -95,6 +95,12 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   c("upload.exception_requested", "fulfillment", "05 §5"),
   c("upload.exception_decided", "fulfillment", "05 §5"),
   c("upload.access_revoked", "fulfillment", "05 §5.5"),
+  // PR #19 review corrections (H1, M2): durable deletion of revoked objects and refused
+  // requests, under 05 §4 ("upload and access history are audited") and 05 §5.5 rule 3.
+  c("upload.refused", "fulfillment", "05 §4"),
+  c("upload.object_deleted", "fulfillment", "05 §5.5"),
+  c("upload.object_deletion_failed", "fulfillment", "05 §5.5"),
+  c("upload.object_deletion_retried", "fulfillment", "05 §5.5"),
   c("preview.draft_recorded", "approval", "05 §6"),
   c("preview.revision_requested", "approval", "05 §8"),
   c("preview.revision_classified", "approval", "05 §8"),

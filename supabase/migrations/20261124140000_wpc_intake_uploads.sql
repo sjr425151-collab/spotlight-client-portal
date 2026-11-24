@@ -638,6 +638,78 @@ create index upload_scan_results_malicious_idx on public.upload_scan_results (sc
 create trigger upload_scan_results_insert_only before update or delete on public.upload_scan_results
   for each row execute function private.wpc_insert_only();
 
+-- Malicious content (05 §5.5 rule 3; PR #19 review M1). The identity of malicious bytes is
+-- the server-computed SHA-256 of the stored quarantine object (`asset_uploads.sha256`, from
+-- the read-back in `complete_upload`), never a hash a scanner reports. One row per hash,
+-- permanent, in `private`: no API role can read it, so no tenant learns another's content.
+create table private.malicious_content (
+  sha256 text primary key check (sha256 ~ '^[0-9a-f]{64}$'),
+  first_upload_id uuid not null references public.asset_uploads (id) on delete restrict,
+  detected_at timestamptz not null default now()
+);
+revoke all on table private.malicious_content from public, anon, authenticated, service_role;
+create trigger malicious_content_insert_only before update or delete on private.malicious_content
+  for each row execute function private.wpc_insert_only();
+
+-- Content lock (M1). Every function that can make bytes available (`release_upload`) or
+-- record a verdict about them (`record_scan_result`) takes this transaction-scoped lock on
+-- the stored hash BEFORE the upload row lock, and holds it to commit. A malicious verdict
+-- and a release of identical bytes therefore never interleave: whichever commits second
+-- sees the other. One lock order everywhere (content, then row) rules out deadlock.
+create function private.content_lock(p_sha256 text) returns void
+language plpgsql set search_path = '' as $$
+begin
+  perform pg_advisory_xact_lock(hashtextextended('wpc-content:' || p_sha256, 0));
+end;
+$$;
+
+-- Durable deletion of revoked released objects (05 §5.5 rule 3; PR #19 review H1). The row
+-- is inserted in the same transaction as the revocation, so a storage failure or a process
+-- interruption leaves a pending row and never silently abandons an object. Attempts are
+-- leased (an interrupted attempt's lease expires and the row is claimed again), bounded
+-- (5 automatic attempts plus at most 10 Owner retries), audited, and failures alert the
+-- Owner. Staff-visible only; clients never see it.
+create table public.asset_object_deletions (
+  id uuid primary key default gen_random_uuid(),
+  upload_id uuid not null unique references public.asset_uploads (id) on delete restrict,
+  project_id uuid not null references public.projects (id) on delete restrict,
+  object_path text not null unique,
+  reason text not null check (reason in ('malware_detected', 'identical_malicious_content')),
+  status text not null default 'pending' check (status in ('pending', 'deleted', 'failed')),
+  attempts integer not null default 0 check (attempts between 0 and 15),
+  manual_retries integer not null default 0 check (manual_retries between 0 and 10),
+  next_attempt_at timestamptz not null default now(),
+  leased_until timestamptz,
+  last_error text check (last_error is null or last_error ~ '^[a-z_]{1,60}$'),
+  created_at timestamptz not null default now(),
+  completed_at timestamptz,
+  constraint asset_object_deletions_path check (object_path = project_id || '/assets/' || upload_id),
+  constraint asset_object_deletions_done check ((status = 'deleted') = (completed_at is not null)),
+  constraint asset_object_deletions_bounded check (attempts <= 5 + manual_retries)
+);
+create index asset_object_deletions_due_idx on public.asset_object_deletions (next_attempt_at) where status = 'pending';
+
+create function private.object_deletion_max_attempts() returns integer
+language sql immutable set search_path = '' as $$ select 5 $$;
+
+create function private.asset_object_deletions_guard() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if tg_op = 'DELETE' then
+    raise exception 'deletion records are not deleted' using errcode = '42501';
+  end if;
+  if (new.id, new.upload_id, new.project_id, new.object_path, new.reason, new.created_at)
+     is distinct from (old.id, old.upload_id, old.project_id, old.object_path, old.reason, old.created_at)
+     or old.status = 'deleted'
+     or new.attempts < old.attempts or new.manual_retries < old.manual_retries then
+    raise exception 'invalid deletion record change' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+create trigger asset_object_deletions_guard before update or delete on public.asset_object_deletions
+  for each row execute function private.asset_object_deletions_guard();
+
 -- Scanners permitted to release a file from quarantine in this database (DEP-07). The
 -- mocked scanner only in a development or test database. No production scanner exists.
 create function private.scanner_permitted(p_scanner text) returns boolean
@@ -670,6 +742,21 @@ $$;
 -- Reserves quota and creates the upload record before any byte is stored (05 §5.3 rule 7:
 -- checked at issuance and again at completion, serialized per project). Returns the only
 -- path the server may write: the project's quarantine area.
+-- A refused upload request by an authorized caller is part of the project's upload history
+-- (05 §4: upload and access history are audited): one `upload.refused` event, nothing
+-- reserved. A caller without access to the project is refused before this and leaves no
+-- record in that project.
+create function private.refuse_upload(p_project_id uuid, p_code text, p_category public.upload_category,
+  p_mime text, p_bytes bigint) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform private.record_audit_event('upload.refused', 'projects', p_project_id::text, p_project_id, null,
+    jsonb_build_object('code', p_code, 'category', p_category, 'declared_mime', left(p_mime, 100),
+      'declared_bytes', p_bytes));
+  return private.fail(p_code);
+end;
+$$;
+
 create function private.request_upload(
   p_project_id uuid,
   p_category public.upload_category,
@@ -694,7 +781,7 @@ begin
     return private.fail('forbidden');
   end if;
   if v_name = '' or p_bytes is null or p_bytes < 1 then
-    return private.fail('invalid_input');
+    return private.refuse_upload(p_project_id, 'invalid_input', p_category, p_mime, p_bytes);
   end if;
   if p_category = 'other' then
     select e.id, e.max_bytes into v_exception, v_max from public.upload_exceptions e
@@ -702,41 +789,41 @@ begin
        and e.requested_mime = p_mime
      order by e.decided_at desc limit 1;
     if v_exception is null then
-      return private.fail('type_exception_required');
+      return private.refuse_upload(p_project_id, 'type_exception_required', p_category, p_mime, p_bytes);
     end if;
   else
     v_max := private.upload_max_bytes(p_category, p_mime);
     if v_max is null then
-      return private.fail('type_not_allowed');
+      return private.refuse_upload(p_project_id, 'type_not_allowed', p_category, p_mime, p_bytes);
     end if;
   end if;
   if p_bytes > v_max then
-    return private.fail('file_too_large');
+    return private.refuse_upload(p_project_id, 'file_too_large', p_category, p_mime, p_bytes);
   end if;
   -- Preconditions after input validation, so a disallowed type or size is reported as such
   -- (both are refusals; neither order lets anything through).
   if not private.wpc_intake_unlocked(p_project_id) then
-    return private.fail('intake_locked');
+    return private.refuse_upload(p_project_id, 'intake_locked', p_category, p_mime, p_bytes);
   end if;
   if exists (select 1 from public.projects where id = p_project_id and archived_at is not null) then
-    return private.fail('project_archived');
+    return private.refuse_upload(p_project_id, 'project_archived', p_category, p_mime, p_bytes);
   end if;
 
   perform pg_advisory_xact_lock(hashtextextended('uploads:' || p_project_id::text, 0));
   select * into v_usage from private.upload_quota_usage(p_project_id);
   select * into v_limits from private.upload_quota_limits(p_project_id);
   if v_usage.files + 1 > v_limits.files then
-    return private.fail('quota_files');
+    return private.refuse_upload(p_project_id, 'quota_files', p_category, p_mime, p_bytes);
   end if;
   if v_usage.bytes + p_bytes > v_limits.bytes then
-    return private.fail('quota_bytes');
+    return private.refuse_upload(p_project_id, 'quota_bytes', p_category, p_mime, p_bytes);
   end if;
 
   if p_replaces_asset_id is not null then
     select u.asset_id, max(u.version) + 1 into v_asset, v_version from public.asset_uploads u
      where u.asset_id = p_replaces_asset_id and u.project_id = p_project_id group by u.asset_id;
     if v_asset is null then
-      return private.fail('not_found');
+      return private.refuse_upload(p_project_id, 'not_found', p_category, p_mime, p_bytes);
     end if;
   else
     v_asset := gen_random_uuid();
@@ -752,7 +839,7 @@ begin
     'quarantine_path', 'quarantine/' || p_project_id || '/' || v_id, 'max_bytes', v_max);
 exception
   when check_violation or invalid_text_representation then
-    return private.fail('invalid_input');
+    return private.refuse_upload(p_project_id, 'invalid_input', p_category, p_mime, p_bytes);
 end;
 $$;
 
@@ -881,6 +968,13 @@ begin
   if not found or v.status <> 'quarantined' or v.malware_detected then
     return private.fail('not_found');
   end if;
+  -- Bytes already found malicious in any upload are rejected permanently (05 §5.5 rule 3).
+  if exists (select 1 from private.malicious_content m where m.sha256 = v.sha256) then
+    update public.asset_uploads set status = 'rejected', rejection_code = 'malware_detected', malware_detected = true
+     where id = v.id;
+    perform private.reject_upload_internal(v, 'malware_detected');
+    return jsonb_build_object('ok', true, 'status', 'rejected');
+  end if;
   if not coalesce(p_passed, false) then
     perform private.reject_upload_internal(v, coalesce(nullif(p_code, ''), 'content_invalid'));
     return jsonb_build_object('ok', true, 'status', 'rejected');
@@ -897,24 +991,82 @@ begin
 end;
 $$;
 
--- Revokes access to a released file after a late malicious verdict (05 §5.5 rule 3).
--- The released object becomes unreadable at once through the storage policy
--- `project_assets_released_requires_available`; the server also deletes the object.
-create function private.revoke_released_upload(p_upload public.asset_uploads) returns void
+-- Revokes access to a released file after a malicious verdict for its bytes (05 §5.5 rule 3).
+-- From this commit on, `record_asset_access` refuses the file, so the server-mediated
+-- download route never reads it again; user JWTs can never read released objects at all
+-- (`project_assets_released_server_read_only`). The pending deletion row is written in
+-- the same transaction, so the object's deletion cannot be lost (H1). Every alert and
+-- notification names only the affected upload in its own project (M1: no cross-tenant
+-- information, even when the verdict came from another project's identical bytes).
+create function private.revoke_released_upload(p_upload public.asset_uploads, p_reason text) returns uuid
 language plpgsql security definer set search_path = '' as $$
+declare
+  v_deletion uuid;
 begin
   update public.asset_uploads
      set status = 'rejected', rejection_code = 'malware_detected', malware_detected = true, revoked_at = now()
    where id = p_upload.id;
+  insert into public.asset_object_deletions (upload_id, project_id, object_path, reason)
+  values (p_upload.id, p_upload.project_id, p_upload.released_path, p_reason)
+  on conflict (upload_id) do nothing
+  returning id into v_deletion;
   perform private.record_audit_event('upload.access_revoked', 'asset_uploads', p_upload.id::text, p_upload.project_id,
-    null, jsonb_build_object('reason', 'malware_detected', 'used', p_upload.used));
+    null, jsonb_build_object('reason', p_reason, 'used', p_upload.used, 'deletion_id', v_deletion));
   perform private.enqueue_notification('upload.access_revoked', 'upload.access_revoked:' || p_upload.id || ':1',
     'upload_access_revoked', 1, p_upload.project_id, null, '{}', array['owner']::public.notification_recipient_role[],
-    jsonb_build_object('upload_id', p_upload.id, 'used', p_upload.used));
+    jsonb_build_object('upload_id', p_upload.id, 'used', p_upload.used, 'reason', p_reason));
   perform private.enqueue_notification('upload.rejected', 'upload.rejected:' || p_upload.id || ':1',
     'upload_rejected', 1, p_upload.project_id, null, array[p_upload.uploaded_by],
     array['staff']::public.notification_recipient_role[],
     jsonb_build_object('upload_id', p_upload.id, 'code', 'malware_detected', 'guidance', 're_upload'));
+  return v_deletion;
+end;
+$$;
+
+-- Applies a malicious verdict to every upload holding the same stored bytes (M1), inside the
+-- caller's transaction, which already holds the content lock for p_sha256:
+--   - the hash is recorded permanently;
+--   - every `available` upload with these bytes, in any project, is revoked, each with its
+--     own pending deletion row;
+--   - every non-final upload (quarantined, scanning, processing) with these bytes is
+--     rejected and its open scan attempt closed;
+--   - every already-rejected upload with these bytes is flagged, so it can never be released.
+-- Uploads still `uploading` have no stored hash yet; they are rejected at their content
+-- check (`record_content_check`), and release refuses them in any case.
+create function private.apply_malicious_content(p_sha256 text, p_source_upload_id uuid) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  r public.asset_uploads;
+  v_revoked uuid[] := '{}';
+  v_rejected uuid[] := '{}';
+  v_deletions uuid[] := '{}';
+  v_deletion uuid;
+begin
+  insert into private.malicious_content (sha256, first_upload_id) values (p_sha256, p_source_upload_id)
+  on conflict (sha256) do nothing;
+  for r in select * from public.asset_uploads u where u.sha256 = p_sha256 and u.status = 'available'
+            order by u.id for update loop
+    v_deletion := private.revoke_released_upload(r,
+      case when r.id = p_source_upload_id then 'malware_detected' else 'identical_malicious_content' end);
+    v_revoked := v_revoked || r.id;
+    if v_deletion is not null then
+      v_deletions := v_deletions || v_deletion;
+    end if;
+  end loop;
+  for r in select * from public.asset_uploads u where u.sha256 = p_sha256
+              and u.status in ('quarantined', 'scanning', 'processing')
+            order by u.id for update loop
+    update public.upload_scan_attempts set closed_at = now(), outcome = 'malicious'
+     where upload_id = r.id and closed_at is null;
+    update public.asset_uploads set status = 'rejected', rejection_code = 'malware_detected', malware_detected = true
+     where id = r.id;
+    perform private.reject_upload_internal(r, 'malware_detected');
+    v_rejected := v_rejected || r.id;
+  end loop;
+  update public.asset_uploads set malware_detected = true
+   where sha256 = p_sha256 and status = 'rejected' and not malware_detected;
+  return jsonb_build_object('revoked', to_jsonb(v_revoked), 'rejected', to_jsonb(v_rejected),
+    'deletion_ids', to_jsonb(v_deletions));
 end;
 $$;
 
@@ -941,18 +1093,28 @@ declare
   v_hash_ok boolean;
   v_disposition text;
   v_outcome text;
+  v_hash text;
+  v_prior public.upload_status;
+  v_applied jsonb;
 begin
   if not private.wpc_is_service_role() then
     return private.fail('forbidden');
   end if;
+  -- Content lock first, then the row lock (M1). The stored hash never changes once set.
+  select u.sha256 into v_hash from public.asset_uploads u where u.id = p_upload_id;
+  if v_hash is null then
+    return private.fail('not_found');
+  end if;
+  perform private.content_lock(v_hash);
   select * into v from public.asset_uploads where id = p_upload_id for update;
-  if not found or v.sha256 is null then
+  if not found or v.sha256 is distinct from v_hash then
     return private.fail('not_found');
   end if;
   select * into v_attempt from public.upload_scan_attempts where id = p_attempt_id and upload_id = v.id;
   v_hash_ok := coalesce(p_scanned_sha256 = v.sha256, false);
 
-  -- Malware always wins (rule 3).
+  -- Malware always wins (rule 3). The verdict applies to the stored bytes (`v.sha256`),
+  -- whatever hash the scanner reported; the reported hash is kept as evidence only.
   if v_verdict = 'malicious' then
     insert into public.upload_scan_results (upload_id, project_id, attempt_id, claimed_attempt_id, scanner,
       engine_version, verdict, signature, scanned_sha256, hash_matches, authoritative, disposition)
@@ -960,22 +1122,16 @@ begin
       left(p_signature, 200), coalesce(p_scanned_sha256, v.sha256), v_hash_ok, true, 'malicious_accepted');
     perform private.record_audit_event('upload.scan_recorded', 'asset_uploads', v.id::text, v.project_id, null,
       jsonb_build_object('scanner', p_scanner, 'verdict', 'malicious', 'attempt_id', p_attempt_id,
-        'authoritative', true, 'prior_status', v.status));
+        'authoritative', true, 'prior_status', v.status, 'hash_matches', v_hash_ok));
     update public.upload_scan_attempts set closed_at = now(), outcome = 'malicious'
      where upload_id = v.id and closed_at is null;
-    if v.status = 'available' then
-      perform private.revoke_released_upload(v);
-      return jsonb_build_object('ok', true, 'status', 'rejected', 'revoked', true, 'released_path', v.released_path);
-    elsif v.status in ('quarantined', 'scanning', 'processing') then
-      update public.asset_uploads set malware_detected = true, rejection_code = 'malware_detected', status = 'rejected'
-       where id = v.id;
-      perform private.reject_upload_internal(
-        (select u from public.asset_uploads u where u.id = v.id), 'malware_detected');
-      return jsonb_build_object('ok', true, 'status', 'rejected', 'revoked', false);
-    elsif v.status = 'rejected' and not v.malware_detected then
-      update public.asset_uploads set malware_detected = true where id = v.id;
-    end if;
-    return jsonb_build_object('ok', true, 'status', v.status, 'revoked', false);
+    v_prior := v.status;
+    v_applied := private.apply_malicious_content(v.sha256, v.id);
+    return jsonb_build_object('ok', true, 'status', 'rejected', 'revoked', v_prior = 'available',
+      'released_path', case when v_prior = 'available' then v.released_path end,
+      'revoked_count', jsonb_array_length(v_applied -> 'revoked'),
+      'rejected_count', jsonb_array_length(v_applied -> 'rejected'),
+      'deletion_ids', v_applied -> 'deletion_ids');
   end if;
 
   -- Non-authoritative results (rule 2). A non-clean result for the current attempt still
@@ -1087,12 +1243,20 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v public.asset_uploads;
   v_scan public.upload_scan_results;
+  v_hash text;
 begin
   if not private.wpc_is_service_role() then
     return private.fail('forbidden');
   end if;
+  -- Content lock first, then the row lock (M1): a concurrent malicious verdict for identical
+  -- bytes either commits first (and is seen below) or waits for this release and revokes it.
+  select u.sha256 into v_hash from public.asset_uploads u where u.id = p_upload_id;
+  if v_hash is null then
+    return private.fail('not_found');
+  end if;
+  perform private.content_lock(v_hash);
   select * into v from public.asset_uploads where id = p_upload_id for update;
-  if not found or v.status <> 'processing' then
+  if not found or v.status <> 'processing' or v.sha256 is distinct from v_hash then
     return private.fail('not_found');
   end if;
   v_scan := private.authoritative_scan(v.id);
@@ -1102,9 +1266,12 @@ begin
      or not private.scanner_permitted(v_scan.scanner) then
     return private.fail('scan_not_clean');
   end if;
-  if v.malware_detected or exists (
-       select 1 from public.upload_scan_results m where m.verdict = 'malicious'
-        and (m.upload_id = v.id or m.scanned_sha256 = v.sha256)) then
+  -- Known malicious bytes (by stored hash), any malicious result for this upload, or (kept
+  -- from before, conservative) any malicious result that reported these bytes' hash.
+  if v.malware_detected
+     or exists (select 1 from private.malicious_content m where m.sha256 = v.sha256)
+     or exists (select 1 from public.upload_scan_results m where m.verdict = 'malicious'
+                 and (m.upload_id = v.id or m.scanned_sha256 = v.sha256)) then
     return private.fail('malware_detected');
   end if;
   if v.source_verified_attempt_id is distinct from v.current_scan_attempt_id then
@@ -1194,6 +1361,140 @@ begin
   perform private.record_audit_event('upload.accessed', 'asset_uploads', v.id::text, v.project_id);
   return jsonb_build_object('ok', true, 'released_path', v.released_path, 'mime',
     coalesce(v.detected_mime, v.declared_mime), 'name', v.original_name);
+end;
+$$;
+
+-- Deletion of revoked released objects (H1). The server claims due rows, deletes each object
+-- with the secret key, confirms it is gone, and reports the outcome here.
+--   claim:  a lease of 5 minutes per row and one counted attempt. A row whose lease expired
+--           without an outcome was interrupted; it is claimed again (last_error
+--           'interrupted'), and once its attempts are spent it fails and alerts the Owner.
+--   report: `deleted` is accepted from any attempt (deleting is idempotent and the object's
+--           absence was confirmed); a failure counts only for the current attempt, backs
+--           off on the 07 §3 schedule, alerts the Owner, and after the last attempt fails
+--           the row until an Owner retry.
+create function private.object_deletion_failed_internal(p_row public.asset_object_deletions, p_error text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_exhausted boolean := p_row.attempts >= private.object_deletion_max_attempts() + p_row.manual_retries;
+begin
+  update public.asset_object_deletions
+     set status = case when v_exhausted then 'failed' else 'pending' end,
+         last_error = p_error, leased_until = null,
+         next_attempt_at = case when v_exhausted then next_attempt_at
+                                else now() + private.scan_retry_backoff(p_row.attempts) end
+   where id = p_row.id;
+  perform private.record_audit_event('upload.object_deletion_failed', 'asset_object_deletions', p_row.id::text,
+    p_row.project_id, null, jsonb_build_object('upload_id', p_row.upload_id, 'attempt', p_row.attempts,
+      'error', p_error, 'exhausted', v_exhausted));
+  perform private.enqueue_notification('upload.object_deletion_failed',
+    'upload.object_deletion_failed:' || p_row.id || ':' || p_row.attempts,
+    'upload_object_deletion_failed', 1, p_row.project_id, null, '{}', array['owner']::public.notification_recipient_role[],
+    jsonb_build_object('deletion_id', p_row.id, 'upload_id', p_row.upload_id, 'attempt', p_row.attempts,
+      'exhausted', v_exhausted));
+end;
+$$;
+
+create function private.claim_object_deletions(p_ids uuid[] default null, p_limit integer default 10) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  r public.asset_object_deletions;
+  v_claimed jsonb := '[]'::jsonb;
+begin
+  if not private.wpc_is_service_role() then
+    return private.fail('forbidden');
+  end if;
+  -- Interrupted on their last attempt: fail and alert (never left pending forever).
+  for r in select * from public.asset_object_deletions d
+            where d.status = 'pending' and d.leased_until < now()
+              and d.attempts >= private.object_deletion_max_attempts() + d.manual_retries
+              and (p_ids is null or d.id = any(p_ids))
+            for update skip locked loop
+    perform private.object_deletion_failed_internal(r, 'interrupted');
+  end loop;
+  for r in select * from public.asset_object_deletions d
+            where d.status = 'pending' and d.next_attempt_at <= now()
+              and (d.leased_until is null or d.leased_until < now())
+              and d.attempts < private.object_deletion_max_attempts() + d.manual_retries
+              and (p_ids is null or d.id = any(p_ids))
+            order by d.created_at
+            limit least(greatest(coalesce(p_limit, 10), 1), 50)
+            for update skip locked loop
+    update public.asset_object_deletions
+       set attempts = attempts + 1, leased_until = now() + interval '5 minutes',
+           last_error = case when r.leased_until is not null then 'interrupted' else last_error end
+     where id = r.id;
+    v_claimed := v_claimed || jsonb_build_object('id', r.id, 'object_path', r.object_path, 'attempt', r.attempts + 1);
+  end loop;
+  return jsonb_build_object('ok', true, 'claimed', v_claimed);
+end;
+$$;
+
+create function private.record_object_deletion(p_deletion_id uuid, p_attempt integer, p_deleted boolean, p_error text)
+returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  r public.asset_object_deletions;
+begin
+  if not private.wpc_is_service_role() then
+    return private.fail('forbidden');
+  end if;
+  select * into r from public.asset_object_deletions where id = p_deletion_id for update;
+  if not found then
+    return private.fail('not_found');
+  end if;
+  if r.status = 'deleted' then
+    return jsonb_build_object('ok', true, 'status', 'deleted', 'already', true);
+  end if;
+  if coalesce(p_deleted, false) then
+    update public.asset_object_deletions
+       set status = 'deleted', completed_at = now(), leased_until = null, last_error = null
+     where id = r.id;
+    perform private.record_audit_event('upload.object_deleted', 'asset_object_deletions', r.id::text, r.project_id,
+      null, jsonb_build_object('upload_id', r.upload_id, 'attempt', p_attempt, 'reason', r.reason));
+    return jsonb_build_object('ok', true, 'status', 'deleted');
+  end if;
+  if r.status <> 'pending' or p_attempt is distinct from r.attempts or r.leased_until is null then
+    return jsonb_build_object('ok', false, 'error', 'stale_attempt', 'status', r.status);
+  end if;
+  perform private.object_deletion_failed_internal(r,
+    case when coalesce(p_error, '') ~ '^[a-z_]{1,60}$' then p_error else 'storage_error' end);
+  return jsonb_build_object('ok', true, 'status',
+    (select d.status from public.asset_object_deletions d where d.id = r.id));
+end;
+$$;
+
+-- Owner retry of a pending or failed deletion (H1), until hosted scheduling exists (DEP-17).
+-- Owner at aal2 with a live session; audited; at most 10 per object, each allowing one more
+-- attempt. Refused while an attempt holds a live lease.
+create function private.retry_object_deletion(p_deletion_id uuid) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  r public.asset_object_deletions;
+begin
+  if not (private.is_owner() and private.is_aal2() and private.session_is_active()) then
+    return private.fail('forbidden');
+  end if;
+  select * into r from public.asset_object_deletions where id = p_deletion_id for update;
+  if not found then
+    return private.fail('not_found');
+  end if;
+  if r.status = 'deleted' then
+    return private.fail('already_deleted');
+  end if;
+  if r.leased_until is not null and r.leased_until >= now() then
+    return private.fail('deletion_in_progress');
+  end if;
+  if r.manual_retries >= 10 then
+    return private.fail('retry_limit');
+  end if;
+  update public.asset_object_deletions
+     set status = 'pending', manual_retries = manual_retries + 1, next_attempt_at = now()
+   where id = r.id;
+  perform private.record_audit_event('upload.object_deletion_retried', 'asset_object_deletions', r.id::text,
+    r.project_id, null, jsonb_build_object('upload_id', r.upload_id, 'manual_retry', r.manual_retries + 1,
+      'prior_status', r.status));
+  return jsonb_build_object('ok', true, 'deletion_id', r.id);
 end;
 $$;
 
@@ -1300,6 +1601,14 @@ create function public.release_upload(p_upload_id uuid, p_released_sha256 text, 
 language sql security invoker set search_path = '' as $$ select private.release_upload(p_upload_id, p_released_sha256, p_released_bytes); $$;
 create function public.purge_failed_uploads() returns jsonb
 language sql security invoker set search_path = '' as $$ select private.purge_failed_uploads(); $$;
+create function public.claim_object_deletions(p_ids uuid[] default null, p_limit integer default 10) returns jsonb
+language sql security invoker set search_path = '' as $$ select private.claim_object_deletions(p_ids, p_limit); $$;
+create function public.record_object_deletion(p_deletion_id uuid, p_attempt integer, p_deleted boolean, p_error text)
+returns jsonb
+language sql security invoker set search_path = '' as $$
+  select private.record_object_deletion(p_deletion_id, p_attempt, p_deleted, p_error); $$;
+create function public.retry_object_deletion(p_deletion_id uuid) returns jsonb
+language sql security invoker set search_path = '' as $$ select private.retry_object_deletion(p_deletion_id); $$;
 
 -- ---------------------------------------------------------------------------
 -- 5. Privileges
@@ -1322,7 +1631,13 @@ revoke all on function
   private.release_upload(uuid, text, bigint), private.record_processing_outcome(uuid, text, text),
   private.purge_failed_uploads(), private.record_asset_access(uuid),
   private.scan_max_attempts(), private.scan_retry_backoff(integer),
-  private.open_scan_attempt(public.asset_uploads), private.revoke_released_upload(public.asset_uploads),
+  private.open_scan_attempt(public.asset_uploads), private.revoke_released_upload(public.asset_uploads, text),
+  private.content_lock(text), private.apply_malicious_content(text, uuid),
+  private.refuse_upload(uuid, text, public.upload_category, text, bigint),
+  private.object_deletion_max_attempts(), private.asset_object_deletions_guard(),
+  private.object_deletion_failed_internal(public.asset_object_deletions, text),
+  private.claim_object_deletions(uuid[], integer), private.record_object_deletion(uuid, integer, boolean, text),
+  private.retry_object_deletion(uuid),
   private.authoritative_scan(uuid), private.confirm_source_hash(uuid, text), private.upload_scan_attempts_guard(),
   private.request_upload_exception(uuid, text, text, bigint, integer, bigint, text),
   private.decide_upload_exception(uuid, boolean, text)
@@ -1336,7 +1651,9 @@ revoke all on function
   public.complete_upload(uuid, bigint, text), public.fail_upload(uuid, text),
   public.record_content_check(uuid, boolean, text, text),
   public.record_scan_result(uuid, uuid, text, text, text, text, text), public.record_processing_outcome(uuid, text, text),
-  public.release_upload(uuid, text, bigint), public.purge_failed_uploads(), public.confirm_source_hash(uuid, text)
+  public.release_upload(uuid, text, bigint), public.purge_failed_uploads(), public.confirm_source_hash(uuid, text),
+  public.claim_object_deletions(uuid[], integer), public.record_object_deletion(uuid, integer, boolean, text),
+  public.retry_object_deletion(uuid)
 from public, anon, authenticated, service_role;
 
 -- End-user actions (authenticated): each definer function re-authorizes the caller.
@@ -1350,7 +1667,8 @@ grant execute on function
   public.correct_intake(uuid, jsonb, text), public.get_intake_state(uuid),
   public.request_upload(uuid, public.upload_category, text, bigint, text, uuid), public.record_asset_access(uuid),
   public.request_upload_exception(uuid, text, text, bigint, integer, bigint, text),
-  public.decide_upload_exception(uuid, boolean, text)
+  public.decide_upload_exception(uuid, boolean, text),
+  private.retry_object_deletion(uuid), public.retry_object_deletion(uuid)
 to authenticated;
 
 -- Pipeline (service_role only; each function also refuses any other JWT role).
@@ -1362,19 +1680,24 @@ grant execute on function
   public.complete_upload(uuid, bigint, text), public.fail_upload(uuid, text),
   public.record_content_check(uuid, boolean, text, text),
   public.record_scan_result(uuid, uuid, text, text, text, text, text), public.record_processing_outcome(uuid, text, text),
-  public.release_upload(uuid, text, bigint), public.purge_failed_uploads(), public.confirm_source_hash(uuid, text)
+  public.release_upload(uuid, text, bigint), public.purge_failed_uploads(), public.confirm_source_hash(uuid, text),
+  private.claim_object_deletions(uuid[], integer), private.record_object_deletion(uuid, integer, boolean, text),
+  public.claim_object_deletions(uuid[], integer), public.record_object_deletion(uuid, integer, boolean, text)
 to service_role;
 
 -- Tables: SELECT through RLS only; nobody writes directly (definer functions only).
 revoke all on table public.intake_submissions, public.intake_reviews, public.upload_exceptions,
-  public.asset_uploads, public.upload_scan_results, public.upload_scan_attempts from public, anon, authenticated;
+  public.asset_uploads, public.upload_scan_results, public.upload_scan_attempts, public.asset_object_deletions
+  from public, anon, authenticated;
 revoke insert, update, delete, truncate, references, trigger on table public.intake_submissions,
   public.intake_reviews, public.upload_exceptions, public.asset_uploads, public.upload_scan_results,
-  public.upload_scan_attempts from service_role;
+  public.upload_scan_attempts, public.asset_object_deletions from service_role;
 grant select on table public.intake_submissions, public.intake_reviews, public.upload_exceptions,
   public.asset_uploads to authenticated;
 -- Scan evidence is staff-visible only.
 grant select on table public.upload_scan_results, public.upload_scan_attempts to authenticated;
+-- Deletion tracking is staff-visible only.
+grant select on table public.asset_object_deletions to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 6. Row Level Security (03 §8-§9)
@@ -1385,6 +1708,7 @@ alter table public.upload_exceptions enable row level security;
 alter table public.asset_uploads enable row level security;
 alter table public.upload_scan_results enable row level security;
 alter table public.upload_scan_attempts enable row level security;
+alter table public.asset_object_deletions enable row level security;
 
 create policy intake_submissions_select on public.intake_submissions for select to authenticated
   using (private.can_access_project(project_id));
@@ -1398,13 +1722,15 @@ create policy upload_scan_results_select on public.upload_scan_results for selec
   using ((select private.is_staff()));
 create policy upload_scan_attempts_select on public.upload_scan_attempts for select to authenticated
   using ((select private.is_staff()));
+create policy asset_object_deletions_select on public.asset_object_deletions for select to authenticated
+  using ((select private.is_staff()));
 
 do $$
 declare
   t text;
 begin
   foreach t in array array['intake_submissions', 'intake_reviews', 'upload_exceptions', 'asset_uploads',
-                           'upload_scan_results', 'upload_scan_attempts'] loop
+                           'upload_scan_results', 'upload_scan_attempts', 'asset_object_deletions'] loop
     execute format(
       'create policy %I on public.%I as restrictive for all to authenticated
          using (not (select private.is_staff()) or ((select private.is_aal2()) and (select private.session_is_active())))

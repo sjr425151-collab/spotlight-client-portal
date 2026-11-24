@@ -15,15 +15,20 @@ import { totp } from "../support/totp";
  * - recording a preview release (T-LC-15)
  * - upload type rejection (T-UP-01)
  * - cross-project denial for pages and asset URLs (T-UP-06, T-TEN-04)
+ * Each test also checks the authoritative database state and audit evidence behind what the
+ * browser shows (PR #19 review M2).
  */
 test.describe.configure({ mode: "serial" });
 
 const ADMIN = "admin@example.test";
 const CLIENT_A = "client.a@example.test";
 const OWNER_ID = "00000000-0000-4000-8000-000000000001";
+const ADMIN_ID = "00000000-0000-4000-8000-000000000002";
+const CLIENT_A_ID = "00000000-0000-4000-8000-0000000000a1";
 const PROJECT_A = "20000000-0000-4000-8000-0000000000a0";
 const PROJECT_B = "20000000-0000-4000-8000-0000000000b0";
 const RUN = Date.now().toString(36);
+const EXE = Buffer.from("MZ\x90\x00");
 
 async function expectAccessible(page: Page) {
   const results = await new AxeBuilder({ page })
@@ -64,6 +69,40 @@ async function adminPage(browser: Browser): Promise<Page> {
   await expect(page).toHaveURL(/\/staff/);
   return page;
 }
+
+/** The newest audit event id: evidence written by a test has a larger id. */
+const lastAuditId = () =>
+  withDb(async (db) => {
+    const { rows } = await db.query(
+      "select coalesce(max(id), 0)::text as id from public.audit_events",
+    );
+    return rows[0].id as string;
+  });
+
+type AuditRow = {
+  action: string;
+  actor: string | null;
+  project: string | null;
+  summary: Record<string, unknown>;
+};
+const auditSince = (afterId: string) =>
+  withDb(async (db) => {
+    const { rows } = await db.query(
+      `select action, actor_user_id::text as actor, project_id::text as project, summary
+         from public.audit_events where id > $1::bigint order by id`,
+      [afterId],
+    );
+    return rows as AuditRow[];
+  });
+
+const countRows = (table: string, projectId: string) =>
+  withDb(async (db) => {
+    const { rows } = await db.query(
+      `select count(*)::int as n from public.${table} where project_id = $1`,
+      [projectId],
+    );
+    return rows[0].n as number;
+  });
 
 let clientPage: Page;
 let staffPage: Page;
@@ -109,6 +148,11 @@ test.afterAll(async () => {
 });
 
 test("an unpaid project shows intake locked, with no intake form or uploads (T-LC-01)", async () => {
+  const before = {
+    audit: await lastAuditId(),
+    intake: await countRows("intake_submissions", PROJECT_A),
+    uploads: await countRows("asset_uploads", PROJECT_A),
+  };
   await clientPage.goto(`/portal/projects/${PROJECT_A}`);
   await expect(clientPage.getByTestId("project-status")).toContainText(
     "Available once your deposit and saved payment method are verified",
@@ -116,16 +160,31 @@ test("an unpaid project shows intake locked, with no intake form or uploads (T-L
   await expect(clientPage.getByRole("button", { name: "Submit for review" })).toHaveCount(0);
   await expect(clientPage.getByRole("button", { name: "Upload" })).toHaveCount(0);
   await expectAccessible(clientPage);
+  // M2: the database agrees the intake is locked, and viewing it changed nothing.
+  await withDb(async (db) => {
+    const { rows } = await db.query("select private.wpc_intake_unlocked($1) as unlocked", [
+      PROJECT_A,
+    ]);
+    expect(rows[0].unlocked).toBe(false);
+  });
+  expect(await countRows("intake_submissions", PROJECT_A)).toBe(before.intake);
+  expect(await countRows("asset_uploads", PROJECT_A)).toBe(before.uploads);
+  const written = (await auditSince(before.audit)).filter((e) => e.project === PROJECT_A);
+  expect(written.filter((e) => /^(intake|upload)\./.test(e.action))).toEqual([]);
 });
 
 test("an upload of a disallowed type is rejected by the server (T-UP-01)", async () => {
+  const before = {
+    audit: await lastAuditId(),
+    uploads: await countRows("asset_uploads", PROJECT_A),
+  };
   const response = await clientPage.request.post(`/portal/projects/${PROJECT_A}/uploads`, {
     multipart: {
       category: "logo",
       file: {
         name: "tool.exe",
         mimeType: "application/x-msdownload",
-        buffer: Buffer.from("MZ\x90\x00"),
+        buffer: EXE,
       },
     },
     maxRedirects: 0,
@@ -136,9 +195,29 @@ test("an upload of a disallowed type is rejected by the server (T-UP-01)", async
   await expect(clientPage.locator("main").getByRole("alert")).toContainText(
     "That file type is not allowed for this category.",
   );
+  // M2: nothing was reserved, and the refusal is audited in Project A for client A.
+  expect(await countRows("asset_uploads", PROJECT_A)).toBe(before.uploads);
+  const written = (await auditSince(before.audit)).filter((e) => e.action.startsWith("upload."));
+  expect(written).toEqual([
+    {
+      action: "upload.refused",
+      actor: CLIENT_A_ID,
+      project: PROJECT_A,
+      summary: {
+        code: "type_not_allowed",
+        category: "logo",
+        declared_mime: "application/x-msdownload",
+        declared_bytes: EXE.length,
+      },
+    },
+  ]);
 });
 
 test("client A is denied Project B's page and asset URLs, and the staff area (T-UP-06)", async () => {
+  const before = {
+    audit: await lastAuditId(),
+    uploadsB: await countRows("asset_uploads", PROJECT_B),
+  };
   const page = await clientPage.goto(`/portal/projects/${PROJECT_B}`);
   expect(page?.status()).toBe(404);
   const asset = await clientPage.request.get(
@@ -161,6 +240,13 @@ test("client A is denied Project B's page and asset URLs, and the staff area (T-
   expect(upload.status()).toBe(404);
   await clientPage.goto(`/staff/projects/${PROJECT_A}`);
   await expect(clientPage).toHaveURL(/\/portal$/);
+  // M2: no denial produced a successful access, a reservation, or any record in Project B.
+  const written = await auditSince(before.audit);
+  expect(written.filter((e) => ["upload.accessed", "upload.requested"].includes(e.action))).toEqual(
+    [],
+  );
+  expect(written.filter((e) => e.project === PROJECT_B)).toEqual([]);
+  expect(await countRows("asset_uploads", PROJECT_B)).toBe(before.uploadsB);
 });
 
 test("the staff work queue renders derived items (05 §9)", async () => {
@@ -169,9 +255,43 @@ test("the staff work queue renders derived items (05 §9)", async () => {
   await expect(staffPage.getByRole("heading", { name: "In development" })).toBeVisible();
   await expect(staffPage.getByRole("link", { name: `E2E release project ${RUN}` })).toBeVisible();
   await expectAccessible(staffPage);
+  // M2: every queue shown matches the database's own derivation for this Admin session.
+  const expected = await withDb(async (db) => {
+    const { rows: session } = await db.query(
+      `select id from auth.sessions where user_id = $1 and aal = 'aal2' order by created_at desc limit 1`,
+      [ADMIN_ID],
+    );
+    await db.query("begin");
+    await db.query(
+      `select set_config('request.jwt.claims', json_build_object('sub', $1::text, 'role', 'authenticated',
+         'aal', 'aal2', 'session_id', $2::text)::text, true)`,
+      [ADMIN_ID, session[0].id],
+    );
+    const { rows } = await db.query("select q from private.operational_queue() q");
+    await db.query("rollback");
+    const byQueue: Record<string, string[]> = {};
+    for (const { q } of rows as { q: { queue: string; project_name: string } }[]) {
+      (byQueue[q.queue] ??= []).push(q.project_name);
+    }
+    return byQueue;
+  });
+  expect(expected.in_development).toContain(`E2E release project ${RUN}`);
+  const shown: Record<string, string[]> = {};
+  for (const section of await staffPage.locator("main section[aria-labelledby^='q-']").all()) {
+    const queue = (await section.getAttribute("aria-labelledby"))!.slice(2);
+    shown[queue] = await section.getByRole("link").allTextContents();
+  }
+  const sorted = (m: Record<string, string[]>) =>
+    Object.fromEntries(
+      Object.entries(m)
+        .map(([k, v]) => [k, [...v].sort()])
+        .sort(),
+    );
+  expect(sorted(shown)).toEqual(sorted(expected));
 });
 
 test("staff record a preview release with SHA, deployment ID, and preview URL (T-LC-15)", async () => {
+  const before = await lastAuditId();
   await staffPage.goto(`/staff/projects/${releaseProjectId}`);
   await staffPage.getByLabel("Commit SHA (40 characters)").fill("a".repeat(40));
   await staffPage.getByLabel("Deployment ID").fill(`dpl_${RUN}`);
@@ -182,4 +302,34 @@ test("staff record a preview release with SHA, deployment ID, and preview URL (T
   );
   await expect(staffPage.getByText(`Release 1 · ${"a".repeat(12)} · current`)).toBeVisible();
   await expectAccessible(staffPage);
+  // M2: exactly one release record, as entered, by the Admin, with its audit event.
+  const releases = await withDb(async (db) => {
+    const { rows } = await db.query(
+      `select id::text, release_number, commit_sha, deployment_id, preview_url, released_by::text,
+              withdrawn_at is null as current
+         from public.preview_releases where project_id = $1`,
+      [releaseProjectId],
+    );
+    return rows;
+  });
+  expect(releases).toEqual([
+    {
+      id: expect.any(String),
+      release_number: 1,
+      commit_sha: "a".repeat(40),
+      deployment_id: `dpl_${RUN}`,
+      preview_url: "https://preview.example.test/build",
+      released_by: ADMIN_ID,
+      current: true,
+    },
+  ]);
+  const written = (await auditSince(before)).filter((e) => e.action === "preview.released");
+  expect(written).toEqual([
+    {
+      action: "preview.released",
+      actor: ADMIN_ID,
+      project: releaseProjectId,
+      summary: expect.any(Object),
+    },
+  ]);
 });

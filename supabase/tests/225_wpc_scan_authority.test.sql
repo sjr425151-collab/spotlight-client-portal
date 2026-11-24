@@ -195,9 +195,9 @@ select is(pg_temp.st('45000000-0000-4000-8000-000000000001'), 'rejected', 'T-UP-
 select pg_temp.mk('45000000-0000-4000-8000-000000000002', repeat('6', 64));
 select pg_temp.mk('45000000-0000-4000-8000-000000000003', repeat('6', 64), '20000000-0000-4000-8000-0000000000b0');
 select pg_temp.scan('45000000-0000-4000-8000-000000000003', pg_temp.open('45000000-0000-4000-8000-000000000003'), 'malicious', repeat('6', 64));
-select pg_temp.scan('45000000-0000-4000-8000-000000000002', pg_temp.open('45000000-0000-4000-8000-000000000002'), 'clean', repeat('6', 64));
-select is(pg_temp.release('45000000-0000-4000-8000-000000000002', repeat('6', 64)) ->> 'error', 'malware_detected',
-  'T-UP-19 / 05 §5.5 rule 3: a malicious result for the same bytes, in any upload, blocks release');
+select is(row(pg_temp.st('45000000-0000-4000-8000-000000000002'),
+  pg_temp.release('45000000-0000-4000-8000-000000000002', repeat('6', 64)) ->> 'error')::text, '(rejected,not_found)',
+  'T-UP-19 / 05 §5.5 rule 3: a malicious result for the same bytes, in any upload, rejects this upload and blocks release (M1)');
 
 -- ---------------------------------------------------------------------------
 -- 6. T-UP-15 (single session): lock before insert; delayed results are non-authoritative

@@ -16,9 +16,10 @@
 --   1. Quarantine paths start with the segment 'quarantine', which is not a project UUID,
 --      so can_access_project_path() is false and project_assets_select never matches:
 --      no client or staff JWT can read, list, sign, download, copy, or move them.
---   2. Released paths start with the project UUID, so project_assets_select lets active
---      members of that project (and staff at aal2) read them, exactly like any other
---      project path today. Only the server writes them, after a clean scan.
+--   2. Released paths start with the project UUID. project_assets_select would let members
+--      read them, but the restrictive policy at the end of this file removes every user-JWT
+--      read: only the server reads or writes them (after a clean scan, and per request
+--      after the database authorized and audited the download).
 --   The two policies below are RESTRICTIVE and only narrow access. They keep 1 and 2 true
 --   even if a future permissive policy is added (for example a client upload policy):
 --     - nothing under quarantine/ is reachable with a user JWT, for any command;
@@ -46,21 +47,16 @@ create policy project_assets_released_server_delete_only on storage.objects as r
   for delete to authenticated, anon
   using (not (bucket_id = 'project-assets' and split_part(name, '/', 2) = 'assets'));
 
--- Revocation (05 §5.5 rule 3). A released object is readable only while its upload record
--- is `available`; after a malicious verdict it is unreadable at once, before the server has
--- deleted the object. Restrictive, limited to the WP-C released path class
--- (`<project_id>/assets/<upload_id>`), so no other path's result changes, and an object
--- there without a matching available upload record is never readable (fail closed).
-create function private.released_object_readable(p_name text) returns boolean
-language sql stable security definer set search_path = '' as $$
-  select split_part(p_name, '/', 2) <> 'assets'
-      or exists (select 1 from public.asset_uploads u where u.released_path = p_name and u.status = 'available');
-$$;
-revoke all on function private.released_object_readable(text) from public, anon, authenticated, service_role;
--- anon holds no permissive storage policy, so it is already denied every object (T-TEN-06:
--- anon executes no function).
-grant execute on function private.released_object_readable(text) to authenticated;
-
-create policy project_assets_released_requires_available on storage.objects as restrictive
-  for select to authenticated
-  using (bucket_id <> 'project-assets' or private.released_object_readable(name));
+-- Server-mediated delivery (PR #19 review H1; 05 §4, §5.5 rule 3). No user JWT can read a
+-- released object: not by download, list, or signing a URL (the Storage API signs only what
+-- the caller can SELECT). Released files reach users only through the server download
+-- route, which asks the database first (`record_asset_access`: project access, a live
+-- session, staff at aal2, and the upload still `available`; audited), then reads the object
+-- with the secret key and streams it with `Cache-Control: private, no-store`. A revocation
+-- therefore takes effect for every new request at the commit of the malicious verdict, and
+-- no signed URL to a released object can ever have been issued to a user. Restrictive,
+-- SELECT only, limited to the WP-C released path class `<project_id>/assets/...`; every
+-- other path keeps its Phase 2 result. Neither Phase 2 policy is modified (AUTH-004).
+create policy project_assets_released_server_read_only on storage.objects as restrictive
+  for select to authenticated, anon
+  using (not (bucket_id = 'project-assets' and split_part(name, '/', 2) = 'assets'));

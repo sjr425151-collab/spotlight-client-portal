@@ -106,6 +106,7 @@ export async function FulfillmentPanel({
     deployments,
     incidents,
     target,
+    deletions,
   ] = await Promise.all([
     callRpc(db, "project_status", { p_project_id: projectId }),
     callRpc(db, "publication_gate_report", { p_project_id: projectId }),
@@ -168,6 +169,13 @@ export async function FulfillmentPanel({
       .eq("project_id", projectId)
       .is("resolved_at", null),
     db.from("client_site_targets").select("target_ref").eq("project_id", projectId).maybeSingle(),
+    db
+      .from("asset_object_deletions")
+      .select("id, upload_id, status, attempts, last_error, next_attempt_at")
+      .eq("project_id", projectId)
+      .neq("status", "deleted")
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   const intakeState = status.ok ? String(status.data.intake_state) : "locked";
@@ -289,6 +297,28 @@ export async function FulfillmentPanel({
             </li>
           ))}
         </ul>
+        {(deletions.data ?? []).length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-medium text-fg">Revoked files awaiting deletion</h3>
+            <ul className="flex flex-col gap-2 text-sm" data-testid="pending-deletions">
+              {(deletions.data ?? []).map((d) => (
+                <li key={d.id} className="text-fg">
+                  Upload {String(d.upload_id).slice(0, 8)} · {d.status} · {d.attempts} attempt
+                  {d.attempts === 1 ? "" : "s"}
+                  {d.last_error ? ` (${d.last_error})` : ""}
+                  {isOwner ? (
+                    <form action={act.retryDeletionAction} className="ml-2 inline">
+                      <Hidden projectId={projectId} extra={{ deletionId: d.id }} />
+                      <Button type="submit" variant="ghost" className="h-8 px-2">
+                        Retry deletion
+                      </Button>
+                    </form>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {(exceptions.data ?? []).map((e) => (
           <Card key={e.id}>
             <form action={act.decideUploadExceptionAction} className="flex flex-col gap-3">

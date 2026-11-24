@@ -1,9 +1,12 @@
+import { randomBytes } from "node:crypto";
+
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
  * T-UP-15 with real concurrency (05 §5.5 rules 1-2) against the LOCAL database: scan-result
- * submissions for one upload, from separate connections, serialize on the upload row lock;
+ * submissions for one upload, from separate connections, serialize on the content and upload
+ * row locks (content lock first, review M1);
  * the sequence matches acceptance (commit) order; delayed results for an earlier attempt and
  * duplicates are non-authoritative. Synthetic rows only, written in Project B, and left in a
  * terminal state.
@@ -13,7 +16,9 @@ const DATABASE_URL =
   process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 const PROJECT = "20000000-0000-4000-8000-0000000000b0";
 const UPLOADER = "00000000-0000-4000-8000-0000000000b1";
-const SHA = "c".repeat(64);
+// Fresh bytes per upload: a malicious verdict blocks its stored hash permanently, in every
+// upload and on every later run against the same local database (05 §5.5 rule 3, M1).
+const hashes = new Map<string, string>();
 
 async function connect(): Promise<Client> {
   if (!["127.0.0.1", "localhost"].includes(new URL(DATABASE_URL).hostname)) {
@@ -29,15 +34,17 @@ let setup: Client;
 const clients: Client[] = [];
 
 async function newUpload(): Promise<{ id: string; attempt: string }> {
+  const sha = randomBytes(32).toString("hex");
   const { rows } = await setup.query(
     `insert into public.asset_uploads (project_id, asset_id, version, category, declared_mime, declared_bytes,
        original_name, status, quarantine_path, size_bytes, sha256, completed_at, uploaded_by, id)
      select $1::uuid, gen_random_uuid(), 1, 'logo', 'image/png', 10, 'race.png', 'quarantined',
        'quarantine/' || $1::text || '/' || g.id, 10, $2::text, now(), $3::uuid, g.id
      from (select gen_random_uuid() id) g returning id`,
-    [PROJECT, SHA, UPLOADER],
+    [PROJECT, sha, UPLOADER],
   );
   const id = rows[0].id as string;
+  hashes.set(id, sha);
   const opened = await setup.query(
     `select private.record_content_check($1, true, 'image/png', null) ->> 'attempt_id' as attempt`,
     [id],
@@ -50,7 +57,7 @@ const scan = (c: Client, id: string, attempt: string, verdict: string) =>
     id,
     attempt,
     verdict,
-    SHA,
+    hashes.get(id),
   ]);
 
 beforeAll(async () => {

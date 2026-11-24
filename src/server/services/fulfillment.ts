@@ -10,6 +10,8 @@ import {
   scanStoredUpload,
   type PipelineOutcome,
 } from "@/server/uploads/pipeline";
+import { processObjectDeletions } from "@/server/uploads/deletions";
+import { deliverAsset, type Delivery } from "@/server/uploads/delivery";
 import { scannerFor } from "@/server/uploads/scanner";
 import { createAdminClient } from "@/server/supabase/admin";
 
@@ -131,4 +133,33 @@ export async function retryUploadScan(user: SupabaseClient, uploadId: string): P
     scannerFor(env.APP_ENV),
   );
   return { ok: true, data: { outcome } };
+}
+
+/**
+ * Owner retry of a revoked object's deletion (H1), until hosted scheduling exists (DEP-17).
+ * The database authorizes the Owner (aal2, live session), audits the retry, and allows one
+ * more attempt; the server then deletes and confirms with the secret key.
+ */
+export async function retryObjectDeletion(
+  user: SupabaseClient,
+  deletionId: string,
+): Promise<Result> {
+  const allowed = await callRpc(user, "retry_object_deletion", { p_deletion_id: deletionId });
+  if (!allowed.ok) return allowed;
+  const [outcome] = await processObjectDeletions(await createAdminClient(), [deletionId]);
+  return outcome?.deleted
+    ? { ok: true, data: { deleted: true } }
+    : { ok: false, error: "deletion_failed" };
+}
+
+/**
+ * Server-mediated download of an available asset (H1). The caller's own session authorizes
+ * and audits the access first; the secret key reads the object only afterwards.
+ */
+export async function downloadAsset(
+  user: SupabaseClient,
+  projectId: string,
+  uploadId: string,
+): Promise<Delivery> {
+  return deliverAsset(user, await createAdminClient(), projectId, uploadId);
 }

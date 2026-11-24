@@ -35,14 +35,14 @@ insert into wpc_tables values
   ('approval_hold_resumption_decisions', false), ('qa_results', false), ('qa_performance_exceptions', false),
   ('security_check_results', false), ('domain_readiness_checks', false), ('client_site_targets', false),
   ('publication_authorizations', false), ('publication_deployments', false), ('deployment_verifications', false),
-  ('publication_incidents', false);
+  ('publication_incidents', false), ('asset_object_deletions', false);
 grant select on wpc_tables to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 1. Catalog
 -- ---------------------------------------------------------------------------
 select is((select count(*)::int from wpc_tables w join pg_class c on c.relname = w.name
-  and c.relnamespace = 'public'::regnamespace where c.relrowsecurity), 24, 'RLS is enabled on all 24 WP-C tables');
+  and c.relnamespace = 'public'::regnamespace where c.relrowsecurity), 25, 'RLS is enabled on all 25 WP-C tables');
 select is((select array_agg(w.name order by w.name) from wpc_tables w
   where has_table_privilege('authenticated', 'public.' || w.name, 'insert')
      or has_table_privilege('authenticated', 'public.' || w.name, 'update')
@@ -54,10 +54,10 @@ select is((select array_agg(w.name order by w.name) from wpc_tables w
   'no API role can write a WP-C table directly; anon cannot read one (definer functions only)');
 select is((select count(*)::int from wpc_tables w where
   (select count(*) from pg_policies p where p.schemaname = 'public' and p.tablename = w.name and p.permissive = 'RESTRICTIVE'
-     and p.policyname in (w.name || '_staff_aal2', w.name || '_active_user')) = 2), 24,
+     and p.policyname in (w.name || '_staff_aal2', w.name || '_active_user')) = 2), 25,
   'every WP-C table carries the restrictive staff-aal2 and active-user policies');
 select is((select count(*)::int from wpc_tables w join pg_attribute a on a.attrelid = ('public.' || w.name)::regclass
-  and a.attname = 'project_id' and a.attnotnull), 24, 'every WP-C table carries a non-null project_id (03 §8)');
+  and a.attname = 'project_id' and a.attnotnull), 25, 'every WP-C table carries a non-null project_id (03 §8)');
 select is((select count(*)::int from pg_policies p join wpc_tables w on w.name = p.tablename
   where p.schemaname = 'public' and p.permissive = 'PERMISSIVE' and p.cmd <> 'SELECT'), 0,
   'no permissive write policy exists on any WP-C table');
@@ -96,6 +96,9 @@ values ('34000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000
 update public.asset_uploads set status = 'processing' where id = '32000000-0000-4000-8000-0000000000a1';
 update public.asset_uploads set status = 'available', released_path = project_id || '/assets/' || id,
   released_sha256 = sha256, released_bytes = 10 where id = '32000000-0000-4000-8000-0000000000a1';
+insert into public.asset_object_deletions (upload_id, project_id, object_path, reason)
+values ('32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0',
+        '20000000-0000-4000-8000-0000000000a0/assets/32000000-0000-4000-8000-0000000000a1', 'malware_detected');
 insert into public.preview_release_assets (release_id, upload_id, project_id)
 values ('34000000-0000-4000-8000-0000000000a1', '32000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0');
 insert into public.preview_approvals (id, release_id, project_id, user_id)
@@ -183,7 +186,7 @@ $$;
 grant execute on function pg_temp.visible_tables(), pg_temp.writable_tables() to authenticated;
 
 select is((select count(*)::int from wpc_tables w where (xpath('/row/c/text()',
-  query_to_xml(format('select count(*) as c from public.%I', w.name), false, true, '')))[1]::text::int > 0), 24,
+  query_to_xml(format('select count(*) as c from public.%I', w.name), false, true, '')))[1]::text::int > 0), 25,
   'fixture: every WP-C table has a Project A row');
 
 -- ---------------------------------------------------------------------------

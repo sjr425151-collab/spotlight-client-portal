@@ -58,6 +58,12 @@ export const MESSAGES = {
   exception_requested: "Your request was sent for review.",
   scan_backoff: "The scanner failed recently. Wait a few minutes before retrying.",
   scan_retries_exhausted: "The scan failed five times. The file stays in quarantine for review.",
+  deletion_completed: "The revoked file was deleted from storage.",
+  deletion_failed: "The revoked file could not be deleted yet. It stays inaccessible; retry later.",
+  already_deleted: "That file was already deleted.",
+  deletion_in_progress: "A deletion attempt is running. Try again in a few minutes.",
+  retry_limit:
+    "This deletion has reached its retry limit. The file stays inaccessible; check storage before retrying.",
   // WP-C: previews and approvals (05 §6-§8)
   preview_released: "The preview was released to the client.",
   preview_approved: "Thank you. Your approval of this preview was recorded.",

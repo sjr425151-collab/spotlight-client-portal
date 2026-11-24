@@ -67,7 +67,7 @@ select is((
         'record_deployment_result', 'record_domain_check', 'record_hold_resumption', 'record_outreach',
         'record_preview_draft', 'record_qa_result', 'record_security_result', 'register_client_site_target',
         'release_preview', 'request_revisions', 'request_upload', 'request_upload_exception', 'resolve_incident',
-        'review_intake', 'save_intake_draft', 'start_deployment', 'submit_intake', 'withdraw_preview'
+        'retry_object_deletion', 'review_intake', 'save_intake_draft', 'start_deployment', 'submit_intake', 'withdraw_preview'
       ]) order by 1)::text[],
   'D1: the public RPC surface for signed-in users is exactly the reviewed list (no audit writers)');
 

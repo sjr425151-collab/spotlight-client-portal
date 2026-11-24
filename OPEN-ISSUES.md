@@ -50,7 +50,7 @@ All 56 issues listed here are decided at the architectural level (OI-50 to OI-52
 | OI-27 | Owner-authorized financial adjustments | Decided | DEP-03, DEP-06; OI-47 (decided) |
 | OI-28 | Signer authority | Decided | DEP-03 (final wording) |
 | OI-29 | Stripe Customer Portal | Decided | DEP-03, DEP-06 |
-| OI-30 | Stripe test-mode catalog | Decided; creation **blocked** | DEP-01 |
+| OI-30 | Stripe test-mode catalog | Decided; catalog **created and verified** (2026-11-23) | DEP-01 |
 | OI-31 | File upload security | Decided | DEP-07 |
 | OI-32 | Client hosting | Decided | DEP-03, DEP-06 |
 | OI-33 | Mandatory publishing QA | Decided | — |
@@ -133,7 +133,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 
 | ID | Dependency | Action owner | Earliest phase | Status |
 |---|---|---|---|---|
-| DEP-01 | Stripe **test-mode** catalog created and test Price IDs recorded (OI-30; design OI-64, OI-65; manifest 04 §6.1) | Owner-authorized operator with a verified **test-mode** credential | Phase 3 | **Blocked / suspended.** Catalog design approved 2026-11-23; creation not yet authorized. |
+| DEP-01 | Stripe **test-mode** catalog created and test Price IDs recorded (OI-30; design OI-64, OI-65; manifest 04 §6.1) | Owner-authorized operator with a verified **test-mode** credential | Phase 3 | **Complete on merge of the result PR (2026-11-23).** All 11 products and 11 prices created and verified in sandbox "Spotlight Client Portal - Development" by run `dep01-20261123T220040Z-290aebd0`; IDs in 04 §6.5. The Owner revokes the restricted key after merge. |
 | DEP-02 | Verify the live Price IDs (04 §5.2) against the live catalog | Owner / authorized implementer | Phase 5 (Prod) | Not started |
 | DEP-03 | Qualified **legal review** of the agreement and related policies | Owner + counsel | Phase 5 (Prod; before enforcement) | Not started |
 | DEP-04 | Qualified **tax review**; Stripe Tax production configuration (OI-36) | Owner + tax advisor | Phase 5 (Prod tax collection) | Not started |
@@ -159,6 +159,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
   3. No search, create, or update request was sent, and no Stripe object was created or modified.
   4. **Catalog run `dep01-20261123T142608Z-0295d87d`** (14:26:08–14:26:09Z, sandbox "Spotlight Client Portal - Development", 6 requests): `GET /v1/balance` returned `livemode: false`; the sandbox held no products or prices; all 11 entries classified *missing* with no conflict. Request 6 (`POST /v1/products`, key `dep01-v1-essential.deposit-product`, Stripe request `req_v8jMoDuB0OsJq0`) returned HTTP 200 with `Stripe-Should-Retry: false`, and the run stopped under the rule then in force (see OI-66). Nothing else was created.
   5. **Read-only reconciliation `dep01-reconcile-20261123T143019Z-defd3b34`** (14:30:19–14:30:20Z, 6 `GET` requests, all `livemode: false`): the sandbox holds exactly one product, `prod_VgKrmaWefVnWy1`, which matches the 04 §6.1 manifest for `essential.deposit` exactly (name, all metadata, active, no default price). It has **no price**, no price uses `spotlight_v1_essential_deposit`, and the sandbox holds no prices at all. A resumed run would classify `essential.deposit` as *price missing* and the other 10 entries as *missing*.
+  6. **Resumed catalog run `dep01-20261123T220040Z-290aebd0`** (2026-11-23T22:00:40Z to 2026-11-23T22:00:49Z, 48 requests, Owner-authorized after OI-66 merged at `f543054`): `livemode: false` on every response; classification as expected with no conflict; 10 products and 11 prices created, 1 product reused; all 11 entries verified against 04 §6.1. Stripe sent `Stripe-Should-Retry: false` on every successful create; under OI-66 it was recorded only, and nothing was retried. **Catalog complete**; IDs in 04 §6.5.
 - **Current status:**
   - The Owner has chosen to leave the environment configuration unchanged for now, so the live-mode credential remains saved for `api.stripe.com` on that environment.
   - The Owner has instructed that **no Stripe API requests** be made until a verified test-mode credential workflow is separately authorized.

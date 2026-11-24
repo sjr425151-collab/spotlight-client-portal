@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.9.2 |
-| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). v0.9.0 (**OI-74**, Owner decision 2026-11-24): mandatory payment method retention; the automatic off-session final-balance charge moves to R1; card only; payment authorization record (§8.1); setup-mode payment method recovery and authorization revocation (§8.1); Tier 0 provider-documentation record (§8.2); tests T-PAY-18 to T-PAY-26; OI-75 (scope independent of the maintenance subscription). The §3.1 clause is unchanged. The collection order is unchanged by **OI-73** (option A). v0.9.1 (Owner, 2026-11-24): **OI-81** no price change after a verified deposit in R1 (§4); refund and dispute allocation (§15.2.1, OI-82). v0.9.2 (**OI-82**, Owner decision 2026-11-24): refund and dispute allocation approved (§15.2.1), subject to counsel review (DEP-03) and test-mode provider verification (DEP-06). |
+| Version | 0.9.3 |
+| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). v0.9.0 (**OI-74**, Owner decision 2026-11-24): mandatory payment method retention; the automatic off-session final-balance charge moves to R1; card only; payment authorization record (§8.1); setup-mode payment method recovery and authorization revocation (§8.1); Tier 0 provider-documentation record (§8.2); tests T-PAY-18 to T-PAY-26; OI-75 (scope independent of the maintenance subscription). The §3.1 clause is unchanged. The collection order is unchanged by **OI-73** (option A). v0.9.1 (Owner, 2026-11-24): **OI-81** no price change after a verified deposit in R1 (§4); refund and dispute allocation (§15.2.1, OI-82). v0.9.2 (**OI-82**, Owner decision 2026-11-24): refund and dispute allocation approved (§15.2.1), subject to counsel review (DEP-03) and test-mode provider verification (DEP-06). v0.9.3 (Owner direction, 2026-11-24): implementation ownership and release requirements for billing job scheduling and daily reconciliation (§13) and for WP-C records in dispute evidence (§15.4); tests T-ARC-09, T-ARC-10; DEP-17. |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63–OI-66, OI-68, OI-69 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
@@ -627,6 +627,11 @@ There is **no** entry type or action that records a payment as received without 
 - A mismatch creates an Owner queue item and an alert. It never auto-corrects payment state.
 - A backfill job can replay missed webhooks by listing events, using the same idempotent handler.
 
+**Ownership and release requirement (Owner direction, 2026-11-24):**
+- **WP-B** owns the job functions (daily reconciliation, maintenance-recovery evaluation, webhook backfill, and the other billing jobs) behind one server-side entry point per job that is service-role only, idempotent, single-flight (a second concurrent run is a no-op), audited, and tested in CI by direct invocation (T-ARC-09).
+- **WP-D** owns binding those entry points to a hosted scheduler: staging under AUTH-003, production as a Tier 3 action (**DEP-17**). Reconciliation against real Stripe data runs only under AUTH-002 (test mode) or production authorization.
+- **Release requirement:** the R1 release candidate is not accepted until staging shows scheduled runs of each billing job with recorded results and the mismatch alert path working (DEP-12). Production launch requires the same evidence in production.
+
 ## 14. Holds **[APPROVED OI-17, OI-25, OI-26, OI-37]**
 
 A hold is a record holding: type, trigger source, `placed_at`, `placed_by` (for manual holds), reason, `cleared_at`, and clearing evidence. Every placement and clearance is audited.
@@ -732,7 +737,7 @@ Approval of this architecture authorizes no live refund, Stripe API request, Tie
 | Tracking | `charge.dispute.*` webhooks create and update `disputes` records and ledger entries |
 | Notification | Immediate Owner notification (07 §4) |
 | Deadlines | Store the Stripe evidence due date, with reminders before it **[PROPOSED: 7, 3, 1 days]** |
-| Evidence | An evidence package compiled from authoritative records: agreement acceptance and version hash, order summary, payment records, communications log, preview approvals, and fulfillment and publication records |
+| Evidence | An evidence package compiled from authoritative records: agreement acceptance and version hash, order summary, payment records, communications log, preview approvals, and fulfillment and publication records. **Ownership (Owner direction, 2026-11-24):** WP-C provides a read-only, Owner-only evidence interface returning the project's preview releases and approvals (with release IDs), outreach log, QA and security results, publication authorization, deployment, and live-verification records; WP-B's `dispute_evidence_package` includes it in full. Release requirement: R1 is not accepted while the package omits WP-C records (T-ARC-10) |
 | Authority | Response submission and settlement are **Owner only** |
 | Holds | A `dispute_risk_hold` may be applied when appropriate (§14) |
 | Prohibited | Automatic website takedown merely because a dispute exists; fabricated or altered evidence; automatic concession |
@@ -850,4 +855,6 @@ Acceptance tests **[PROPOSED]**:
 | T-ARC-06 | A simulated failure between a domain transition and its ledger entry leaves neither committed |
 | T-ARC-07 | A seeded ledger and Stripe mismatch creates a quarantine record and an alert, and changes no payment state |
 | T-ARC-08 | Refund and dispute webhooks post ledger entries and apply OI-37 rules. No portal path issues a refund without the Owner's Tier 3 action. |
+| T-ARC-09 | Each billing job entry point is service-role only, idempotent, and single-flight: two concurrent runs produce one set of results; a rerun changes nothing; each run is audited |
+| T-ARC-10 | The dispute evidence package for a disputed final-balance charge includes the approval of the exact release that was charged, its publication authorization, deployment, and live-verification records; it is Owner-only; no record is altered or synthesized |
 

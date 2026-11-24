@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.3 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. v0.4.3 (**OI-79**, Owner decision 2026-11-24): resolved values for uploads, image limits, scanner retries, the quarantine review threshold, domain-expiry warnings, release precondition, and intake corrections (§3, §5.4). |
+| Version | 0.4.4 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. v0.4.3 (**OI-79**, Owner decision 2026-11-24): resolved values for uploads, image limits, scanner retries, the quarantine review threshold, domain-expiry warnings, release precondition, and intake corrections (§3, §5.4). v0.4.4 (Owner direction, 2026-11-24): authoritative scan-result rules (§5.5) after the PR #19 CI root cause; tests T-UP-14 to T-UP-19. No release requirement is weakened. |
 | Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68, OI-72 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
@@ -130,6 +130,15 @@ Rules:
 | 8 | Scanner errors (§5.3) | The file stays **quarantined**. Bounded retries with backoff; after the last retry the file goes to the Upload review queue. No unscanned file is ever released |
 
 Item 5 (security findings) is in 06 §2 and §7.
+
+### 5.5 Authoritative scan results **[Owner direction, 2026-11-24; implements §5.3 "no unscanned file is released"]**
+
+1. **Deterministic order.** Every scan result carries a database-assigned, strictly increasing sequence number. Every insert takes the upload row lock first, so sequence order is the order in which results were accepted for that upload. Timestamps and random IDs never decide authority.
+2. **Scan attempts.** Each entry into `scanning` creates a new scan attempt. A result must name the current attempt; a result for an earlier attempt, a duplicate, or a replay is recorded as **non-authoritative** and never moves the upload toward release.
+3. **Malware always wins.** A `malicious` result is accepted and acted on in **any** non-terminal state and from any attempt, including after a clean result: the upload is rejected, and if it was already available, access is revoked, audited, and the Owner is alerted. A malicious result for the same bytes at any time permanently blocks release.
+4. **Errors and invalid results.** An `error`, an unpermitted scanner, or an invalid result for the current attempt returns the upload to quarantine (bounded retries, 05 §5.4 item 8); a later clean result counts only if it belongs to a newer attempt.
+5. **Exact bytes.** The authoritative clean result must match the SHA-256 computed by the server from the stored quarantine object. Processing re-reads the object and verifies that hash before producing a derivative; the released object's hash is computed by the server from the object written to the released path.
+6. **Release eligibility** is unchanged and still requires all of: status `processing`, the authoritative result clean by a permitted scanner for the exact stored bytes, and no `malicious` result ever recorded for those bytes.
 
 ## 6. Preview release versioning **[APPROVED OI-18]**
 
@@ -270,6 +279,12 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-UP-11 | **[OI-79]** An image over 12,000 px on either side or over 100 megapixels, or with a malformed header, is rejected before full decoding; decoding a hostile image stays within the memory and time bounds |
 | T-UP-12 | **[OI-79]** A scanner error keeps the file quarantined; retries are bounded with backoff; exhausting them routes the file to the Upload review queue; the file is never served at any point |
 | T-UP-13 | **[OI-79]** A file quarantined for more than 24 hours appears in the Upload review queue; a domain within 60 days of expiry appears in the Domain expiries queue |
+| T-UP-14 | Several results recorded in one transaction (identical timestamps) are ordered by sequence; release always uses the last accepted result, deterministically |
+| T-UP-15 | Concurrent result submissions for one upload serialize on the row lock; the sequence matches acceptance order; delayed responses for an earlier attempt are non-authoritative |
+| T-UP-16 | An unpermitted-scanner clean result followed by a permitted clean result for a newer attempt releases only through the newer one; the reverse order never releases |
+| T-UP-17 | A clean result followed by a `malicious` result (any attempt, any non-terminal state, or after release) rejects the upload and blocks or revokes access; a clean result followed by an `error` returns it to quarantine |
+| T-UP-18 | A stale or replayed clean result (earlier attempt, duplicate, or re-sent after a newer malicious, error, or invalid result) never supersedes it and never releases the file |
+| T-UP-19 | A result whose SHA-256 differs from the stored quarantine object, or a stored object changed after scanning, blocks release; the released object's hash is server-computed |
 | T-LC-10 | **[R2]** Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) |
 | T-LC-11 | The approval hold cannot be placed without a recorded personal follow-up. Placing it never creates an approval or alters billing. |
 | T-LC-12 | During an approval hold, the client can view the preview, approve it, or request revisions. The approval satisfies G3, and a review queue item is created. (OI-45) |

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.19.0 |
+| Version | 0.19.1 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1046,6 +1046,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.17.0 | 2026-11-24 | **OI-78 decided** (Owner): pending client invitations survive assignment end; ended assignments hidden from the representative, history and attribution preserved; termination effective at the next authorization check; WP-S approved; role-separation refinements approved; integration order approved. 03 v0.5.2 (§4.1; T-SALES-26 to T-SALES-28). AUTHORIZATIONS v1.4.0: AUTH-005 scope final with policy decisions, entry and exit criteria, and coordination; not granted. CURRENT-STATE v1.5.0. OPEN-ISSUES v0.17.0 (next unused OI-79). |
 | 0.18.0 | 2026-11-24 | **Central issue allocation** (Owner): PR #18 keeps OI-73 to OI-78; WP-C's issues become OI-79 and OI-80; WP-B's become OI-81 to OI-83; Main allocates all IDs from now on. OI-80, OI-81, OI-83 decided; OI-79 (itemized) and OI-82 (proposed allocation policy, 04 §15.2.1) open. OI-78 amended: WP-C makes its two security corrections in PR #19. AUTH-005 v1.5.0: rate limiting, pricing view. 01 v0.4.2 (§9.1.1 integrated R1 browser acceptance), 03 v0.5.3, 04 v0.9.1. | Main session | Owner |
 | 0.19.0 | 2026-11-24 | **OI-79 decided** item by item (05 v0.4.3, 06 v0.5.1, 03 v0.5.4). **OI-82 decided** (allocation architecture, subject to DEP-03 and DEP-06; 04 v0.9.2, T-PAY-27 to T-PAY-36). No open issues. WP-C and WP-B directives updated; shared-file plan and migration order recorded. | Main session | Owner |
+| 0.19.1 | 2026-11-24 | Pre-merge security reconciliation (Owner direction, no new decision): authoritative scan-result rules after the PR #19 root cause, including the inverse case of a late malicious verdict being discarded (05 v0.4.4 §5.5, T-UP-14 to T-UP-19); ownership and release requirements for billing job scheduling and daily reconciliation and for WP-C records in dispute evidence (04 v0.9.3, T-ARC-09, T-ARC-10, DEP-17). | Main session | Owner |
 
 ## 6. Change-control rules
 

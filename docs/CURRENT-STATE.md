@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.0.0 |
+| Version | 1.1.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-24, by the governance correction PR (WP-A), based on `main` at `e7c8d47` |
+| Last updated | 2026-11-24, by the WP-0 shared contracts PR, based on `main` at `d6d795a` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -27,8 +27,8 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|---|
 | Phase 1, Foundation and CI | Tooling, CI, design tokens | **Done** (PR #2) |
 | Phase 2, Auth, security, tenancy | Invitation-only OTP, MFA, RLS, audit, nonce CSP, private storage policies | **Done, local only** (PR #4) |
-| WP-A | Governance and specification correction | **In review** (this PR) |
-| WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | Not started. First after WP-A merges. |
+| WP-A | Governance and specification correction | **Done** (PR #14, merge commit `d6d795a`) |
+| WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **In review** (this PR). Migration `20261124120000_wp0_shared_contracts.sql`; contracts in `src/domain/contracts/`. Open point for WP-C: OI-71. |
 | WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope) | Not started. Local and CI parts covered by AUTH-001; Stripe parts need AUTH-002 active. |
 | WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | Not started. Covered by AUTH-001; release of scanned uploads needs DEP-07. |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. |
@@ -70,7 +70,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | DEP-12 | Monitoring vendor | Not started. Shortlist with DEP-07. |
 | DEP-14 | Hosted Supabase staging | Not started. Unblocked by OI-50 and OI-51 (decided); runs under AUTH-003. |
 | DEP-15 | Real test-mode webhook verification | Not started. Runs under AUTH-002. |
-| DEP-16 | Switch required status checks to `CI result` | **Owner action after this PR merges** (§6) |
+| DEP-16 | Switch required status checks to `CI result` | **Owner action, not yet confirmed.** WP-A is merged (PR #14). The ruleset cannot be read from the agent session; the Owner confirms the switch (§6). |
 
 ## 5. Verified facts
 
@@ -84,7 +84,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. **Merge this PR**, then immediately switch the required status checks (DEP-16): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove `Database, integration, and e2e tests (local Supabase)` and `Lighthouse budgets (spec 02 §7)` from the required list. GitHub reports a skipped job as passing, so those two must not stay required once they can be skipped. Until the switch is made, do not merge documentation-only PRs.
+1. **Confirm DEP-16** (WP-A is merged): switch the required status checks (DEP-16): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove `Database, integration, and e2e tests (local Supabase)` and `Lighthouse budgets (spec 02 §7)` from the required list. GitHub reports a skipped job as passing, so those two must not stay required once they can be skipped. Until the switch is made, do not merge documentation-only PRs.
 2. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05).
 3. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
 4. When ready for WP-D: create the accounts in AUTH-003.
@@ -93,7 +93,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 | Item | When |
 |---|---|
-| `supabase/.temp/cli-latest` and `supabase/.temp/postgres-version` are tracked although ignored. The CLI reads `postgres-version` when choosing the local database image, so removal could change what CI tests against. Decide and test the removal in WP-0. | WP-0 |
+| `supabase/.temp` files tracked although ignored | **Done in WP-0.** `postgres-version` stays tracked on purpose (it pins the database image CI tests against, 17.4.1.054) with an explicit `.gitignore` exception; `cli-latest`, an empty update-check cache, is untracked. |
 | DEP-07 and DEP-12 verified vendor shortlist | WP-A follow-up |
 | PR #6 (AI operations proposal): header corrected to the current next unused ID; remains a draft outside the release path (OI-67) | Done in PR #6 |
 | Time tracking: each implementation PR description records AI session hours, Owner review hours, and admin hours (OI-67) | From WP-0 onward |

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.13.0 |
+| Version | 0.14.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-71** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-72** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
@@ -89,7 +89,23 @@ All 63 issues listed here are decided at the architectural level. The authoritat
 
 ## Part 2 — Open issues requiring Owner decision
 
-**None open.** OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11-23 in the consolidated execution plan approval; their decisions are recorded in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11-23 in the consolidated execution plan approval; their decisions are recorded in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+
+| ID | Title | Blocks | Status |
+|---|---|---|---|
+| OI-71 | Gate-interface coverage and financial classification (raised by WP-0) | The WP-C gate evaluator (06 §2); not WP-0 | Open |
+
+### OI-71 — Gate-interface coverage and financial classification
+
+Raised while implementing WP-0 (2026-11-24). WP-0 implements exactly what 01 §7 lists and leaves these points undecided. Every option below is additive (`ALTER TYPE … ADD ATTRIBUTE`), so WP-0 needs no change whichever is chosen.
+
+1. **G1 and G6 have no interface.** 06 §2 says the single gate evaluator reads only `project_financial_status` and `project_fulfillment_status`, but 01 §7 lists neither G1 (valid agreement, 04 §1) nor G6 (domain readiness, 06 §5) in either interface.
+   - *Recommendation:* add `agreement_state` and `agreement_effective` to the financial status (WP-B owns agreements), and `domain_ready` with its evidence to the fulfillment status (WP-C owns publication).
+2. **Which interface reports `owner_manual_hold` and `dispute_risk_hold`.** 01 §7 puts "billing holds" in the financial status and "fulfillment holds" in the fulfillment status. `maintenance_payment_hold` is clearly billing and `approval_nonresponsive_hold` is clearly fulfillment (04 §14), but the other two are not classified.
+   - *Recommendation:* both in the financial status, since 04 §14 owns them and the Owner places them under financial authority (03 §4).
+3. **Which domain events and audit actions are `financial`** (hidden from Admin, 03 §4). The spec defines the Admin rule but not the classification.
+   - *WP-0 interim rule [PROPOSED]:* the payment and subscription domains are financial; agreement, fulfillment, approval, and deployment are general. Implemented in `private.domain_is_financial` and `src/domain/contracts/audit-actions.ts`.
+   - *Decide:* confirm, or move agreement events to financial.
 
 ---
 

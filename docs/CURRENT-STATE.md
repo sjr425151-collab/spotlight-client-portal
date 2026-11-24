@@ -4,7 +4,7 @@
 |---|---|
 | Version | 1.4.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-24, by the OI-74 documentation PR (mandatory payment method retention; OI-73 opened), based on `main` at `19b68cb` |
+| Last updated | 2026-11-24, by the OI-74 documentation PR (mandatory payment method retention; OI-73 decided, option A), based on `main` at `19b68cb` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -87,13 +87,12 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. **Decide OI-73** (collection order relative to publication; OPEN-ISSUES Part 2). The exact implications of option A are restated there for confirmation.
-2. Review and merge the OI-74 documentation PR; then start WP-B and WP-C in two sessions from its merge commit (§8, §9).
-3. Confirm that AUTH-002's permitted "Checkout Sessions" include **setup-mode** sessions for card recovery (OI-74), or amend AUTH-002. Until then, setup-mode sessions are exercised only with the mocked client. Local and CI work is unaffected.
-4. Confirm the required status checks on `main` (§5 discrepancy).
-5. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
-6. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
-7. When ready for WP-D: create the accounts in AUTH-003.
+1. Review and merge the OI-74 documentation PR; then start WP-B and WP-C in two sessions from its merge commit (§8, §9).
+2. Confirm that AUTH-002's permitted "Checkout Sessions" include **setup-mode** sessions for card recovery (OI-74), or amend AUTH-002. Until then, setup-mode sessions are exercised only with the mocked client. Local and CI work is unaffected.
+3. Confirm the required status checks on `main` (§5 discrepancy).
+4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
+5. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
+6. When ready for WP-D: create the accounts in AUTH-003.
 
 ## 7. Known follow-ups
 
@@ -127,9 +126,9 @@ A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, the
 
 | Stream | Next step | Read first | Authorization |
 |---|---|---|---|
-| Integration (primary session) | Wait for the Owner's OI-73 decision and the OI-74 PR merge. Then own migration ordering, shared-file conflicts, and the end-to-end R1 journey test. Do not start WP-B or WP-C in the integration session. | §8; 08 OI-71, OI-72, OI-74 | AUTH-000; AUTH-001 for cross-package tests |
+| Integration (primary session) | Wait for the OI-74 PR (#18) merge. Then own migration ordering, shared-file conflicts, and the end-to-end R1 journey test. Do not start WP-B or WP-C in the integration session. | §8; 08 OI-71, OI-72, OI-74 | AUTH-000; AUTH-001 for cross-package tests |
 | WP-B (new session, `wp-b/*`) | Agreements and order summaries → Checkout records (card-only, mocked Stripe) → webhook ingestion → ledger → `payment_authorizations` and recovery (04 §8.1) → final-balance invoice with automatic collection (04 §10) → reconciliation, holds, disputes → financial status interface with G1 and `payment_authorization_ready` | 04 (all), 03 §4, 03 §13, 01 §7, §9.1 | AUTH-001 only. AUTH-002 is **not active**: no Stripe credential or request |
 | WP-C (new session, `wp-c/*`) | Intake (precondition includes `payment_authorization_ready`) → uploads and quarantine → releases and approvals (emits `release.approved`) → QA and security evidence → domain readiness (G6) → gate evaluator (G8 fail-closed) → publication authorization and deployment records → derived queues | 05, 06, 03 §4, §13, 01 §7, §9.1 | AUTH-001 and AUTH-004 |
 
-Standing constraints for every stream: no live Stripe and no Stripe request without an active AUTH-002; no production or hosted environment; no change to existing Phase 2 security objects; never merge without Owner approval; never edit a merged migration; OI-73 is open, so do not add a publication precondition to collection.
+Standing constraints for every stream: no live Stripe and no Stripe request without an active AUTH-002; no production or hosted environment; no change to existing Phase 2 security objects; never merge without Owner approval; never edit a merged migration; OI-73 (option A): never add a publication precondition to collection; publication requires verified payment (G4).
 

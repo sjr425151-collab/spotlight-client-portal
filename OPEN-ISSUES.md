@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-72, OI-74)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-74)
 
-All 65 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-72).
+All 67 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-74).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -86,6 +86,7 @@ All 65 issues listed here are decided at the architectural level. The authoritat
 | OI-70 | Path-aware, fail-closed CI; dependency security patch exception | Decided (2026-11-23) | DEP-16 |
 | OI-71 | Gate-interface coverage, publication holds, financial classification (mapped onto the existing interfaces) | Decided (2026-11-24; revised 2026-11-24) | — |
 | OI-72 | Admin access to payment and financial records: derived operational states only (option A) | Decided (2026-11-24) | — |
+| OI-73 | Final-balance collection order relative to publication: approved order kept (option A) | Decided (2026-11-24) | — |
 | OI-74 | Mandatory payment method retention; automatic final charge in R1; card only; setup-mode recovery; revocation | Decided (2026-11-24) | DEP-03, DEP-06, DEP-15 |
 
 ---
@@ -96,17 +97,7 @@ OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11
 
 OI-72 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-### OI-73 — Final-balance collection order relative to publication **[PENDING OI-73]**
-
-- **Conflict.** The Owner's "Mandatory Payment Method Retention" requirement (2026-11-24) lists "successful production publication is independently verified" as a precondition for charging the remaining balance. The approved design is the reverse: the counsel-approved clause (04 §3.1, verbatim, not editable) says the balance becomes due "upon my final approval" and that "publication of the website is contingent upon successful payment", and gate G4 (06 §2) requires a verified final payment before publication.
-- **Option A (recommended): keep the approved order.** Exact implications:
-  1. Sequence: client approves the current release → balance due → the single final-balance invoice is charged automatically (OI-74) → verified `invoice.paid` → G4 passes → Owner publication authorization with reauthentication → deployment of exactly that release → live verification.
-  2. The client pays **before** the site is live. Verified publication is **not** a precondition of collection; that condition from the requirement is not implemented.
-  3. Client protection comes from existing approved controls: approval is bound to an immutable release ID; a deployment that does not match the authorized release fails verification (T-PUB-06, T-PUB-19); a failed deployment after payment keeps the paid status and goes to recovery with no new charge (04 §17 invariants 8 and 11; 06 §8.1); refunds remain a Tier 3 Owner action under 04 §15.2 (amounts deferred to legal review).
-  4. Residual risk accepted: if publication can never be completed (for example, domain readiness is never achieved), the client has paid; resolution is recovery or an Owner refund decision, never an automatic refund.
-  5. No change to the §3.1 clause, OI-17, G4, or spec 06. No legal text is drafted.
-- **Option B: publish first, then charge.** Removes G4, reverses OI-17, requires new counsel-approved clause text (DEP-03), and allows an unpaid live site. Not recommended.
-- **Until decided:** specs keep the approved order (option A behavior); nothing in WP-B depends on the answer except that the publication condition is not added.
+**None open.** OI-73 was decided on 2026-11-24 (option A); its decision and the implications confirmed by the Owner are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
 ---
 

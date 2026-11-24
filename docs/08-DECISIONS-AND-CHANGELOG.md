@@ -795,6 +795,21 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** none.
 - **Affected sections:** 03 §4 (v0.4.5); 05 §9 (v0.4.1); WP-B RLS and projection; WP-C queues.
 
+### OI-73 — Final-balance collection order relative to publication
+
+- **Question.** The Owner's "Mandatory Payment Method Retention" requirement (2026-11-24) listed verified production publication as a precondition for charging the remaining balance. The approved design is the reverse (04 §3.1, verbatim counsel-approved clause; 06 §2 G4).
+- **Decision (option A, Owner, 2026-11-24): keep the approved order.**
+  1. Sequence: client approves the current release → balance due → the single final-balance invoice is charged automatically (OI-74) → verified `invoice.paid` → G4 passes → Owner publication authorization with reauthentication → deployment of exactly that release → live verification.
+  2. The client pays **before** the site is live. Verified publication is **not** a precondition of collection.
+  3. Client protection relies on existing approved controls: approval bound to an immutable release ID; a deployment that does not match the authorized release fails verification (T-PUB-06, T-PUB-19); a failed deployment after payment keeps the paid status and goes to recovery with no new charge (04 §17 invariants 8 and 11; 06 §8.1); refunds remain a Tier 3 Owner action (04 §15.2).
+  4. Residual risk accepted: if publication can never be completed, the client has paid; resolution is recovery or an Owner refund decision, never an automatic refund.
+  5. No change to the §3.1 clause, OI-17, G4, or spec 06. No legal text is drafted.
+- **Rejected:** option B (publish first, then charge), which would remove G4, reverse OI-17, require new clause text, and allow an unpaid live site.
+- **Status:** Approved.
+- **Provenance:** Owner decision, 2026-11-24 ("Option a"), on the implications restated in OPEN-ISSUES (PR #18).
+- **Dependencies:** none.
+- **Affected sections:** 04 §10 (preconditions note). No other text changes.
+
 ### OI-74 — Mandatory payment method retention and R1 automatic final-balance collection
 
 - **Decision (Owner, 2026-11-24)**, on the Owner's "Mandatory Payment Method Retention" requirement and the gap analysis of 2026-11-24:
@@ -804,13 +819,13 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   4. **Setup-mode payment method recovery.** A Stripe-hosted Checkout Session in `setup` mode replaces an unavailable card. It never charges; every payment still goes through the single final-balance invoice (04 §8.1, §10).
   5. **Authorization revocation is supported.** The client's signer (with reauthentication) or the Owner records a revocation; afterwards no automatic charge is attempted and the invoice is payable only on its hosted page. The contractual effect of revocation is for counsel (DEP-03).
 - **Mechanism clarification (no decision change):** `setup_future_usage` on a PaymentIntent applies only to `payment`-mode Checkout (04 §8.2), so the approved subscription-mode Checkout (OI-17) is kept and the saved card is recorded in the payment authorization and named explicitly on the final-balance invoice.
-- **Not decided here:** whether collection must wait for verified publication. That conflicts with the approved order (04 §3.1; 06 G4) and is **OI-73** (open).
+- **Collection order:** decided separately in **OI-73** (option A): collection is not conditioned on publication.
 - **Status:** Approved.
 - **Provenance:** Owner decision, 2026-11-24 ("Approve R1 placement under OI-74, card-only checkout, setup-mode payment recovery, and support for authorization revocation.").
 - **Dependencies:** DEP-03 (revocation effect; re-authorization after revocation), DEP-06 and DEP-15 (test-mode confirmation of the 04 §8.2 items), AUTH-002 coverage of setup-mode Checkout Sessions (Owner confirmation, CURRENT-STATE §6).
 - **Affected sections:** 01 §9.1, §9.2 (v0.4.1); 04 §8, §8.1, §8.2, §10, §11, §16, §17 (v0.9.0); 05 §3, §7, §11 (v0.4.2); README.
 
-## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-72)
+## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-74)
 
 Phase = the earliest original OI-02 phase whose implementation the decision governs. "Prod" = production launch. Since OI-67, phases 3, 4 and 5 correspond to WP-B, WP-C and WP-D, and release placement is given by the [R1]/[R2] tags in the specs (OI-68).
 
@@ -881,7 +896,7 @@ Phase = the earliest original OI-02 phase whose implementation the decision gove
 | OI-70 | Path-aware, fail-closed CI; dependency patches | Approved | All | ci.yml; DEVELOPMENT §5 | DEP-16 | — |
 | OI-71 | Gate-interface coverage, publication holds, financial classification | Approved (revised 2026-11-24) | WP-B, WP-C | 01 §7; 06 §2 | — | — |
 | OI-72 | Admin access to payment and financial records | Approved | WP-B, WP-C | 03 §4; 05 §9 | — | — |
-| OI-73 | Final-balance collection order relative to publication | **Open** (OPEN-ISSUES Part 2) | WP-B, WP-C | 04 §3.1, §10; 06 §2 G4 | DEP-03 | Legal (§3.1 clause) |
+| OI-73 | Final-balance collection order relative to publication (option A: approved order kept) | Approved | WP-B, WP-C | 04 §10; 06 §2 G4 | — | — |
 | OI-74 | Mandatory payment method retention; R1 automatic final charge | Approved | WP-B, WP-C | 01 §9; 04 §8–§17; 05 §3, §7 | DEP-03, DEP-06, DEP-15 | Legal (revocation) |
 
 ## 4. Current authorization status
@@ -918,12 +933,12 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.13.0 | 2026-11-24 | **Execution model correction (WP-A), approved by the Owner on 2026-11-23** (reply "APPROVE" to the consolidated execution plan). New decisions **OI-67** (risk-tier authorization, work packages, canonical CURRENT-STATE and AUTHORIZATIONS documents, evidence carried in implementation PRs), **OI-68** (R1/R2 release scope), **OI-69** (test-only legal fixtures), and **OI-70** (path-aware, fail-closed CI; dependency security patch exception). **OI-50** (A), **OI-51** (A), and **OI-52** (C) decided. Dated revisions of OI-01, OI-02, OI-04, OI-17, OI-18, OI-22, OI-25, OI-26, OI-29, OI-33, OI-44, OI-45, and OI-55 record release sequencing; no requirement removed. Specs 01 (v0.4.0), 04 (v0.8.0, adds §17 payment architecture invariants), 05 (v0.4.0), 06 (v0.5.0), 07 (v0.4.0), and this register approved as amended. CLAUDE.md rewritten (every security control preserved; CLAUDE.md section numbers cited in entries and rows before v0.13.0 refer to its earlier numbering); README slimmed. Corrected stale records: 04 §6 DEP-01 status, OPEN-ISSUES DEP-01 current status and DEP-10 required checks. Grants recorded as AUTH-001 to AUTH-003. CI: classifier, aggregate `CI result`, Playwright cache and bounded install, PR-only cancellation. | Claude Code | Owner (consolidated execution plan approval, 2026-11-23) |
 | 0.14.0 | 2026-11-24 | **WP-0 integrated** (PR #15, merge commit `60954d4`). **OI-71 decided** by Owner direction and mapped onto the existing gate interfaces: G1 through `project_financial_status` (WP-B), G6 through `project_fulfillment_status` (WP-C), and G8 as a fail-closed union of both hold lists in the single gate evaluator, with each hold kept in its owning domain. The financial classification of the payment and subscription domains is retained. The Owner's Admin-access restriction conflicts with the approved 03 §4 row and is escalated as OI-72. No spec text is changed. | Claude Code | Owner (direction, 2026-11-24) |
 | 0.15.0 | 2026-11-24 | **Integration closure (PR #16 merged at `3f3b59d`).** OI-71 revised: mapping approved, no additional gate interface, G8 fails closed, eligibility revalidated before deployment. **OI-72 decided (option A):** Admin receives derived operational states only; financial records are Owner-restricted, enforced at the database and server layers; 03 v0.4.5 (§4) and 05 v0.4.1 (§9) amended. **AUTH-004** granted: scoped Tier 2 storage policies for WP-C upload and quarantine paths (local and CI). Parallel WP-B/WP-C boundaries approved (CURRENT-STATE §8); the `release.approved` consumer must be durably idempotent per approved release and financial obligation (04 §10). AUTH-002 remains inactive. | Claude Code | Owner (integration closure authorization, 2026-11-24) |
-| 0.16.0 | 2026-11-24 | **OI-74 decided** (Owner): mandatory payment method retention; automatic off-session final charge moved to R1; card only; setup-mode recovery; authorization revocation. **OI-73 opened** (collection order relative to publication; conflicts with 04 §3.1 and 06 G4). Specs: 01 v0.4.1, 04 v0.9.0, 05 v0.4.2. Tier 0 Stripe documentation record (04 §8.2). Integration closure merged at `19b68cb` (PR #17; post-merge CI run #43 `success`). |
+| 0.16.0 | 2026-11-24 | **OI-74 decided** (Owner): mandatory payment method retention; automatic off-session final charge moved to R1; card only; setup-mode recovery; authorization revocation. **OI-73 decided** (option A, Owner): the approved order is kept; collection is not conditioned on publication. Specs: 01 v0.4.1, 04 v0.9.0, 05 v0.4.2. Tier 0 Stripe documentation record (04 §8.2). Integration closure merged at `19b68cb` (PR #17; post-merge CI run #43 `success`). |
 
 ## 6. Change-control rules
 
 1. **Decision changes.** A change to any recorded decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
-2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-73 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-17 onward). Authorization records use AUTH-nnn IDs (currently AUTH-005 onward). When the owner resolves one, it is recorded in this register under that same ID.
+2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-75 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-17 onward). Authorization records use AUTH-nnn IDs (currently AUTH-005 onward). When the owner resolves one, it is recorded in this register under that same ID.
 3. **Specification changes.** Changes to specifications 01–07 go through a pull request. Each spec carries a version and status header. A spec moves from *Draft* to *Approved* only on owner sign-off recorded in §5.
 4. **Precedence.** (a) Owner-approved decisions in this register. (b) Approved specifications 01–07. (c) CLAUDE.md for operating procedure. (d) README. A lower-precedence document must never be used to override a higher one.
 5. **Conflicts.** Any conflict between documents, or between a document and an owner decision, is **escalated** to the owner as an open issue. It is never silently resolved by an author or agent.

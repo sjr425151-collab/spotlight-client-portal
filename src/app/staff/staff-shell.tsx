@@ -12,6 +12,7 @@ export function StaffShell({ ctx, children }: { ctx: StaffContext; children: Rea
       roleLabel={ctx.staffRole === "owner" ? "Owner" : "Admin"}
       nav={[
         { href: "/staff", label: "Projects" },
+        { href: "/staff/queue", label: "Queue" },
         { href: "/staff/team", label: "Team" },
         { href: "/staff/audit", label: "Audit log" },
       ]}

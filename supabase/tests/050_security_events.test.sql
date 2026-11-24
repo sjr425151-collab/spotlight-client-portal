@@ -56,8 +56,19 @@ select ok(not exists (
 select is((
   select array_agg(p.proname::text order by p.proname::text) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')),
-  array['accept_invitation', 'auth_context', 'create_invitation', 'revoke_invitation',
-        'revoke_membership', 'revoke_staff', 'set_staff_role', 'set_user_status']::text[],
+  array(select unnest(array[
+        -- Phase 2
+        'accept_invitation', 'auth_context', 'create_invitation', 'revoke_invitation',
+        'revoke_membership', 'revoke_staff', 'set_staff_role', 'set_user_status',
+        -- WP-C (reviewed in 200_wpc_catalog.test.sql; each re-authorizes inside its definer function)
+        'approve_performance_exception', 'approve_preview', 'authorize_publication', 'classify_revision_request',
+        'clear_approval_hold', 'correct_intake', 'decide_upload_exception', 'get_intake_state', 'operational_queue',
+        'place_approval_hold', 'project_status', 'publication_gate_report', 'record_asset_access',
+        'record_deployment_result', 'record_domain_check', 'record_hold_resumption', 'record_outreach',
+        'record_preview_draft', 'record_qa_result', 'record_security_result', 'register_client_site_target',
+        'release_preview', 'request_revisions', 'request_upload', 'request_upload_exception', 'resolve_incident',
+        'retry_object_deletion', 'review_intake', 'save_intake_draft', 'start_deployment', 'submit_intake', 'withdraw_preview'
+      ]) order by 1)::text[],
   'D1: the public RPC surface for signed-in users is exactly the reviewed list (no audit writers)');
 
 -- ---- Callers that must be refused ----

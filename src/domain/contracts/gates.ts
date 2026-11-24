@@ -9,9 +9,10 @@
  * order; `tests/unit/contracts.test.ts` checks them. Until an owning package implements its
  * function, it returns `implemented: false` and no satisfied input, so no gate can pass.
  *
- * Open (OI-71): G1 (valid agreement) and G6 (domain readiness) are not yet assigned to either
- * interface, and the reporting interface for `owner_manual_hold` and `dispute_risk_hold` is
- * not yet decided. Extending a status type is additive.
+ * OI-71 (decided): G1 derives from the financial interface (WP-B adds `agreement_state` and
+ * `agreement_effective`), G6 from the fulfillment interface (WP-C added `domain_ready`,
+ * `domain_check_id`, `domain_checked_at`, contract version 2), and G8 is the fail-closed
+ * union of both hold lists in the single evaluator. Extending a status type is additive.
  */
 import type { DepositState, FinalBalanceState, HoldType, IntakeState } from "./state-domains";
 
@@ -41,6 +42,10 @@ export const FULFILLMENT_STATUS_ATTRIBUTES = [
   "security_passed",
   "active_fulfillment_holds",
   "evidence",
+  // WP-C, contract version 2 (OI-71 item 2): G6 domain readiness.
+  "domain_ready",
+  "domain_check_id",
+  "domain_checked_at",
 ] as const;
 
 export interface ProjectFinancialStatus {
@@ -70,18 +75,32 @@ export interface ProjectFulfillmentStatus {
   security_passed: boolean;
   active_fulfillment_holds: HoldType[];
   evidence: Record<string, unknown>;
+  /** WP-C v2: the latest domain check passed and is within the 24-hour window (06 §5). */
+  domain_ready: boolean;
+  domain_check_id: string | null;
+  domain_checked_at: string | null;
 }
 
 export const GATE_CONTRACT_VERSION = 1;
+/**
+ * Minimum contract version the gate evaluator accepts from each interface
+ * (`private.gate_contract_minimums`). An older interface fails closed.
+ */
+export const FINANCIAL_STATUS_MIN_CONTRACT_VERSION = 1;
+export const FULFILLMENT_STATUS_CONTRACT_VERSION = 2;
 
-/** Gates G1-G8 (06 §2) and the interface that supplies each; `null` is open in OI-71. */
+/**
+ * Gates G1-G8 (06 §2) and the interface that supplies each (OI-71). `null` marks a gate whose
+ * owning package has not yet published its attribute: G1 stays `null` until WP-B adds
+ * `agreement_effective` (the evaluator already reads it and fails closed until then).
+ */
 export const GATE_SOURCES = {
   G1: null,
   G2: "financial",
   G3: "fulfillment",
   G4: "financial",
   G5: "fulfillment",
-  G6: null,
+  G6: "fulfillment",
   G7: "fulfillment",
   G8: "both",
 } as const satisfies Record<string, "financial" | "fulfillment" | "both" | null>;

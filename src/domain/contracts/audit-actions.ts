@@ -8,13 +8,17 @@
  *
  * Category: `financial` rows are hidden from Admin by the existing `audit_events` policy
  * (03 §4). The rule used here is the same as for domain events: actions in the payment
- * and subscription domains are financial, everything else is general. Pending Owner
- * confirmation in OI-71.
+ * and subscription domains are financial, everything else is general (confirmed in OI-71
+ * item 4).
  */
 import type { OwnerPackage } from "./domain-events";
 import type { StateDomain } from "./state-domains";
 
-export const AUDIT_ACTION_PATTERN = /^[a-z][a-z_]*\.[a-z][a-z_]*$/;
+/**
+ * Digits are allowed after the first letter of each segment (additive, WP-C): 05 §7.1 names
+ * `approval.reminder_1_sent` and `approval.reminder_2_sent`. Every earlier name still matches.
+ */
+export const AUDIT_ACTION_PATTERN = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
 /** `audit_events_action_bounded` (Phase 2 migration). */
 export const AUDIT_ACTION_MAX_LENGTH = 100;
 
@@ -79,6 +83,42 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   c("deployment.started", "deployment", "06 §8"),
   c("deployment.succeeded", "deployment", "06 §8"),
   c("deployment.failed", "deployment", "06 §8"),
+  // --- WP-C additions (05 §3-§7.2, 06 §2-§9). Same rule: all general (non-financial). ---
+  c("upload.requested", "fulfillment", "05 §4"),
+  c("upload.completed", "fulfillment", "05 §5"),
+  c("upload.failed", "fulfillment", "05 §5"),
+  c("upload.scan_recorded", "fulfillment", "05 §5"),
+  c("upload.rejected", "fulfillment", "05 §5"),
+  c("upload.released", "fulfillment", "05 §5"),
+  c("upload.purged", "fulfillment", "05 §5"),
+  c("upload.accessed", "fulfillment", "05 §4"),
+  c("upload.exception_requested", "fulfillment", "05 §5"),
+  c("upload.exception_decided", "fulfillment", "05 §5"),
+  c("upload.access_revoked", "fulfillment", "05 §5.5"),
+  // PR #19 review corrections (H1, M2): durable deletion of revoked objects and refused
+  // requests, under 05 §4 ("upload and access history are audited") and 05 §5.5 rule 3.
+  c("upload.refused", "fulfillment", "05 §4"),
+  c("upload.object_deleted", "fulfillment", "05 §5.5"),
+  c("upload.object_deletion_failed", "fulfillment", "05 §5.5"),
+  c("upload.object_deletion_retried", "fulfillment", "05 §5.5"),
+  c("preview.draft_recorded", "approval", "05 §6"),
+  c("preview.revision_requested", "approval", "05 §8"),
+  c("preview.revision_classified", "approval", "05 §8"),
+  c("approval.reminder_1_sent", "approval", "05 §7.1"),
+  c("approval.reminder_2_sent", "approval", "05 §7.1"),
+  c("approval.admin_notified", "approval", "05 §7.1"),
+  c("approval.personal_followup_recorded", "approval", "05 §7.1"),
+  c("approval_hold.clear_rejected", "approval", "05 §7.2"),
+  c("qa.recorded", "deployment", "06 §6"),
+  c("qa.performance_exception_approved", "deployment", "06 §2"),
+  c("security_check.recorded", "deployment", "06 §7"),
+  c("domain.readiness_recorded", "deployment", "06 §5"),
+  c("client_site.target_registered", "deployment", "06 §4"),
+  c("publication.authorization_invalidated", "deployment", "06 §3"),
+  c("deployment.start_rejected", "deployment", "06 §8"),
+  c("deployment.verification_recorded", "deployment", "06 §9"),
+  c("incident.opened", "deployment", "06 §8"),
+  c("incident.resolved", "deployment", "06 §8"),
 ];
 
 export function auditAction(name: string): AuditAction {

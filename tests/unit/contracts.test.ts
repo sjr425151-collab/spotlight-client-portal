@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -54,15 +54,32 @@ function sqlEnum(name: string): string[] {
   return [...match[1].matchAll(/'([^']+)'/g)].map((m) => m[1] ?? "");
 }
 
+/** Every migration, in apply order (file names start with a timestamp). */
+const allMigrations = readdirSync(join(process.cwd(), "supabase/migrations"))
+  .filter((name) => name.endsWith(".sql"))
+  .sort()
+  .map((name) => readFileSync(join(process.cwd(), "supabase/migrations", name), "utf8"));
+
+/**
+ * Attributes of a composite type as created in WP-0, followed by every additive
+ * `alter type ... add attribute` in later migrations, in order (OI-71: extensions are
+ * additive; each package extends only its own interface).
+ */
 function sqlComposite(name: string): string[] {
   const match = new RegExp(`create type private\\.${name} as \\(([^;]*?)\\n\\);`, "s").exec(
     migration,
   );
   if (!match?.[1]) throw new Error(`composite private.${name} not found in the WP-0 migration`);
-  return match[1]
+  const created = match[1]
     .split("\n")
     .map((line) => line.trim().split(/\s+/)[0] ?? "")
     .filter(Boolean);
+  const added = allMigrations.flatMap((sql) =>
+    [...sql.matchAll(new RegExp(`alter type private\\.${name}\\s+([^;]*);`, "g"))].flatMap((m) =>
+      [...(m[1] ?? "").matchAll(/add attribute (\w+)/g)].map((a) => a[1] ?? ""),
+    ),
+  );
+  return [...created, ...added];
 }
 
 describe("WP-0 state-domain types match the migration", () => {
@@ -195,13 +212,14 @@ describe("WP-0 gate interfaces (06 §2)", () => {
     expect(sqlComposite("project_fulfillment_status")).toEqual([...FULFILLMENT_STATUS_ATTRIBUTES]);
   });
 
-  it("covers G1-G8 and leaves only the OI-71 gates unassigned", () => {
+  it("covers G1-G8; G6 is supplied by WP-C, and only G1 awaits its WP-B attribute (OI-71)", () => {
     expect(Object.keys(GATE_SOURCES)).toEqual(["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"]);
     expect(
       Object.entries(GATE_SOURCES)
         .filter(([, source]) => source === null)
         .map(([g]) => g),
-    ).toEqual(["G1", "G6"]);
+    ).toEqual(["G1"]);
+    expect(GATE_SOURCES.G6).toBe("fulfillment");
   });
 
   it("ships fail-closed stubs: not implemented and no satisfied gate input", () => {

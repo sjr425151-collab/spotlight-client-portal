@@ -5,7 +5,7 @@ import { Container } from "@/components/layout/container";
 import { Button } from "@/components/ui/button";
 
 export interface NavItem {
-  href: "/portal" | "/staff" | "/staff/team" | "/staff/audit";
+  href: "/portal" | "/staff" | "/staff/queue" | "/staff/team" | "/staff/audit";
   label: string;
 }
 

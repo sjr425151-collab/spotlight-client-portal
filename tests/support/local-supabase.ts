@@ -1,4 +1,6 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
@@ -37,11 +39,29 @@ export function clientWithToken(accessToken: string): SupabaseClient {
   });
 }
 
-const lastSend = new Map<string, number>();
+/**
+ * Supabase Auth refuses a second code for the same address within `max_frequency` (1 s,
+ * supabase/config.toml). Vitest gives each test file its own module instance, so the last
+ * send time is kept in a small file shared by every test file in the run, not in memory:
+ * otherwise a file that signs in an address right after another file did is refused.
+ */
+const LAST_SEND_FILE = join(tmpdir(), "spotlight-portal-otp-last-send.json");
+
+function readLastSend(): Record<string, number> {
+  try {
+    return JSON.parse(readFileSync(LAST_SEND_FILE, "utf8")) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+function recordLastSend(email: string) {
+  writeFileSync(LAST_SEND_FILE, JSON.stringify({ ...readLastSend(), [email]: Date.now() }));
+}
 
 /** Signs in with an emailed code read from the local Mailpit. Returns the session client. */
 export async function signInWithCode(email: string): Promise<SupabaseClient> {
-  const since = Date.now() - (lastSend.get(email) ?? 0);
+  const since = Date.now() - (readLastSend()[email] ?? 0);
   if (since < 1100) await new Promise((resolve) => setTimeout(resolve, 1100 - since));
   await clearMailbox(email);
   const client = anonClient();
@@ -49,7 +69,7 @@ export async function signInWithCode(email: string): Promise<SupabaseClient> {
     email,
     options: { shouldCreateUser: false },
   });
-  lastSend.set(email, Date.now());
+  recordLastSend(email);
   if (error) throw new Error(`signInWithOtp failed: ${error.code}`);
   const code = codeFrom(await waitForEmail(email));
   const { error: verifyError } = await client.auth.verifyOtp({ email, token: code, type: "email" });

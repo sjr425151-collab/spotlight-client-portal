@@ -43,6 +43,36 @@ describe("static security checks", () => {
     expect(offenders.map(({ path }) => path)).toEqual([]);
   });
 
+  it("never signs or publishes storage URLs: released assets are server-mediated only (review H1)", () => {
+    const offenders = sources.filter(({ text }) =>
+      /\.createSignedUrls?\s*\(|\.getPublicUrl\s*\(|\.createSignedUploadUrl\s*\(/.test(text),
+    );
+    expect(offenders.map(({ path }) => path)).toEqual([]);
+  });
+
+  it("reads released assets only after the database authorized and audited the access (review H1)", () => {
+    const delivery = sources.find(({ path }) => path === "src/server/uploads/delivery.ts")!.text;
+    const authorize = delivery.indexOf('rpc("record_asset_access"');
+    const read = delivery.indexOf("admin.storage.from(BUCKET).download(");
+    const recheck = delivery.indexOf('.from("asset_uploads")');
+    expect(authorize).toBeGreaterThan(0);
+    expect(read).toBeGreaterThan(authorize);
+    expect(recheck).toBeGreaterThan(read);
+    expect(delivery).toContain('"Cache-Control": "private, no-store, max-age=0"');
+    const route = sources.find(({ path }) =>
+      path.endsWith("portal/projects/[projectId]/assets/[uploadId]/route.ts"),
+    )!.text;
+    expect(route).toContain("downloadAsset(");
+    const service = sources.find(({ path }) => path === "src/server/services/fulfillment.ts")!.text;
+    expect(service).toMatch(
+      /return deliverAsset\(user, await createAdminClient\(\), projectId, uploadId\)/,
+    );
+    expect(route).not.toMatch(/redirect\(|Response\.redirect|Location/);
+    // Storage downloads anywhere in src happen with the secret-key client inside src/server.
+    const downloads = sources.filter(({ text }) => /\.download\s*\(/.test(text));
+    expect(downloads.every(({ path }) => path.startsWith("src/server/uploads/"))).toBe(true);
+  });
+
   it("imports the admin client only from src/server (spec 03 §10)", () => {
     const offenders = sources.filter(
       ({ path, text }) => !path.startsWith("src/server/") && /supabase\/admin["']/.test(text),
@@ -110,5 +140,61 @@ describe("static security checks", () => {
       /console\.\w+\([^)]*\b(?:token|code|secret|otp|password)\b/i.test(text),
     );
     expect(offenders.map(({ path }) => path)).toEqual([]);
+  });
+
+  it("guards every route handler before it reads the request (spec 03 §10)", () => {
+    const routes = sources.filter(({ path }) => /^src\/app\/.*\/route\.ts$/.test(path));
+    expect(routes.length).toBeGreaterThan(0);
+    const unguarded = routes.flatMap(({ path, text }) =>
+      [
+        ...text.matchAll(
+          /export async function (GET|POST|PUT|PATCH|DELETE)\([^)]*\)[^{]*\{([\s\S]{0,300})/g,
+        ),
+      ]
+        .filter(
+          ([, , body]) =>
+            !/await require(?:User|Client|Staff|Owner|ProjectAccess)\(/.test(body ?? ""),
+        )
+        .map(([, method]) => `${path}: ${method}`),
+    );
+    expect(unguarded).toEqual([]);
+  });
+
+  it("WP-C code has no payment path: publication and recovery never call Stripe (T-PUB-18)", () => {
+    const wpc = sources.filter(({ path }) =>
+      /src\/(server\/(uploads|publication|services\/fulfillment)|app\/(portal|staff)\/(projects|queue))/.test(
+        path,
+      ),
+    );
+    expect(wpc.length).toBeGreaterThan(5);
+    expect(
+      wpc
+        .filter(({ text }) =>
+          /from\s+["'][^"']*stripe|api\.stripe\.com|STRIPE_|\.rpc\(\s*["'][^"']*(?:invoice|charge|payment)/i.test(
+            text,
+          ),
+        )
+        .map(({ path }) => path),
+    ).toEqual([]);
+  });
+
+  it("has no force, override, bypass, or mark-paid capability anywhere (06 §2; T-PUB-04)", () => {
+    const offenders = sources.filter(({ text }) =>
+      /\b(?:force_?publish|forcePublish|skip_?gates?|skipGates?|override_?gates?|overrideGates?|bypass_?gates?|mark_?paid|markPaid)\b/i.test(
+        text,
+      ),
+    );
+    expect(offenders.map(({ path }) => path)).toEqual([]);
+  });
+
+  it("uses the mocked malware scanner only in development and test (DEP-07)", () => {
+    const scanner = sources.find(({ path }) => path === "src/server/uploads/scanner.ts")!.text;
+    expect(scanner).toMatch(
+      /appEnv === "development" \|\| appEnv === "test" \? mockScanner : null/,
+    );
+    const users = sources
+      .filter(({ text }) => /\bmockScanner\b/.test(text))
+      .map(({ path }) => path);
+    expect(users).toEqual(["src/server/uploads/scanner.ts"]);
   });
 });

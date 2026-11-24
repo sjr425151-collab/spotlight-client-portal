@@ -216,10 +216,13 @@ select is(
   (select row(s.implemented, s.deposit_verified, s.balance_verified_or_settled, cardinality(s.active_billing_holds))::text
    from private.project_financial_status('20000000-0000-4000-8000-0000000000a0') s),
   '(f,f,f,0)', 'project_financial_status is fail-closed until WP-B implements it');
+-- WP-C implemented project_fulfillment_status (contract v2); with no fulfillment records it
+-- satisfies no gate input. Its behaviour is tested in 220_wpc_gates.test.sql.
 select is(
-  (select row(s.implemented, s.intake_accepted, s.current_release_approved, s.qa_passed, s.security_passed)::text
+  (select row(s.implemented, s.contract_version, s.intake_accepted, s.current_release_approved, s.qa_passed,
+              s.security_passed, s.domain_ready)::text
    from private.project_fulfillment_status('20000000-0000-4000-8000-0000000000a0') s),
-  '(f,f,f,f,f)', 'project_fulfillment_status is fail-closed until WP-C implements it');
+  '(t,2,f,f,f,f,f)', 'project_fulfillment_status (WP-C, v2) satisfies no gate input without fulfillment records');
 select is(
   (select array_agg(a.attname::text order by a.attnum) from pg_attribute a
    where a.attrelid = 'private.project_financial_status'::regclass and a.attnum > 0 and not a.attisdropped),
@@ -231,7 +234,9 @@ select is(
    where a.attrelid = 'private.project_fulfillment_status'::regclass and a.attnum > 0 and not a.attisdropped),
   array['project_id', 'contract_version', 'implemented', 'intake_state', 'intake_accepted', 'current_release_id',
         'current_release_approved', 'current_release_approval_id', 'qa_passed', 'security_passed',
-        'active_fulfillment_holds', 'evidence'],
+        'active_fulfillment_holds', 'evidence',
+        -- WP-C additions (OI-71 item 2), additive:
+        'domain_ready', 'domain_check_id', 'domain_checked_at'],
   'the fulfillment status contract has the agreed attributes in order');
 
 -- ---------------------------------------------------------------------------

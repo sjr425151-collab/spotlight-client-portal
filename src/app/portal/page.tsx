@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { AppShell, PageHeading } from "@/components/app/app-shell";
 import { Button } from "@/components/ui/button";
@@ -87,7 +88,11 @@ export default async function PortalPage({ searchParams }: { searchParams: Searc
             {projects.map((project) => (
               <li key={project.id}>
                 <Card className="p-6 sm:p-6">
-                  <h3 className="font-display text-lg font-semibold text-fg">{project.name}</h3>
+                  <h3 className="font-display text-lg font-semibold text-fg">
+                    <Link href={`/portal/projects/${project.id}`} className="hover:underline">
+                      {project.name}
+                    </Link>
+                  </h3>
                   <p className="mt-1 text-sm text-fg-muted">
                     {businessName(project.client_businesses)}
                   </p>

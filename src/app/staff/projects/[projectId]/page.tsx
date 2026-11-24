@@ -19,6 +19,7 @@ import {
 } from "../../actions";
 import { StaffShell } from "../../staff-shell";
 import { FulfillmentPanel } from "./fulfillment-panel";
+import { BillingSection } from "./billing-section";
 
 export const metadata: Metadata = { title: "Project", robots: { index: false, follow: false } };
 
@@ -166,6 +167,7 @@ export default async function StaffProjectPage({ params, searchParams }: Props) 
       </section>
 
       <FulfillmentPanel projectId={projectId} ctx={ctx} />
+      <BillingSection ctx={ctx} projectId={projectId} />
     </StaffShell>
   );
 }

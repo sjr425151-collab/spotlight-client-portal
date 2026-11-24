@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AppShell, PageHeading } from "@/components/app/app-shell";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { invitationDescription } from "@/lib/invitations";
@@ -96,6 +96,13 @@ export default async function PortalPage({ searchParams }: { searchParams: Searc
                   <p className="mt-1 text-sm text-fg-muted">
                     {businessName(project.client_businesses)}
                   </p>
+                  <ButtonLink
+                    href={`/portal/projects/${project.id}/billing` as never}
+                    variant="secondary"
+                    className="mt-4"
+                  >
+                    Agreement and payments
+                  </ButtonLink>
                 </Card>
               </li>
             ))}

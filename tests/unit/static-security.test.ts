@@ -157,7 +157,15 @@ describe("static security checks", () => {
         )
         .map(([, method]) => `${path}: ${method}`),
     );
-    expect(unguarded).toEqual([]);
+    // The single reviewed exception (WP-B, 04 §11): the Stripe webhook is authenticated by
+    // the signature on the raw body, never by a session. It must fail closed without a
+    // signing secret before it reads the body, and hand the raw body to the verifier.
+    const signatureAuthenticated = ["src/app/api/stripe/webhook/route.ts: POST"];
+    expect(unguarded).toEqual(signatureAuthenticated);
+    const webhook = routes.find(({ path }) => path === "src/app/api/stripe/webhook/route.ts")!.text;
+    expect(webhook.indexOf("if (!secret)")).toBeGreaterThan(0);
+    expect(webhook.indexOf("if (!secret)")).toBeLessThan(webhook.indexOf("request.text()"));
+    expect(webhook).toMatch(/receiveStripeWebhook\(\s*rawBody,/);
   });
 
   it("WP-C code has no payment path: publication and recovery never call Stripe (T-PUB-18)", () => {
@@ -166,6 +174,13 @@ describe("static security checks", () => {
         path,
       ),
     );
+    // WP-B's billing page, actions and staff billing section sit under the same routes but are
+    // the payment path itself (04); they are covered by tests/unit/wpb-static.test.ts.
+    const wpbBilling = (path: string) =>
+      /^src\/app\/portal\/projects\/\[projectId\]\/billing\//.test(path) ||
+      path === "src/app/staff/projects/[projectId]/billing-section.tsx";
+    expect(wpc.filter(({ path }) => wpbBilling(path)).length).toBe(3);
+    wpc.splice(0, wpc.length, ...wpc.filter(({ path }) => !wpbBilling(path)));
     expect(wpc.length).toBeGreaterThan(5);
     expect(
       wpc

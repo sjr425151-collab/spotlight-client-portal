@@ -215,7 +215,7 @@ select private.enqueue_notification('payment.deposit_verified', 'b:deposit', 'de
 select is(
   (select row(s.implemented, s.deposit_verified, s.balance_verified_or_settled, cardinality(s.active_billing_holds))::text
    from private.project_financial_status('20000000-0000-4000-8000-0000000000a0') s),
-  '(f,f,f,0)', 'project_financial_status is fail-closed until WP-B implements it');
+  '(t,f,f,0)', 'project_financial_status is implemented by WP-B and satisfies no gate input for a project with no payment');
 -- WP-C implemented project_fulfillment_status (contract v2); with no fulfillment records it
 -- satisfies no gate input. Its behaviour is tested in 220_wpc_gates.test.sql.
 select is(
@@ -227,7 +227,11 @@ select is(
   (select array_agg(a.attname::text order by a.attnum) from pg_attribute a
    where a.attrelid = 'private.project_financial_status'::regclass and a.attnum > 0 and not a.attisdropped),
   array['project_id', 'contract_version', 'implemented', 'deposit_state', 'deposit_verified', 'final_balance_state',
-        'balance_verified_or_settled', 'balance_settled_by_adjustment', 'active_billing_holds', 'evidence'],
+        'balance_verified_or_settled', 'balance_settled_by_adjustment', 'active_billing_holds', 'evidence',
+        -- WP-B, additive (OI-71 item 1: G1)
+        'agreement_state', 'agreement_effective',
+        -- WP-B, additive (OI-74: WP-C's intake precondition)
+        'payment_authorization_ready', 'payment_authorization_state'],
   'the financial status contract has the agreed attributes in order');
 select is(
   (select array_agg(a.attname::text order by a.attnum) from pg_attribute a

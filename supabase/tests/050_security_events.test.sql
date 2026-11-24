@@ -67,7 +67,19 @@ select is((
         'record_deployment_result', 'record_domain_check', 'record_hold_resumption', 'record_outreach',
         'record_preview_draft', 'record_qa_result', 'record_security_result', 'register_client_site_target',
         'release_preview', 'request_revisions', 'request_upload', 'request_upload_exception', 'resolve_incident',
-        'retry_object_deletion', 'review_intake', 'save_intake_draft', 'start_deployment', 'submit_intake', 'withdraw_preview'
+        'retry_object_deletion', 'review_intake', 'save_intake_draft', 'start_deployment', 'submit_intake', 'withdraw_preview',
+        -- WP-B (each re-authorizes the caller inside its definer function; none writes audit rows directly)
+        'accept_agreement', 'approve_agreement_version', 'authorize_service_termination', 'begin_initial_checkout',
+        'clear_billing_hold', 'confirm_cancellation', 'create_agreement_version', 'decide_billing_hold_review',
+        'dispute_evidence_package', 'issue_order_summary', 'operational_payment_states', 'place_billing_hold',
+        'project_billing_status', 'reconcile_outbound_request', 'record_maintenance_ceased', 'record_refund_decision',
+        'record_service_transfer', 'record_services_deactivated', 'record_termination_notice',
+        'record_written_cancellation_notice', 'resolve_quarantined_event', 'resolve_reconciliation_mismatch',
+        'resolve_stripe_cancellation_exception', 'retry_final_balance_invoice', 'submit_cancellation_request',
+        'withdraw_service_termination',
+        -- WP-B, OI-74 and OI-82 (payment authorization, recovery, revocation, holding reconciliation)
+        'begin_payment_method_recovery', 'reconcile_holding_reversal', 'record_payment_authorization_revocation',
+        'review_authorization_revocation', 'revoke_payment_authorization'
       ]) order by 1)::text[],
   'D1: the public RPC surface for signed-in users is exactly the reviewed list (no audit writers)');
 

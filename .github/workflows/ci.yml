@@ -162,6 +162,12 @@ jobs:
             echo "Playwright $target attempt $attempt failed or timed out" >&2
           done
           exit 1
+      - name: Generate a test-only webhook signing secret for this run (OI-63)
+        # Random per run, never a Stripe secret; only the test-build server and the WP-B spec read it.
+        run: |
+          secret="whsec_$(openssl rand -hex 24)"
+          echo "::add-mask::${secret}"
+          echo "E2E_STRIPE_WEBHOOK_SECRET=${secret}" >> "$GITHUB_ENV"
       - run: pnpm test:e2e
         timeout-minutes: 15
       - name: Upload Playwright report

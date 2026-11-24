@@ -80,7 +80,7 @@ Playwright needs a browser: run `pnpm exec playwright install chromium` once. If
 | `supabase test db` | pgTAP database tests in `supabase/tests` (RLS, roles, MFA, sessions, invitations, audit). `pnpm test:db` runs the same files through `psql` in the database container, for machines that cannot pull the pgTAP runner image. |
 | `pnpm test:integration` | Vitest integration tests against the local stack (real Auth sessions, Mailpit, storage) |
 | `pnpm build:production-check` | Builds a production-mode copy (`APP_ENV=production`) into `.next-production/`, used only by the gating tests and never deployed |
-| `pnpm test:e2e` | Playwright: smoke tests, the Phase 2 auth flows (`auth` project, needs the local stack), and production-gating tests (run both builds first) |
+| `pnpm test:e2e` | Playwright: smoke tests, the Phase 2 auth flows (`auth` project, needs the local stack), the WP-C and WP-B browser tests, and production-gating tests (run both builds first). The WP-B project needs `E2E_STRIPE_WEBHOOK_SECRET` set to a generated test-only `whsec_` value (for example `whsec_$(openssl rand -hex 24)`); the test-build server receives it with `STRIPE_GATEWAY=mock` and `AGREEMENT_TEST_FIXTURE=enabled`, and the production-mode server receives none of them |
 | `scripts/check-migrations.sh [base]` | Fails if a migration already on the base branch was edited, renamed, or deleted (T-MIG-02) |
 | `pnpm check:bundle` | Scans browser-delivered build output for secrets (T-SEC-01) |
 | `pnpm lhci` | Lighthouse CI with the spec 02 §7 budgets (run `pnpm build` first) |
@@ -98,6 +98,9 @@ Configuration is validated at startup and build time by `src/config/env-schema.t
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | 2 | Must start with `sb_publishable_` |
 | `SUPABASE_SECRET_KEY` | 2 | Must start with `sb_secret_`. Server-only; read only by `src/server/supabase/admin.ts`. |
 | `STRIPE_SECRET_KEY` | 3 (not used yet) | If present, a live-mode key outside `production` fails validation (spec 02 §4 rule 2) |
+| `STRIPE_WEBHOOK_SECRET` | WP-B | Optional; `whsec_...`. Without it `/api/stripe/webhook` returns 503 (fail closed). Locally and in CI, a generated test-only value; a real test-mode secret only under AUTH-002 |
+| `STRIPE_GATEWAY` | WP-B | `disabled` (default when absent) or `mock`. `mock` simulates Stripe with no network request and is accepted only in `development` and `test`. No real gateway exists until AUTH-002 |
+| `AGREEMENT_TEST_FIXTURE` | WP-B | `enabled` or `disabled` (default when absent). Presents the OI-69 test-only fixture; rejected when `APP_ENV=production` (T-AGR-08) |
 | any `NEXT_PUBLIC_*` | All | Must not contain secret-shaped values (spec 02 §9 rule 3) |
 
 Environment separation (spec 02 §4):

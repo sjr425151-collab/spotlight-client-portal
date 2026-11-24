@@ -41,6 +41,18 @@ const baseSchema = z.object({
   SUPABASE_SECRET_KEY: z.string().regex(/^sb_secret_[A-Za-z0-9_-]+$/, {
     message: "must be a Supabase secret key (sb_secret_...)",
   }),
+  // WP-B (04 §11). Server-only signing secret of the webhook endpoint. CI generates a
+  // test-only value per run (OI-63); a real test-mode secret exists only under AUTH-002.
+  STRIPE_WEBHOOK_SECRET: z
+    .string()
+    .regex(/^whsec_[A-Za-z0-9]+$/, { message: "must be a webhook signing secret (whsec_...)" })
+    .optional(),
+  // WP-B: which Stripe gateway the server uses (absent means disabled). "mock" never makes a network request and is
+  // allowed only in development and test. No real gateway exists until AUTH-002 is active.
+  STRIPE_GATEWAY: z.enum(["disabled", "mock"]).optional(),
+  // OI-69: whether the test-only agreement fixture may be presented (absent means disabled).
+  // Rejected in production.
+  AGREEMENT_TEST_FIXTURE: z.enum(["enabled", "disabled"]).optional(),
 });
 
 export type ServerEnv = z.infer<typeof baseSchema>;
@@ -71,6 +83,19 @@ export function parseServerEnv(source: Record<string, string | undefined>): Serv
   const stripeKey = source.STRIPE_SECRET_KEY;
   if (stripeKey && /^(?:sk|rk)_live_/.test(stripeKey) && appEnv !== "production") {
     issues.push("STRIPE_SECRET_KEY: a live-mode Stripe key is not allowed outside production");
+  }
+
+  // OI-69 (T-AGR-08): the environment schema rejects the test-only fixture in production.
+  if (source.AGREEMENT_TEST_FIXTURE === "enabled" && appEnv === "production") {
+    issues.push(
+      "AGREEMENT_TEST_FIXTURE: the test-only agreement fixture is not allowed in production",
+    );
+  }
+  // CLAUDE.md §4: the mocked gateway is a development and CI tool only.
+  if (source.STRIPE_GATEWAY === "mock" && appEnv !== "development" && appEnv !== "test") {
+    issues.push(
+      "STRIPE_GATEWAY: the mocked Stripe gateway is allowed only in development and test",
+    );
   }
 
   // Spec 03 §15: only staging and production may point at a non-local Supabase project.

@@ -47,13 +47,21 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
+      // WP-B agreement, mocked Checkout and synthetic signed webhook; after WP-C's project so
+      // the two never enroll MFA factors for the same seeded Admin at the same time.
+      name: "wpb",
+      testMatch: /wpb\.spec\.ts/,
+      dependencies: ["wpc"],
+      use: { ...devices["Desktop Chrome"], launchOptions },
+    },
+    {
       name: "desktop-chromium",
-      testIgnore: /production-gating|auth\.|wpc\./,
+      testIgnore: /production-gating|auth\.|wpc\.|wpb\./,
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
       name: "mobile-chromium",
-      testIgnore: /production-gating|auth\.|wpc\./,
+      testIgnore: /production-gating|auth\.|wpc\.|wpb\./,
       use: { ...devices["Pixel 7"], launchOptions },
     },
     {
@@ -67,6 +75,16 @@ export default defineConfig({
       // Test build created by `pnpm build` (APP_ENV=test).
       command: `pnpm exec next start --port ${port}`,
       url: baseURL,
+      // WP-B (AUTH-001): the mocked Stripe gateway, the test-only agreement fixture, and a
+      // webhook signing secret generated for this run (OI-63). The test build only: the
+      // production-mode server below receives none of them, and its schema rejects the first two.
+      env: {
+        STRIPE_GATEWAY: "mock",
+        AGREEMENT_TEST_FIXTURE: "enabled",
+        ...(process.env.E2E_STRIPE_WEBHOOK_SECRET
+          ? { STRIPE_WEBHOOK_SECRET: process.env.E2E_STRIPE_WEBHOOK_SECRET }
+          : {}),
+      },
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },

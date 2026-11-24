@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.3 |
-| Status | **Approved (final): v0.3.2.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.3.2 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). v0.3.3 amends journey steps 5, 10 and 11 for the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). Stage table updated for the Phase 2 authorization (status line only; 08 §5 v0.9.0). Stage table updated for the spec 04 test-mode approval (status line only; 08 §5 v0.11.0). Stage table updated for the Phase 2 merge (status line only; 08 §5 v0.12.0). |
-| Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41 |
+| Version | 0.4.0 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). |
+| Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41, OI-67, OI-68 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
 ## 1. Identity and purpose
@@ -31,26 +31,26 @@ The portal is a standalone web application on its own subdomain. It is not a pag
 
 ## 3. MVP scope
 
-The MVP covers the following client journey **[APPROVED baseline]**:
+The MVP covers the following client journey **[APPROVED baseline]**, delivered in two releases **[APPROVED OI-68]**. The Release column shows where each step's behavior differs.
 
-| # | Step | Authoritative evidence | Spec |
-|---|---|---|---|
-| 1 | Client receives a secure invitation | Invitation record | 03 §6 |
-| 2 | Client authenticates with passwordless email OTP | Supabase Auth session and auth audit event | 03 §5 |
-| 3 | Client reviews the versioned agreement and project-specific order summary | Agreement version and order summary snapshot | 04 §1–§4 |
-| 4 | Client affirmatively accepts (unchecked checkbox) | Acceptance evidence record | 04 §3 |
-| 5 | Client completes Stripe Checkout for deposit + first $99 maintenance. Stripe securely saves the payment method for the final balance, as authorized in the agreement. | Verified webhook and ledger entries | 04 §3.1, §8 |
-| 6 | Verified payment unlocks the branded onboarding intake | Deposit state = `verified` | 05 §3 |
-| 7 | Client submits business details, logos, service areas, photos, contact info, and preferences | Intake submission and asset records | 05 §3–§5 |
-| 8 | Project enters development | Development state | 05 §2 |
-| 9 | Client reviews an immutable, versioned website preview | Preview release record | 05 §6 |
-| 10 | Client explicitly approves the current released preview (**Approve Website & Authorize Final Payment**) | Approval record bound to the release ID | 05 §7 |
-| 11 | Stripe automatically charges the remaining 80% balance to the saved payment method and issues the invoice and receipt. If the charge fails or needs authentication, the client completes it on a secure Stripe-hosted page. | Verified webhook and ledger entries | 04 §10 |
-| 12 | Owner authorizes publication after all gates pass | Gate evaluation and Owner authorization record | 06 §2–§3 |
-| 13 | System verifies the live deployment | Verification record | 06 §9 |
-| 14 | Client receives confirmation and may optionally inquire about more services | Notification and inquiry record | 06 §10–§11 |
+| # | Step | Authoritative evidence | Spec | Release |
+|---|---|---|---|---|
+| 1 | Client receives a secure invitation | Invitation record | 03 §6 | R1 |
+| 2 | Client authenticates with passwordless email OTP | Supabase Auth session and auth audit event | 03 §5 | R1 |
+| 3 | Client reviews the versioned agreement and project-specific order summary | Agreement version and order summary snapshot | 04 §1–§4 | R1 |
+| 4 | Client affirmatively accepts (unchecked checkbox) | Acceptance evidence record | 04 §3 | R1 |
+| 5 | Client completes Stripe Checkout for deposit + first $99 maintenance. Stripe securely saves the payment method for the final balance, as authorized in the agreement. | Verified webhook and ledger entries | 04 §3.1, §8 | R1 |
+| 6 | Verified payment unlocks the branded onboarding intake | Deposit state = `verified` | 05 §3 | R1 |
+| 7 | Client submits business details, logos, service areas, photos, contact info, and preferences | Intake submission and asset records | 05 §3–§5 | R1 |
+| 8 | Project enters development | Development state | 05 §2 | R1 |
+| 9 | Client reviews an immutable, versioned website preview | Preview release record | 05 §6 | R1: staff record the release. R2: automated delivery. |
+| 10 | Client explicitly approves the current released preview (**Approve Website & Authorize Final Payment**) | Approval record bound to the release ID | 05 §7 | R1: approval makes the balance due (wording per 05 §7). R2: the label shown here. |
+| 11 | Stripe automatically charges the remaining 80% balance to the saved payment method and issues the invoice and receipt. If the charge fails or needs authentication, the client completes it on a secure Stripe-hosted page. | Verified webhook and ledger entries | 04 §10 | R1: the client pays the single final-balance invoice on its Stripe-hosted page. R2: automatic charge, hosted page as fallback. |
+| 12 | Owner authorizes publication after all gates pass | Gate evaluation and Owner authorization record | 06 §2–§3 | R1 |
+| 13 | System verifies the live deployment | Verification record | 06 §9 | R1: staff deploy exactly the authorized release, then verification runs. R2: the portal drives the deployment. |
+| 14 | Client receives confirmation and may optionally inquire about more services | Notification and inquiry record | 06 §10–§11 | R1: in-portal confirmation. R2: email confirmation and inquiries. |
 
-Ongoing billing self-service: through the hosted Stripe Customer Portal, clients manage payment methods and view invoices and subscription details. Self-service cancellation is disabled. Cancellation requests follow 04 §15.1.1. **[APPROVED OI-29]**
+Ongoing billing self-service: through the hosted Stripe Customer Portal, clients manage payment methods and view invoices and subscription details. Self-service cancellation is disabled. Cancellation requests follow 04 §15.1.1. **[APPROVED OI-29; R2]** In R1, clients pay and update payment details on Stripe-hosted invoice pages.
 
 ```mermaid
 flowchart LR
@@ -58,7 +58,7 @@ flowchart LR
   C -->|accept| D[Initial Checkout]
   D -->|verified webhook| E[Intake]
   E --> F[Development] --> G[Released preview]
-  G -->|explicit approval| H[Automatic final-balance charge]
+  G -->|explicit approval| H[Final-balance invoice: R1 hosted page, R2 automatic charge]
   H -->|verified webhook| I{All gates pass?}
   I -->|Owner authorizes| J[Publish] --> K[Live verification] --> L[Confirmation + optional inquiry]
 ```
@@ -91,46 +91,84 @@ One agency (Spotlight Marketing) serves many **client businesses**. Each busines
 
 The full permission matrix is in [03 §4](03-SECURITY-AUTH-AND-TENANCY.md#4-permissions-matrix).
 
-## 7. Development phases **[APPROVED OI-02]**
+## 7. Work packages and releases **[APPROVED OI-02, revised by OI-67]**
 
-Each phase requires **separate written owner authorization**. None is currently authorized.
+Phases 1 (foundation and CI) and 2 (authentication, security, and tenant isolation) are complete. The remaining work is organized as work packages delivered in two releases (OI-68). Each work package runs only under an active record in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). Status is in [CURRENT-STATE.md](CURRENT-STATE.md).
 
-| Phase | Scope | Entry criteria **[PROPOSED]** | Exit criteria **[PROPOSED]** |
+| Work package | Scope | Replaces | Depends on |
 |---|---|---|---|
-| 1. Foundation and CI | Repository tooling, CI, environments, design tokens scaffold | Specs 01, 02 and CLAUDE.md approved (sign-off 2026-11-22) with the mandatory reconciliation confirmed; DEP-10 (branch protection) and DEP-08 logo confirmation complete; DEP-11 (version pins) planned; Phase 1 authorized | CI green on lint, typecheck, unit and e2e smoke; environments documented |
-| 2. Auth, security, tenant isolation | Supabase Auth, memberships, RLS, audit log, MFA | Spec 03 approved; Phase 1 exited; Supabase items of DEP-06 verified; Phase 2 authorized | All 03 §13 tests pass |
-| 3. Agreement and Stripe test-mode billing | Agreement acceptance, initial Checkout, Customer Portal (test), webhooks, ledger, holds, adjustments | Spec 04 approved; DEP-01 (test catalog) complete; OI-47 decided; Stripe items of DEP-06 verified, including the OI-44 discount restriction and the OI-46 `past_due` behavior; Phase 3 authorized | All 04 §16 tests pass in test mode |
-| 4. Intake, fulfillment, previews, final payment, publishing | 05, 06, 07 workflows | Specs 05–07 approved; DEP-07 (scanner) selected; Vercel/Resend items of DEP-06 verified; Phase 4 authorized | All 05, 06, 07 acceptance tests pass |
-| 5. Hardening and production readiness | Performance, security review, runbooks, production config | Phases 1–4 exited; Phase 5 authorized | 02 §11 prerequisites P-1–P-8 evidenced; DEP-02–DEP-05, DEP-08, DEP-09 complete; production launch requires separate authorization (OI-01 stage 4) |
+| **WP-A** | Governance and specification correction | — | — |
+| **WP-0** | Shared contracts (below), as one migration | — | WP-A |
+| **WP-B** | Agreements, order summaries, Checkout, webhook ingestion, ledger, reconciliation, holds, final-balance invoice | Phase 3 | WP-0; Stripe sandbox work needs AUTH-002 active |
+| **WP-C** | Intake, uploads and scanning, preview release records, approvals, gate evaluator, publication authorization and deployment records, derived queues | Phase 4 (R1 part) | WP-0; releasing scanned uploads needs DEP-07 |
+| **WP-D** | Hosted non-production environments, then production readiness | Phase 5 | AUTH-003 (non-production); Tier 3 for production |
+| **WP-E** | Legal, tax, and commercial approvals | — | Owner and advisors; runs in parallel from now |
 
-**Stripe test-mode catalog exception [APPROVED OI-30]:** the Owner has narrowly authorized creating the test-mode products and prices in 04 §6. This is not Phase 3 authorization, and it authorizes no integration code, webhook deployment, or live-mode change.
+```mermaid
+flowchart LR
+  A[WP-A governance] --> Z[WP-0 shared contracts]
+  A --> D[WP-D hosted non-prod]
+  Z --> B[WP-B payments]
+  Z --> C[WP-C fulfillment]
+  B --> I[Integration]
+  C --> I
+  D --> I
+  I --> R1[R1 release candidate]
+  E[WP-E legal, tax, commercial] --> L[Production launch, Tier 3]
+  R1 --> L
+```
 
-## 8. Approval governance **[APPROVED OI-01]**
+**Shared contracts (WP-0) [PROPOSED]**, created before WP-B and WP-C start in parallel:
+- `domain_events`: typed, append-only domain events (for example `agreement.accepted`, `payment.deposit_verified`, `release.approved`, `publication.authorized`), written in the same transaction as the state change.
+- `notification_outbox` (07 §2), written in the same transaction; delivery is R2.
+- State-domain types for agreement, payment, subscription, fulfillment, approval, and deployment (05 §2).
+- The audit action names used by both packages.
+- Gate interfaces: `private.project_financial_status(project_id)` (owned by WP-B: deposit verified, balance verified or settled, billing holds) and `private.project_fulfillment_status(project_id)` (owned by WP-C: intake accepted, current release, approval of the current release, QA and security evidence, fulfillment holds). The single gate evaluator (06 §2), owned by WP-C and reviewed by WP-B, reads only these.
 
-| Stage | Status |
-|---|---|
-| 1. Architecture approval | Approved |
-| 2. Specification reconciliation | Specs 01 (v0.3.2), 02 (v0.4.0) and CLAUDE.md: **approved (final, 2026-11-23)**. Spec 03 (v0.4.0): **approved 2026-11-23**. Spec 04: **approved 2026-11-23 for Phase 3 test-mode implementation only**. Specs 05–08: in review. |
-| 3. Implementation authorization | Phase 1 (Foundation and CI) authorized 2026-11-23 and merged. **Phase 2 (Auth, security, tenant isolation) authorized 2026-11-23 and merged** (PR #4; local Supabase, synthetic data). Phases 3–5 not authorized. |
-| 4. Production launch authorization | **Not authorized** |
+**Ownership and integration [PROPOSED]:**
+- WP-B owns the billing tables, and WP-C owns the fulfillment tables. Neither writes to the other's tables. WP-C emits `release.approved`; WP-B consumes it to create the final-balance invoice.
+- Migrations are timestamped, are never edited after merge (T-MIG-02), and are merged in order by the integration stream, which also owns the end-to-end R1 journey test.
+- Each package's pull requests carry their own evidence and CURRENT-STATE updates (OI-67).
+
+## 8. Approval governance **[APPROVED OI-01, revised by OI-67]**
+
+The four approval stages remain: architecture, specification reconciliation, implementation authorization, and production launch authorization. Implementation is authorized per work package under the risk tiers in [AUTHORIZATIONS.md](AUTHORIZATIONS.md); production launch is a separate Tier 3 authorization. Current status is in [CURRENT-STATE.md](CURRENT-STATE.md).
 
 Approving this or any specification does not authorize implementation.
 
 Documentation governance **[APPROVED OI-06]**: owner-approved decisions (08) establish architectural requirements. Reconciled specifications (01–07) define detailed implementation requirements once approved. CLAUDE.md sets operating instructions. README is the developer entry point. Conflicts are escalated to the Owner, never silently resolved.
 
-## 9. Measurable MVP acceptance criteria **[PROPOSED]**
+## 9. Release acceptance criteria **[APPROVED OI-68]**
 
-The MVP is complete only when every item below passes in staging with Stripe test mode, and is evidenced by automated tests or recorded verification:
+A release candidate is accepted only when every item passes in **staging with Stripe test mode**, evidenced by automated tests or recorded verification. A release candidate is not production launch authorization.
 
-1. A user without an invitation cannot create an account or sign in (03 §13 T-AUTH-01).
-2. A client of project A cannot read, write, or list any record or file of project B, through any API, RLS-protected query, or storage path (03 §13 T-TEN-01 to 05).
-3. Initial Checkout cannot be started without a recorded acceptance of the current agreement version for that project (04 §16 T-AGR-02).
-4. The initial invoice total equals deposit + 9,900 cents for each of the five packages (04 §16 T-PAY-01).
-5. A Checkout success redirect without a processed, signature-verified webhook leaves the deposit state at `pending` (04 §16 T-PAY-04).
-6. Replaying any webhook event produces no additional ledger entries (04 §16 T-PAY-05).
-7. Intake is inaccessible until the deposit is verified (05 §11 T-LC-01).
-8. An approval recorded for preview release *n* does not satisfy the approval gate after release *n+1* is released (05 §9 T-LC-06).
-9. Publication cannot run when any mandatory gate fails, including through an Owner action (06 §12 T-PUB-01 to 09).
-10. Each privileged action produces an immutable audit event (03 §13 T-AUD-01).
-11. Post-publication inquiries create a queue entry and notification, and create no Stripe objects (06 §12 T-INQ-02).
-12. Portal pages meet the OI-23 Lighthouse thresholds in CI on the staging build (02 §7).
+### 9.1 R1: a complete, controlled transaction
+
+1. **Access.** A user without an invitation cannot create an account or sign in (T-AUTH-01).
+2. **Isolation.** A client of project A cannot read, write, or list any record or file of project B, through any API, RLS-protected query, or storage path. This holds for every table and path added in R1 (T-TEN-01 to 05, T-UP-06, T-PAY-11).
+3. **Agreement.** Acceptance uses an unchecked-by-default checkbox and stores an immutable copy, its hash, the signer, their authority, and the price snapshot. Initial Checkout cannot start without a current acceptance (T-AGR-01 to 07). The test-only fixture cannot load in production (T-AGR-08).
+4. **Initial Checkout.** The first invoice equals deposit + 9,900 cents for each of the five packages, with no discount or promotion code (T-PAY-01, T-BIL-20).
+5. **Payment state from Stripe evidence only.** A success redirect alone leaves the deposit `pending` (T-PAY-04). Webhook signatures are verified on the raw body; events are stored durably and deduplicated before acknowledgement; replays add no ledger entries; out-of-order events cannot move state backwards (T-PAY-03 to 08, T-ARC-01 to 03).
+6. **Outbound safety.** Every Stripe create is recorded before the call and uses a derived idempotency key. At most one open Checkout Session and one final-balance invoice exist per project and order summary (T-ARC-04, T-ARC-05).
+7. **Financial integrity.** The ledger is append-only in integer cents. A state change and its ledger entry commit in one transaction. Reconciliation quarantines and alerts on any mismatch (T-PAY-02, T-ARC-06, T-ARC-07).
+8. **Refunds and disputes.** Refunds, disputes, and chargebacks from Stripe are recorded in the ledger, and disputes apply the OI-37 rules. Issuing a refund is a Tier 3 Owner action recorded by the portal (T-BIL-09, T-ARC-08).
+9. **Separate state domains.** Agreement, payment, subscription, fulfillment, approval, and deployment are tracked separately. Gates are computed from records, never from an editable status (T-LC-02, T-LC-03).
+10. **Intake and uploads.** Intake is locked until the deposit is verified, and can be saved and resumed. Uploads are private, validated by content, quarantined and scanned before release, and within the OI-20 limits (T-LC-01, T-LC-04, T-UP-01 to 09).
+11. **Status and queue.** The client status page shows only authoritative state. The admin queue is derived from records (T-LC-03).
+12. **Approval.** Staff record an immutable preview release. The client explicitly approves that release; a new release invalidates the old approval for publication; staff outreach is recorded (T-LC-05 to 09, T-LC-11 to 13, T-LC-15).
+13. **Final balance.** Approval creates exactly one final-balance invoice for the snapshot balance, paid on the Stripe-hosted invoice page and verified only by webhook. No adjustment is offered (T-PAY-09, T-PAY-12, T-PAY-17, T-BIL-22).
+14. **Publication authorization.** The server issues it only when gates G1–G8 pass, with the Owner's fresh reauthentication, for exactly one release (T-PUB-01 to 05, T-PUB-07, T-PUB-11, T-PUB-12, T-PUB-17).
+15. **Staff-assisted publication.** Staff deploy exactly the authorized release to the client's isolated deployment and record the deployment, live verification, and rollback reference. A deployment that does not match the authorization fails verification. A failed deployment after verified payment keeps the paid status and goes to recovery with no new charge (T-PUB-06, T-PUB-08 to 10, T-PUB-15, T-PUB-18, T-PUB-19).
+16. **Subscription lifecycle.** Failed maintenance renewals are recorded from webhooks; the 7-day recovery period, `maintenance_payment_hold`, and Owner review apply; an unexpected Stripe cancellation creates an exception review; cancellation requests record the request and effective dates and compute M1 and M2 (T-BIL-01 to 03, T-BIL-07, T-BIL-08, T-BIL-14 to 19). M1 and M2 are not enforced against production clients until counsel-approved terms exist (04 §15.1).
+17. **Audit and quality.** Each privileged action produces an immutable audit event (T-AUD-01). Portal pages meet the OI-23 Lighthouse thresholds in CI and on the staging build (02 §7).
+
+### 9.2 R2: fulfillment automation
+
+R2 is accepted when the R1 criteria still pass and the following pass:
+1. Automated preview delivery, the OI-25 reminders, and the day-21 queue (T-LC-10).
+2. The automatic off-session final charge, with the hosted fallback on failure or required authentication (T-PAY-13, T-PAY-14, T-LC-14).
+3. Portal-sent payment recovery reminders (07 §13) and the Customer Portal (T-BIL-04).
+4. Adjusted final balances (T-BIL-05, T-BIL-06, T-BIL-11 to 13, T-BIL-21).
+5. Portal-driven deployment from the publication authorization (06 §8.1).
+6. Resend delivery from the outbox for the 07 §4 catalog (07 §13).
+7. Post-publication inquiries (T-INQ-01 to 03).

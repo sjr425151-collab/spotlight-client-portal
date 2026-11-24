@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.12.5 (draft for owner review) |
-| Status | **Draft — pending owner verification** |
+| Version | 0.13.0 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
 
@@ -22,6 +22,8 @@ The 17 decisions **OI-25 through OI-41** were transcribed from the owner-provide
 
 The 5 decisions **OI-42 through OI-46** were transcribed from the owner-provided final reconciliation instructions (2026-11-23), with the same caveat.
 
+The decisions **OI-50 to OI-52 and OI-67 to OI-70**, the revisions to OI-01, OI-02, OI-04, OI-17, OI-18, OI-22, OI-25, OI-26, OI-29, OI-33, OI-44, OI-45 and OI-55 dated 2026-11-24, and the approval of specs 01 and 04–08 as amended, record the Owner's reply "APPROVE" (2026-11-23, 20:34 America/Detroit) to the consolidated execution plan, which listed each of them as an approval item. The plan was a response to the Owner's *Strategic Execution Directive* of the same date.
+
 ## 2. Requirement classification legend
 
 All specifications in this repository use these labels:
@@ -34,6 +36,7 @@ All specifications in this repository use these labels:
 | **DEP-nn** | Implementation or production dependency (verification, review, asset, or setup) tracked in OPEN-ISSUES.md Part 3. It is not an open policy decision. |
 | **[DEFERRED]** | Legal, commercial, or brand policy deferred until production readiness. Placeholder only. |
 | **[VERIFY-PROVIDER]** | Behavior or capability of a third-party provider (Stripe, Supabase, Vercel, Resend, etc.) that must be verified against current provider documentation and plan limits during authorized implementation. |
+| **[R1]** / **[R2]** | Release in which a requirement is delivered (OI-68). An R2 requirement remains approved; it is sequenced after R1, and R1 must not contradict it. |
 
 ## 3. Decision register
 
@@ -52,6 +55,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner-provided baseline, 2026-11-22. Not yet verified in this document.
 - **Deferrals:** None.
 - **Affected sections:** 01 §8; README "Authorization status"; CLAUDE.md §1; this document §4.
+- **Revised (2026-11-24, OI-67):** stage 3 (implementation authorization) is granted per work package under the risk-tier model in [AUTHORIZATIONS.md](AUTHORIZATIONS.md), not per phase. Stage 4 (production launch) remains a separate, explicit Owner authorization (Tier 3). Specification approval still never authorizes implementation. Status is recorded only in [CURRENT-STATE.md](CURRENT-STATE.md).
 
 ### OI-02 — Development sequence
 
@@ -60,6 +64,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner-provided baseline.
 - **Deferrals:** None.
 - **Affected sections:** 01 §7; CLAUDE.md §3.
+- **Revised (2026-11-24, OI-67):** phases 1 and 2 are complete. The remaining work is organized as work packages WP-A to WP-E delivered in two releases, R1 and R2 (OI-68). Work packages may run in parallel under their own authorizations once their dependencies are met (01 §7). Former phases 3–5 map onto the work packages; their entry and exit criteria are replaced by the release acceptance criteria in 01 §9.
 
 ### OI-03 — Roles
 
@@ -81,6 +86,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner-provided baseline.
 - **Deferrals:** Final email branding (see OI-12, OI-38).
 - **Affected sections:** 07 §1–§4.
+- **Revised (2026-11-24, OI-68, sequencing only):** in **R1**, invitation and OTP email (Supabase Auth with custom SMTP, OI-51) and Stripe receipts and invoices are delivered; every notification event is written to the durable outbox in the same transaction as its state change; client and staff communication about lifecycle events happens in the portal and through staff outreach recorded in the portal; and Owner-critical alerts (disputes, reconciliation mismatches, webhook processing failures) are delivered through the monitoring alert channel (DEP-12). **R2** adds Resend delivery from the outbox for the full event catalog (07 §4). The requirements above are unchanged.
 
 ### OI-05 — Project states
 
@@ -203,6 +209,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Revision provenance:** Owner instruction "Targeted Documentation Amendment: Authorized Final Balance Collection", 2026-11-23. The clause text is legal-adviser-approved per the Owner and is incorporated verbatim.
 - **Related decision:** OI-55 (adjusted balances use the automatic final-balance invoice).
 - **Affected sections:** 04 §3.1, §8–§14; 05 §2, §7; 06 §2, §8.1; 07 §4; 01 §3; 03 §4.
+- **Revised (2026-11-24, OI-68, sequencing):** in **R1**, the client's approval makes the balance due and creates the single final-balance invoice, which the client pays on its **Stripe-hosted invoice page**. Payment is verified only by webhook. The initial Checkout in R1 already saves the payment method under the §3.1 clause, once WP-B verifies the Stripe behavior (DEP-06). In **R2**, the same invoice is charged automatically off-session, with the hosted page as the fallback when the charge fails or needs authentication. Every other requirement above applies to both releases. The R1 approval screen and button must not state or imply an automatic charge; counsel confirms that the §3.1 clause and the R1 wording are consistent (DEP-03).
 
 ### OI-18 — Preview approval
 
@@ -212,6 +219,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Deferrals:** Nonresponsive client procedure (OI-25).
 - **Related:** since the OI-17 revision (2026-11-23), the explicit approval also authorizes the automatic final-balance charge (05 §7). The approval rules above are unchanged.
 - **Affected sections:** 05 §6–§7; 06 §2.
+- **Clarification (2026-11-24, OI-68):** versioned approval is an **R1** requirement. In R1, staff record each preview release as an immutable record (release number, source commit SHA, and deployment ID or URL), and the client approves that release. R2 automates how previews are built and delivered. No R1 shortcut may weaken the rules above.
 
 ### OI-19 — Administrative overrides
 
@@ -263,6 +271,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner-provided baseline.
 - **Deferrals:** Hosting/account model (OI-32); QA and security gate criteria (OI-33).
 - **Affected sections:** 06 §2–§10.
+- **Revised (2026-11-24, OI-68):** in **R1**, the server-side gate evaluator issues the Owner's **publication authorization** only when every gate passes, with fresh reauthentication, for exactly one release reference. Staff (Owner or Admin) then deploy exactly that release to the client's isolated deployment, and record the deployment ID, live verification, and rollback reference against the authorization. Deploying without a valid authorization, or any other release, is prohibited and detected by the live-verification check. In R1 this enforcement is procedural plus audit evidence, because the portal does not yet drive deployments. **R2** automates deployment from the authorization, so the server also controls the deployment itself. All other requirements above are unchanged.
 
 ### OI-23 — Performance
 
@@ -293,6 +302,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner approval instructions, 2026-11-23.
 - **Related decisions:** OI-43 (calendar) and OI-45 (hold authority and effect), both approved.
 - **Affected sections:** 05 §7.1, §9; 04 §14; 07 §4; 03 §4.
+- **Revised (2026-11-24, OI-68, sequencing):** in **R1**, the day 3 and day 7 reminders and the day-7 Admin notification are performed by staff and recorded in the portal as outreach records; the derived queues (05 §9) show what is due each day. **R2** sends them automatically from the outbox. The schedule, the rules, and the audit requirements are unchanged.
 
 ### OI-26 — Failed maintenance payments
 
@@ -306,6 +316,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner approval instructions, 2026-11-23.
 - **Related decisions:** OI-43 and OI-46, both approved. **Dependencies:** legal notice alignment (DEP-03); Stripe retry and `past_due` behavior (DEP-06).
 - **Affected sections:** 04 §9.1, §14; 06 §2, §8.4; 07 §4.
+- **Revised (2026-11-24, OI-68, sequencing):** in **R1**, failed maintenance payments are recorded from webhooks, Stripe's own retries and customer emails run as the Owner configures them in Stripe [VERIFY-PROVIDER], the 7-day recovery period and `maintenance_payment_hold` are evaluated by the server, and the Owner review queue applies. **R2** adds the portal's automated recovery reminders (07 §4) and payment-method updates through the Customer Portal (OI-29).
 
 ### OI-27 — Owner-authorized financial adjustments
 
@@ -335,6 +346,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner approval instructions, 2026-11-23.
 - **Dependencies:** DEP-03 (agreement §7 wording), DEP-06.
 - **Affected sections:** 04 §9.2, §15.1.1; 03 §4; 01 §3.
+- **Revised (2026-11-24, OI-68, sequencing):** the Customer Portal is delivered in **R2**. In R1, clients pay and update payment details through Stripe-hosted invoice pages. Self-service cancellation stays disabled in both releases.
 
 ### OI-30 — Stripe test-mode catalog
 
@@ -381,6 +393,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Status:** Approved.
 - **Provenance:** Owner approval instructions, 2026-11-23.
 - **Affected sections:** 06 §2, §6, §7.
+- **Clarification (2026-11-24, OI-68):** in **R1**, staff record the release-specific QA and security evidence against the exact release ID; the gate evaluator reads those records. R2 may automate collection of the evidence. The exception rules above are unchanged.
 
 ### OI-34 — Agreement versioning
 
@@ -533,6 +546,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-06 (Stripe discount capability), DEP-03 (disclosure).
 - **Related decision:** OI-47 (approved 2026-11-23, Option A): no deposit-stage adjustments; this mechanism is the only adjustment path. **OI-55 (approved 2026-11-23):** after the OI-17 revision, the Owner-authorized discount is applied to the automatic final-balance invoice instead of a Stripe Checkout. Every other requirement above is unchanged. Collection on that invoice is authorized (block lifted 2026-11-23).
 - **Affected sections:** 04 §10–§10.1, §12; 03 §4, §12; 06 §2.
+- **Revised (2026-11-24, OI-68, sequencing):** adjusted final balances are delivered in **R2**. In R1 no adjustment, discount, credit, or waiver is offered, and any attempt is rejected and audited.
 
 ### OI-45 — Day-21 preview approval hold
 
@@ -547,6 +561,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Status:** Approved.
 - **Provenance:** Owner final reconciliation instructions, 2026-11-23.
 - **Affected sections:** 05 §7.1–§7.2, §9; 04 §14; 03 §4; 06 §2, §8.4; 07 §4.
+- **Revised (2026-11-24, OI-68, sequencing):** the hold itself is available in **R1** (applied by Owner or Admin, as above). In R1 the outreach that precedes it is staff-performed and recorded (OI-25 revision).
 
 ### OI-46 — Involuntary subscription cancellation
 
@@ -642,6 +657,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Provenance:** Owner instructions, 2026-11-23: "I approve OI-55 option A - no discounted final balance can be collected"; "Keep in place"; then "Let's just lift it now to allow any collection on the invoice".
 - **Dependencies:** DEP-06 (Stripe verification of an invoice-level discount restricted to the balance product).
 - **Affected sections:** 04 §10–§10.1, §16 (T-BIL-11); 03 §4; OI-44.
+- **Revised (2026-11-24, OI-68, sequencing):** delivered in **R2** with OI-44.
 
 ### OI-63 — Webhook testing strategy
 
@@ -681,9 +697,81 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-01.
 - **Affected sections:** 04 §6.4.
 
-## 3A. Traceability matrix (OI-01–OI-49, OI-53–OI-55, OI-63–OI-66)
+### OI-50 — Supabase plan for hosted environments
 
-Phase = the earliest OI-02 phase whose implementation the decision governs. "Prod" = production launch.
+- **Decision (option A):** hosted **staging** and **production** Supabase projects use the Pro plan (or higher), so session time-boxing, inactivity timeout, and single-session limits are enforced by the provider (03A F-16) in addition to the application limits. The Owner confirms current pricing when creating the projects.
+- **Status:** Approved.
+- **Provenance:** consolidated execution plan approval, item 7 (2026-11-23).
+- **Dependencies:** DEP-14 (hosted projects, under AUTH-003).
+- **Affected sections:** 03 §6.2, §15; 02 §4.
+
+### OI-51 — Custom SMTP provider for Supabase Auth email
+
+- **Decision (option A):** Supabase Auth email in hosted environments is sent through **Resend SMTP**, on a separate auth sending subdomain (03A F-08), configured per environment.
+- **Status:** Approved.
+- **Provenance:** consolidated execution plan approval, item 7 (2026-11-23).
+- **Dependencies:** DEP-14; DNS records for the sending subdomain are a Tier 3 Owner action.
+- **Affected sections:** 03 §5; 07 §1.
+
+### OI-52 — CAPTCHA on OTP requests
+
+- **Decision (option C):** no CAPTCHA in the MVP. Rate limits and generic responses apply (03 §17). The application keeps a disabled hook so a CAPTCHA can be enabled if abuse is observed; enabling it requires a vendor review and a CSP update.
+- **Status:** Approved.
+- **Provenance:** consolidated execution plan approval, item 7 (2026-11-23).
+- **Affected sections:** 03 §14, §17; 07 §8.
+
+### OI-67 — Risk-based authorization and execution model
+
+- **Decision:**
+  - Authorization uses five risk tiers (0 routine documentation and research; 1 isolated development and testing; 2 sensitive database, authentication, Stripe sandbox, and non-production hosting; 3 production financial, infrastructure, and publication actions; 4 destructive, irreversible, or critical security actions). Each authorization record defines scope, permitted operations, environments, credential restrictions, stop conditions, and expiry ([AUTHORIZATIONS.md](AUTHORIZATIONS.md)).
+  - The remaining work is organized as work packages: **WP-A** governance and specification correction; **WP-0** shared contracts; **WP-B** agreements, payments, webhooks, and ledger; **WP-C** intake, uploads, approvals, publication authorization, and fulfillment queue; **WP-D** hosted infrastructure and production readiness; **WP-E** legal, tax, and commercial approvals. Independent packages run in parallel once their dependencies are met. Shared contracts and migration ownership are defined before parallel work starts (01 §7).
+  - [CURRENT-STATE.md](CURRENT-STATE.md) is the single canonical status record and [AUTHORIZATIONS.md](AUTHORIZATIONS.md) the single authorization record. They replace the status material previously repeated across CLAUDE.md, README, 01 §8, this document §4, OPEN-ISSUES, and 04 §6.
+  - Implementation pull requests carry their own evidence and documentation updates. Status-only pull requests are not used where an implementation PR can carry the update.
+  - Mandatory session reading is limited to CLAUDE.md, CURRENT-STATE, AUTHORIZATIONS, and the specifications the active authorization names.
+  - Implementation PRs record AI session hours, Owner review hours, and administrative hours, so delivery forecasts use measured effort.
+  - PR #6 (AI operations proposal) stays a draft outside the release critical path. R1 and R2 retain the provisions it would build on: typed domain events, the durable outbox, append-only audit, and narrowly scoped integration interfaces.
+  - Every existing security control is preserved.
+- **Status:** Approved.
+- **Provenance:** consolidated execution plan approval, items 1 and 6 (2026-11-23).
+- **Revises:** OI-01, OI-02.
+- **Affected sections:** CLAUDE.md; README; 01 §7–§8; this document §4, §6; AUTHORIZATIONS.md; CURRENT-STATE.md.
+
+### OI-68 — Release scope: R1 and R2
+
+- **Decision:**
+  - **R1** is a complete, controlled commercial transaction: versioned agreement acceptance; deposit and maintenance subscription Checkout; verified payment processing; secure intake and scanned uploads; client status tracking; the derived administrative fulfillment queue; recorded client approval of an immutable preview release; the final balance on one Stripe-hosted invoice; the server-enforced gates and Owner publication authorization; and staff-executed publication of exactly the authorized release, with audit evidence and live verification.
+  - **R2** automates the remaining fulfillment operations: automated preview delivery and reminders, the automatic off-session final charge with hosted fallback, payment recovery reminders and the Customer Portal, adjusted balances, deployment orchestration, Resend transactional notifications, and post-publication inquiries.
+  - The R1 initial Checkout saves the payment method under the 04 §3.1 clause, once WP-B verifies the Stripe behavior.
+  - Release acceptance criteria are in 01 §9. Revisions to OI-04, OI-17, OI-18, OI-22, OI-25, OI-26, OI-29, OI-33, OI-44, OI-45, and OI-55 record the sequencing; no requirement is removed.
+  - Fulfillment may complete a website within days, so R1 includes approval, final payment, and publication rather than deferring them.
+- **Status:** Approved.
+- **Provenance:** consolidated execution plan approval, item 2 (2026-11-23).
+- **Dependencies:** DEP-03 (counsel confirms the R1 approval wording against the §3.1 clause); DEP-06; DEP-07; DEP-12.
+- **Affected sections:** 01 §3, §9; 04 §8, §9, §10, §17; 05 §2, §6–§7, §9–§10; 06 §2–§3, §8; 07 §1–§4; README.
+
+### OI-69 — Test-only legal fixtures
+
+- **Decision:** tests and non-production environments may use a test-only agreement fixture whose body is a non-legal placeholder ("TEST FIXTURE — NOT AN AGREEMENT"). It may include only the verbatim, already-approved 04 §3.1 clause. It is visibly labeled wherever shown. It is technically prevented from production use: the environment schema rejects it when `APP_ENV=production`, the database refuses to mark a fixture version `approved` for production use, and CI tests prove both. No legal text is drafted or invented (CLAUDE.md §5).
+- **Status:** Approved.
+- **Provenance:** consolidated execution plan approval, item 3 (2026-11-23).
+- **Affected sections:** CLAUDE.md §5; 04 §1, §2, §16 (T-AGR-08).
+
+### OI-70 — Path-aware, fail-closed CI and dependency security patches
+
+- **Decision:**
+  - A pull request whose every changed path is documentation (`docs/**/*.md` and root `*.md`) skips the database, integration, end-to-end, and Lighthouse suites. Lint, typecheck, format, unit tests, the dependency audit, and the secret scan run on every change. Any other path, a mixed change, a CI or classifier change, a push to `main`, a manual run, or any classifier error runs everything.
+  - The classifier and evaluator run from the pull request's base commit.
+  - The required aggregate check `CI result` passes only if every suite required for the change succeeded, and reports skipped suites as "not run", never as passed.
+  - Superseded pull request runs are cancelled; runs on `main` always complete. Playwright browsers are cached by version, and the install is bounded with one retry.
+  - Dependency security patches follow the standing exception in AUTHORIZATIONS.md §4.
+- **Status:** Approved.
+- **Provenance:** consolidated execution plan approval, item 4 (2026-11-23).
+- **Dependencies:** DEP-16 (the Owner switches the required status checks after merge).
+- **Affected sections:** `.github/workflows/ci.yml`; `scripts/ci/classify-changes.mjs`; docs/DEVELOPMENT.md §5; CLAUDE.md §6, §8; AUTHORIZATIONS.md §4.
+
+## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-70)
+
+Phase = the earliest original OI-02 phase whose implementation the decision governs. "Prod" = production launch. Since OI-67, phases 3, 4 and 5 correspond to WP-B, WP-C and WP-D, and release placement is given by the [R1]/[R2] tags in the specs (OI-68).
 
 | ID | Title | Status | Phase | Primary spec sections | Remaining dependencies / open items | Legal or provider verification |
 |---|---|---|---|---|---|---|
@@ -743,17 +831,17 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | OI-65 | Stripe test-mode catalog naming, metadata, keys, versioning | Approved | 3 | 04 §6.1–§6.3 | DEP-01, DEP-04 | Provider (Stripe test mode) |
 | OI-66 | `Stripe-Should-Retry: false` on a successful, verified response | Approved | 3 | 04 §6.4 | DEP-01 | Provider (Stripe test mode) |
 | OI-46 | Involuntary subscription cancellation | Approved | 3 | 04 §9.1.1; 06 §8.4 | DEP-03, DEP-06 | Legal; provider (Stripe `past_due` behavior) |
+| OI-50 | Supabase plan (Pro for staging and production) | Approved | Hosted | 03 §6.2, §15 | DEP-14 | Provider (pricing) |
+| OI-51 | Resend SMTP for Supabase Auth email | Approved | Hosted | 03 §5; 07 §1 | DEP-14 | Provider (Resend) |
+| OI-52 | No CAPTCHA in the MVP (hook kept, disabled) | Approved | 2 | 03 §14, §17 | — | — |
+| OI-67 | Risk-based authorization and execution model | Approved | All | AUTHORIZATIONS; CURRENT-STATE; CLAUDE.md; 01 §7 | — | — |
+| OI-68 | Release scope: R1 and R2 | Approved | WP-B, WP-C | 01 §9; 04; 05; 06; 07 | DEP-03, DEP-06, DEP-07, DEP-12 | Legal (R1 approval wording) |
+| OI-69 | Test-only legal fixtures | Approved | WP-B | CLAUDE.md §5; 04 §1–§2 | — | — |
+| OI-70 | Path-aware, fail-closed CI; dependency patches | Approved | All | ci.yml; DEVELOPMENT §5 | DEP-16 | — |
 
 ## 4. Current authorization status
 
-| Stage (OI-01) | Status | Evidence |
-|---|---|---|
-| 1. Architecture approval | **Approved** (per owner-provided baseline; pending verification of this register) | §1 |
-| 2. Specification reconciliation | Foundation specs approved (below). **Spec 03** v0.4.0: approved 2026-11-23 (Phase 2 authorization). **Spec 04**: approved 2026-11-23 for **Phase 3 Stripe test-mode implementation only**; not approved for production (legal review DEP-03 and provider verification DEP-06 remain conditions). Specs 05–08: in review. | Owner instructions, 2026-11-23 |
-| Foundation specs 01, 02 and CLAUDE.md | **Approved (final)**: 01 v0.3.2, 02 v0.4.0, and CLAUDE.md as reconciled in commit `10868de` and merged through PR #1. | [Sign-off record](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); Owner's written Phase 1 authorization, 2026-11-23 |
-| 3. Implementation authorization | **Phase 1** (Foundation and CI): authorized and merged (PR #2). **Phase 2** (Auth, security, and tenant isolation): authorized 2026-11-23 and merged (PR #4, merge commit `45d05f6`); local Supabase only, not deployed. **Phases 3–5: not authorized.** Approval of spec 04 for test-mode implementation does not authorize Phase 3. | Owner's written Phase 1 and Phase 2 authorizations, 2026-11-23 |
-| 4. Production launch authorization | **Not authorized** | — |
-| Narrow exception: Stripe **test-mode** catalog creation (OI-30) | **Used and closed.** Carried out under the Owner's separate written execution authorizations and completed on 2026-11-23: all 11 products and 11 prices created and verified in sandbox "Spotlight Client Portal - Development" (DEP-01; IDs in 04 §6.5). The restricted keys were revoked, and the earlier live-mode secret was removed from the `chris-pribyl` environment. No Stripe request of any kind is authorized without a further separate, narrowly scoped written Owner authorization (CLAUDE.md §5). | Owner instructions, 2026-11-23 |
+Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHORIZATIONS.md), and overall status only in [CURRENT-STATE.md](CURRENT-STATE.md). The history of earlier authorizations is in AUTHORIZATIONS.md §5 and §5 below.
 
 ## 5. Change history
 
@@ -782,13 +870,14 @@ Phase = the earliest OI-02 phase whose implementation the decision governs. "Pro
 | 0.12.3 | 2026-11-23 | **OI-66 approved:** `Stripe-Should-Retry: false` prohibits retrying; on a successful HTTP 200 with a valid, expected, verified object it is not by itself a failure; any error, ambiguity, unexpected object, or failed verification still stops the run; no automatic retry. 04 v0.7.3 (§6.4). DEP-01 history records run `dep01-20261123T142608Z-0295d87d` (stopped at request 6 of 60 after one product creation) and read-only reconciliation `dep01-reconcile-20261123T143019Z-defd3b34` (product `prod_VgKrmaWefVnWy1` matches the manifest; no price). No other decision or safeguard changed. DEP-01 remains blocked pending a resumed-run authorization. | Claude Code | Owner (OI-66 and reconciliation authorization, 2026-11-23) |
 | 0.12.4 | 2026-11-23 | **DEP-01 catalog created and verified** in sandbox "Spotlight Client Portal - Development" by run `dep01-20261123T220040Z-290aebd0` (48 requests; 10 products and 11 prices created, 1 product reused; all 11 entries verified, `livemode: false` throughout). 04 v0.7.4 records the Product and Price IDs and the execution record (§6.5). OI-30 status updated. DEP-01 complete on merge. The Stripe API suspension in CLAUDE.md §5 is unchanged and still applies to any further request. Phase 3 is not authorized. | Claude Code | Owner (resumed-run authorization, 2026-11-23) |
 | 0.12.5 | 2026-11-24 | Status wording only: CLAUDE.md §1 and §5, README, and the §4 authorization table now record the OI-30 catalog exception as used and closed (DEP-01 complete; PR #12 post-merge CI passed), and its execution authorization as completed and expired. The suspension of Stripe API requests is unchanged and still requires a separate, narrowly scoped written Owner authorization for any further request. No decision, restriction, or catalog value changed. | Claude Code | Owner (instruction, 2026-11-24) |
+| 0.13.0 | 2026-11-24 | **Execution model correction (WP-A), approved by the Owner on 2026-11-23** (reply "APPROVE" to the consolidated execution plan). New decisions **OI-67** (risk-tier authorization, work packages, canonical CURRENT-STATE and AUTHORIZATIONS documents, evidence carried in implementation PRs), **OI-68** (R1/R2 release scope), **OI-69** (test-only legal fixtures), and **OI-70** (path-aware, fail-closed CI; dependency security patch exception). **OI-50** (A), **OI-51** (A), and **OI-52** (C) decided. Dated revisions of OI-01, OI-02, OI-04, OI-17, OI-18, OI-22, OI-25, OI-26, OI-29, OI-33, OI-44, OI-45, and OI-55 record release sequencing; no requirement removed. Specs 01 (v0.4.0), 04 (v0.8.0, adds §17 payment architecture invariants), 05 (v0.4.0), 06 (v0.5.0), 07 (v0.4.0), and this register approved as amended. CLAUDE.md rewritten (every security control preserved; CLAUDE.md section numbers cited in entries and rows before v0.13.0 refer to its earlier numbering); README slimmed. Corrected stale records: 04 §6 DEP-01 status, OPEN-ISSUES DEP-01 current status and DEP-10 required checks. Grants recorded as AUTH-001 to AUTH-003. CI: classifier, aggregate `CI result`, Playwright cache and bounded install, PR-only cancellation. | Claude Code | Owner (consolidated execution plan approval, 2026-11-23) |
 
 ## 6. Change-control rules
 
-1. **Decision changes.** A change to an OI-01–OI-46 decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
-2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-67 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-16 onward). When the owner resolves one, it is recorded in this register under that same ID.
+1. **Decision changes.** A change to any recorded decision requires explicit owner approval. The change is recorded as a new dated entry in §5, and the decision text is amended with a "Revised (date)" note. Original IDs are never reused or renumbered.
+2. **New decisions.** New open questions are added to [OPEN-ISSUES.md](../OPEN-ISSUES.md) with the next unused ID (currently OI-71 onward; OI-56 to OI-62 are allocated in draft PR #6). Implementation dependencies use DEP-nn IDs (currently DEP-17 onward). Authorization records use AUTH-nnn IDs (currently AUTH-004 onward). When the owner resolves one, it is recorded in this register under that same ID.
 3. **Specification changes.** Changes to specifications 01–07 go through a pull request. Each spec carries a version and status header. A spec moves from *Draft* to *Approved* only on owner sign-off recorded in §5.
 4. **Precedence.** (a) Owner-approved decisions in this register. (b) Approved specifications 01–07. (c) CLAUDE.md for operating procedure. (d) README. A lower-precedence document must never be used to override a higher one.
 5. **Conflicts.** Any conflict between documents, or between a document and an owner decision, is **escalated** to the owner as an open issue. It is never silently resolved by an author or agent.
 6. **Classification integrity.** A **[PROPOSED]** item becomes binding only when the spec containing it is approved. A **[PENDING]** or **[DEFERRED]** item may be closed only by a recorded owner decision.
-7. **Authorization separation.** Approving a document or decision never authorizes implementation or production activity. Those require stage 3 or stage 4 authorization (OI-01), granted per phase (OI-02).
+7. **Authorization separation.** Approving a document or decision never authorizes implementation or production activity. Those require an active authorization record in [AUTHORIZATIONS.md](AUTHORIZATIONS.md) at the required risk tier (OI-67), and production launch requires stage 4 authorization (OI-01).

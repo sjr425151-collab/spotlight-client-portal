@@ -2,13 +2,15 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.7.4 |
-| Status | **Approved for Phase 3 Stripe test-mode implementation only** (Owner, 2026-11-23). Not approved for production: qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. This approval does not authorize Phase 3 or any Stripe request (CLAUDE.md §1, §5). History: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47 approved (Option A); v0.6.0 test-mode approval and webhook testing strategy (OI-63); v0.7.0 test-mode catalog manifest (§6.1–§6.3; OI-64, OI-65 approved), with no change to any other approved text or value; v0.7.1 records provider verification of the `livemode` field and clarifies `tax_behavior` (§6.1, §6.3), with no change to any catalog value or procedure; v0.7.2 records verified Stripe key, sandbox, and idempotency behavior and strengthens execution safety (§6.2–§6.4), with no change to any catalog value; v0.7.3 clarifies the `Stripe-Should-Retry: false` rule (§6.4; OI-66), with no change to any catalog value or other safeguard; v0.7.4 records the created and verified sandbox catalog IDs (§6.5; DEP-01), with no change to any catalog value or procedure. |
-| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63, OI-64, OI-65, OI-66 |
+| Version | 0.8.0 |
+| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). |
+| Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63–OI-66, OI-68, OI-69 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
 
-> Nothing in this document authorizes any Stripe operation. No Stripe products, prices, customers, subscriptions, or Checkout configurations were created, queried, or modified in preparing it.
+> Nothing in this document authorizes any Stripe operation. Stripe operations are authorized only by an active record in [AUTHORIZATIONS.md](AUTHORIZATIONS.md).
+
+**Release placement [APPROVED OI-68]:** everything in this document is **[R1]** unless tagged **[R2]**. R2 items: the automatic off-session final charge (§10), the Customer Portal (§9.2), portal-sent payment recovery reminders (§9.1), and adjusted final balances (§10 "Adjusted balances", §10.1).
 
 ## 1. Agreement lifecycle **[APPROVED OI-13]**
 
@@ -28,7 +30,7 @@ stateDiagram-v2
 ```
 
 - The owner-authored draft (v1.0, outside the repository) makes the agreement effective "upon electronic acceptance and successful initial payment." **[APPROVED OI-34]** Electronic acceptance (`agreement.accepted`) and service activation (`agreement.effective`, triggered by deposit verification) are recorded as **separate events**.
-- **[APPROVED OI-34]** The current agreement is **not legally finalized**. Qualified legal review is required before production (DEP-03). Phase 3 test mode may use the draft only with a visible "DRAFT — not for production use" marker **[PROPOSED]**.
+- **[APPROVED OI-34]** The current agreement is **not legally finalized**. Qualified legal review is required before production (DEP-03). Tests and non-production environments use only the **test-only agreement fixture** **[APPROVED OI-69]**: a non-legal placeholder body ("TEST FIXTURE — NOT AN AGREEMENT") that may include only the verbatim §3.1 clause, labeled wherever shown, and technically blocked from production (§2). The owner-authored draft is not loaded into any environment until counsel approves the final text.
 
 ## 2. Agreement versioning and immutable copy **[APPROVED OI-13]**
 
@@ -44,6 +46,7 @@ Rules **[PROPOSED]**:
 - Version records are insert-only. A text change is a new version.
 - The hash is computed over a canonical serialization (UTF-8, normalized line endings) and verified on read.
 - Clients are only ever shown `approved` versions in production.
+- **[APPROVED OI-69]** A version record carries an `is_test_fixture` flag. The environment schema rejects a fixture version when `APP_ENV=production`, and a database constraint prevents a fixture version from being `approved` for production use. CI proves both (T-AGR-08).
 
 ## 3. Acceptance evidence **[APPROVED OI-13]**
 
@@ -80,7 +83,7 @@ Rules **[PROPOSED]**:
 
 ### 3.1 Authorization for Final Payment clause **[APPROVED OI-17, revised 2026-11-23]**
 
-The following clause is **legal-adviser-approved** (Owner instruction, 2026-11-23). It is incorporated into the Website Development & Maintenance Services Agreement, in the section covering payment terms, **verbatim**. Its wording must not be edited, paraphrased, or reformatted in meaning (CLAUDE.md §7). Accepting the agreement (§3) and submitting the initial deposit (§8) constitute the client's authorization under this clause.
+The following clause is **legal-adviser-approved** (Owner instruction, 2026-11-23). It is incorporated into the Website Development & Maintenance Services Agreement, in the section covering payment terms, **verbatim**. Its wording must not be edited, paraphrased, or reformatted in meaning (CLAUDE.md §5). Accepting the agreement (§3) and submitting the initial deposit (§8) constitute the client's authorization under this clause.
 
 > **Authorization for Final Payment**
 >
@@ -159,9 +162,7 @@ Required procedure for the creation action:
 4. Verify each price's amount, currency, type, and interval after creation.
 5. Record the resulting Price IDs in the table below. Price IDs are identifiers, not credentials. Credentials are never committed.
 
-**Status (2026-11-23): blocked.** In this documentation session, `api.stripe.com` was initially not reachable from the session environment. A credential was then supplied, and Stripe identified it as a **live-mode** key (`sk_live_` prefix) and rejected it as invalid. Work stopped before any search or write. **No Stripe object was created or modified.** A valid test-mode key is required (DEP-01). No placeholder IDs are recorded.
-
-**Owner instruction (2026-11-23):** make **no Stripe API requests** until the Owner separately authorizes a verified test-mode credential workflow. DEP-01 remains blocked until then. The catalog design below is approved (OI-64, OI-65). That approval is a design approval only and authorizes no Stripe request.
+**Status: complete (DEP-01, 2026-11-23).** All 11 products and 11 prices were created and verified in sandbox "Spotlight Client Portal - Development". The execution record and IDs are in §6.5. The catalog execution authorization is completed and expired; any further Stripe request needs an active authorization ([AUTHORIZATIONS.md](AUTHORIZATIONS.md)). The procedure above and §6.1–§6.4 are kept as the record of how the catalog was created.
 
 ### 6.1 Catalog manifest, version 1 **[APPROVED OI-30, OI-64, OI-65]**
 
@@ -309,7 +310,7 @@ Idempotency:
 | Earlier runs | `dep01-20261123T142608Z-0295d87d` (6 requests; stopped after creating `prod_VgKrmaWefVnWy1` under the pre-OI-66 rule) and read-only reconciliation `dep01-reconcile-20261123T143019Z-defd3b34` (6 requests) |
 | Total authenticated Stripe requests | 60 across the three runs |
 
-Phase 3 cannot begin implementation until these IDs are recorded and verified to match the §5.1 amounts. **They are recorded and verified above.** Phase 3 still requires separate written Owner authorization (CLAUDE.md §1).
+WP-B uses these IDs for test-mode implementation. They are recorded and verified above.
 
 ## 7. Integer-cents calculation policy **[APPROVED OI-15]**
 
@@ -344,9 +345,9 @@ Expected initial totals:
 | Signature | 69900 | 9900 | **79800 ($798.00)** |
 | Prestige | 99900 | 9900 | **109800 ($1,098.00)** |
 
-**[VERIFY-PROVIDER]** One-time prices in subscription-mode Checkout are added to the first invoice only. Confirm this against current Stripe documentation in Phase 3.
+**[VERIFY-PROVIDER]** One-time prices in subscription-mode Checkout are added to the first invoice only. Confirm this against current Stripe documentation in WP-B (AUTH-002).
 
-**[VERIFY-PROVIDER]** Confirm in Phase 3 how subscription-mode Checkout saves the payment method for a later off-session, one-off charge (for example, as the Customer's default invoice payment method), and whether any Checkout consent setting or displayed terms are needed alongside §3.1 (DEP-06).
+**[VERIFY-PROVIDER] [R1, OI-68]** Confirm in WP-B how subscription-mode Checkout saves the payment method for a later off-session, one-off charge (for example, as the Customer's default invoice payment method), and whether any Checkout consent setting or displayed terms are needed alongside §3.1 (DEP-06).
 
 **Workflow: start initial Checkout**
 
@@ -374,7 +375,7 @@ Expected initial totals:
 |---|---|
 | T0 | `invoice.payment_failed` for a $99 renewal is recorded. Recovery starts. |
 | Recovery period | **Seven full calendar days** after T0: calendar days, **never** business days. Recovery ends at 23:59:59 America/Detroit on the 7th calendar day after T0's local date (02 §13) **[APPROVED OI-26, OI-43]**. |
-| During recovery | Stripe's configured payment retries **[VERIFY-PROVIDER]** run, with automated reminders to the client (07 §4). Account access is unchanged. |
+| During recovery | Stripe's configured payment retries **[VERIFY-PROVIDER]** run. **[R1]** Stripe's own customer emails, as the Owner configures them, reach the client, and the portal shows the open invoice. **[R2]** The portal also sends automated reminders (07 §4). Account access is unchanged. |
 | Recovered | A verified `invoice.paid` for the failed invoice ends recovery. No hold is placed. |
 | Unresolved at end | A `maintenance_payment_hold` is placed automatically (§14), and the project enters Owner review (§9.1.1). |
 | Hold effect | Pauses **new publication** and **nonessential maintenance**. The client **keeps portal access**. An **already-published website is not disabled automatically**. |
@@ -405,7 +406,7 @@ Internal service-termination state **[APPROVED OI-46; states PROPOSED]**:
 - Billing and termination audit history is complete (03 §11).
 - Final termination, milestone, and notice terms require legal review (DEP-03).
 
-### 9.2 Stripe Customer Portal **[APPROVED OI-29]**
+### 9.2 Stripe Customer Portal **[APPROVED OI-29] [R2]**
 
 The hosted Stripe Customer Portal is **in the MVP**.
 
@@ -418,17 +419,29 @@ The hosted Stripe Customer Portal is **in the MVP**.
 | Plan/price switching, quantity changes | Disabled **[PROPOSED]** |
 
 - Portal sessions are created on the server for the authenticated client's own Stripe Customer only (03 §4).
-- **[VERIFY-PROVIDER OI-39]** Confirm the Customer Portal configuration options in Phase 3.
-- Customer Portal configuration is a Stripe change, so it is made in test mode only, under Phase 3 authorization.
+- **[R2, OI-68]** The Customer Portal is delivered in R2. In R1, clients pay and update payment details on Stripe-hosted invoice pages.
+- **[VERIFY-PROVIDER OI-39]** Confirm the Customer Portal configuration options in WP-B.
+- Customer Portal configuration is a Stripe Dashboard change made by the Owner, in the sandbox under AUTH-002, and in production only under production authorization.
 - The draft agreement §7 refers to cancelling "through the designated billing portal". Because self-service cancellation is disabled, that wording must be aligned with §15.1 (DEP-03).
 
 ## 10. Final balance collection (authorized automatic charge) **[APPROVED OI-17, revised 2026-11-23]**
 
-The remaining 80% balance is **not** collected through a separate checkout. The client's explicit final approval of the completed website (05 §7), labeled **Approve Website & Authorize Final Payment**, authorizes collection of the previously disclosed outstanding balance. The server then has Stripe charge it automatically to the payment method saved at the initial Checkout (§8), under the authorization in §3.1.
+The remaining 80% balance is **not** collected through a separate checkout. The client's explicit final approval of the completed website (05 §7) makes the previously disclosed outstanding balance due and creates the single final-balance invoice.
+
+**Collection by release [APPROVED OI-17, revised by OI-68]:**
+
+| | R1 | R2 |
+|---|---|---|
+| Collection | The client pays the final-balance invoice on its **Stripe-hosted invoice page** **[VERIFY-PROVIDER]** | Stripe charges the invoice **automatically, off-session**, to the payment method saved at the initial Checkout (§8), under the §3.1 authorization. The hosted page is the fallback. |
+| Approval action label | Wording that does not state or imply an automatic charge, for example **Approve Website & Continue to Final Payment** **[PROPOSED; counsel confirms, DEP-03]** | **Approve Website & Authorize Final Payment** |
+| Payment method saved at the initial Checkout | Yes, once WP-B verifies the Stripe behavior (§8) | Yes |
+
+Every other rule in this section applies to both releases: one invoice per project and order summary, verification only by webhook, no publication before verified payment, and no second charge.
 
 | Attribute | Value |
 |---|---|
 | Trigger | The client's explicit approval of the current released preview (05 §7). Never a timer, staff action, or silence (OI-18). |
+| Invoice collection **[PROPOSED; VERIFY-PROVIDER]** | R1: sent for payment on the Stripe-hosted page. R2: charged automatically. The R1 to R2 change is a configuration of the same invoice workflow, not a second workflow. |
 | Stripe object **[PROPOSED; VERIFY-PROVIDER]** | A one-off Stripe **invoice** for the client business's Customer with a single line item, the package **balance** Price ID (one-time), quantity 1. It is charged automatically to the saved payment method. The maintenance subscription is never part of this invoice. |
 | Amount | Balance from the order summary snapshot (§5.1), or the adjusted amount due under §10.1 |
 | Invoice and receipt | Stripe generates the itemized invoice and the payment receipt, delivered electronically (§3.1; 07 §4) |
@@ -453,7 +466,7 @@ Whether final payment may be requested *before* client approval is not specified
 - A reduction can **never exceed the outstanding final balance** (**[APPROVED OI-47]**, confirmed by the Owner 2026-11-23); reducing it to zero is the full waiver above. A concession larger than the final balance is not supported in the MVP; refunds are governed separately (§15.2).
 - The $99 maintenance subscription is never reduced by a project discount (§10.1 row 13; OI-44).
 
-### 10.1 Adjusted final-balance payment **[APPROVED OI-44, OI-55]**
+### 10.1 Adjusted final-balance payment **[APPROVED OI-44, OI-55] [R2]**
 
 OI-44 was approved for a separate final Checkout. Under **OI-55 (option A, Owner-approved 2026-11-23)**, the same requirements and safeguards apply unchanged to the automatic final-balance invoice (§10), which replaces that Checkout.
 
@@ -476,14 +489,14 @@ Mechanism constraints **[PROPOSED; VERIFY-PROVIDER]**:
 - The final-balance invoice has a single line item: the standard balance Price ID. The maintenance subscription is never part of this invoice, so an invoice-level discount cannot reach it.
 - The discount is applied to the **final-balance invoice** only. It is restricted to the balance product, limited to a single redemption, and linked to the `balance_adjustments` record in metadata. It is **never** attached to the Stripe Customer or the subscription.
 - Webhook verification (§11): the invoice's total must equal the adjusted amount due, and its discount must equal the authorized discount. Any mismatch quarantines the event, and payment is not verified.
-- Creating discount objects (for example coupons) is a Stripe change. This document authorizes none. Test-mode creation requires Phase 3 authorization; live creation requires production authorization.
+- Creating discount objects (for example coupons) is a Stripe change. This document authorizes none. Test-mode creation requires a Tier 2 authorization that names it (AUTH-002 does not); live creation requires production authorization. **[R2, OI-68]** Adjustments are not offered in R1.
 - If Stripe cannot meet these constraints, **escalate to the Owner**. No inline pricing or alternative mechanism may be substituted silently.
 
 ## 11. Verified webhook handling **[APPROVED OI-17]**
 
 **Testing strategy [APPROVED OI-63, hybrid]:**
 - **CI (every pull request):** synthetic Stripe-format events signed with a **test-only signing secret generated for the CI run**, never a real Stripe secret. They exercise signature verification, idempotent replay, out-of-order delivery, `livemode` and metadata checks, and quarantine (T-PAY-03 to T-PAY-08). CI holds **no Stripe credential** and makes no Stripe request.
-- **Real Stripe test-mode verification:** the same handlers are verified against events that real test-mode Stripe objects produce (Checkout, invoices, subscriptions, refunds, disputes), with a test-mode webhook signing secret. **[PROPOSED]** It runs as a recorded verification step (for example with the Stripe CLI forwarding test-mode events to a local server), separately from CI. It needs DEP-01 and the separate Stripe access authorization (CLAUDE.md §5), and is tracked as DEP-15.
+- **Real Stripe test-mode verification:** the same handlers are verified against events that real test-mode Stripe objects produce (Checkout, invoices, subscriptions, refunds, disputes), with a test-mode webhook signing secret. **[PROPOSED]** It runs as a recorded verification step (for example with the Stripe CLI forwarding test-mode events to a local server), separately from CI. It needs DEP-01 and an active Stripe sandbox authorization (AUTH-002; CLAUDE.md §4), and is tracked as DEP-15.
 - A handler behavior proven only by synthetic events is not treated as verified against Stripe until the matching test-mode verification passes.
 
 Rules:
@@ -673,10 +686,11 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-PAY-10 | No API or UI path exists that records a payment as received without a Stripe event (code search plus negative API test) |
 | T-PAY-11 | A client cannot create a Checkout Session for another project (cross-tenant) |
 | T-PAY-12 | Price verification mismatch blocks Checkout creation and final-balance invoice creation |
-| T-PAY-13 | Approval (**Approve Website & Authorize Final Payment**) creates exactly one final-balance invoice for the snapshot balance, charged to the saved payment method. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice or charge. |
-| T-PAY-14 | A failed charge or a required authentication leaves the balance unverified, offers the Stripe-hosted completion option for the same invoice, and blocks publication until a verified `invoice.paid` |
+| T-PAY-13 | **[R2]** Approval (**Approve Website & Authorize Final Payment**) creates exactly one final-balance invoice for the snapshot balance, charged to the saved payment method. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice or charge. |
+| T-PAY-14 | **[R2]** A failed charge or a required authentication leaves the balance unverified, offers the Stripe-hosted completion option for the same invoice, and blocks publication until a verified `invoice.paid` |
 | T-PAY-15 | The accepted agreement version contains the §3.1 clause verbatim (text hash check) |
 | T-PAY-16 | **Test-mode verification (OI-63, DEP-15):** for each in-scope event type (§11), an event produced by a real **test-mode** Stripe object is delivered with a real test-mode signing secret and processed with the same outcome as its synthetic CI counterpart. A `livemode: true` event is rejected. Not run in CI. |
+| T-PAY-17 | **[R1]** Approval creates exactly one final-balance invoice for the snapshot balance, payable on its Stripe-hosted page. Repeated approvals, double submissions, retried jobs, and concurrent requests never create a second invoice. The balance becomes `verified` only from a verified `invoice.paid`. The R1 approval screen does not state or imply an automatic charge. |
 | T-AGR-01 | The acceptance checkbox renders unchecked. The server rejects acceptance without an explicit true value. |
 | T-AGR-02 | Initial Checkout cannot be created without a current acceptance |
 | T-AGR-03 | Acceptance evidence includes every §3 field. The stored hash matches the version text. |
@@ -684,19 +698,20 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-AGR-05 | Staff cannot accept on a client's behalf |
 | T-AGR-06 | Acceptance is rejected unless the separate authority checkbox is explicitly true and legal name, business legal name, and title are present (OI-28) |
 | T-AGR-07 | `agreement.accepted` and `agreement.effective` are distinct events. `effective` occurs only after deposit verification (OI-34). |
+| T-AGR-08 | **[R1, OI-69]** The test-only fixture is rejected by the environment schema when `APP_ENV=production`, a fixture version cannot be marked `approved` for production use, and every screen showing it carries the fixture label |
 | T-BIL-01 | A failed renewal places `maintenance_payment_hold` only after 7 full calendar days unresolved. Recovery within the window places no hold. (OI-26) |
 | T-BIL-02 | `maintenance_payment_hold` blocks publication, keeps portal access, and issues no request that disables a live site |
 | T-BIL-03 | A verified recovery payment clears the hold automatically |
-| T-BIL-04 | The Customer Portal session opens only for the caller's own customer. Cancellation is not offered in the portal configuration. (OI-29) |
-| T-BIL-05 | A full waiver creates a `waiver` entry, creates no Stripe payment, and satisfies G4 with the disclosure flag (OI-27) |
-| T-BIL-06 | Adjustments require Owner, reauthentication, and a reason. Admin attempts are rejected and audited. |
+| T-BIL-04 | **[R2]** The Customer Portal session opens only for the caller's own customer. Cancellation is not offered in the portal configuration. (OI-29) |
+| T-BIL-05 | **[R2]** A full waiver creates a `waiver` entry, creates no Stripe payment, and satisfies G4 with the disclosure flag (OI-27) |
+| T-BIL-06 | **[R2]** Adjustments require Owner, reauthentication, and a reason. Admin attempts are rejected and audited. |
 | T-BIL-07 | Cancellation records hold a request date and an effective date separately. M1 is computed 12 business days, and M2 60 calendar days, after the effective date using the approved calendar (OI-35, OI-43). |
 | T-BIL-08 | No automated process cancels, deletes, or lets lapse a client-owned domain |
 | T-BIL-09 | A dispute webhook notifies the Owner, records the deadline, and triggers no takedown (OI-37) |
 | T-BIL-10 | Ledger entries carry a service category. Tax collection is disabled outside authorized production configuration. (OI-36) |
-| T-BIL-11 | The adjusted final-balance invoice has only the balance line item, and approval charges it exactly once (OI-55). The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
-| T-BIL-12 | After an adjusted final payment, no discount is attached to the customer or subscription, and the next maintenance renewal invoice is exactly 9900 cents |
-| T-BIL-13 | The adjustment record contains every §10.1 field. An Admin attempt is rejected and audited. |
+| T-BIL-11 | **[R2]** The adjusted final-balance invoice has only the balance line item, and approval charges it exactly once (OI-55). The total equals the adjusted amount due. A mismatched webhook amount or discount is quarantined. (OI-44) |
+| T-BIL-12 | **[R2]** After an adjusted final payment, no discount is attached to the customer or subscription, and the next maintenance renewal invoice is exactly 9900 cents |
+| T-BIL-13 | **[R2]** The adjustment record contains every §10.1 field. An Admin attempt is rejected and audited. |
 | T-BIL-14 | Through day 7 of recovery: no hold, no termination state, no discontinuation or deactivation request. After the period: the hold is placed and an Owner review item exists. (OI-46) |
 | T-BIL-15 | An unexpected `customer.subscription.deleted` creates an exception review. No transition starts, and the site is unaffected. |
 | T-BIL-16 | Duplicate termination authorizations or duplicate webhooks produce exactly one termination and one set of M1 and M2 deadlines |
@@ -704,4 +719,39 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 | T-BIL-18 | No code path or configuration deliberately degrades a client website (code review checklist and negative test) |
 | T-BIL-19 | Domain expiry is taken from the actual registration date and registrar record. Cancellation, M1, and M2 make no registrar call that cancels, deletes, or transfers the domain. |
 | T-BIL-20 | The initial Checkout Session for every standard package contains exactly the standard deposit Price ID and the maintenance Price ID, with no discount, coupon, promotion code, or credit. Any attempt to create a deposit-stage adjustment is rejected and audited. (OI-47) |
-| T-BIL-21 | An Owner-authorized reduction larger than the outstanding final balance is rejected. After any final-balance adjustment, the deposit ledger entry is unchanged and the next maintenance invoice is exactly 9900 cents. (OI-47, OI-44) |
+| T-BIL-21 | **[R2]** An Owner-authorized reduction larger than the outstanding final balance is rejected. After any final-balance adjustment, the deposit ledger entry is unchanged and the next maintenance invoice is exactly 9900 cents. (OI-47, OI-44) |
+| T-BIL-22 | **[R1]** No API or UI path offers or applies a discount, credit, or waiver to any R1 invoice. Attempts are rejected and audited. |
+
+## 17. Payment architecture invariants **[APPROVED OI-17, OI-68; mechanics PROPOSED]**
+
+These invariants apply to every payment workflow in R1 and R2. They make explicit what §8–§14 require.
+
+| # | Invariant | Rule |
+|---|---|---|
+| 1 | Separate state domains | Agreement, payment (deposit and balance), subscription, fulfillment, approval, and deployment each have their own records and transitions (05 §2). No domain writes another's state. Gates read derived status only (01 §7 shared contracts). |
+| 2 | Outbound idempotency | Before any Stripe create, the server inserts an `outbound_stripe_requests` row (purpose, project, domain record, attempt, idempotency key) in the same transaction as the intent. The idempotency key is derived from the domain record ID and the attempt number. An ambiguous result is reconciled before any new attempt (§6.4 rules apply to all creates). |
+| 3 | One open object per stage | Unique constraints allow at most one open initial Checkout Session and one final-balance invoice per project and order summary. A repeat request returns the existing object. |
+| 4 | Durable ingestion | The webhook endpoint verifies the signature on the raw body, then inserts the event into `webhook_events` (unique `stripe_event_id`), and only then returns 2xx. Processing happens after the durable insert. A duplicate insert is a no-op. |
+| 5 | Order independence | Processing re-reads the current Stripe object (under the active authorization's credential) or compares object state and `created` time, so a late or out-of-order event can never move a domain backwards. Transitions are monotonic except for the explicit refund, dispute, and failure transitions in 05 §2. |
+| 6 | Transactional updates | A domain transition, its ledger entries, its domain event, its outbox rows, and its audit event commit in one database transaction. |
+| 7 | Authoritative reconciliation | The daily reconciliation (§13) treats Stripe as authoritative for money movement. Mismatches are quarantined and alerted, never auto-corrected. Missed events are replayed through the same idempotent handler. |
+| 8 | Duplicate-charge prevention | Invariants 2 and 3, plus: no code path creates a second final-balance invoice while one is open or paid, and publication recovery never creates, retries, or re-attempts a payment (06 §8.1). |
+| 9 | Refunds, disputes, chargebacks | Recorded from webhooks into the ledger (§12, §15.2, §15.4). Issuing a refund or responding to a dispute is a Tier 3 Owner action; the portal records the decision and the webhook result. |
+| 10 | Version-specific evidence | Payment records reference the order summary snapshot and acceptance; the final-balance invoice references the approval ID and the approved release (05 §7). |
+| 11 | Successful payment, failed deployment | The paid state is never reversed by a deployment failure. The publication goes to recovery (06 §8.1). |
+| 12 | Off-session authentication and hosted fallback **[R2]** | When the automatic charge fails or needs authentication, the same invoice's hosted page is offered (§10). R1 uses the hosted page from the start. |
+| 13 | No unverified payment | Redirects, client-side callbacks, and client-provided assertions never change payment state (§11 rule 4). |
+
+Acceptance tests **[PROPOSED]**:
+
+| ID | Test |
+|---|---|
+| T-ARC-01 | A webhook request is acknowledged only after its event row is durably stored. A failure before storage returns non-2xx, and Stripe's retry is processed exactly once. |
+| T-ARC-02 | Processing failures after storage leave the event retryable, and retried processing produces the same final state with no duplicate ledger entries |
+| T-ARC-03 | A stale event delivered after a newer state (for example `invoice.payment_failed` after `invoice.paid`) does not move the domain backwards |
+| T-ARC-04 | Every Stripe create has a prior `outbound_stripe_requests` row and a derived idempotency key (code search plus test) |
+| T-ARC-05 | Concurrent requests to start the initial Checkout or create the final-balance invoice produce one Stripe object |
+| T-ARC-06 | A simulated failure between a domain transition and its ledger entry leaves neither committed |
+| T-ARC-07 | A seeded ledger and Stripe mismatch creates a quarantine record and an alert, and changes no payment state |
+| T-ARC-08 | Refund and dispute webhooks post ledger entries and apply OI-37 rules. No portal path issues a refund without the Owner's Tier 3 action. |
+

@@ -2,89 +2,73 @@
 
 These instructions apply to every contributor and AI agent working in this repository.
 
-## 1. Current authorization (read first)
+## 1. Before you start (required reading)
 
-| Stage (OI-01) | Status |
-|---|---|
-| Architecture | Approved |
-| Specification reconciliation | Specs 01, 02 and this file are **approved (final, 2026-11-23)** ([sign-off](docs/OWNER-SIGNOFF-FOUNDATION-2026-11-22.md); final approval in the Phase 1 authorization). Spec 03 v0.4.0 is **approved** (2026-11-23, Phase 2 authorization), with 03A as supporting evidence. Spec 04 is **approved for Phase 3 Stripe test-mode implementation only** (2026-11-23); legal review and provider verification remain production conditions. Approving a spec never authorizes its phase. |
-| Stripe test-mode catalog (OI-30) | Narrow exception **used and closed**: the sandbox catalog was created and verified on 2026-11-23 (DEP-01, [04 §6.5](docs/04-AGREEMENT-AND-BILLING.md)); results merged in PR #12. The catalog execution authorization is **completed and expired**. Any future authenticated Stripe operation requires a separate, explicit written Owner authorization; see §5 |
-| **Implementation** | Phase 1 (Foundation and CI): authorized and merged. **Phase 2 (Auth, security, and tenant isolation): authorized 2026-11-23 and merged** (PR #4, merge commit `45d05f6`), local Supabase with synthetic data only, not deployed. Phases 3–5: **NOT AUTHORIZED**. |
-| **Production launch** | **NOT AUTHORIZED** |
+Read, in this order:
+1. This file.
+2. [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md): what is done, in progress, and pending.
+3. [docs/AUTHORIZATIONS.md](docs/AUTHORIZATIONS.md): what you may do now.
+4. Only the specifications and decisions the active authorization names for your task. You do not need to read every document.
 
-Phase 2 permitted only (spec 03 §1): database schema and migrations; Row Level Security and cross-tenant isolation; invitation-only authentication, OTP, and MFA; Owner, Admin, and Client authorization; append-only audit logging; the nonce-based CSP (DEP-13); private `project-assets` storage policies; and automated database and security tests in CI. It runs against the **local** Supabase stack (Supabase CLI locally and in CI) with synthetic data only.
+If no active authorization covers the task, you may do only Tier 0 work (documentation, formatting, read-only research). Stop and ask the Owner for anything else.
 
-These remain prohibited: creating or modifying any hosted Supabase project; Resend or SMTP configuration; Stripe API requests; Vercel or DNS changes; production credentials; deployments; real customer data; and any Phase 3–5 work. Never modify or use the existing live-mode Stripe credential. Never begin Phase 3 without separate written Owner authorization.
+## 2. Authorization and precedence
 
-For any phase without written Owner authorization, you must **not**:
+- Work only within the scope, environments, credentials, and expiry of an **active** record in AUTHORIZATIONS.md (risk tiers 0–4, OI-67). A record that is granted but not yet active authorizes nothing.
+- When a **stop condition** occurs, stop and report. Do not retry, broaden scope, or find a workaround.
+- If an action does not clearly fit a record, treat it as the next tier up and ask.
+- Approving a document or decision never authorizes work by itself.
 
-- create application source code, components, routes, API handlers, or database migrations
-- initialize a Next.js (or any) application, or create or modify `package.json` or lockfiles
-- install or update dependencies, or run application builds
-- modify Supabase, Stripe, Resend, Vercel, DNS, GitHub settings, or any production service
-- deploy anything, or modify client websites
+Precedence: (1) Owner decisions in [08](docs/08-DECISIONS-AND-CHANGELOG.md); (2) approved specifications 01–07; (3) this file; (4) README. AUTHORIZATIONS.md is authoritative for what is authorized; if it and any other document disagree about authorization, the more restrictive reading applies.
 
-Documentation approval is **not** implementation authorization. If any document appears to instruct you to start coding, this section takes precedence. Stop and ask the Owner.
-
-## 2. Specification precedence
-
-1. Owner-approved decisions: [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md)
-2. Approved specifications: [docs/01–07](docs/)
-3. This file (operating procedure)
-4. [README.md](README.md)
-
-Requirement labels: **[APPROVED OI-nn]**, **[PROPOSED]**, **[PENDING OI-nn]**, **[DEFERRED]**, **[VERIFY-PROVIDER]** (see 08 §2).
+Requirement labels: **[APPROVED OI-nn]**, **[PROPOSED]**, **[PENDING OI-nn]**, **[DEFERRED]**, **[VERIFY-PROVIDER]**, plus **[R1]** and **[R2]** release tags (08 §2).
 - Never treat a **[PROPOSED]** item as approved unless its spec is approved.
 - Never decide a **[PENDING]** or **[DEFERRED]** item yourself.
 
 **Conflicts:** if documents disagree, or a requirement is ambiguous, do not resolve it silently. Record it in [OPEN-ISSUES.md](OPEN-ISSUES.md) with the next unused ID and escalate it to the Owner.
 
-## 3. Phase authorization
-
-Phases (OI-02):
-1. Foundation and CI
-2. Auth, security, and tenant isolation
-3. Agreement and Stripe **test-mode** billing
-4. Intake, fulfillment, previews, final payment, and publishing
-5. Hardening and production readiness
-
-Each phase requires separate written owner authorization. Work only within the authorized phase's scope. Production billing and deployment require production launch authorization.
-
-## 4. Security principles (non-negotiable)
+## 3. Security principles (non-negotiable)
 
 - Authorize every server action on the server. RLS on every exposed table. Never trust client-supplied scope.
-- Payment state changes only through signature-verified, idempotent webhook processing. Never from a redirect.
+- Payment state changes only through signature-verified, idempotent webhook processing. Never from a redirect or a client-provided assertion.
 - Never build a "mark as paid," "force publish," or "approve on behalf of client" capability.
 - Every privileged action writes an immutable audit event. High-risk actions require reauthentication.
 - Money is integer cents only.
 - Never log OTPs, tokens, secrets, or card data.
+- Every new table and storage path ships with cross-tenant isolation tests. Isolation and webhook idempotency and replay tests are never skipped or disabled.
 
-## 5. Environment and Stripe restrictions
+## 4. Environment and Stripe restrictions
 
-- Never access, request, print, or commit production or live credentials.
-- Never create, modify, or delete Stripe products, prices, customers, subscriptions, coupons, or Checkout/Portal configurations. Catalog changes are Owner actions.
-- **Single narrow exception (OI-30), now closed:** the Owner authorized creating the approved **test-mode** catalog (04 §6), and nothing else. It was carried out under separate written authorization and completed on 2026-11-23 (DEP-01; IDs in 04 §6.5; PR #12). That execution authorization is **completed and expired**, and it authorizes no further request. The rules that applied before any write:
-  - verify the credential is test mode (`livemode: false`), and abort on any live-mode key
-  - search for existing matches to avoid duplicates
-  - never touch live resources
-  - record only the nonsecret Price IDs
-  This exception does not authorize Stripe integration code, webhooks, Customer Portal configuration, or any other Stripe change.
-- **Suspended (Owner instruction, 2026-11-23; still in force after DEP-01):** make **no Stripe API requests of any kind**, including read-only verification, unless the Owner gives a separate, narrowly scoped written authorization for that specific work.
-  - Lifting the suspension requires both: (1) confirmation that the environment used contains **only** an appropriate Stripe test-mode credential, with no live-mode key; and (2) a **separate, narrowly scoped** written Owner authorization (Owner instruction, 2026-11-23).
-  - CI never holds a Stripe credential. Webhook tests in CI use synthetic events signed with a test-only secret (OI-63).
-- The live Price IDs in [docs/04 §5.2](docs/04-AGREEMENT-AND-BILLING.md#52-live-catalog-reference--owner-supplied) are reference identifiers. Use them only in production, after verification, and with production authorization.
-- Non-production environments use Stripe test mode only.
+- Never access, request, print, or commit production or live credentials. No live credential is ever placed in a development, CI, preview, or staging environment.
+- **Stripe API requests are allowed only under an active Tier 2 Stripe authorization** (currently AUTH-002, once its activation conditions are met), only with a confirmed test-mode credential, and only for the operations it lists. Every run starts with the fail-closed `livemode: false` preflight (04 §6.3) and aborts on any live-mode signal.
+- Never create, modify, or delete Stripe products, prices, coupons, or promotion codes, or live-mode objects of any kind. Catalog changes and Dashboard settings are Owner actions.
+- CI never holds a Stripe credential. Webhook tests in CI use synthetic events signed with a test-only secret (OI-63).
+- The live Price IDs in [04 §5.2](docs/04-AGREEMENT-AND-BILLING.md#52-live-catalog-reference--owner-supplied) are reference identifiers, used only in production, after verification (DEP-02), with production authorization.
+- Non-production environments use Stripe test mode and synthetic data only.
+- Hosted environments, DNS, Vercel, Supabase, Resend, and GitHub settings change only under the tier the action requires (AUTHORIZATIONS.md §1). Production actions are Tier 3; destructive or irreversible actions are Tier 4.
 
-## 6. Testing expectations (for authorized future work)
+## 5. Legal text and test fixtures (OI-69)
 
-- Every feature ships with the acceptance tests listed in its spec (for example T-TEN-*, T-PAY-*, T-PUB-*).
-- Cross-tenant isolation tests and webhook idempotency and replay tests are mandatory, and must never be skipped or disabled.
-- CI must pass lint, typecheck, Vitest, Playwright, and the performance budgets (02 §7) before merge.
-- Pin dependency versions. Verify them against official sources when they are introduced (OI-11).
+- Never draft or invent legal text. Legal documents are incorporated only from the final counsel-approved publication copy (Owner sign-off, 2026-11-22).
+- Tests and non-production environments may use a **test-only agreement fixture**. Its body is a non-legal placeholder ("TEST FIXTURE — NOT AN AGREEMENT"). It may contain only the verbatim, already-approved clause text in 04 §3.1. It is labeled on every screen that shows it.
+- A fixture must be **technically prevented** from production use: the environment schema rejects it when `APP_ENV=production`, the database refuses to mark a fixture version `approved` for production use, and a CI test proves both.
 
-## 7. Documentation change control
+## 6. Testing
+
+- Every feature ships with the acceptance tests listed in its spec (T-TEN-*, T-PAY-*, T-LC-*, T-PUB-*, and so on).
+- Merging requires the aggregate `CI result` check. It runs lint, typecheck, format, unit tests, the dependency audit, and the secret scan on every change, and the database, integration, end-to-end, and Lighthouse suites on every change that is not documentation-only (OI-70).
+- Never claim a test passed unless it ran. Report the commands and results. A suite that did not run is reported as not run.
+
+## 7. Change control and evidence
 
 - All changes go through a branch and a pull request. Never push directly to `main`, and never merge your own PR without Owner approval.
-- Update the version and status header of each changed spec, and add a row to 08 §5.
-- Never reuse or renumber issue IDs.
-- Never draft or invent legal text. Legal documents are incorporated only from the final counsel-approved publication copy (Owner sign-off, 2026-11-22).
+- **An implementation PR carries its own evidence and documentation updates**: test results, verification records, provider run IDs, and the matching updates to [CURRENT-STATE.md](docs/CURRENT-STATE.md) and the affected specs. Do not open separate status-only PRs when the implementation PR can carry the update.
+- A changed spec gets a new version and status header and a row in 08 §5.
+- Never reuse or renumber issue, dependency, or authorization IDs.
+- Each implementation PR description records effort: AI session hours, Owner review hours, and administrative hours (OI-67).
+
+## 8. Dependencies
+
+- Pin dependency versions exactly, and verify them against official sources when they are introduced or changed (OI-11).
+- Change `package.json` or the lockfile only under an active authorization that covers it, or under the **dependency security patch exception** (AUTHORIZATIONS.md §4): a patch or minor fix for a high or critical advisory, with full CI and Owner merge. Major upgrades always need a work-package authorization.
+- Do not add vendors, services, or dependencies that the active authorization does not name.

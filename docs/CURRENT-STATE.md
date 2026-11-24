@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.9.1 |
+| Version | 1.9.2 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-24, by the post-WP-B documentation reconciliation (29 approved items; OI-84 decided; WP-S directive and AUTH-005 package for Owner review), based on `main` at `8ac8143` |
+| Last updated | 2026-11-24, by the AUTH-005 amendment PR (A1 to A6), based on `main` at `0b289f3` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -32,7 +32,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including OI-74, OI-75, OI-81, OI-82, OI-83, and B1 | **Done** (PR #20, merge commit `8ac8143`; post-merge CI run #66 `success`). **N1 is a mandatory blocker for R1 release-candidate acceptance** (04 §15.2.1 rule 9; §7). Implementation record in §10. |
 | WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **Done** (PR #19, merge commit `bcddb1f`; post-merge CI run #63 `success`). Review findings H1, M1, M2 closed. |
 | WP-S | Sales Representative authorization infrastructure (03 §4.1; OI-77, OI-78) | **Directive ready (§9); not started.** Requires the Owner's grant of AUTH-005 (package refreshed against `8ac8143`, AUTHORIZATIONS §3A). |
-| WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. |
+| WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. Hosted environments receive reviewed migrations only: no seed, no database reset; WP-D verifies and documents this before hosted-environment acceptance (A3). |
 | WP-E | Legal, tax, and commercial approvals | Owner. Not started (DEP-03, DEP-04, DEP-05). |
 | **R1** release candidate | Complete controlled transaction (01 §9.1) | Not started |
 | **R2** release candidate | Fulfillment automation (01 §9.2) | Not started |
@@ -45,13 +45,13 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 |---|---|---|
 | 01 Project overview | 0.4.2 | Approved (v0.4.1: OI-74, OI-77; v0.4.2: §9.1.1 integrated R1 browser acceptance, Owner direction) |
 | 02 Architecture and environments | 0.4.0 | Approved |
-| 03 Security, auth, tenancy | 0.5.6 (OI-77, OI-78, OI-79, OI-83, OI-84; client guard for WP-S) | Approved (03A is supporting evidence) |
-| 04 Agreement and billing | 0.9.5 (OI-74, OI-81, OI-82, OI-84; F3–F6; B1; N1) | Approved for implementation and test mode. **Not approved for production:** legal review (DEP-03) and provider verification (DEP-06) remain conditions. |
+| 03 Security, auth, tenancy | 0.5.7 (OI-77, OI-78, OI-79, OI-83, OI-84; client guard for WP-S) | Approved (03A is supporting evidence) |
+| 04 Agreement and billing | 0.9.6 (OI-74, OI-81, OI-82, OI-84; F3–F6; B1; N1) | Approved for implementation and test mode. **Not approved for production:** legal review (DEP-03) and provider verification (DEP-06) remain conditions. |
 | 05 Lifecycle and uploads | 0.4.5 (OI-74, OI-79; §5.5 rules 1–9) | Approved |
 | 06 Publishing and post-launch | 0.5.2 (OI-79 item 5; G7 clarification; B1 note) | Approved |
 | 07 Notifications, privacy, design | 0.4.0 | Approved. Retention periods remain provisional (DEP-05). |
-| 08 Decisions and changelog | 0.21.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
-| AUTHORIZATIONS, CURRENT-STATE | 1.7.0 (AUTH-002 and AUTH-003 inactive; AUTH-005 proposed, package refreshed with OI-84, not granted), 1.9.1 | Approved |
+| 08 Decisions and changelog | 0.21.1 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
+| AUTHORIZATIONS, CURRENT-STATE | 1.7.1 (AUTH-002 and AUTH-003 inactive; AUTH-005 proposed with OI-84 and amendments A1 to A6, not granted), 1.9.2 | Approved |
 | OWNER-RUNBOOKS | 0.1.0 | **[PROPOSED]** Owner review |
 | CLAUDE.md | rewritten 2026-11-24 | Approved |
 
@@ -74,14 +74,14 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | DEP-15 | Real test-mode webhook verification | Not started. Runs under AUTH-002. |
 | DEP-16 | Switch required status checks to `CI result` | **Complete.** Owner-evidenced (ruleset screenshots, 2026-11-24): see §5. |
 | DEP-17 | Hosted scheduler: WP-B billing jobs, WP-C scan retries and revoked-object deletion retries | Not started. WP-D under AUTH-003 (staging), Tier 3 (production). Required before the R1 release candidate. |
-| DEP-18 | Standard package scope definitions for Sales-issued order summaries (OI-84(b)) | Not started. Owner supplies the content; no authoritative definition exists today. Required before Sales order summaries are used outside tests and before R1 release-candidate acceptance. |
+| DEP-18 | Standard package scope definitions for Sales-issued order summaries (OI-84(b)) | Not started. **Owner-confirmed, mandatory before R1 release-candidate acceptance (A5).** Owner supplies the content; no authoritative definition exists today; counsel review covers it (DEP-03, A4). |
 
 ## 5. Verified facts
 
 | Fact | Evidence |
 |---|---|
 | `main` is protected by ruleset `protect-main`: enforcement **Active**; target `main`; pull request required; **required status checks enabled** with "require branches to be up to date"; force pushes and branch creation blocked; repository-admin bypass for pull requests only (agents never use it, CLAUDE.md §7). Required checks (GitHub Actions): `Lint, types, format, unit tests`, `Dependency audit`, `Secret scan (gitleaks, full history)`, `CI result`. Lighthouse and the database, integration, and e2e suite are enforced through `CI result`, which fails closed on any required suite (OI-70) | **Owner-evidenced** (ruleset screenshots, 2026-11-24); a ruleset JSON export would be stronger evidence |
-| `main` at `8ac8143` (PR #20 merge; parents `bcddb1f`, `aa7a20a`; tree identical to the reviewed head). Post-merge CI run #66 (id 45506039608): all 7 jobs `success`, including migrations applied from scratch (T-MIG-01), pgTAP, integration, and e2e. Earlier: `bcddb1f` (PR #19) run #63 `success`; `77a887b` (PR #18) run #59 `success` | **Verified** via the GitHub API, 2026-11-24 |
+| `main` at `0b289f3` (PR #21 merge, documentation only; parents `8ac8143`, `7ba7cb3`; tree identical to the reviewed head). Post-merge CI run #70 (id 45511277460): all 7 jobs `success`, including the full suite. Previously `main` at `8ac8143` (PR #20 merge; parents `bcddb1f`, `aa7a20a`; tree identical to the reviewed head). Post-merge CI run #66 (id 45506039608): all 7 jobs `success`, including migrations applied from scratch (T-MIG-01), pgTAP, integration, and e2e. Earlier: `bcddb1f` (PR #19) run #63 `success`; `77a887b` (PR #18) run #59 `success` | **Verified** via the GitHub API, 2026-11-24 |
 | `main` at `19b68cb` (PR #17 merge; parents `3f3b59d`, `33c082b`; tree identical to the reviewed head). Post-merge CI run #43 (id 45322697836): all 7 jobs `success`, including `CI result` | **Verified** via the GitHub API, 2026-11-24 |
 | The `spotlight-client-portal-dev` environment: Limited network; allowlist `github.com`, `api.github.com`, `registry.npmjs.org`, `nodejs.org`, `docs.stripe.com`; no network secrets; no environment variables | **Verified** via the environment API, 2026-11-24 |
 | The Stripe sandbox catalog exists as specified | **Verified** by run `dep01-20261123T220040Z-290aebd0` (04 §6.5) |
@@ -91,11 +91,11 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. Review and merge this documentation reconciliation PR.
-2. Review the WP-S directive (§9) and the AUTH-005 package (AUTHORIZATIONS §3A, with OI-84); after this PR merges, Main re-verifies the inventory against the new `main` and presents the final grant package; grant AUTH-005 only when you choose to start WP-S. Confirm the test-only package-scope seed (AUTH-005, OI-84(b)).
-2a. Supply the standard scope for each package (DEP-18), and decide whether counsel review (DEP-03) covers it.
+1. Review and merge this AUTH-005 amendment PR (A1 to A6). PR #21 (documentation reconciliation, OI-84) is merged.
+2. Grant AUTH-005 when you choose to start WP-S (final package: AUTHORIZATIONS §3A, directive §9).
+2a. Supply the standard scope for each package (DEP-18) and include it in counsel review (DEP-03).
 3. Review OWNER-RUNBOOKS (proposed).
-4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10).
+4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10), and the contractual package-scope language (A4).
 5. When ready: meet the AUTH-002 activation conditions for the Stripe test-mode criteria (04 §8.2: F7, F8, N1 linking; DEP-15).
 6. When ready for WP-D: create the accounts in AUTH-003 (DEP-14, DEP-17).
 7. Select the malware scanning vendor (DEP-07) and the monitoring vendor (DEP-12).
@@ -194,17 +194,17 @@ A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, the
 2. **Migration A (own file):** `alter type public.staff_role add value 'sales'` (a new enum value cannot be used in the transaction that adds it).
 3. **Migration B (Phase 2 objects, exactly as AUTH-005 lists):**
    - `invitations_kind_shape` allows `intended_role = 'sales'`;
-   - `private.is_staff()` becomes Owner or Admin only (identical for existing data; 46 call sites and 22 `wpc_is_staff_aal2` uses keep their meaning);
+   - `private.is_staff()` becomes Owner or Admin only (identical for existing data; 46 call sites and 20 `wpc_is_staff_aal2` call sites keep their meaning);
    - `create_invitation` and `revoke_invitation` allow `kind = 'client'` for a Sales Representative with an active assignment to that project, never to the address of a user with an active staff role; staff invitations stay Owner-only with fresh MFA;
    - `accept_invitation` rejects a client invitation for an active Sales user and a Sales staff invitation for a user with an active membership; `set_staff_role` rejects `sales` for a user with an active membership.
-4. **New objects:** `public.project_sales_assignments` and its append-only history (Owner and Admin read all; a Sales Representative reads only its own active rows; no direct write by any API role; added to the isolation and restrictive-policy loops); `private.is_sales()`, `private.sales_assigned(uuid)` (active assignment, `aal2`, live session, read live at every call); SECURITY DEFINER functions with `search_path = ''` and public wrappers: `sales_create_customer_project` (business, project, and self-assignment in one transaction), `assign_sales_representative` and `end_sales_assignment` (Owner or Admin, `aal2`, live session, audited), `sales_list_customers` (active assignments only), `sales_project_progress` (derived states through the two gate interfaces plus agreed order-summary pricing, OI-83, plus the assigned project's pending client invitations with minimum fields, OI-84(e); never paid amounts, invoices, ledger entries, refunds, disputes, tokens, or token hashes); **package scope definition (OI-84(b)):** `private.billing_package_scope` and `private.current_package_scope(text)` (no API grant; rows from reviewed migrations only; production content DEP-18; test-only seed labeled "TEST FIXTURE — NOT A DELIVERABLE", pending Owner confirmation).
+4. **New objects:** `public.project_sales_assignments` and its append-only history (Owner and Admin read all; a Sales Representative reads only its own active rows; no direct write by any API role; added to the isolation and restrictive-policy loops); `private.is_sales()`, `private.sales_assigned(uuid)` (active assignment, `aal2`, live session, read live at every call); SECURITY DEFINER functions with `search_path = ''` and public wrappers: `sales_create_customer_project` (business, project, and self-assignment in one transaction), `assign_sales_representative` and `end_sales_assignment` (Owner or Admin, `aal2`, live session, audited), `sales_list_customers` (active assignments only), `sales_project_progress` (derived states through the two gate interfaces plus agreed order-summary pricing, OI-83, plus the assigned project's pending client invitations with minimum fields, OI-84(e); never paid amounts, invoices, ledger entries, refunds, disputes, tokens, or token hashes); **package scope definition (OI-84(b)):** `private.billing_package_scope` and `private.current_package_scope(text)` (no API grant; rows from reviewed migrations only; production content DEP-18; test-only seed labeled "TEST FIXTURE — NOT A DELIVERABLE", approved; fixture isolation: explicit `is_test_fixture` flag, flag and label consistent in both directions, fixture rows rejected in production, production scope resolution never returns fixture rows, synthetic rows only in `supabase/seed.sql`, none in any migration; A2).
 5. **Rate limits:** `sales_create_customer_project` and every Sales invitation operation (create, resend, revoke) call `private.consume_rate_limit` with a per-user bucket; exceeding a limit returns the standard failure and is audited.
 6. **WP-B integration:** a new WP-S migration replaces `private.issue_order_summary` with one added caller, `private.sales_assigned(p_project_id)`. For a Sales caller only (OI-84(b), (c)): supplied scope items or project notes are rejected and audited; scope is copied from `private.current_package_scope`, and its version is recorded in the audit metadata; a missing definition fails closed; after the existing row locks, any agreement acceptance or verified deposit on the project rejects the call. The signature, the Owner and Admin path, catalog-only pricing, the OI-81 price lock, and WP-B tables are unchanged; WP-B independently reviews. No WP-C function changes.
 7. **OI-78 and OI-84(f) policies:** pending client invitations and issued order summaries stay valid after an assignment ends (Owner and Admin keep visibility, resend, revoke, replace); the former representative loses all project, order, and invitation access at the next authorization check, including existing sessions; ended assignments are hidden from the representative; history and `issued_by` attribution are preserved. Commission processing stays out of scope.
 7a. **Resend (OI-84(d)):** for every role, resend is `revoke_invitation` followed by `create_invitation` (revoke first, because one pending invitation per address is allowed), composed in `src/server/services/invitations.ts`; the old link and token stop working; the new invitation has a new token and expiry; both steps are audited and rate-limited; no new database object. Owner and Admin get the action in `/staff`, Sales in `/sales`.
 8. **App:** the auth context recognizes `sales` as its own role; a `requireSales` guard (`aal2`, live session, forced MFA enrollment, global sign-out); `requireStaff` stays Owner and Admin; **`requireClient` corrected** (no staff role of any kind plus an active membership; 03 §4.1); a minimal `/sales` area (customers, create customer, project and order summary, invite client, progress); the Owner's staff-role selector offers `sales`.
 9. **Audit (contracts, WP-S section, spec-cited):** `sales.customer_created`, `sales_assignment.created`, `sales_assignment.ended`, `sales_assignment.reassigned`, `sales.rate_limited`, `sales.order_summary_rejected` (reason kind only: scope input, notes input, after acceptance, missing scope definition; OI-84); invitation and order-summary events keep their existing names with the actor's role.
-10. **Tests:** T-SALES-01 to T-SALES-35 (03 §13, including OI-84: T-SALES-31 to T-SALES-35), including the adversarial set, the enumerated regression over every staff-only check, T-SALES-24 for `requireClient`, rate limiting (T-SALES-29), and pricing visibility (T-SALES-30); the full Phase 2, WP-0, WP-B, and WP-C suites pass unchanged. Browser tests for the `/sales` area with database and audit assertions (create, invite, unassigned denial, MFA enforcement, revoked assignment).
+10. **Tests:** T-SALES-01 to T-SALES-36 (03 §13, including OI-84: T-SALES-31 to T-SALES-35, the T-SALES-31 no-retroactive-change assertion, and fixture isolation T-SALES-36), including the adversarial set, the enumerated regression over every staff-only check, T-SALES-24 for `requireClient`, rate limiting (T-SALES-29), and pricing visibility (T-SALES-30); the full Phase 2, WP-0, WP-B, and WP-C suites pass unchanged. Browser tests for the `/sales` area with database and audit assertions (create, invite, unassigned denial, MFA enforcement, revoked assignment).
 11. **Shared files:** additive, WP-S sections only (`src/domain/contracts/*`, pgTAP 050 reviewed-RPC list, `seed.sql`, `src/lib/messages.ts`); merged migrations are never edited.
 12. **Migration order:** after `20261124160100`; migration A before migration B.
 13. **Exit:** AUTH-005 exit criteria (CI `CI result` on the exact head with the full suite; only listed objects changed; WP-B review of the `issue_order_summary` replacement; documentation and effort recorded; Owner merge).

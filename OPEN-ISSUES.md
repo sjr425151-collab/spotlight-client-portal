@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.21.0 |
+| Version | 0.21.1 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
 | Next unused issue ID | **OI-85** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-19** |
@@ -144,7 +144,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 | DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | WP-B | Not started. Runs under AUTH-002 once its activation conditions are met. |
 | DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | **Complete** (Owner-reported, 2026-11-24). `main` reports `protected: true` via the GitHub API; the ruleset check list is not readable from the agent session. |
 | DEP-17 | **Hosted scheduler** (04 §13, 05 §5.4, §5.5): bind to a scheduler, with recorded runs and alerting (DEP-12): WP-B's billing job entry points (daily reconciliation, maintenance-recovery evaluation, webhook backfill, release approvals, outbound requests); WP-C's scan retries and revoked-object deletion retries | WP-D (staging, AUTH-003); Owner (production, Tier 3) | Before the R1 release candidate (staging); production launch | Not started. In R1 until then: staff trigger scan retries, the server retries due deletions opportunistically, the Owner retries deletions and runs reconciliation before authorizing publication |
-| DEP-18 | **Standard package scope definitions** (OI-84(b); 03 §4.1, 04 §4): the Owner supplies, for each package key (Essential, Professional, Advanced, Signature, Prestige), the standard contractual deliverables that Sales-issued order summaries copy into the snapshot; loaded into `private.billing_package_scope` by a reviewed migration and recorded under 08 §6. No authoritative definition exists today (`private.billing_packages` holds key, name, and cents only). Because the scope becomes part of the contractual order summary, counsel review (DEP-03) may apply | Owner (content); WP-S (table and loader, AUTH-005) | Before Sales-issued order summaries are used outside local and CI tests, and before R1 release-candidate acceptance | Not started. Until then, Sales issuance fails closed outside the test-only seed |
+| DEP-18 | **Standard package scope definitions** (OI-84(b); 03 §4.1, 04 §4): the Owner supplies, for each package key (Essential, Professional, Advanced, Signature, Prestige), the standard contractual deliverables that Sales-issued order summaries copy into the snapshot; loaded into `private.billing_package_scope` by a reviewed migration and recorded under 08 §6. No authoritative definition exists today (`private.billing_packages` holds key, name, and cents only). The scope language is in counsel review (DEP-03, A4). **Owner-confirmed (2026-11-24, A5):** mandatory before R1 release-candidate acceptance; issuance fails closed when no approved scope exists; definitions are server-controlled and versioned; order-summary snapshots are immutable; issued summaries are never altered retroactively | Owner (content); WP-S (table and loader, AUTH-005) | Before Sales-issued order summaries are used outside local and CI tests, and before R1 release-candidate acceptance (mandatory) | Not started. Until then, Sales issuance fails closed outside the test-only seed |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
@@ -190,6 +190,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 - Refund terms (OI-35), domain ownership and transfer, IP ownership (OI-32; draft §5, §8), and dispute terms (OI-37).
 - **R1 final-payment wording (OI-68, revised by OI-74):** the hosted-only R1 question is superseded; R1 now charges automatically under the §3.1 clause. Counsel confirms the R1 approval screen wording (**Approve Website & Authorize Final Payment**), the card-retention disclosure, and the contractual effect of revoking the authorization and of re-authorizing after revocation (04 §8.1).
 - Unused-upload deletion terms (OI-42), coordinated with DEP-05.
+- **Contractual package-scope language (OI-84(b), DEP-18; Owner, 2026-11-24, A4):** the standard deliverables of each package as they appear in order summaries, together with the agreement and payment-authorization wording. Unreviewed scope language is never represented as legally approved.
 
 ### DEP-06 detail — provider verification items added by OI-43 to OI-46
 

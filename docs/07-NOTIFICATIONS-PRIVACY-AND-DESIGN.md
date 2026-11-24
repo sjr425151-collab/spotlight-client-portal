@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.4 |
-| Status | **Draft — pending owner sign-off.** v0.3.4: final-payment notifications for the automatic charge (Owner instruction, 2026-11-23; OI-17 revised). |
-| Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46 |
+| Version | 0.4.0 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). Retention periods remain provisional (DEP-05). v0.4.0: notification delivery sequenced by release (OI-04 revised by OI-68); Resend SMTP for Supabase Auth email (OI-51). Earlier: v0.3.4 final-payment notifications for the automatic charge (OI-17 revised). |
+| Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46, OI-51, OI-68 |
 | Open issues | None |
 | Dependencies | DEP-05, DEP-07, DEP-08 |
 
@@ -16,18 +16,29 @@
 
 | Channel | Responsibility |
 |---|---|
-| Supabase Auth email | Invitation and OTP emails, sent through a properly configured custom SMTP sender per environment **[VERIFY-PROVIDER]** |
+| Supabase Auth email | Invitation and OTP emails, sent through a properly configured custom SMTP sender per environment: **Resend SMTP** on a separate auth sending subdomain **[APPROVED OI-51; VERIFY-PROVIDER]** |
 | Resend | All other operational transactional email |
 | Stripe | Applicable payment receipts and invoices **[VERIFY-PROVIDER: receipt settings]** |
 
 - **Excluded from the MVP:** marketing automation sequences, newsletters, and drip campaigns. **[APPROVED OI-04]**
+
+**Delivery by release [APPROVED OI-04, revised by OI-68]:**
+
+| | R1 | R2 |
+|---|---|---|
+| Invitation and OTP email | Supabase Auth through Resend SMTP | Same |
+| Stripe receipts and invoices | Stripe | Same |
+| Outbox | Every event is written to `notification_outbox` in the same transaction as its state change (§2) | Same, and drained by the delivery worker |
+| Client and staff lifecycle events | Shown in the portal (client status page and derived queues). Required outreach is performed by staff and recorded (05 §7.1). | Resend email for the full §4 catalog |
+| Owner-critical alerts: dispute opened, reconciliation mismatch, webhook processing failure, publication or verification failure | Monitoring alert channel (DEP-12), plus the portal queue | Resend email as well |
+| Upload rejected (OI-31) | In-portal notice to the client with re-upload guidance, and a staff queue item | Resend email as well |
 - **[APPROVED OI-04]** Sender domains are verified (SPF/DKIM/DMARC) for each environment. Non-production environments cannot email real clients **[PROPOSED: allow-list or sink]**.
 
 ## 2. Durable outbox **[APPROVED OI-04]**
 
 - Business transactions write a `notification_outbox` row **in the same database transaction** as the state change that triggers it **[PROPOSED]**.
 - Each row holds: event type, recipient(s), template key and version, payload reference (no secrets, minimal personal data), an idempotency key, status (`pending → sending → sent` / `failed` / `dead`), attempt count, `next_attempt_at`, the provider message ID, and the last error.
-- A worker drains the outbox. Delivery logs are retained per §6.
+- A worker drains the outbox **[R2]**. Delivery logs are retained per §6. **[PROPOSED]** In R1, rows are written with status `recorded` and are never sent. R2 sends only rows created after delivery is enabled, so no stale notification is delivered retroactively.
 
 ## 3. Delivery retries and idempotency **[APPROVED OI-04]**
 
@@ -212,9 +223,9 @@ Before production, the Owner must:
 | ID | Test |
 |---|---|
 | T-NOT-01 | A state change and its outbox row commit atomically. If one rolls back, so does the other. |
-| T-NOT-02 | Enqueuing the same idempotency key twice produces one send |
-| T-NOT-03 | A provider failure retries on schedule, then marks the row dead and raises a queue item |
-| T-NOT-04 | Non-production environments cannot deliver to non-allow-listed addresses |
+| T-NOT-02 | **[R2]** Enqueuing the same idempotency key twice produces one send |
+| T-NOT-03 | **[R2]** A provider failure retries on schedule, then marks the row dead and raises a queue item |
+| T-NOT-04 | **[R2]** Non-production environments cannot deliver to non-allow-listed addresses |
 | T-NOT-05 | No marketing or automated sequence templates exist in the MVP catalog |
 | T-PRV-01 | Retention jobs delete failed uploads after 7 days and skip records under legal hold |
 | T-PRV-02 | Account closure does not call any Stripe cancellation API |
@@ -224,7 +235,7 @@ Before production, the Owner must:
 | T-DES-02 | Automated a11y scans report no critical violations on all journey pages |
 | T-DES-03 | With reduced motion enabled, non-essential animations are disabled |
 | T-DES-04 | Logo renders at its original aspect ratio (597:335) at every breakpoint, with no CSS distortion (OI-38) |
-| T-NOT-06 | Every event in §4 for OI-25, OI-26, OI-31, OI-35, and OI-37 has a template and is enqueued by its trigger |
+| T-NOT-06 | **[R2]** Every event in §4 for OI-25, OI-26, OI-31, OI-35, and OI-37 has a template and is enqueued by its trigger |
 | T-PRV-05 | Subscription cancellation triggers no deletion of agreements, financial records, or audit logs (OI-40) |
 | T-PRV-06 | Unused assets are deleted 90 days after `project.closed`. Used assets are kept until 12 months after closure. Legal holds block both. (OI-42) |
 | T-PRV-07 | Deletion evidence contains metadata only. No deleted content is recoverable from audit records. |

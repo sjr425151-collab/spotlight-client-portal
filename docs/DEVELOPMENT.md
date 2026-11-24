@@ -117,17 +117,21 @@ Each environment gets its own credentials, set in the hosting provider's secret 
 
 ## 5. Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`. All jobs run in parallel, with read-only permissions and no credentials.
+`.github/workflows/ci.yml` runs on every pull request, on pushes to `main`, and on manual runs. Jobs have read-only permissions and no credentials. The workflow is path-aware and fails closed (OI-70).
 
-| Job | Checks |
-|---|---|
-| Lint, types, format, unit tests | Frozen-lockfile install, ESLint, `tsc`, Prettier, Vitest |
-| Database, integration, and e2e tests (local Supabase) | Migration immutability (T-MIG-02); Supabase CLI 3.2.0 (checksum verified); `supabase start`; `supabase db reset` (T-MIG-01); `supabase test db` (pgTAP); integration tests; test build; secret scan of `.next/static` (T-SEC-01, including `sb_secret_`); production-mode build; Playwright smoke tests on desktop and mobile Chromium, the Phase 2 auth flows (OTP via Mailpit, invitations, staff MFA, revocation, nonce CSP T-SEC-03/04, `Cache-Control` T-SEC-06, WCAG), and production gating. The local stack's development keys are exported from `supabase status` and masked. |
-| Lighthouse budgets | 3 mobile runs each for `/` and `/sign-in`. Median must reach Performance ≥ 0.90, Accessibility ≥ 0.95, Best Practices ≥ 0.95, and SEO ≥ 0.90 (SEO for `/` only; private pages are `noindex`). Reports kept as a run artifact only. |
-| Dependency audit | `pnpm audit --audit-level=high` |
-| Secret scan | gitleaks over full git history (checksum-verified binary) |
+| Job | Runs | Checks |
+|---|---|---|
+| Classify changes | Always | Lists the pull request's changed paths (`git diff --no-renames` against the base) with `scripts/ci/classify-changes.mjs` **taken from the base commit**. Scope is `docs` only when every path is `docs/**/*.md` or a root `*.md`. Anything else, a push, a manual run, an unknown commit, or any error gives `full`. |
+| Lint, types, format, unit tests | Always | Frozen-lockfile install, ESLint, `tsc`, Prettier, Vitest |
+| Dependency audit | Always | `pnpm audit --audit-level=high` |
+| Secret scan | Always | gitleaks over full git history (checksum-verified binary) |
+| Database, integration, and e2e tests (local Supabase) | Scope `full` | Migration immutability (T-MIG-02); Supabase CLI 3.2.0 (checksum verified); `supabase start`; `supabase db reset` (T-MIG-01); `supabase test db` (pgTAP); integration tests; test build; secret scan of `.next/static` (T-SEC-01, including `sb_secret_`); production-mode build; Playwright smoke tests on desktop and mobile Chromium, the auth flows (OTP via Mailpit, invitations, staff MFA, revocation, nonce CSP T-SEC-03/04, `Cache-Control` T-SEC-06, WCAG), and production gating. Playwright browsers are cached by Playwright version; the install is capped at 5 minutes per attempt with one retry, and the e2e step at 15 minutes. |
+| Lighthouse budgets | Scope `full` | 3 mobile runs each for `/` and `/sign-in`. Median must reach Performance ≥ 0.90, Accessibility ≥ 0.95, Best Practices ≥ 0.95, and SEO ≥ 0.90 (SEO for `/` only; private pages are `noindex`). Reports kept as a run artifact only. |
+| **CI result** | Always (after all others) | The required aggregate check. It uses the base commit's evaluator and passes only if classification succeeded, every always-run job passed, and, for scope `full`, the e2e and Lighthouse jobs passed. Its summary lists each suite as "ran: passed" or "not run (documentation-only change)". Without a trusted evaluator on the base commit (or outside a pull request), it requires every job to have run and passed. |
 
-**Branch protection.** The `protect-main` ruleset requires pull requests. Adding these jobs as *required status checks* is a GitHub settings change for the Owner (DEP-10 follow-up), once the jobs have run successfully on the Phase 1 pull request.
+Superseded pull request runs are cancelled. Runs on `main` always complete.
+
+**Branch protection.** The `protect-main` ruleset requires pull requests and, as of 2026-11-24, requires the five original jobs. After this workflow merges, the Owner switches the required checks to `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)` (DEP-16). The e2e and Lighthouse jobs must not stay required, because GitHub reports a skipped job as passing.
 
 **Checks that cannot run yet:**
 - Field Core Web Vitals (RUM): requires a deployed environment and a monitoring vendor (DEP-12).
@@ -209,7 +213,7 @@ The artwork itself is not modified, and a unit test pins the master's SHA-256. A
 | Phase 2 implementation notes (**OI-53**, approved 2026-11-23) | Approved with N-8 amended: security events are recorded only by the server (`service_role`) with a verified actor and bounded payloads | Done |
 | Marking expired invitations (**OI-54**, decided) | Deferred on condition: expired invitations must stay rejected at every boundary regardless of cleanup status (`supabase/tests/045_expired_invitations.test.sql`) | Phase 5 |
 | Invitation emails to existing users | Supabase cannot email confirmed users (03A S-06); they accept in the portal. Notification email needs Resend. | Phase 4 |
-| Add CI jobs as required status checks | GitHub ruleset change (Owner) | After the Phase 1 PR's first successful run |
+| Switch required checks to `CI result` (DEP-16) | GitHub ruleset change (Owner) | Immediately after the governance correction PR merges |
 | ESLint 10 upgrade | Waiting on plugin peer support | When `eslint-config-next` dependencies support it |
 | Favicon and app icons | No Owner-approved icon asset. The page declares an empty icon to avoid 404s. | DEP-08 |
 | Light theme | Dark-only for the MVP (**OI-48 approved**). Token-only colors keep a future light theme possible. | Needs an approved logo variant (DEP-08) |

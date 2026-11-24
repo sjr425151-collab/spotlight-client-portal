@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.12.0 (draft for owner review) |
-| Status | Draft |
-| Next unused issue ID | **OI-67** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
-| Next unused dependency ID | **DEP-16** |
+| Version | 0.13.0 |
+| Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
+| Next unused issue ID | **OI-71** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused dependency ID | **DEP-17** |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
 Rules:
@@ -15,9 +15,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-49, OI-53 to OI-55, OI-63 to OI-66)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-70)
 
-All 56 issues listed here are decided at the architectural level (OI-50 to OI-52 remain open in Part 2). The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-49-oi-53oi-55-oi-63oi-66).
+All 63 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-70).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -77,77 +77,44 @@ All 56 issues listed here are decided at the architectural level (OI-50 to OI-52
 | OI-64 | Stripe test-mode catalog structure: 11 products and 11 prices | Decided (2026-11-23) | DEP-01 |
 | OI-65 | Stripe test-mode catalog naming, metadata, catalog keys, lookup keys, versioning (provided no conflict) | Decided (2026-11-23) | DEP-01 |
 | OI-66 | `Stripe-Should-Retry: false` on a successful, verified HTTP 200 is not by itself a failure; never retried | Decided (2026-11-23) | DEP-01 |
+| OI-50 | Supabase plan: Pro for hosted staging and production (option A) | Decided (2026-11-23) | DEP-14 |
+| OI-51 | Resend SMTP for Supabase Auth email (option A) | Decided (2026-11-23) | DEP-14 |
+| OI-52 | No CAPTCHA in the MVP; disabled hook kept (option C) | Decided (2026-11-23) | — |
+| OI-67 | Risk-based authorization and execution model (revises OI-01, OI-02) | Decided (2026-11-23) | — |
+| OI-68 | Release scope: R1 and R2 | Decided (2026-11-23) | DEP-03, DEP-06, DEP-07, DEP-12 |
+| OI-69 | Test-only legal fixtures | Decided (2026-11-23) | — |
+| OI-70 | Path-aware, fail-closed CI; dependency security patch exception | Decided (2026-11-23) | DEP-16 |
 
 ---
 
 ## Part 2 — Open issues requiring Owner decision
 
-OI-42 to OI-46 were approved on 2026-11-23 and are recorded in 08. OI-47 (deposit-stage adjustments) was approved on 2026-11-23 (Option A); see 08. OI-48 (theme mode) was approved on 2026-11-23; see 08. OI-55 (adjusted final-balance collection vehicle) was approved on 2026-11-23 (option A), and collection on the final-balance invoice is authorized; see 08. Phase 2 specification work (03 v0.4.0, with evidence in 03A) raised **OI-50 to OI-52**, where provider facts require an Owner choice. Phase 2 implementation raised **OI-53 and OI-54** (2026-11-23). OI-53 was approved and OI-54 decided on 2026-11-23; see 08.
-
-| ID | Title | Earliest phase | Status |
-|---|---|---|---|
-| OI-50 | Supabase plan for hosted environments | 2 (hosted only; local work unaffected) | Open |
-| OI-51 | Custom SMTP provider for Supabase Auth email | 2 (hosted only) | Open |
-| OI-52 | CAPTCHA on OTP requests | 2 | Open |
-
-### OI-50 — Supabase plan for hosted environments
-
-- **Description:** Verified: time-boxed sessions, inactivity timeout, and single-session-per-user are "only available on Pro Plans and up" (03A F-16). Spec 03 §6.2 proposes staff and client idle and absolute limits. Prices and other plan gating could not be verified, because the pricing page was unreachable (03A U-07, U-08).
-- **Options:**
-  - A. Pro (or higher) for hosted staging and production: provider-enforced session limits.
-  - B. Free for hosted dev, with app-enforced session limits only.
-  - C. Decide later. Phase 2 uses the local stack only, where app-level limits are implemented regardless.
-- **Recommendation:** C now, then A before any hosted staging. The Owner confirms current prices on `supabase.com/pricing`.
-- **Impacted documents:** 03 §6.2, §15; 02 §4.
-- **Owner decision required:** Yes, before any hosted project (DEP-14). It does not block local Phase 2 work.
-- **Status:** Open.
-
-### OI-51 — Custom SMTP provider for Supabase Auth email
-
-- **Description:** Verified: the built-in Supabase SMTP delivers only to project team addresses, is rate-limited, has no SLA, and is "not meant for production use" (03A F-07). OI-04 requires appropriately configured auth email delivery. Local development uses the CLI's email testing server, so no provider is needed locally.
-- **Options:**
-  - A. Resend SMTP (the OI-04 vendor), on a separate auth sending subdomain (03A F-08).
-  - B. Another SMTP provider.
-- **Recommendation:** A, configured only when hosted environments are authorized. Resend changes remain unauthorized until then.
-- **Impacted documents:** 03 §5; 07 §1.
-- **Owner decision required:** Yes, before hosted staging.
-- **Status:** Open.
-
-### OI-52 — CAPTCHA on OTP requests
-
-- **Description:** Supabase supports hCaptcha and Cloudflare Turnstile on auth forms (03A F-10). Spec 03 §17 already proposes rate limits and generic responses. CAPTCHA would add a third-party vendor (DPA, privacy review), and its client script must be allowed by the nonce CSP.
-- **Options:**
-  - A. No CAPTCHA in the MVP; rate limits only.
-  - B. Turnstile on the OTP request form.
-  - C. Enable only if abuse is observed.
-- **Recommendation:** C. Implement the hooks for it, but leave it disabled.
-- **Impacted documents:** 03 §14, §17; 07 §8 (vendor inventory).
-- **Owner decision required:** Yes.
-- **Status:** Open.
+**None open.** OI-50 (option A), OI-51 (option A), and OI-52 (option C) were decided on 2026-11-23 in the consolidated execution plan approval; their decisions are recorded in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
 ---
 
 ## Part 3 — Implementation and production dependencies
 
-Earliest phase = the first OI-02 phase whose **implementation** cannot proceed without the dependency. "Prod" = production launch authorization. Every dependency below is **incomplete** unless its status says otherwise.
+Earliest phase = the first original OI-02 phase whose **implementation** cannot proceed without the dependency (phases 3, 4, and 5 now correspond to WP-B, WP-C, and WP-D; OI-67). "Prod" = production launch authorization. Every dependency below is **incomplete** unless its status says otherwise.
 
 | ID | Dependency | Action owner | Earliest phase | Status |
 |---|---|---|---|---|
-| DEP-01 | Stripe **test-mode** catalog created and test Price IDs recorded (OI-30; design OI-64, OI-65; manifest 04 §6.1) | Owner-authorized operator with a verified **test-mode** credential | Phase 3 | **Complete on merge of the result PR (2026-11-23).** All 11 products and 11 prices created and verified in sandbox "Spotlight Client Portal - Development" by run `dep01-20261123T220040Z-290aebd0`; IDs in 04 §6.5. The Owner revokes the restricted key after merge. |
+| DEP-01 | Stripe **test-mode** catalog created and test Price IDs recorded (OI-30; design OI-64, OI-65; manifest 04 §6.1) | Owner-authorized operator with a verified **test-mode** credential | Phase 3 | **Complete (2026-11-23).** All 11 products and 11 prices created and verified in sandbox "Spotlight Client Portal - Development" by run `dep01-20261123T220040Z-290aebd0`; IDs in 04 §6.5. The restricted keys are revoked (Owner-reported, 2026-11-24). |
 | DEP-02 | Verify the live Price IDs (04 §5.2) against the live catalog | Owner / authorized implementer | Phase 5 (Prod) | Not started |
 | DEP-03 | Qualified **legal review** of the agreement and related policies | Owner + counsel | Phase 5 (Prod; before enforcement) | Not started |
 | DEP-04 | Qualified **tax review**; Stripe Tax production configuration (OI-36) | Owner + tax advisor | Phase 5 (Prod tax collection) | Not started |
 | DEP-05 | **Legal/privacy review** of retention, deletion, data requests, DPAs, incident notification (OI-21, OI-40, OI-42) | Owner + counsel | Phase 5 (Prod) | Not started |
 | DEP-06 | **Provider verification** per OI-39 (02 §10) | Implementer; escalations to the Owner | Phase 1 (Vercel, GitHub Actions); Phase 2 (Supabase); Phase 3 (Stripe); Phase 4 (Resend, Storage, client-site Vercel) | **In progress.** GitHub Actions: actions pinned to verified commit SHAs (Phase 1). **Supabase (local): verified** by the Phase 2 spike (03A §5); the Supabase CLI 3.2.0 release is checksum-pinned in CI. Hosted-only items remain (U-06 to U-08, U-10). Vercel: not verified, because Vercel access is not authorized in Phase 1. |
-| DEP-07 | Malware scanning **vendor selection** after provider and cost verification (OI-31) | Owner (selection) | Phase 4 | Not started |
+| DEP-07 | Malware scanning **vendor selection** after provider and cost verification (OI-31) | Owner (selection); implementer prepares a verified shortlist | WP-C (before scanned uploads can be released; before the R1 release candidate) | Not started |
 | DEP-08 | **Brand assets**: Owner confirmation of the official logo master (Phase 1); vector and variant assets and final visual approval (Prod) | Owner | Phase 1 (confirmation); Prod (final approval) | Phase 1 part **complete**: logo master confirmed 2026-11-23. Production part **outstanding**. |
 | DEP-09 | **Production infrastructure** prerequisites P-1–P-9 (02 §11) | Owner + implementer | Phase 5 (Prod) | Not started |
 | DEP-10 | **Branch protection** on `main` | Owner (GitHub settings) | Phase 1 | **Complete (2026-11-23)**. See detail below. |
 | DEP-11 | Toolchain **version pins** verified against official sources (OI-11) | Implementer | Phase 1 | **Complete (2026-11-23).** See [docs/DEVELOPMENT.md §1](docs/DEVELOPMENT.md#1-toolchain). |
-| DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner | Phase 5 (required); may be proposed earlier | Not started |
+| DEP-12 | Monitoring, error-tracking, and RUM **vendor selection** (02 §8, OI-23) | Owner; implementer prepares a verified shortlist | Before the R1 release candidate (Owner-critical alerts use it in R1, OI-68) | Not started |
 | DEP-13 | **Nonce-based Content-Security-Policy**: remove `'unsafe-inline'` from `script-src` (03 §13 T-SEC-03) | Implementer | **Phase 2 (required security work)** | **Complete (2026-11-23; merged to `main` in PR #4, merge commit `45d05f6`).** `src/proxy.ts` sets a per-request nonce CSP with `'strict-dynamic'` and no `'unsafe-inline'` for scripts or styles; no inline style attributes remain. Verified by T-SEC-03 and T-SEC-04 (e2e) and the Lighthouse budgets (T-PERF-01). |
-| DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment. Phase 2 itself runs on local Supabase only. | Not authorized. Depends on OI-50 and OI-51. |
-| DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | Phase 3 | Not started. Requires DEP-01 and the Stripe access condition in CLAUDE.md §5. |
+| DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment | Granted under AUTH-003 (not yet active). OI-50 and OI-51 decided. |
+| DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | WP-B | Not started. Runs under AUTH-002 once its activation conditions are met. |
+| DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | Not started |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
@@ -160,15 +127,12 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
   4. **Catalog run `dep01-20261123T142608Z-0295d87d`** (14:26:08–14:26:09Z, sandbox "Spotlight Client Portal - Development", 6 requests): `GET /v1/balance` returned `livemode: false`; the sandbox held no products or prices; all 11 entries classified *missing* with no conflict. Request 6 (`POST /v1/products`, key `dep01-v1-essential.deposit-product`, Stripe request `req_v8jMoDuB0OsJq0`) returned HTTP 200 with `Stripe-Should-Retry: false`, and the run stopped under the rule then in force (see OI-66). Nothing else was created.
   5. **Read-only reconciliation `dep01-reconcile-20261123T143019Z-defd3b34`** (14:30:19–14:30:20Z, 6 `GET` requests, all `livemode: false`): the sandbox holds exactly one product, `prod_VgKrmaWefVnWy1`, which matches the 04 §6.1 manifest for `essential.deposit` exactly (name, all metadata, active, no default price). It has **no price**, no price uses `spotlight_v1_essential_deposit`, and the sandbox holds no prices at all. A resumed run would classify `essential.deposit` as *price missing* and the other 10 entries as *missing*.
   6. **Resumed catalog run `dep01-20261123T220040Z-290aebd0`** (2026-11-23T22:00:40Z to 2026-11-23T22:00:49Z, 48 requests, Owner-authorized after OI-66 merged at `f543054`): `livemode: false` on every response; classification as expected with no conflict; 10 products and 11 prices created, 1 product reused; all 11 entries verified against 04 §6.1. Stripe sent `Stripe-Should-Retry: false` on every successful create; under OI-66 it was recorded only, and nothing was retried. **Catalog complete**; IDs in 04 §6.5.
-- **Current status:**
-  - The Owner has chosen to leave the environment configuration unchanged for now, so the live-mode credential remains saved for `api.stripe.com` on that environment.
-  - The Owner has instructed that **no Stripe API requests** be made until a verified test-mode credential workflow is separately authorized.
-  - **Re-checked 2026-11-23 (read-only, no Stripe request):** the earlier session environment (`chris-pribyl`, a personal environment shared with other projects) still holds one network secret for `api.stripe.com` (`Authorization` header). Its value is not visible, and nothing indicates that the credential previously identified as live-mode was replaced. **That environment must not be used for this repository.** **[PROPOSED]** The Owner removes that secret in the environment's settings.
-  - **Environment for DEP-01 (2026-11-23):** this repository now uses the dedicated personal environment `spotlight-client-portal-dev`. A read-only check on 2026-11-23 showed it holds **no network secret**, and its allowlist does not include `api.stripe.com`. No Stripe credential has been requested or saved there. Its allowlist includes `docs.stripe.com` (public documentation only, added by the Owner on 2026-11-23).
-- **To unblock (Owner instruction, 2026-11-23):**
-  1. Confirm that the environment used contains **only** an appropriate Stripe test-mode credential (`sk_test_…`, or a restricted test key with write access to Products and Prices only). The live-mode credential must be removed from it. **[PROPOSED]** Use a dedicated environment for this repository rather than the shared personal one.
-  2. The Owner gives a **separate, narrowly scoped** written authorization for the catalog creation.
-  3. Before any write, the creation action itself verifies `livemode: false` and aborts on a live key (04 §6). It then runs as a separately identifiable action.
+- **Current status (2026-11-24):** complete. The following is **Owner-reported** and was not independently checked:
+  - The restricted keys used for DEP-01 are revoked, and Stripe live mode shows no restricted keys.
+  - The `chris-pribyl` and `spotlight-client-portal-dev` environments hold no network secrets and no environment variables. The earlier live-mode secret was removed from `chris-pribyl`.
+  - `api.stripe.com` is not on the `spotlight-client-portal-dev` allowlist.
+- **Future Stripe access:** only under AUTH-002 ([docs/AUTHORIZATIONS.md](docs/AUTHORIZATIONS.md)), after its activation conditions are met.
+- **Historical record:** the earlier environment checks and the unblocking conditions that applied before DEP-01 are preserved in this file's Git history (v0.12.0).
 - **Credential permissions [PROPOSED; provider model verified 2026-11-23]:** a restricted sandbox key (`rk_test_…`) created by the Owner in the Stripe Dashboard, in the one sandbox chosen for DEP-01 and all later test-mode development (04 §6.5). Per [Restricted API keys](https://docs.stripe.com/keys/restricted-api-keys), each permission is None, Read, or Write, and **Write includes Read**:
 
   | Resource | Level | Needed for |
@@ -194,6 +158,7 @@ Earliest phase = the first OI-02 phase whose **implementation** cannot proceed w
 - The calendar convention, including trigger-date exclusion (OI-43).
 - Disclosure of adjusted final balances (OI-44).
 - Refund terms (OI-35), domain ownership and transfer, IP ownership (OI-32; draft §5, §8), and dispute terms (OI-37).
+- **R1 final-payment wording (OI-68):** confirm that the 04 §3.1 *Authorization for Final Payment* clause is consistent with R1, where the client's approval makes the balance due and the client pays on the Stripe-hosted invoice page rather than by automatic charge, and approve the R1 approval-button and screen wording (04 §10, 05 §7).
 - Unused-upload deletion terms (OI-42), coordinated with DEP-05.
 
 ### DEP-06 detail — provider verification items added by OI-43 to OI-46
@@ -234,10 +199,10 @@ The Owner created the GitHub repository ruleset `protect-main` on 2026-11-23:
 | Required approvals | **0**. This is an Owner decision while the Owner is the sole developer. It replaces the earlier recommendation of 1 approval plus an admin bypass. | Owner-attested |
 | Block force pushes | Enabled | Owner-attested |
 | Restrict deletions | Enabled | Owner-attested |
-| Required status checks | None, because no CI exists yet | Owner-attested |
+| Required status checks | The 5 CI jobs: Lint, types, format, unit tests; Lighthouse budgets; Dependency audit; Secret scan; Database, integration, and e2e tests. "Require branches to be up to date" is on. To be switched to `CI result` under DEP-16. | **Verified** 2026-11-24 via the GitHub API (`/repos/…/rules/branches/main`) |
 
-**Verification limits:** the session's GitHub tools can confirm the branch's protected status, but cannot read ruleset rule details. The individual rules above are recorded from the Owner's confirmation, and they have not been tested with a write attempt against `main`.
+**Verification:** on 2026-11-24 the GitHub API returned active rules for `main` including deletion, non-fast-forward, creation, pull request (0 approvals), and required status checks. Earlier, the session's GitHub tools could confirm only the branch's protected status, and could not read ruleset rule details. The individual rules above are recorded from the Owner's confirmation, and they have not been tested with a write attempt against `main`.
 
 **Follow-ups [PROPOSED]:**
-- Add the Phase 1 CI checks as required status checks once they exist (Phase 1 exit).
+- ~~Add the Phase 1 CI checks as required status checks once they exist.~~ Done (verified 2026-11-24). Next step: DEP-16.
 - Raise required approvals to 1 when a second reviewer joins.

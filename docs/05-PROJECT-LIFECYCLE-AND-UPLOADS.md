@@ -2,11 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.2 |
-| Status | **Draft — pending owner sign-off.** v0.3.2: final approval authorizes the automatic final payment (Owner instruction, 2026-11-23; OI-17 revised). |
-| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46 |
+| Version | 0.4.0 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). |
+| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
+
+**Release placement [APPROVED OI-68]:** everything in this document is **[R1]** unless tagged **[R2]**.
 
 ## 1. Principle **[APPROVED OI-05]**
 
@@ -21,7 +23,7 @@ Each lifecycle dimension has its **own** state, derived from authoritative recor
 | Intake | `locked → open → submitted → accepted_by_staff` (+ `changes_requested`) | Intake records |
 | Development | `not_started → in_progress → ready_for_preview` (+ `paused`) | Staff-recorded milestones (informational, never a gate) |
 | Preview approval | Per release: `released → approved` / `superseded` / `withdrawn` | Preview release and approval records (§6–§7) |
-| Final balance | `not_due → due → pending → verified` (+ `failed`, `refunded`, `disputed`, `settled_by_adjustment` **[APPROVED OI-27]**, meaning paid + Owner-authorized adjustments = owed, never a fabricated payment). **[APPROVED OI-17, revised 2026-11-23]** `due` on the client's final approval (§7); `pending` once the automatic charge is attempted; `failed` → `pending` when the client completes payment on the Stripe-hosted page for the same invoice (04 §10). | Webhook-derived ledger |
+| Final balance | `not_due → due → pending → verified` (+ `failed`, `refunded`, `disputed`, `settled_by_adjustment` **[APPROVED OI-27]**, meaning paid + Owner-authorized adjustments = owed, never a fabricated payment). **[APPROVED OI-17, revised 2026-11-23]** `due` on the client's final approval (§7); `pending` once the final-balance invoice is open for payment (R1: on its Stripe-hosted page) or the automatic charge is attempted (R2); `failed` → `pending` when the client completes payment on the Stripe-hosted page for the same invoice (04 §10). | Webhook-derived ledger |
 | Holds | Zero or more active holds (billing and fulfillment holds are distinct types) | Hold records (04 §14) **[APPROVED OI-25, OI-26, OI-37, OI-45]** |
 | Service termination | `none → under_owner_review → termination_authorized → effective → maintenance_ceased → offboarded / transferred` (+ `withdrawn`). Independent of the Stripe subscription status. | Owner-authorized termination records (04 §9.1.1) **[APPROVED OI-46]** |
 | Publication | `not_eligible → eligible → authorized → deploying → live_unverified → live_verified` (+ `failed`, `rolled_back`) | Gate evaluation and deployment records (06) |
@@ -118,6 +120,7 @@ Rules:
 ## 6. Preview release versioning **[APPROVED OI-18]**
 
 - A **preview release** is an immutable, uniquely identified artifact released to the client. **[PROPOSED]** It is identified by a sequential release number per project, the source commit SHA, the deployment ID, and the preview URL.
+- **[R1, OI-68]** Staff create the release record by entering the source commit SHA, deployment ID, and preview URL of a build they have deployed to a protected preview. The record is immutable once released. **[R2]** The portal builds and records releases itself.
 - **Internal drafts** (unreleased builds) are not visible to the client, and they do not affect existing approvals.
 - Releasing a new preview marks earlier releases `superseded` for approval purposes. Their records and approvals are preserved.
 - Release records are insert-only. Only `withdrawn` (with a reason) may be applied after release.
@@ -128,8 +131,8 @@ Rules:
 |---|---|
 | Actors | Client with active membership on the project |
 | Preconditions | A release in `released` state is the project's current release |
-| Inputs | Explicit approval action on that release ID, plus an optional comment. The action is labeled **Approve Website & Authorize Final Payment** **[APPROVED OI-17, revised 2026-11-23]**. |
-| Payment authorization **[APPROVED OI-17, revised 2026-11-23]** | The approval also authorizes automatic collection of the previously disclosed outstanding balance (04 §3.1, §10). **[PROPOSED]** The approval screen shows that amount from the order summary snapshot before the client confirms. Approving an already-approved release, or approving after the balance is pending, verified, or settled, never starts a second charge. |
+| Inputs | Explicit approval action on that release ID, plus an optional comment. **[R2]** The action is labeled **Approve Website & Authorize Final Payment** **[APPROVED OI-17, revised 2026-11-23]**. **[R1, OI-68]** The label must not state or imply an automatic charge, for example **Approve Website & Continue to Final Payment** **[PROPOSED; counsel confirms, DEP-03]**. |
+| Payment authorization **[APPROVED OI-17, revised 2026-11-23 and by OI-68]** | The approval makes the previously disclosed outstanding balance due and creates the single final-balance invoice (04 §10). **[R1]** The client then pays it on the Stripe-hosted page. **[R2]** The approval also authorizes its automatic collection (04 §3.1). **[PROPOSED]** The approval screen shows that amount from the order summary snapshot before the client confirms. Approving an already-approved release, or approving after the balance is pending, verified, or settled, never starts a second charge. |
 | Records | `preview_approvals` (release ID, user ID, timestamp, IP/UA **[PROPOSED]**) — insert-only. The final-balance charge record references the approval ID (04 §10). |
 | Gate rule | The approval gate passes only if an approval exists **for the current released release ID** |
 | Silence | **Never** treated as approval. No timer converts silence into approval. **[APPROVED OI-18, OI-25]** |
@@ -142,6 +145,8 @@ Rules:
 The owner-authored draft agreement §3 gives the client five business days to identify material deviations. **[PROPOSED]** The portal shows this as an informational review window only. It does not change the explicit-approval rule.
 
 ### 7.1 Nonresponsive client escalation **[APPROVED OI-25]**
+
+**[R1, OI-68]** The day 3 and day 7 reminders and the day-7 Admin notification are performed by staff and recorded in the portal as outreach records (`approval.reminder_1_sent`, `approval.reminder_2_sent`, `approval.admin_notified`, with channel, date, and summary). The "Approval outreach due" queue (§9) shows what is due each day. **[R2]** The system sends them from the outbox.
 
 Days are calendar days in America/Detroit, counted from the local release date of the **current** released preview. Day *N* is the release date + *N* (02 §13). **[APPROVED OI-43]** Releasing a new preview restarts the schedule.
 
@@ -195,6 +200,7 @@ Queues are **computed** from authoritative state. They are never maintained by h
 | Intake review | Intake `submitted` |
 | In development | Intake accepted, no current release |
 | Awaiting client approval | Current release with no approval |
+| Approval outreach due **[R1]** | Current release unapproved at day 3 or day 7 with no matching outreach record (OI-25) |
 | Approval follow-up due | Current release unapproved at day 14 with no recorded personal follow-up (OI-25) |
 | Approval hold eligible | Current release unapproved at day 21+ with documented outreach (OI-25) |
 | Payment recovery | Failed maintenance renewal within the 7-day recovery period (OI-26) |
@@ -215,7 +221,7 @@ Queues are **computed** from authoritative state. They are never maintained by h
 
 ## 10. Client notification triggers
 
-The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-catalog-proposed). Lifecycle triggers: deposit verified, intake changes requested, preview released, approval reminders, final payment action required (failed charge or authentication needed), final payment verified, publication live.
+The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-catalog-proposed). Lifecycle triggers: deposit verified, intake changes requested, preview released, approval reminders, final payment action required (failed charge or authentication needed), final payment verified, publication live. **[R1, OI-68]** Each trigger writes its outbox row (07 §2) and appears in the portal; email delivery through Resend is **[R2]**.
 
 ## 11. Acceptance tests **[PROPOSED]**
 
@@ -230,7 +236,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-LC-07 | An unreleased internal draft does not supersede the current approval |
 | T-LC-08 | No scheduled job or timer creates an approval |
 | T-LC-09 | Staff cannot create an approval record |
-| T-LC-14 | The approval action is labeled "Approve Website & Authorize Final Payment". Approving the current release starts exactly one final-balance charge (04 T-PAY-13). Approving a superseded release starts none. |
+| T-LC-14 | **[R2]** The approval action is labeled "Approve Website & Authorize Final Payment". Approving the current release starts exactly one final-balance charge (04 T-PAY-13). Approving a superseded release starts none. |
 | T-UP-01 | Each category rejects files over its size limit and disallowed types |
 | T-UP-02 | Renamed executables, extension/MIME mismatches, and polyglots are rejected |
 | T-UP-03 | Malicious SVG (script, `onload`, external `href`) is sanitized. The sanitized output contains no active content. |
@@ -240,8 +246,9 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-UP-07 | Failed uploads are purged after 7 days |
 | T-UP-08 | Uploading an asset never changes any preview or live site |
 | T-UP-09 | A failed scan makes the asset `rejected`, blocks its download and release use, and sends client and staff notifications (OI-31) |
-| T-LC-10 | Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) |
+| T-LC-10 | **[R2]** Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) |
 | T-LC-11 | The approval hold cannot be placed without a recorded personal follow-up. Placing it never creates an approval or alters billing. |
 | T-LC-12 | During an approval hold, the client can view the preview, approve it, or request revisions. The approval satisfies G3, and a review queue item is created. (OI-45) |
 | T-LC-13 | An approval hold does not change portal access, subscription status, balances, or any published site |
+| T-LC-15 | **[R1]** A staff-recorded release is immutable once released, requires a commit SHA, deployment ID, and preview URL, and cannot be created by a client. Outreach records for days 3 and 7 are required before the "Approval outreach due" queue clears. The R1 approval screen shows the outstanding balance from the snapshot and does not state or imply an automatic charge. |
 | T-UP-10 | Incorporating an asset into a released preview sets `used`. The flag never reverts. Assets that were never incorporated are reported as unused. (OI-42) |

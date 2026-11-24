@@ -2,11 +2,13 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.1 |
-| Status | **Draft — pending owner sign-off.** v0.4.1: publication after the automatic final payment, and recovery without recharging (Owner instruction, 2026-11-23; OI-17 revised). |
-| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46 |
+| Version | 0.5.0 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). |
+| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68 |
 | Open issues | None |
 | Dependencies | DEP-03, DEP-06, DEP-09 |
+
+**Release placement [APPROVED OI-68]:** everything in this document is **[R1]** unless tagged **[R2]**. R2 items: portal-driven deployment (§8.1), email confirmation (§10), and service inquiries (§11).
 
 ## 1. Scope
 
@@ -14,7 +16,7 @@ This document covers publishing a **client website**. Client websites are separa
 
 ## 2. Publication eligibility gates **[APPROVED OI-22]**
 
-Gates are evaluated **on the server** by a single gate evaluator, at authorization time **and** again immediately before deployment starts **[PROPOSED]**. Every gate must pass. Evaluating a gate reads authoritative records only.
+Gates are evaluated **on the server** by a single gate evaluator, at authorization time **and** again immediately before deployment starts **[PROPOSED]**. In R1, "before deployment starts" is the staff **Start deployment** action in the portal (§8.1), which must succeed before staff deploy. Every gate must pass. Evaluating a gate reads authoritative records only.
 
 | # | Gate | Passes when | Source |
 |---|---|---|---|
@@ -42,6 +44,7 @@ Rules:
 | Preconditions | All gates pass. Fresh high-risk reauthentication (03 §7). |
 | Inputs | Release ID, confirmation |
 | Records | `publication_authorizations` (release ID, gate result snapshot, owner ID, timestamp) — insert-only |
+| Execution **[R1, OI-68]** | The Owner or an Admin carries out the authorized deployment (§8.1). Executing a deployment never substitutes for, or creates, an authorization. |
 | Concurrency | One active authorization per project. A new release or a gate change invalidates the pending authorization. |
 | Failure | Any gate fails → authorization rejected, with the failing gates listed |
 | Audit | `publication.authorized`, `publication.authorization_rejected` |
@@ -61,7 +64,7 @@ Rules:
 | Rollback | Supported per client project (§8.2) |
 | Operational isolation | No shared environment variables, secrets, or build caches across clients **[PROPOSED]** |
 | Ownership | The agency is **not** assumed to own the client's domain or intellectual property. Ownership, cancellation, and transfer follow the final agreement (draft §5, §8; DEP-03) and §8.4. |
-| Scale | Project creation and configuration are automatable and idempotent (**[PROPOSED]** a provisioning record per client site), built only under Phase 4 authorization |
+| Scale | Project creation and configuration are automatable and idempotent (**[PROPOSED]** a provisioning record per client site), built only under an active authorization that covers it (R2 deployment orchestration) |
 
 - **[PROPOSED]** Deployment credentials for client sites are held server-side, scoped to the minimum needed, and never exposed to clients or Admins.
 - **[VERIFY-PROVIDER OI-39]** Check Vercel team, project, and domain limits, plan costs at scale, and rollback semantics (DEP-06).
@@ -125,6 +128,15 @@ Critical security failures always block publication. No exception exists.
 ## 8. Publication execution, rollback, incidents, and live-site continuity
 
 ### 8.1 Execution **[PROPOSED]**
+
+**[R1, OI-68] Staff-assisted publication.** The portal controls the authorization and records every step; staff perform the deployment.
+1. **Start deployment** (Owner or Admin, in the portal): re-evaluates the gates against the active authorization. Abort if any gate fails or the authorization is no longer valid. Records `deployment.started` with the authorization ID, release ID, commit SHA, and the client's isolated target. Idempotent per authorization ID.
+2. Staff deploy **exactly** the release's commit SHA to the client's isolated Vercel project (§4), using the agency's deployment access. Deploying any other commit, or without a started deployment, is prohibited.
+3. **Record deployment** (Owner or Admin): the Vercel deployment ID and production URL. Records `deployment.succeeded` or `deployment.failed`.
+4. Live verification (§9) runs from the portal. It confirms that the served build identifier equals the authorized release. A mismatch fails verification and opens an incident.
+5. The rollback reference (the previous `live_verified` release and its deployment ID) is recorded with the deployment.
+
+**[R2]** The portal performs steps 2 and 3 itself through scoped server-side deployment credentials:
 1. Re-evaluate the gates. Abort if any fails.
 2. Record `deployment.started` with the release ID and target.
 3. Deploy the approved artifact. The job is idempotent, keyed by authorization ID.
@@ -180,9 +192,9 @@ On success → `live_verified`. On failure → `failed`, which creates an Owner 
 
 ## 10. Publication confirmation
 
-After `live_verified`, the client receives a confirmation notification and in-portal confirmation screen (07 §4). **[APPROVED OI-24]** The confirmation screen is never blocked by service offers.
+After `live_verified`, the client sees the in-portal confirmation screen **[R1]** and receives a confirmation notification **[R2]** (07 §4). **[APPROVED OI-24]** The confirmation screen is never blocked by service offers.
 
-## 11. Optional marketing service inquiries **[APPROVED OI-24]**
+## 11. Optional marketing service inquiries **[APPROVED OI-24] [R2]**
 
 | Element | Specification |
 |---|---|
@@ -218,6 +230,7 @@ After `live_verified`, the client receives a confirmation notification and in-po
 | T-PUB-16 | Discontinuation and deactivation are rejected when the only basis is a payment failure or a Stripe cancellation event (OI-46) |
 | T-PUB-17 | While an approval hold is active, publication is blocked by G8, and the gate output identifies it as a fulfillment hold, not a billing hold (OI-45) |
 | T-PUB-18 | A deployment failure after a verified final payment leaves the balance `verified`, flags the publication for recovery, and creates no Stripe invoice or charge on recovery (asserted with a Stripe mock) |
-| T-INQ-01 | Inquiry options appear only after `live_verified` |
-| T-INQ-02 | Submitting an inquiry creates a queue entry and notifications and creates no Stripe objects (asserted with a Stripe mock showing no calls) |
-| T-INQ-03 | Client A cannot submit or view inquiries for project B |
+| T-PUB-19 | **[R1]** Start deployment is rejected without a valid authorization or when any gate fails at that moment. Recording a deployment whose served build identifier differs from the authorized release fails live verification and opens an incident. A client cannot start or record a deployment, and an Admin cannot create an authorization. |
+| T-INQ-01 | **[R2]** Inquiry options appear only after `live_verified` |
+| T-INQ-02 | **[R2]** Submitting an inquiry creates a queue entry and notifications and creates no Stripe objects (asserted with a Stripe mock showing no calls) |
+| T-INQ-03 | **[R2]** Client A cannot submit or view inquiries for project B |

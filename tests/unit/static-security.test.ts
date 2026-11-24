@@ -105,7 +105,7 @@ describe("static security checks", () => {
     expect(offenders.map(({ path }) => path)).toEqual([]);
   });
 
-  it("never logs OTPs, tokens, or secrets (CLAUDE.md §4)", () => {
+  it("never logs OTPs, tokens, or secrets (CLAUDE.md §3)", () => {
     const offenders = sources.filter(({ text }) =>
       /console\.\w+\([^)]*\b(?:token|code|secret|otp|password)\b/i.test(text),
     );

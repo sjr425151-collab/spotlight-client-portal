@@ -1,19 +1,29 @@
 # Continuous integration for every pull request and every push to main (spec 02 §5).
 # Third-party actions are pinned to full commit SHAs (tag shown in the trailing comment).
 # No job uses production credentials, and no job deploys anything.
+#
+# Path-aware and fail-closed (OI-70, docs/DEVELOPMENT.md §5):
+# - "changes" classifies a pull request as docs-only or full, using the classifier from the
+#   pull request's BASE commit. Any doubt, error, push, or manual run means "full".
+# - quality, audit, and secrets always run. e2e and lighthouse are skipped only for
+#   docs-only pull requests.
+# - "CI result" is the required aggregate check. It passes only if every suite required
+#   for the scope succeeded, and it reports skipped suites as "not run", never as passed.
 name: CI
 
 on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Superseded pull request runs are cancelled. Runs on main always complete.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NEXT_TELEMETRY_DISABLED: "1"
@@ -22,6 +32,36 @@ env:
   NEXT_PUBLIC_SITE_URL: http://localhost:3100
 
 jobs:
+  changes:
+    name: Classify changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      scope: ${{ steps.classify.outputs.scope }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Classify (base-commit classifier; fails closed to full)
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          trusted="$RUNNER_TEMP/classify-changes.mjs"
+          if [ "$EVENT_NAME" = "pull_request" ] &&
+             git show "${BASE_SHA}:scripts/ci/classify-changes.mjs" > "$trusted" 2>/dev/null; then
+            node "$trusted" classify >> "$GITHUB_OUTPUT"
+          else
+            echo "CI scope: full (no pull request, or no trusted classifier on the base commit)" >&2
+            echo "scope=full" >> "$GITHUB_OUTPUT"
+          fi
+
   quality:
     name: Lint, types, format, unit tests
     runs-on: ubuntu-24.04
@@ -43,6 +83,8 @@ jobs:
 
   e2e:
     name: Database, integration, and e2e tests (local Supabase)
+    needs: changes
+    if: needs.changes.outputs.scope != 'docs'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     env:
@@ -98,8 +140,30 @@ jobs:
         run: pnpm check:bundle
       - name: Production-mode build for gating tests (never deployed)
         run: pnpm build:production-check
-      - run: pnpm exec playwright install --with-deps chromium
+      - name: Resolve the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
+      # Bounded install: each attempt is capped at 5 minutes and retried once, so a stalled
+      # download fails fast instead of consuming the job timeout.
+      - name: Install Chromium and system dependencies (bounded, one retry)
+        timeout-minutes: 12
+        env:
+          CACHE_HIT: ${{ steps.playwright-cache.outputs.cache-hit }}
+        run: |
+          if [ "$CACHE_HIT" = "true" ]; then target="install-deps"; else target="install --with-deps"; fi
+          for attempt in 1 2; do
+            if timeout 300 pnpm exec playwright $target chromium; then exit 0; fi
+            echo "Playwright $target attempt $attempt failed or timed out" >&2
+          done
+          exit 1
       - run: pnpm test:e2e
+        timeout-minutes: 15
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -113,6 +177,8 @@ jobs:
 
   lighthouse:
     name: Lighthouse budgets (spec 02 §7)
+    needs: changes
+    if: needs.changes.outputs.scope != 'docs'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -177,3 +243,46 @@ jobs:
           tar -xzf "$archive" gitleaks
       - name: Scan git history
         run: ./gitleaks git --redact --no-banner --exit-code 1 .
+
+  ci-result:
+    name: CI result
+    needs: [changes, quality, e2e, lighthouse, audit, secrets]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+      - name: Evaluate required suites (base-commit evaluator; fails closed)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          SCOPE: ${{ needs.changes.outputs.scope }}
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          RESULT_QUALITY: ${{ needs.quality.result }}
+          RESULT_AUDIT: ${{ needs.audit.result }}
+          RESULT_SECRETS: ${{ needs.secrets.result }}
+          RESULT_E2E: ${{ needs.e2e.result }}
+          RESULT_LIGHTHOUSE: ${{ needs.lighthouse.result }}
+        run: |
+          trusted="$RUNNER_TEMP/classify-changes.mjs"
+          if [ "$EVENT_NAME" = "pull_request" ] &&
+             git show "${BASE_SHA}:scripts/ci/classify-changes.mjs" > "$trusted" 2>/dev/null; then
+            node "$trusted" evaluate
+          else
+            # No trusted evaluator on the base commit (or not a pull request): every job must
+            # have run and passed.
+            for result in "$CHANGES_RESULT" "$RESULT_QUALITY" "$RESULT_AUDIT" "$RESULT_SECRETS" \
+                          "$RESULT_E2E" "$RESULT_LIGHTHOUSE"; do
+              if [ "$result" != "success" ]; then
+                echo "CI result: failed (strict mode; a job result was '$result')" | tee -a "$GITHUB_STEP_SUMMARY"
+                exit 1
+              fi
+            done
+            echo "CI result: passed (strict mode; every suite ran and passed)" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi

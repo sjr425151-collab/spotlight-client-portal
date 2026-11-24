@@ -5,31 +5,29 @@ A secure client portal for Spotlight Marketing LLC. It takes each website client
 - **Production URL:** `https://portal.spotlight-marketing.co`. This is a standalone application, separate from the agency website.
 - **Agency website:** `https://spotlight-marketing.co`. It remains on GoHighLevel and is not part of this repository.
 
-## Authorization status
+## Status and authorization
 
-| Stage | Status |
-|---|---|
-| Architecture approval | Approved: decisions OI-01–OI-46 (register pending owner verification) |
-| Specification reconciliation | Specs 01, 02 and CLAUDE.md **approved (final, 2026-11-23)**. Spec 03 v0.4.0 **approved** (2026-11-23). Spec 04 **approved for Phase 3 test-mode implementation only** (2026-11-23). Specs 05–08 in review. |
-| Implementation | Phase 1 (Foundation and CI) complete. **Phase 2 (Auth, security, and tenant isolation) complete and merged** (PR #4, 2026-11-23; local Supabase, synthetic data). Phases 3–5 each require separate written Owner authorization. |
-| Production launch | **Not authorized** |
-| Stripe test-mode catalog (narrow exception, OI-30) | **Completed** 2026-11-23: sandbox catalog created and verified (DEP-01; IDs in [04 §6.5](docs/04-AGREEMENT-AND-BILLING.md)). The execution authorization is **completed and expired**. Any future authenticated Stripe operation requires separate, explicit written Owner authorization |
+- **Current state:** [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md) is the single, canonical status record.
+- **What is authorized:** [docs/AUTHORIZATIONS.md](docs/AUTHORIZATIONS.md) (risk tiers 0–4, OI-67).
+- **Production launch is not authorized.** No real client payment may be accepted until it is.
 
-This repository contains the approved specifications, the Phase 1 application foundation, and the Phase 2 authentication, security, and tenant-isolation layer. Phase 2 runs only against a **local** Supabase stack with synthetic data; no hosted service is connected. See [CLAUDE.md](CLAUDE.md) before making any change, and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) to run it.
+This repository contains the approved specifications, the application foundation, and the authentication, security, and tenant-isolation layer. Everything runs against a **local** Supabase stack with synthetic data; no hosted service is connected. Read [CLAUDE.md](CLAUDE.md) before making any change, and [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) to run it.
 
-## MVP scope
+## Releases (OI-68)
 
+**R1, a complete controlled transaction:**
 1. Invitation-only sign-in with passwordless email OTP.
 2. Acceptance of a versioned services agreement and project order summary.
 3. Stripe Checkout for the 20% development deposit plus the first $99 monthly maintenance payment.
-4. Onboarding intake and secure asset uploads, unlocked by verified payment.
-5. Immutable versioned previews with explicit client approval.
-6. Final approval of the website authorizes an automatic charge of the remaining 80% balance to the payment method saved at the initial Checkout. Stripe issues the invoice and receipt; a failed or authentication-required charge is completed on a secure Stripe-hosted page.
-7. Owner-authorized publication behind server-enforced gates, followed by live verification.
-8. Publication confirmation, with optional, inquiry-only service offers.
-9. Billing self-service through the hosted Stripe Customer Portal: payment methods, invoices, and subscription details. Self-service cancellation is disabled. Cancellation is handled by request, with two milestones from the effective cancellation date: maintenance cessation at 12 business days, and the final transfer and offboarding deadline at 60 calendar days.
+4. Intake and secure, scanned asset uploads, unlocked by verified payment.
+5. Client status tracking and a derived administrative fulfillment queue.
+6. Explicit client approval of a specific, immutable preview release.
+7. Final balance collected on a single Stripe-hosted invoice, verified by webhook.
+8. Owner publication authorization behind server-enforced gates, then staff-executed deployment of exactly the authorized release, with audit evidence and live verification.
 
-**Not in the MVP:** a full client dashboard, AI agents, Google Sheets/Drive or CRM integrations, marketing automation, automatic upsell purchases, and multi-agency tenancy. See [01 §4](docs/01-PROJECT-OVERVIEW.md#4-exclusions-and-future-roadmap).
+**R2, fulfillment automation:** automated preview delivery and reminders, the automatic off-session final charge with hosted fallback, payment recovery and the Stripe Customer Portal, adjusted balances, deployment orchestration, transactional email through Resend, and post-publication inquiries.
+
+**Not in scope:** a full client dashboard, AI agents, Google Sheets/Drive or CRM integrations, marketing automation, automatic upsell purchases, and multi-agency tenancy. See [01 §4](docs/01-PROJECT-OVERVIEW.md#4-exclusions-and-future-roadmap).
 
 ## Architecture overview
 
@@ -58,7 +56,9 @@ Client websites are **separate, isolated deployments**: agency-managed Vercel, o
 | [05 — Project Lifecycle and Uploads](docs/05-PROJECT-LIFECYCLE-AND-UPLOADS.md) | State machines, intake, uploads, previews, approvals, queues |
 | [06 — Publishing and Post-Launch](docs/06-PUBLISHING-AND-POST-LAUNCH.md) | Publication gates, deployment, verification, rollback, inquiries |
 | [07 — Notifications, Privacy, and Design](docs/07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md) | Outbox, event catalog, retention, privacy, design system |
-| [08 — Decisions and Changelog](docs/08-DECISIONS-AND-CHANGELOG.md) | Decision register OI-01–OI-24, change control |
+| [08 — Decisions and Changelog](docs/08-DECISIONS-AND-CHANGELOG.md) | Decision register, traceability, change history, change control |
+| [CURRENT-STATE](docs/CURRENT-STATE.md) | Canonical status: releases, work packages, specs, dependencies, pending Owner actions |
+| [AUTHORIZATIONS](docs/AUTHORIZATIONS.md) | Risk tiers and active authorizations |
 | [OPEN-ISSUES.md](OPEN-ISSUES.md) | Decided issues, open Owner decisions (Part 2), and implementation dependencies (DEP-nn) |
 | [CLAUDE.md](CLAUDE.md) | Operating instructions for contributors and AI agents |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Local setup, toolchain, commands, CI, architecture |
@@ -93,7 +93,7 @@ pnpm dev          # http://localhost:3000
 pnpm verify       # lint, typecheck, format, unit, build, bundle check, e2e
 ```
 
-1. Work on a feature branch. Open a PR against `main`.
-2. CI must pass lint, typecheck, unit, e2e, and performance/security checks.
-3. The Owner reviews and merges. Production promotion is Owner-controlled.
+1. Work on a feature branch under an active authorization. Open a PR against `main`.
+2. The required `CI result` check must pass. Documentation-only PRs skip the database, end-to-end, and Lighthouse suites, which are reported as not run; every other change runs everything (OI-70).
+3. The PR carries its own evidence and updates CURRENT-STATE. The Owner reviews and merges. Production promotion is Owner-controlled (Tier 3).
 4. Specification changes follow [08 §6](docs/08-DECISIONS-AND-CHANGELOG.md#6-change-control-rules). Conflicts are escalated, never silently resolved.

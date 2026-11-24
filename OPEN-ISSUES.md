@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.19.1 |
+| Version | 0.20.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
 | Next unused issue ID | **OI-84** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-18** |
@@ -139,7 +139,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 | DEP-14 | **Hosted Supabase projects** (dev, staging): creation, configuration (sign-up disabled, OTP expiry, signing keys, TOTP, IP forwarding, SMTP), and migration pushes | Owner authorization; implementer executes | Before any hosted environment | Granted under AUTH-003 (not yet active). OI-50 and OI-51 decided. |
 | DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | WP-B | Not started. Runs under AUTH-002 once its activation conditions are met. |
 | DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | **Complete** (Owner-reported, 2026-11-24). `main` reports `protected: true` via the GitHub API; the ruleset check list is not readable from the agent session. |
-| DEP-17 | **Hosted scheduler for billing jobs** (04 §13): bind WP-B's job entry points (daily reconciliation, maintenance-recovery evaluation, webhook backfill) to a scheduler, with recorded runs and alerting (DEP-12) | WP-D (staging, AUTH-003); Owner (production, Tier 3) | Before the R1 release candidate (staging); production launch | Not started |
+| DEP-17 | **Hosted scheduler** (04 §13, 05 §5.4, §5.5): bind to a scheduler, with recorded runs and alerting (DEP-12): WP-B's billing job entry points (daily reconciliation, maintenance-recovery evaluation, webhook backfill, release approvals, outbound requests); WP-C's scan retries and revoked-object deletion retries | WP-D (staging, AUTH-003); Owner (production, Tier 3) | Before the R1 release candidate (staging); production launch | Not started. In R1 until then: staff trigger scan retries, the server retries due deletions opportunistically, the Owner retries deletions and runs reconciliation before authorizing publication |
 
 ### DEP-01 detail — Stripe test-mode catalog
 
@@ -193,6 +193,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 - **Stripe (OI-17 revised, 2026-11-23):** saving the payment method in subscription-mode Checkout for a later off-session, one-off charge; an automatically charged one-off invoice using the standard balance Price ID; the events for failed charges and required authentication; the Stripe-hosted page for completing the same invoice; idempotency keys; and, for OI-55 (approved, option A), an invoice-level discount restricted to the balance product.
 - **Stripe:** the subscription state after exhausted retries (`past_due` / `unpaid` vs cancellation) and the related events (OI-46).
 - **Stripe (OI-74, 2026-11-24; documentation facts in 04 §8.2):** in test mode, confirm where subscription-mode Checkout stores the card (subscription default or Customer); card-wallet behavior under `allowed_payment_method_types: ["card"]`; an automatic off-session charge of the one-off invoice with an explicit `default_payment_method`; `invoice.payment_action_required` and hosted completion of the same invoice; finalizing an invoice without an automatic attempt when the authorization is not active; setup-mode Checkout for an existing Customer; and the `payment_method.detached`, `payment_method.automatically_updated`, `setup_intent.succeeded`, and `setup_intent.setup_failed` events.
+- **Stripe (PR #20 review F7, F8, N1; 2026-11-24):** the test-mode acceptance criteria in 04 §8.2 (stop of automatic collection, saved-card fields, and charge linking including multi-payment invoices). F7, F8, and the N1 linking criterion are **mandatory before R1 release-candidate acceptance** together with N1 (04 §15.2.1 rule 9).
 - **Supabase / Postgres:** time-zone database support for America/Detroit evaluation (OI-43). Backup expiry behavior for deleted data (OI-42).
 - **Domain registrar (to be selected; revised OI-35):** registration date and expiry data, auto-renew settings, the transfer (auth code) process, and confirmation that hosting deactivation cannot affect a registration.
 - **Vercel / infrastructure (revised OI-35):** discontinuing designated per-client resources at M1 independently of the remaining hosting.

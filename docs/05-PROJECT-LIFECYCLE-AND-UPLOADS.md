@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.4 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. v0.4.3 (**OI-79**, Owner decision 2026-11-24): resolved values for uploads, image limits, scanner retries, the quarantine review threshold, domain-expiry warnings, release precondition, and intake corrections (§3, §5.4). v0.4.4 (Owner direction, 2026-11-24): authoritative scan-result rules (§5.5) after the PR #19 CI root cause; tests T-UP-14 to T-UP-19. No release requirement is weakened. |
+| Version | 0.4.5 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. v0.4.3 (**OI-79**, Owner decision 2026-11-24): resolved values for uploads, image limits, scanner retries, the quarantine review threshold, domain-expiry warnings, release precondition, and intake corrections (§3, §5.4). v0.4.4 (Owner direction, 2026-11-24): authoritative scan-result rules (§5.5) after the PR #19 CI root cause; tests T-UP-14 to T-UP-19. No release requirement is weakened. v0.4.5 (documentation reconciliation, 2026-11-24): T-LC-15 aligned with OI-74 and OI-80; duplicate T-UP-10 resolved (decimal units is T-UP-20); scan-retry bounds; delivery, deletion, and malicious-content rules from the PR #19 reviews (§5.5 rules 7–9); WP-C audit names. |
 | Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68, OI-72 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
@@ -127,7 +127,7 @@ Rules:
 | 4 | Decompression-bomb limits (§5.3 rule 5) | At most **12,000 px per side and 100 megapixels**. Dimensions are read from the file header and checked **before** any full decode; decoding is bounded in memory and processing time; malformed or oversized images are rejected before expensive processing wherever possible. No unapproved dependency is introduced (OI-80) |
 | 6 | Release precondition (§6) | A preview can be released only when intake is `accepted_by_staff`. **No override** |
 | 7 | Intake corrections (§3) | Owner and Admin; original submission, correction history, actor, and reason preserved; existing authorization and tenant isolation apply |
-| 8 | Scanner errors (§5.3) | The file stays **quarantined**. Bounded retries with backoff; after the last retry the file goes to the Upload review queue. No unscanned file is ever released |
+| 8 | Scanner errors (§5.3) | The file stays **quarantined**. Bounded retries: at most **5** scan attempts, with backoff after scanner errors on the 07 §3 schedule (1 min, 5 min, 30 min, 2 h, 12 h); after the last attempt the file goes to the Upload review queue. No unscanned file is ever released. Scheduled retries are DEP-17 (WP-D); in R1 staff trigger them |
 
 Item 5 (security findings) is in 06 §2 and §7.
 
@@ -139,6 +139,11 @@ Item 5 (security findings) is in 06 §2 and §7.
 4. **Errors and invalid results.** An `error`, an unpermitted scanner, or an invalid result for the current attempt returns the upload to quarantine (bounded retries, 05 §5.4 item 8); a later clean result counts only if it belongs to a newer attempt.
 5. **Exact bytes.** The authoritative clean result must match the SHA-256 computed by the server from the stored quarantine object. Processing re-reads the object and verifies that hash before producing a derivative; the released object's hash is computed by the server from the object written to the released path.
 6. **Release eligibility** is unchanged and still requires all of: status `processing`, the authoritative result clean by a permitted scanner for the exact stored bytes, and no `malicious` result ever recorded for those bytes.
+7. **Delivery (PR #19 review H1).** Released objects are server-read only: no user JWT can read, list, or sign them (restrictive policy `project_assets_released_server_read_only`). Each download is authorized and audited by `record_asset_access` (project access, live session, staff at `aal2`, upload `available`), then read with the service role, re-checked for availability after the read, and returned with `Cache-Control: private, no-store`. A response already in transfer when a revocation commits cannot be recalled.
+8. **Durable deletion of revoked objects (H1).** Each revocation writes an `asset_object_deletions` row in the same transaction. Deletion is confirmed by an absence check; attempts are leased for 5 minutes, at most 5 automatic attempts on the 07 §3 backoff, plus at most 10 Owner retries (Owner only, `aal2`, live session, audited). A `failed` row leaves the object unreadable but stored (Owner runbook). Scheduled retries are DEP-17.
+9. **Malicious content (M1).** The identity of malicious bytes is the server-computed stored hash, kept in `private.malicious_content`. A malicious verdict revokes every available copy (each with its own deletion row) and rejects every unfinished copy, in every project, in one transaction; later uploads of the same bytes are rejected. `record_scan_result` and `release_upload` take a content lock on the stored hash before the row lock.
+
+**Upload audit names (05 §4, §5.5):** `upload.requested`, `upload.refused` (an authorized caller's refused request), `upload.completed`, `upload.scan_recorded`, `upload.released`, `upload.rejected`, `upload.accessed`, `upload.access_revoked`, `upload.object_deleted`, `upload.object_deletion_failed`, `upload.object_deletion_retried`.
 
 ## 6. Preview release versioning **[APPROVED OI-18]**
 
@@ -275,7 +280,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-UP-07 | Failed uploads are purged after 7 days |
 | T-UP-08 | Uploading an asset never changes any preview or live site |
 | T-UP-09 | A failed scan makes the asset `rejected`, blocks its download and release use, and sends client and staff notifications (OI-31) |
-| T-UP-10 | **[OI-79]** Limits use decimal units (a file of 1 byte over the decimal limit is rejected) |
+| T-UP-20 | **[OI-79]** Limits use decimal units (a file of 1 byte over the decimal limit is rejected) |
 | T-UP-11 | **[OI-79]** An image over 12,000 px on either side or over 100 megapixels, or with a malformed header, is rejected before full decoding; decoding a hostile image stays within the memory and time bounds |
 | T-UP-12 | **[OI-79]** A scanner error keeps the file quarantined; retries are bounded with backoff; exhausting them routes the file to the Upload review queue; the file is never served at any point |
 | T-UP-13 | **[OI-79]** A file quarantined for more than 24 hours appears in the Upload review queue; a domain within 60 days of expiry appears in the Domain expiries queue |
@@ -289,7 +294,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-LC-11 | The approval hold cannot be placed without a recorded personal follow-up. Placing it never creates an approval or alters billing. |
 | T-LC-12 | During an approval hold, the client can view the preview, approve it, or request revisions. The approval satisfies G3, and a review queue item is created. (OI-45) |
 | T-LC-13 | An approval hold does not change portal access, subscription status, balances, or any published site |
-| T-LC-15 | **[R1]** A staff-recorded release is immutable once released, requires a commit SHA, deployment ID, and preview URL, and cannot be created by a client. Outreach records for days 3 and 7 are required before the "Approval outreach due" queue clears. The R1 approval screen shows the outstanding balance from the snapshot and does not state or imply an automatic charge. |
+| T-LC-15 | **[R1]** A staff-recorded release is immutable once released, requires a commit SHA, deployment ID, and preview URL, and cannot be created by a client. Outreach records for days 3 and 7 are required before the "Approval outreach due" queue clears. The R1 approval screen uses the approved label and disclosure (T-LC-14, OI-74); it shows the outstanding balance only once the WP-B interface provides it (OI-80 item 3). |
 | T-LC-16 | **[OI-79]** Releasing a preview while intake is not `accepted_by_staff` is rejected for every actor; no override exists |
 | T-LC-17 | **[OI-79]** Owner and Admin can correct intake only with a reason; the original submission and every earlier version stay unchanged and readable; actor and reason are recorded; another project's staff-facing intake is unreachable by clients, and a client cannot correct intake |
 | T-UP-10 | Incorporating an asset into a released preview sets `used`. The flag never reverts. Assets that were never incorporated are reported as unused. (OI-42) |

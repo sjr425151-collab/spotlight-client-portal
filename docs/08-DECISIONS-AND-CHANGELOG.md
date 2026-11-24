@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.19.1 |
+| Version | 0.20.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -835,7 +835,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   6. Staff acceptance of intake is required before preview release; **no override**.
   7. **Owner and Admin** may correct client intake, preserving the original submission, correction history, actor attribution, and reason; existing authorization and tenant isolation apply.
   8. Scanner errors keep the file in quarantine; **bounded retries with backoff**; exhausted retries go to the review queue; no unscanned file is ever released.
-- **Status:** Approved. **Affected sections:** 05 §3, §5.4, §11 (v0.4.3; T-LC-16, T-LC-17, T-UP-10 to T-UP-13); 06 §2, §7 (v0.5.1; T-PUB-20); 03 §4 (v0.5.4).
+- **Status:** Approved. **Affected sections:** 05 §3, §5.4, §11 (v0.4.3; T-LC-16, T-LC-17, T-UP-11 to T-UP-13, T-UP-20 (renumbered from the duplicate T-UP-10 in v0.4.5)); 06 §2, §7 (v0.5.1; T-PUB-20); 03 §4 (v0.5.4).
 
 ### OI-80 — WP-C capabilities blocked by other authorizations or packages
 
@@ -1047,6 +1047,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.18.0 | 2026-11-24 | **Central issue allocation** (Owner): PR #18 keeps OI-73 to OI-78; WP-C's issues become OI-79 and OI-80; WP-B's become OI-81 to OI-83; Main allocates all IDs from now on. OI-80, OI-81, OI-83 decided; OI-79 (itemized) and OI-82 (proposed allocation policy, 04 §15.2.1) open. OI-78 amended: WP-C makes its two security corrections in PR #19. AUTH-005 v1.5.0: rate limiting, pricing view. 01 v0.4.2 (§9.1.1 integrated R1 browser acceptance), 03 v0.5.3, 04 v0.9.1. | Main session | Owner |
 | 0.19.0 | 2026-11-24 | **OI-79 decided** item by item (05 v0.4.3, 06 v0.5.1, 03 v0.5.4). **OI-82 decided** (allocation architecture, subject to DEP-03 and DEP-06; 04 v0.9.2, T-PAY-27 to T-PAY-36). No open issues. WP-C and WP-B directives updated; shared-file plan and migration order recorded. | Main session | Owner |
 | 0.19.1 | 2026-11-24 | Pre-merge security reconciliation (Owner direction, no new decision): authoritative scan-result rules after the PR #19 root cause, including the inverse case of a late malicious verdict being discarded (05 v0.4.4 §5.5, T-UP-14 to T-UP-19); ownership and release requirements for billing job scheduling and daily reconciliation and for WP-C records in dispute evidence (04 v0.9.3, T-ARC-09, T-ARC-10, DEP-17). | Main session | Owner |
+| 0.20.0 | 2026-11-24 | **Post-WP-B documentation reconciliation** (29 Owner-approved items). WP-C merged (PR #19, `bcddb1f`) and WP-B merged (PR #20, `8ac8143`). Owner decisions on the PR #20 review recorded: **F3** client revocation needs a sign-in code verified within 5 minutes; **F4** only the acceptance signer revokes in the portal, Owner-recorded revocation retained; **F5** a revoked authorization never reactivates, a new one needs a newer acceptance and a verified card; **F6** payment recovery required covers a verified deposit without a ready authorization; **B1** unresolved financial-integrity anomalies fail G2 or G4, review never restores payment, anomalies block independently; **N1** mandatory before R1 release-candidate acceptance; N2–N4 accepted; F10 wording pending DEP-03. G7 clarification (failed medium and low findings do not fail G7). Specs: 03 v0.5.5, 04 v0.9.4, 05 v0.4.5, 06 v0.5.2; AUTHORIZATIONS v1.6.0 (AUTH-005 package refreshed, not granted); OWNER-RUNBOOKS v0.1.0 (proposed); CURRENT-STATE v1.9.0 (WP-S directive). | Main session | Owner |
 
 ## 6. Change-control rules
 

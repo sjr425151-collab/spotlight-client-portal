@@ -77,7 +77,7 @@ Playwright needs a browser: run `pnpm exec playwright install chromium` once. If
 | `pnpm typecheck` | Strict TypeScript, no emit |
 | `pnpm format` / `pnpm format:check` | Prettier write / verify |
 | `pnpm test` | Vitest unit, component, and static security tests (no services needed) |
-| `supabase test db` | pgTAP database tests in `supabase/tests` (RLS, roles, MFA, sessions, invitations, audit). `pnpm test:db` runs the same files through `psql` in the database container, for machines that cannot pull the pgTAP runner image. |
+| `supabase test db` | pgTAP database tests in `supabase/tests` (RLS, roles, MFA, sessions, invitations, audit). `pnpm test:db` runs the same files through `psql` in the database container, for machines that cannot pull the pgTAP runner image. The suites assume a **freshly reset** database (`supabase db reset`), as CI runs them; run after the integration suite, some fail on the synthetic rows those tests leave. |
 | `pnpm test:integration` | Vitest integration tests against the local stack (real Auth sessions, Mailpit, storage) |
 | `pnpm build:production-check` | Builds a production-mode copy (`APP_ENV=production`) into `.next-production/`, used only by the gating tests and never deployed |
 | `pnpm test:e2e` | Playwright: smoke tests, the Phase 2 auth flows (`auth` project, needs the local stack), the WP-C and WP-B browser tests, and production-gating tests (run both builds first). The WP-B project needs `E2E_STRIPE_WEBHOOK_SECRET` set to a generated test-only `whsec_` value (for example `whsec_$(openssl rand -hex 24)`); the test-build server receives it with `STRIPE_GATEWAY=mock` and `AGREEMENT_TEST_FIXTURE=enabled`, and the production-mode server receives none of them |

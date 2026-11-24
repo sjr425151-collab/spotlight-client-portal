@@ -49,3 +49,8 @@ insert into public.project_memberships (project_id, user_id) values
   ('20000000-0000-4000-8000-0000000000b0', '00000000-0000-4000-8000-0000000000b1');
 
 select set_config('request.jwt.claims', '', true);
+
+-- WP-C (05 §5.3; DEP-07): marks this database as a local development/test database, the
+-- only place the mocked malware scanner may release a file from quarantine. Hosted
+-- databases are never seeded, so they have no row and the mock is refused there.
+insert into private.runtime_environment (app_env) values ('development');

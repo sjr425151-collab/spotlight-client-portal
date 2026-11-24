@@ -91,7 +91,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 ## 6. Pending Owner actions
 
 1. Review and merge this documentation reconciliation PR.
-2. Review the WP-S directive (§9) and the refreshed AUTH-005 package (AUTHORIZATIONS §3A); grant AUTH-005 only when you choose to start WP-S.
+2. Review the WP-S directive (§9) and the refreshed AUTH-005 package (AUTHORIZATIONS §3A); decide **OI-84** (OPEN-ISSUES Part 2), after which Main presents the final AUTH-005 grant package against the post-merge `main`; grant AUTH-005 only when you choose to start WP-S.
 3. Review OWNER-RUNBOOKS (proposed).
 4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10).
 5. When ready: meet the AUTH-002 activation conditions for the Stripe test-mode criteria (04 §8.2: F7, F8, N1 linking; DEP-15).

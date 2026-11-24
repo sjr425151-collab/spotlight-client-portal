@@ -25,6 +25,14 @@ language sql stable set search_path = '' as $$
   select coalesce((select auth.jwt()) ->> 'role', '') = 'service_role';
 $$;
 
+-- An integer number of cents, or null for anything else (a string, a fraction, a negative,
+-- or more than 15 digits). Money is integer cents only (CLAUDE.md §3).
+create function private.try_cents(p_value jsonb) returns bigint
+language sql immutable set search_path = '' as $$
+  select case when jsonb_typeof(p_value) = 'number' and (p_value #>> '{}') ~ '^[0-9]{1,15}$'
+              then (p_value #>> '{}')::bigint end;
+$$;
+
 create function private.try_uuid(p_text text) returns uuid
 language plpgsql immutable set search_path = '' as $$
 begin
@@ -723,18 +731,36 @@ create table public.reconciliation_runs (
   projects_checked integer not null default 0,
   mismatch_count integer not null default 0
 );
+-- B1 (fail closed): an Owner reconciliation item for any unresolved financial-integrity
+-- anomaly the daily run or an event detects. Each blocks G2 or G4 by its charge (or both
+-- when the charge is unknown) until the Owner resolves it; resolving never posts money.
 create table public.reconciliation_mismatches (
   id uuid primary key default gen_random_uuid(),
-  run_id uuid not null references public.reconciliation_runs (id),
+  -- Null only for an item detected while processing a verified event (charged_after_halt).
+  run_id uuid references public.reconciliation_runs (id),
   project_id uuid not null references public.projects (id),
-  kind text not null check (kind in ('charges_total', 'refunds_total', 'deposit_snapshot', 'balance_snapshot', 'disputes_open')),
+  kind text not null check (kind in ('charges_total', 'refunds_total', 'deposit_snapshot', 'balance_snapshot', 'disputes_open',
+    'unmatched_refund', 'unmatched_dispute', 'charged_after_halt')),
+  -- The charge the item is attributed to (initial:, renewal:, final_balance:); null = unknown.
+  charge_key text check (charge_key is null or charge_key ~ '^(initial|renewal|final_balance):[A-Za-z0-9_-]{6,200}$'),
+  -- The Stripe refund or dispute observed by reconciliation, and its status then.
+  stripe_object_id text check (stripe_object_id is null or stripe_object_id ~ '^[a-z]{2,4}_[A-Za-z0-9_]{6,200}$'),
+  observed_status text check (observed_status is null or observed_status ~ '^[a-z_]{1,40}$'),
   expected_cents bigint,
   observed_cents bigint,
   detected_at timestamptz not null default now(),
   resolved_at timestamptz,
   resolved_by uuid references public.profiles (id),
-  resolution text check (resolution is null or char_length(resolution) between 1 and 1000)
+  resolution text check (resolution is null or char_length(resolution) between 1 and 1000),
+  constraint mismatch_source check ((run_id is null) = (kind = 'charged_after_halt')),
+  constraint mismatch_object check ((kind in ('unmatched_refund', 'unmatched_dispute')) = (stripe_object_id is not null)),
+  constraint mismatch_halt_charge check (kind <> 'charged_after_halt' or charge_key like 'final\_balance:%')
 );
+-- One item per observed object state, and one charged-after-halt item per invoice.
+create unique index reconciliation_mismatches_object_idx on public.reconciliation_mismatches (stripe_object_id, observed_status)
+  where stripe_object_id is not null;
+create unique index reconciliation_mismatches_halt_idx on public.reconciliation_mismatches (charge_key)
+  where kind = 'charged_after_halt';
 
 -- ---------------------------------------------------------------------------
 -- 4. Immutability and transition guards
@@ -806,6 +832,19 @@ create trigger reconciliation_runs_guard before update or delete on public.recon
   for each row execute function private.guard_columns('completed_at', 'projects_checked', 'mismatch_count');
 create trigger reconciliation_mismatches_guard before update or delete on public.reconciliation_mismatches
   for each row execute function private.guard_columns('resolved_at', 'resolved_by', 'resolution');
+-- B1: an Owner resolution is recorded once and never undone or rewritten.
+create function private.mismatch_resolution_guard() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if old.resolved_at is not null and (new.resolved_at, new.resolved_by, new.resolution)
+     is distinct from (old.resolved_at, old.resolved_by, old.resolution) then
+    raise exception 'a reconciliation resolution is recorded once' using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+create trigger reconciliation_mismatches_resolution_guard before update on public.reconciliation_mismatches
+  for each row execute function private.mismatch_resolution_guard();
 create trigger event_consumptions_guard before update or delete on private.event_consumptions
   for each row execute function private.guard_columns('outcome', 'detail');
 create trigger billing_job_runs_guard before update or delete on public.billing_job_runs
@@ -834,7 +873,10 @@ begin
   end if;
   if new.status is distinct from old.status and not (
        (old.status = 'pending' and new.status in ('succeeded', 'failed', 'ambiguous'))
-    or (old.status = 'ambiguous' and new.status in ('reconciled_present', 'reconciled_absent'))) then
+    or (old.status = 'ambiguous' and new.status in ('reconciled_present', 'reconciled_absent'))
+    -- B1: a failed automatic-collection stop is reconciled by the Owner against Stripe.
+    or (old.status = 'failed' and new.status in ('reconciled_present', 'reconciled_absent')
+        and old.purpose = 'final_balance_invoice_disable_auto' and coalesce(old.error_code, '') <> 'already_paid')) then
     raise exception 'invalid outbound request transition % -> %', old.status, new.status using errcode = '23514';
   end if;
   return new;
@@ -2129,7 +2171,11 @@ begin
     return private.fail('reason_required');
   end if;
   select * into v_req from public.outbound_stripe_requests where id = p_request_id for update;
-  if not found or v_req.status <> 'ambiguous' then
+  -- B1: a failed automatic-collection stop (other than already_paid) is reconciled the same
+  -- way: found = Stripe shows automatic collection off on that invoice.
+  if not found or not (v_req.status = 'ambiguous'
+       or (v_req.status = 'failed' and v_req.purpose = 'final_balance_invoice_disable_auto'
+           and coalesce(v_req.error_code, '') <> 'already_paid')) then
     return private.fail('not_ambiguous');
   end if;
   if p_found and coalesce(v_req.error_code, '') = 'livemode_mismatch' then
@@ -2150,8 +2196,8 @@ begin
     update public.recovery_sessions set status = 'failed' where id = v_req.domain_record_id and status = 'creating';
   end if;
   perform private.audit_financial('outbound.request_reconciled', 'outbound_stripe_request', v_req.id::text, v_req.project_id,
-    jsonb_build_object('found', p_found), p_note);
-  return jsonb_build_object('ok', true);
+    jsonb_build_object('found', p_found, 'gates', private.financial_gate_recheck(v_req.project_id)), p_note);
+  return jsonb_build_object('ok', true, 'gates', private.financial_gate_recheck(v_req.project_id));
 end;
 $$;
 
@@ -2564,6 +2610,10 @@ begin
       end if;
       perform private.notify_owner('payment.charged_after_halt', 'payment.charged_after_halt:' || v_fbi.id::text || ':1',
         v_fbi.project_id, v_event, jsonb_build_object('final_balance_invoice_id', v_fbi.id));
+      -- B1: G4 stays blocked until the Owner reviews this item (resolve_reconciliation_mismatch).
+      insert into public.reconciliation_mismatches (project_id, kind, charge_key, observed_cents)
+      values (v_fbi.project_id, 'charged_after_halt', v_key, v_fbi.amount_cents)
+      on conflict (charge_key) where kind = 'charged_after_halt' do nothing;
       perform private.audit_financial('balance.charged_after_halt', 'final_balance_invoice', v_fbi.id::text, v_fbi.project_id);
     end if;
   end if;
@@ -3016,7 +3066,8 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_link private.stripe_payment_links%rowtype;
   v_existing public.refunds%rowtype;
-  v_amount bigint := (r ->> 'amount')::bigint;
+  -- A malformed amount is quarantined once the charge is known, never a processing error.
+  v_amount bigint := private.try_cents(r -> 'amount');
   v_decision uuid := private.try_uuid(r #>> '{metadata,refund_decision_id}');
   v_outcome text := 'processed';
 begin
@@ -3086,7 +3137,7 @@ language plpgsql security definer set search_path = '' as $$
 declare
   v_link private.stripe_payment_links%rowtype;
   v_existing public.disputes%rowtype;
-  v_amount bigint := (d ->> 'amount')::bigint;
+  v_amount bigint := private.try_cents(d -> 'amount');
   v_event bigint;
   v_new boolean := false;
   v_outcome text := 'processed';
@@ -3269,6 +3320,8 @@ $$;
 -- (OI-19: no override creates a payment).
 create function private.resolve_quarantined_event(p_webhook_event_id bigint, p_resolution text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+declare
+  v_project uuid;
 begin
   if not (private.is_owner() and private.mfa_is_fresh() and private.session_is_active()) then
     return private.fail('forbidden');
@@ -3278,12 +3331,16 @@ begin
   end if;
   update public.webhook_events set quarantine_resolved_at = now(), quarantine_resolved_by = (select auth.uid()),
     quarantine_resolution = btrim(p_resolution)
-   where id = p_webhook_event_id and processing_status = 'quarantined' and quarantine_resolved_at is null;
+   where id = p_webhook_event_id and processing_status = 'quarantined' and quarantine_resolved_at is null
+  returning project_id into v_project;
   if not found then
     return private.fail('not_found');
   end if;
-  perform private.audit_financial('quarantine.resolved', 'webhook_event', p_webhook_event_id::text, null, '{}'::jsonb, p_resolution);
-  return jsonb_build_object('ok', true);
+  -- B1: resolving records the Owner's review only. Nothing is reprocessed or posted; the
+  -- gates are re-derived from all the evidence, so a reversal the event shows still blocks.
+  perform private.audit_financial('quarantine.resolved', 'webhook_event', p_webhook_event_id::text, v_project,
+    jsonb_build_object('gates', private.financial_gate_recheck(v_project)), p_resolution);
+  return jsonb_build_object('ok', true, 'gates', private.financial_gate_recheck(v_project));
 end;
 $$;
 
@@ -4219,6 +4276,8 @@ declare
   v_kind text;
   v_expected bigint;
   v_observed bigint;
+  v_obj jsonb;
+  v_charge_key text;
 begin
   if not private.caller_is_service_role() then
     raise exception 'server only' using errcode = '42501';
@@ -4249,6 +4308,34 @@ begin
     if v_observed is distinct from v_expected then
       insert into public.reconciliation_mismatches (run_id, project_id, kind, expected_cents, observed_cents)
       values (p_run_id, p_project_id, v_kind, v_expected, v_observed);
+      v_count := v_count + 1;
+    end if;
+  end loop;
+  -- B1: every refund and dispute Stripe holds for this customer that WP-B has not recorded
+  -- (its event never arrived, was deferred, or could not be attributed) is attributed through
+  -- its charge and becomes a blocking item. One item per object state; nothing is posted.
+  for v_obj in
+    select r || jsonb_build_object('object', 'refund') from jsonb_array_elements(
+      case when jsonb_typeof(p_stripe -> 'refunds') = 'array' then p_stripe -> 'refunds' else '[]'::jsonb end) r
+    union all
+    select d || jsonb_build_object('object', 'dispute') from jsonb_array_elements(
+      case when jsonb_typeof(p_stripe -> 'disputes') = 'array' then p_stripe -> 'disputes' else '[]'::jsonb end) d
+  loop
+    if (v_obj ->> 'object' = 'refund' and exists (select 1 from public.refunds where stripe_refund_id = v_obj ->> 'id'))
+       or (v_obj ->> 'object' = 'dispute' and exists (select 1 from public.disputes where stripe_dispute_id = v_obj ->> 'id')) then
+      continue;
+    end if;
+    select case when count(distinct private.link_charge_key(l)) = 1 then min(private.link_charge_key(l)) end
+      into v_charge_key
+      from private.stripe_payment_links l
+     where l.project_id = p_project_id
+       and (l.stripe_ref in (v_obj ->> 'charge', v_obj ->> 'payment_intent') or l.stripe_invoice_id = v_obj ->> 'invoice');
+    insert into public.reconciliation_mismatches (run_id, project_id, kind, charge_key, stripe_object_id, observed_status,
+      observed_cents)
+    values (p_run_id, p_project_id, case when v_obj ->> 'object' = 'refund' then 'unmatched_refund' else 'unmatched_dispute' end,
+      v_charge_key, v_obj ->> 'id', coalesce(substring(v_obj ->> 'status' from '^[a-z_]{1,40}$'), 'unknown'), private.try_cents(v_obj -> 'amount'))
+    on conflict (stripe_object_id, observed_status) where stripe_object_id is not null do nothing;
+    if found then
       v_count := v_count + 1;
     end if;
   end loop;
@@ -4287,6 +4374,8 @@ $$;
 
 create function private.resolve_reconciliation_mismatch(p_mismatch_id uuid, p_resolution text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+declare
+  v_project uuid;
 begin
   if not private.owner_ok(true) then
     return private.fail('forbidden');
@@ -4295,13 +4384,15 @@ begin
     return private.fail('reason_required');
   end if;
   update public.reconciliation_mismatches set resolved_at = now(), resolved_by = (select auth.uid()),
-    resolution = btrim(p_resolution) where id = p_mismatch_id and resolved_at is null;
+    resolution = btrim(p_resolution) where id = p_mismatch_id and resolved_at is null
+  returning project_id into v_project;
   if not found then
     return private.fail('not_found');
   end if;
-  perform private.audit_financial('reconciliation.mismatch_resolved', 'reconciliation_mismatch', p_mismatch_id::text, null,
-    '{}'::jsonb, p_resolution);
-  return jsonb_build_object('ok', true);
+  -- B1: as for quarantine, a resolution is a review record; the gates are re-derived.
+  perform private.audit_financial('reconciliation.mismatch_resolved', 'reconciliation_mismatch', p_mismatch_id::text, v_project,
+    jsonb_build_object('gates', private.financial_gate_recheck(v_project)), p_resolution);
+  return jsonb_build_object('ok', true, 'gates', private.financial_gate_recheck(v_project));
 end;
 $$;
 
@@ -4315,6 +4406,186 @@ alter type private.project_financial_status
   -- 04 §8.1 (OI-74): WP-C's intake precondition reads payment_authorization_ready.
   add attribute payment_authorization_ready boolean,
   add attribute payment_authorization_state text;
+
+-- ---------------------------------------------------------------------------
+-- 14A. Financial-integrity anomalies (B1: fail closed)
+-- ---------------------------------------------------------------------------
+-- Every unresolved anomaly blocks the payment gate of the charge it concerns: G2 for the
+-- initial charge, G4 for the final-balance charge, both when the charge cannot be told. A
+-- maintenance renewal charge blocks neither (its recovery is the maintenance hold, 04 §14).
+-- Each anomaly is resolved only through an existing Owner-only, audited function. Resolving
+-- records a review and nothing else: G2 and G4 are always re-derived from all the evidence.
+
+-- The gates a charge (or a set of candidate charges) belongs to. Unknown or conflicting
+-- attribution fails both.
+create function private.charge_kind_gates(p_kinds text[]) returns text[]
+language sql immutable set search_path = '' as $$
+  select case
+    when coalesce(cardinality(p_kinds), 0) <> 1 then array['G2', 'G4']
+    when p_kinds[1] = 'initial' then array['G2']
+    when p_kinds[1] = 'final_balance' then array['G4']
+    when p_kinds[1] = 'renewal' then array[]::text[]
+    else array['G2', 'G4'] end;
+$$;
+
+create function private.charge_key_gates(p_charge_key text) returns text[]
+language sql immutable set search_path = '' as $$
+  select private.charge_kind_gates(case when p_charge_key ~ '^(initial|renewal|final_balance):'
+                                        then array[split_part(p_charge_key, ':', 1)] end);
+$$;
+
+-- The charge kinds a Stripe object references, through the recorded payment links.
+create function private.object_charge_kinds(p_project_id uuid, p_refs text[], p_invoice text) returns text[]
+language sql stable security definer set search_path = '' as $$
+  select coalesce(array_agg(distinct l.kind order by l.kind), '{}')
+    from private.stripe_payment_links l
+   where l.project_id = p_project_id and (l.stripe_ref = any (coalesce(p_refs, '{}')) or l.stripe_invoice_id = p_invoice);
+$$;
+
+-- The charge kinds a stored, verified event concerns ('{}' when it cannot be told).
+create function private.event_charge_kinds(e public.webhook_events) returns text[]
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  o jsonb := e.payload #> '{data,object}';
+  v_type text := e.payload #>> '{data,object,object}';
+begin
+  if e.project_id is null then
+    return '{}';
+  end if;
+  if v_type in ('refund', 'dispute') then
+    return private.object_charge_kinds(e.project_id, array[o ->> 'charge', o ->> 'payment_intent'], null);
+  elsif v_type = 'charge' then
+    return private.object_charge_kinds(e.project_id, array[o ->> 'id', o ->> 'payment_intent'], o ->> 'invoice');
+  elsif v_type = 'checkout.session' then
+    if o ->> 'mode' = 'setup' then
+      return array['final_balance']; -- recovery of the final-balance authorization (04 §8.1)
+    end if;
+    if exists (select 1 from public.checkout_sessions c where c.project_id = e.project_id
+                 and (c.stripe_checkout_session_id = o ->> 'id' or c.id = private.try_uuid(o #>> '{metadata,checkout_record_id}'))) then
+      return array['initial'];
+    end if;
+    return '{}';
+  elsif v_type = 'invoice' then
+    return (select coalesce(array_agg(distinct k order by k), '{}') from (
+      select 'final_balance' k from public.final_balance_invoices f where f.project_id = e.project_id
+         and (f.stripe_invoice_id = o ->> 'id' or f.id = private.try_uuid(o #>> '{metadata,final_balance_invoice_id}'))
+      union all select l.kind from private.stripe_payment_links l where l.project_id = e.project_id and l.stripe_invoice_id = o ->> 'id'
+      union all select 'initial' where o ->> 'billing_reason' = 'subscription_create'
+      union all select 'renewal' where o ->> 'billing_reason' = 'subscription_cycle') s);
+  elsif v_type in ('setup_intent', 'payment_method') then
+    return array['final_balance'];
+  end if;
+  return '{}';
+end;
+$$;
+
+-- Every observation of a refund or dispute of a project: from verified events in any
+-- processing state (including quarantined, deferred and failed ones) and from the daily
+-- reconciliation. One row per observation.
+create function private.reversal_observations(p_project_id uuid)
+returns table (object_id text, object_kind text, status text, gates text[], observed_at timestamptz)
+language sql stable security definer set search_path = '' as $$
+  select o ->> 'id', o ->> 'object', o ->> 'status',
+         private.charge_kind_gates(private.object_charge_kinds(w.project_id, array[o ->> 'charge', o ->> 'payment_intent'], null)),
+         w.stripe_created_at
+    from public.webhook_events w
+   cross join lateral (
+     select w.payload #> '{data,object}' as o where w.payload #>> '{data,object,object}' in ('refund', 'dispute')
+     union all
+     select r || jsonb_build_object('charge', w.payload #>> '{data,object,id}')
+       from jsonb_array_elements(case when w.payload #>> '{data,object,object}' = 'charge'
+                                           and jsonb_typeof(w.payload #> '{data,object,refunds,data}') = 'array'
+                                      then w.payload #> '{data,object,refunds,data}' else '[]'::jsonb end) r) x
+   where w.project_id = p_project_id and w.processing_status <> 'ignored' and o ->> 'id' is not null
+  union all
+  select m.stripe_object_id, case when m.kind = 'unmatched_refund' then 'refund' else 'dispute' end, m.observed_status,
+         private.charge_key_gates(m.charge_key), m.detected_at
+    from public.reconciliation_mismatches m
+   where m.project_id = p_project_id and m.kind in ('unmatched_refund', 'unmatched_dispute');
+$$;
+
+-- A reversal Stripe reports as in effect (refund succeeded; dispute funds withdrawn) whose
+-- latest observation is still in effect and which the ledger has not posted. It blocks its
+-- charge's gate whatever any review says: only a posted reversal (which the gates already
+-- count) or a later Stripe observation (refund failed, dispute won) ends it.
+create function private.unposted_reversals(p_project_id uuid) returns table (object_id text, gates text[])
+language sql stable security definer set search_path = '' as $$
+  select l.object_id, l.gates
+    from (select distinct on (r.object_id) r.*
+            from private.reversal_observations(p_project_id) r
+           order by r.object_id, r.observed_at desc,
+                    -- On a tie, the observation that blocks wins (fail closed).
+                    (r.status in ('succeeded', 'needs_response', 'under_review', 'lost')) desc) l
+   where ((l.object_kind = 'refund' and l.status = 'succeeded')
+          or (l.object_kind = 'dispute' and l.status in ('needs_response', 'under_review', 'lost')))
+     and not exists (select 1 from public.ledger_entries e where e.project_id = p_project_id
+                       and e.stripe_object_id = l.object_id and e.entry_type in ('refund', 'dispute_opened'));
+$$;
+
+-- The unresolved anomalies of a project and the gates each blocks (Owner-only detail).
+create function private.project_financial_anomalies(p_project_id uuid) returns table (kind text, gates text[])
+language sql stable security definer set search_path = '' as $$
+  -- 1. Quarantined events, attributed through the charge they concern.
+  select 'quarantined_event', private.charge_kind_gates(private.event_charge_kinds(w))
+    from public.webhook_events w
+   where w.project_id = p_project_id and w.processing_status = 'quarantined' and w.quarantine_resolved_at is null
+  union all
+  -- 2. Open reconciliation items.
+  select 'reconciliation_mismatch', case
+           when m.kind = 'deposit_snapshot' then array['G2']
+           when m.kind in ('balance_snapshot', 'charged_after_halt') then array['G4']
+           when m.kind in ('unmatched_refund', 'unmatched_dispute') then private.charge_key_gates(m.charge_key)
+           else array['G2', 'G4'] end
+    from public.reconciliation_mismatches m
+   where m.project_id = p_project_id and m.resolved_at is null
+  union all
+  -- 3. Ambiguous outbound requests, by the charge their record belongs to.
+  select 'ambiguous_request', case
+           when o.purpose = 'checkout_session_create' then array['G2']
+           when o.purpose in ('final_balance_invoice_create', 'final_balance_invoice_disable_auto', 'recovery_session_create')
+             then array['G4']
+           else array['G2', 'G4'] end
+    from public.outbound_stripe_requests o
+   where o.project_id = p_project_id and o.status = 'ambiguous'
+  union all
+  -- 4. A failed automatic-collection stop; already_paid alone is not an anomaly.
+  select 'automatic_stop_failed', array['G4']
+    from public.outbound_stripe_requests o
+   where o.project_id = p_project_id and o.purpose = 'final_balance_invoice_disable_auto' and o.status = 'failed'
+     and coalesce(o.error_code, '') <> 'already_paid'
+  union all
+  -- 5. A charge after halted collection that the Owner has not reviewed (its item resolved).
+  select 'charged_after_halt', array['G4']
+    from public.final_balance_invoices f
+   where f.project_id = p_project_id and f.charged_after_halt
+     and not exists (select 1 from public.reconciliation_mismatches m where m.kind = 'charged_after_halt'
+                       and m.charge_key = 'final_balance:' || f.id::text and m.resolved_at is not null)
+  union all
+  -- 6. Reversals Stripe reports that the ledger has not posted.
+  select 'unposted_reversal', u.gates from private.unposted_reversals(p_project_id) u;
+$$;
+
+create function private.gate_anomalies(p_project_id uuid, p_gate text) returns text[]
+language sql stable security definer set search_path = '' as $$
+  select coalesce(array_agg(distinct a.kind order by a.kind), '{}')
+    from private.project_financial_anomalies(p_project_id) a where p_gate = any (a.gates);
+$$;
+
+-- The fresh evaluation an Owner resolution returns and audits: G2 and G4 re-derived from all
+-- the evidence, and the anomaly kinds still blocking each (no amounts, no identifiers).
+create function private.financial_gate_recheck(p_project_id uuid) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v private.project_financial_status;
+begin
+  if p_project_id is null then
+    return null;
+  end if;
+  v := private.project_financial_status(p_project_id);
+  return jsonb_build_object('G2', v.deposit_verified, 'G4', v.balance_verified_or_settled,
+    'blocking_anomalies', v.evidence -> 'blocking_anomalies');
+end;
+$$;
 
 -- Owner intervention items for a project (Owner-only detail; Admin sees the boolean).
 create function private.project_owner_intervention_required(p_project_id uuid) returns boolean
@@ -4332,7 +4603,8 @@ language sql stable security definer set search_path = '' as $$
                    and o.purpose = 'final_balance_invoice_disable_auto' and o.status = 'failed'
                    and coalesce(o.error_code, '') <> 'already_paid')
       or exists (select 1 from public.final_balance_invoices f where f.project_id = p_project_id
-                   and (f.status = 'creation_failed' or f.charged_after_halt))
+                   and f.status = 'creation_failed')
+      or exists (select 1 from private.project_financial_anomalies(p_project_id))
       or exists (select 1 from public.refunds r where r.project_id = p_project_id and r.status = 'succeeded' and r.refund_decision_id is null)
       or exists (select 1 from public.payment_obligations o where o.project_id = p_project_id
                    and private.holding_balance_cents(o.charge_key) <> 0)
@@ -4359,21 +4631,28 @@ declare
   v_holds public.hold_type[];
   v_digest text;
   v_auth_state text;
+  v_g2 text[];
+  v_g4 text[];
 begin
   select * into v_agreement from private.project_agreement_state(p_project_id);
   v_deposit := private.project_deposit_state(p_project_id);
   v_balance := private.project_final_balance_state(p_project_id);
   v_holds := private.project_active_billing_holds(p_project_id);
   v_auth_state := private.payment_authorization_state(p_project_id);
+  -- B1: an unresolved financial-integrity anomaly fails the gate of its charge (fail closed).
+  v_g2 := private.gate_anomalies(p_project_id, 'G2');
+  v_g4 := private.gate_anomalies(p_project_id, 'G4');
   select private.sha256_hex(coalesce(string_agg(entry_id::text, ',' order by id), ''))
     into v_digest from public.ledger_entries where project_id = p_project_id;
   return row(
     p_project_id, 3::smallint, true,
-    v_deposit, private.project_deposit_verified(p_project_id),
-    v_balance, private.project_balance_verified(p_project_id), v_balance = 'settled_by_adjustment',
+    v_deposit, private.project_deposit_verified(p_project_id) and cardinality(v_g2) = 0,
+    v_balance, private.project_balance_verified(p_project_id) and cardinality(v_g4) = 0, v_balance = 'settled_by_adjustment',
     v_holds,
     jsonb_build_object('order_summary_id', v_agreement.order_summary_id, 'acceptance_id', v_agreement.acceptance_id,
-      'ledger_digest', v_digest, 'calendar_version', private.calendar_version(), 'evaluated_at', now()),
+      'ledger_digest', v_digest, 'calendar_version', private.calendar_version(), 'evaluated_at', now(),
+      -- Anomaly kinds only (no amounts, no record identifiers; OI-72).
+      'blocking_anomalies', jsonb_build_object('G2', to_jsonb(v_g2), 'G4', to_jsonb(v_g4))),
     v_agreement.state, v_agreement.state = 'effective',
     v_auth_state = 'active', v_auth_state
   )::private.project_financial_status;

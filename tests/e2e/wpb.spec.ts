@@ -18,7 +18,7 @@ import { totp } from "../support/totp";
  * - the client reads the fixture agreement, accepts it, and starts the initial Checkout
  * - returning from Stripe alone leaves the deposit pending and intake locked (T-PAY-04)
  * - only the signed webhook verifies the deposit; the saved card is recorded and the client
- *   billing page and intake reflect it (T-PAY-13)
+ *   billing page and intake reflect it (T-PAY-03, T-PAY-05, T-PAY-18)
  * Each step also checks the authoritative database state behind what the browser shows.
  */
 test.describe.configure({ mode: "serial" });
@@ -243,7 +243,7 @@ test("starting Checkout reaches the Stripe-hosted page; returning alone leaves i
   expect(await intakeUnlocked(projectId)).toBe(false);
 });
 
-test("only the signed webhook verifies the deposit; the saved card makes intake available (T-PAY-13)", async () => {
+test("only the signed webhook verifies the deposit; the saved card makes intake available (T-PAY-03, T-PAY-05, T-PAY-18)", async () => {
   const { session, customer } = await withDb(async (db) => {
     const s = await db.query(
       `select stripe_checkout_session_id as id, order_summary_id::text, acceptance_id::text, id::text as record_id

@@ -58,11 +58,27 @@ export interface PaymentMethodLookup {
 /** Parameters exactly as the database built them (never from client input). */
 export type StripeParams = Record<string, unknown>;
 
-/** Per-project totals used by the daily reconciliation (04 §13). */
+/**
+ * A refund or dispute object Stripe holds for the project's Customer, with the charge it
+ * belongs to. B1: the daily reconciliation attributes any object WP-B never recorded through
+ * this charge and blocks the matching gate until the Owner reviews it.
+ */
+export interface ReconciliationObject {
+  id: string;
+  amount: number;
+  status: string;
+  charge?: string | null;
+  payment_intent?: string | null;
+  invoice?: string | null;
+}
+
+/** Per-project totals and objects used by the daily reconciliation (04 §13). */
 export interface ReconciliationTotals {
   charges_cents: number;
   refunds_cents: number;
   open_disputes: number;
+  refunds?: ReconciliationObject[];
+  disputes?: ReconciliationObject[];
 }
 
 export interface StripeGateway {

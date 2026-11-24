@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(141);
+select plan(142);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false)
 returns void language plpgsql as $$
@@ -361,8 +361,10 @@ select is((select row(s.implemented, s.contract_version, s.deposit_verified, s.a
            from private.project_financial_status('20000000-0000-4000-8000-0000000000a0') s), '(t,3,t,t,f)',
   'the gate interface reports G1 and G2 satisfied and G4 not');
 select is((select array_agg(k order by k) from jsonb_object_keys((private.project_financial_status('20000000-0000-4000-8000-0000000000a0')).evidence) k),
-  array['acceptance_id', 'calendar_version', 'evaluated_at', 'ledger_digest', 'order_summary_id'],
+  array['acceptance_id', 'blocking_anomalies', 'calendar_version', 'evaluated_at', 'ledger_digest', 'order_summary_id'],
   'OI-72: gate evidence carries no amounts and no restricted record identifiers');
+select is((private.project_financial_status('20000000-0000-4000-8000-0000000000a0')).evidence -> 'blocking_anomalies',
+  '{"G2": [], "G4": []}'::jsonb, 'B1 / OI-72: the anomaly evidence names gates and anomaly kinds only; none block here');
 select is((select count(*)::integer from public.notification_outbox where notification_type = 'payment.deposit_verified'
            and status = 'recorded' and recipient_user_ids = array['00000000-0000-4000-8000-0000000000a1'::uuid]), 1,
   'the deposit-verified notification is recorded for the client (R1: recorded, never sent)');

@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(96);
+select plan(101);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false)
 returns void language plpgsql as $$
@@ -260,6 +260,26 @@ select is(private.project_final_balance_state('20000000-0000-4000-8000-000000000
 select is(pg_temp.deliver(pg_temp.evt('evt_fbpaid000001', 'invoice.paid', (select body from inv), 30)) ->> 'duplicate', 'true',
   'a replayed payment is a duplicate');
 select is((select count(*)::integer from public.ledger_entries where entry_type = 'balance_charge'), 1, 'no second balance entry');
+-- B1: the two quarantined final-balance events above are unresolved anomalies of the
+-- final-balance charge, so G4 fails closed although a valid payment is verified.
+select is((private.project_financial_status('20000000-0000-4000-8000-0000000000a0')).evidence -> 'blocking_anomalies',
+  '{"G2": [], "G4": ["quarantined_event"]}'::jsonb,
+  'B1: unresolved quarantined final-balance events block G4 only (attributed to the final-balance charge)');
+select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
+select results_eq($$ select deposit_requirement_satisfied, final_balance_requirement_satisfied, publication_financially_eligible,
+    owner_intervention_required from public.operational_payment_states(array['20000000-0000-4000-8000-0000000000a0'::uuid]) $$,
+  $$ values (true, false, false, true) $$,
+  'B1 / OI-72: while the anomaly is open, Admin sees the final balance unsatisfied, not eligible, and Owner intervention');
+reset role;
+select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
+select is((select array_agg(public.resolve_quarantined_event(id, 'Reviewed: mismatched copies of the paid invoice') -> 'gates' ->> 'G4' order by id)
+           from public.webhook_events where stripe_event_id in ('evt_fbpaid00bad1', 'evt_fbpaid00bad2')),
+  array['false', 'true'], 'B1: resolving one anomaly leaves G4 blocked by the other; the last review re-derives G4 from the valid payment');
+reset role;
+select is((select count(*)::integer from public.audit_events where action = 'quarantine.resolved'
+           and project_id = '20000000-0000-4000-8000-0000000000a0'), 2, 'each resolution is audited against the project');
+select is((select count(*)::integer from public.ledger_entries where entry_type = 'balance_charge'), 1,
+  'B1: a resolution posts nothing');
 select is((select row(s.contract_version, s.implemented, s.agreement_effective, s.deposit_verified, s.balance_verified_or_settled,
                       s.balance_settled_by_adjustment, cardinality(s.active_billing_holds))::text
            from private.project_financial_status('20000000-0000-4000-8000-0000000000a0') s), '(3,t,t,t,t,f,0)',
@@ -360,8 +380,8 @@ select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
 select results_eq($$ select deposit_requirement_satisfied, final_balance_requirement_satisfied, payment_recovery_required,
     publication_financially_eligible, billing_operational_hold, owner_intervention_required
     from public.operational_payment_states(array['20000000-0000-4000-8000-0000000000a0'::uuid]) $$,
-  $$ values (true, true, true, false, true, true) $$,
-  'OI-72: an Admin reads derived states only: requirements met, recovery required (no payment authorization, OI-74), billing-related hold, not eligible, Owner intervention');
+  $$ values (true, true, true, false, true, false) $$,
+  'OI-72: an Admin reads derived states only: requirements met, recovery required (no payment authorization, OI-74), billing-related hold, not eligible; no Owner intervention once the B1 anomalies are reviewed');
 reset role;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal1');
 select throws_ok($$ select * from public.operational_payment_states() $$, '42501', null, 'staff below aal2 cannot read the projection');

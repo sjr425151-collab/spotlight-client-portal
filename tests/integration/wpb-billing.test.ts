@@ -308,7 +308,7 @@ describe("WP-B webhooks through the service (T-PAY-03, T-PAY-05, T-ARC-01)", () 
     expect((await getBillingStatus(clientA, projectId))?.agreementState).toBe("effective");
   });
 
-  it("T-PAY-13: the authorization is not ready until the saved card is recorded; then intake can unlock", async () => {
+  it("T-PAY-18: the authorization is not ready until the saved card is recorded; then intake can unlock", async () => {
     const financial = async () =>
       withDb(async (db) => {
         const r = await db.query(
@@ -551,5 +551,150 @@ describe("WP-B payment authorization revocation through the API (04 §8.1, OI-74
       p_project_ids: [projectId],
     });
     expect((states as Array<Record<string, boolean>>)[0]!.owner_intervention_required).toBe(true);
+  });
+});
+
+describe("WP-B B1: financial integrity fails closed through the API", () => {
+  const gates = async () =>
+    withDb(async (db) => {
+      const { rows } = await db.query(
+        `select f.deposit_verified as g2, f.balance_verified_or_settled as g4,
+                f.evidence -> 'blocking_anomalies' as anomalies
+           from private.project_financial_status($1) f`,
+        [projectId],
+      );
+      return rows[0] as { g2: boolean; g4: boolean; anomalies: Record<string, string[]> };
+    });
+  const evaluator = async () =>
+    withDb(async (db) => {
+      const { rows } = await db.query("select private.evaluate_publication_gates($1, null) as r", [
+        projectId,
+      ]);
+      const result = rows[0].r as {
+        eligible: boolean;
+        gates: Array<{ gate: string; passed: boolean; reason: string | null }>;
+      };
+      const g4 = result.gates.find((g) => g.gate === "G4")!;
+      return { eligible: result.eligible, g4: g4.passed ? "passed" : g4.reason };
+    });
+  let finalPaymentIntent = "";
+
+  beforeAll(async () => {
+    const { data } = await owner
+      .from("final_balance_invoices")
+      .select("id")
+      .eq("project_id", projectId)
+      .single();
+    finalPaymentIntent = `pi_${RUN}fb0001`;
+    expect(data?.id).toBeTruthy();
+  });
+
+  it("the open reconciliation mismatch blocks both gates until the Owner resolves it", async () => {
+    expect(await gates()).toMatchObject({ g2: false, g4: false });
+    const { data: mismatch } = await owner
+      .from("reconciliation_mismatches")
+      .select("id")
+      .eq("project_id", projectId)
+      .is("resolved_at", null)
+      .single();
+    const { data } = await owner.rpc("resolve_reconciliation_mismatch", {
+      p_mismatch_id: mismatch!.id,
+      p_resolution: "Stripe export confirms the ledger",
+    });
+    expect((data as { gates: unknown }).gates).toEqual({
+      G2: true,
+      G4: true,
+      blocking_anomalies: { G2: [], G4: [] },
+    });
+  });
+
+  it("an excessive refund of the final balance blocks G4; the evaluator is ineligible", async () => {
+    const refund = signedEvent("refund.updated", {
+      id: `re_${RUN}excess1`,
+      object: "refund",
+      amount: 199601,
+      currency: "usd",
+      status: "succeeded",
+      payment_intent: finalPaymentIntent,
+      metadata: {},
+    });
+    expect((await deliver(refund)).status).toBe(200);
+    const { data: stored } = await owner
+      .from("webhook_events")
+      .select("id, processing_status, quarantine_reason")
+      .eq("stripe_event_id", refund.id)
+      .single();
+    expect(stored).toMatchObject({
+      processing_status: "quarantined",
+      quarantine_reason: "reversal_exceeds_charge",
+    });
+    expect(await gates()).toMatchObject({ g2: true, g4: false });
+    expect(await evaluator()).toEqual({ eligible: false, g4: "balance_not_verified" });
+
+    // The Owner's review confirms a real reversal: the gate stays blocked.
+    const { data } = await owner.rpc("resolve_quarantined_event", {
+      p_webhook_event_id: stored!.id,
+      p_resolution: "Reviewed with Stripe: the refund is real",
+    });
+    expect((data as { gates: unknown }).gates).toEqual({
+      G2: true,
+      G4: false,
+      blocking_anomalies: { G2: [], G4: ["unposted_reversal"] },
+    });
+    expect(await evaluator()).toEqual({ eligible: false, g4: "balance_not_verified" });
+
+    // Stripe later reports the refund failed: valid evidence lets G4 pass again. Stripe's
+    // event times have one-second resolution and a tie counts as blocking, so the later
+    // event is created a second later.
+    await new Promise((resolve) => setTimeout(resolve, 1100));
+    const failed = signedEvent("refund.updated", {
+      id: `re_${RUN}excess1`,
+      object: "refund",
+      amount: 199601,
+      currency: "usd",
+      status: "failed",
+      payment_intent: finalPaymentIntent,
+      metadata: {},
+    });
+    expect((await deliver(failed)).status).toBe(200);
+    expect(await gates()).toMatchObject({ g2: true, g4: true });
+  });
+
+  it("reconciliation attributes an unmatched dispute through its charge and blocks G4, even after review", async () => {
+    gateway.totals.set(projectId, {
+      charges_cents: 49900 + 9900 + 199600,
+      refunds_cents: 0,
+      open_disputes: 0,
+      disputes: [
+        {
+          id: `dp_${RUN}unmatched`,
+          amount: 199600,
+          status: "needs_response",
+          payment_intent: finalPaymentIntent,
+        },
+      ],
+    });
+    const result = await runReconciliation(server, gateway, `b1-${RUN}`);
+    expect(result).toMatchObject({ ok: true, mismatches: 1 });
+    const { data: item } = await owner
+      .from("reconciliation_mismatches")
+      .select("id, kind, charge_key")
+      .eq("stripe_object_id", `dp_${RUN}unmatched`)
+      .single();
+    expect(item?.kind).toBe("unmatched_dispute");
+    expect(item?.charge_key).toMatch(/^final_balance:/);
+    expect(await gates()).toMatchObject({ g2: true, g4: false });
+    const { data } = await owner.rpc("resolve_reconciliation_mismatch", {
+      p_mismatch_id: item!.id,
+      p_resolution: "Reviewed: chargeback confirmed in Stripe",
+    });
+    expect((data as { gates: { G4: boolean } }).gates.G4).toBe(false);
+    expect(await evaluator()).toEqual({ eligible: false, g4: "balance_not_verified" });
+    // Admin can never resolve an anomaly.
+    const { data: refused } = await admin.rpc("resolve_reconciliation_mismatch", {
+      p_mismatch_id: item!.id,
+      p_resolution: "x",
+    });
+    expect(refused).toEqual({ ok: false, error: "forbidden" });
   });
 });

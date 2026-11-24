@@ -2,10 +2,11 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.17.0 |
+| Version | 0.18.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-79** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-84** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-17** |
+| ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
 
 Rules:
@@ -15,9 +16,9 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-78)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-78, OI-80, OI-81, OI-83)
 
-All 71 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-78).
+All 74 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-83).
 
 | ID | Title | Status | Remaining dependencies |
 |---|---|---|---|
@@ -92,6 +93,9 @@ All 71 issues listed here are decided at the architectural level. The authoritat
 | OI-76 | Collection timing statement: OI-73 retained (option A) | Decided (2026-11-24) | — |
 | OI-77 | Sales Representative role (R1); assignment-scoped, `is_staff()` unchanged (option A, eight refinements) | Decided (2026-11-24) | AUTH-005 (scope final, not granted) |
 | OI-78 | AUTH-005 policy decisions (pending invitations, ended assignments, termination), WP-S approval, integration order | Decided (2026-11-24) | AUTH-005 grant and activation |
+| OI-80 | WP-C blocked capabilities stay fail-closed; no new dependency or provider access | Decided (2026-11-24) | DEP-07 |
+| OI-81 | No price change after a verified deposit in R1 | Decided (2026-11-24) | — |
+| OI-83 | Agreed order-summary pricing visible to Owner, Admin, assigned Sales Representatives | Decided (2026-11-24) | — |
 
 ---
 
@@ -105,7 +109,15 @@ OI-73 was decided on 2026-11-24 (option A); its decision and the implications co
 
 OI-75 was decided on 2026-11-24 (option A); its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
 
-**None open.** OI-76 (option A), OI-77 (Sales Representative role), and OI-78 (AUTH-005 policy decisions) were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The options considered remain in this file's Git history.
+OI-76, OI-77, and OI-78 were decided on 2026-11-24; their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
+
+### OI-79 — WP-C values the specifications leave unstated **[PENDING OI-79]**
+
+Raised by WP-C (PR #19). Each item needs its own decision; none is approved collectively. Values, rationale, security implications, and alternatives are in [08 OI-79](docs/08-DECISIONS-AND-CHANGELOG.md). Until decided, the implemented values (strictest reading, fail closed) stay in force.
+
+### OI-82 — Refund and dispute allocation on the combined initial charge **[PENDING OI-82]**
+
+Raised by WP-B (PR #20). Proposed deterministic policy in [04 §15.2.1](docs/04-AGREEMENT-AND-BILLING.md); deposit-first is not approved. Until decided, anything other than a full reversal fails closed to Owner reconciliation.
 
 ---
 

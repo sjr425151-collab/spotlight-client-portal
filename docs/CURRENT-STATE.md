@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.5.0 |
+| Version | 1.6.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-24, by PR #18 (OI-73 to OI-78 decided; AUTH-005 scope final, not granted; integration order approved), based on `main` at `19b68cb` |
+| Last updated | 2026-11-24, by PR #18 (OI-73 to OI-83: central ID allocation, OI-79 and OI-82 open; AUTH-005 v1.5.0, not granted; WP-C and WP-B directives), based on `main` at `19b68cb` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -29,8 +29,8 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | Phase 2, Auth, security, tenancy | Invitation-only OTP, MFA, RLS, audit, nonce CSP, private storage policies | **Done, local only** (PR #4) |
 | WP-A | Governance and specification correction | **Done** (PR #14, merge commit `d6d795a`) |
 | WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI run #39 on `main` concluded `success`, 2026-11-24). OI-71 and OI-72 decided. Integration closed by the integration closure PR. |
-| WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including **OI-74** (payment authorization, card-only, automatic final charge, setup-mode recovery, revocation; 04 §8.1) | **In progress, local** (Owner-reported, 2026-11-24: substantial local implementation and testing; not yet pushed). Local, mocked, and synthetic-event work under AUTH-001; Stripe sandbox parts need AUTH-002 active. |
-| WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope); intake also requires `payment_authorization_ready` (OI-74, 05 §3) | **In progress, local** (Owner-reported, 2026-11-24: substantial local implementation and testing; not yet pushed). AUTH-001, plus AUTH-004 for storage policies; real scanned-file release needs DEP-07. |
+| WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including OI-74, OI-75, OI-81, OI-83 | **PR #20 open** (`wp-b/billing-ledger` at `ae482c4`, base `19b68cb`; CI run 45333439725 `CI result` success). **Not merge-ready:** predates PR #18 (no OI-74 automatic collection or payment authorization) and uses its own OI-73 to OI-75 (now OI-81 to OI-83). Directives in §9. |
+| WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **PR #19 open** (`wp-c/fulfillment-r1` at `bd03be1`, base `19b68cb`). **CI failing:** run 45332174739, pgTAP `210_wpc_intake_uploads` tests 64 and 69 (released-asset path NULL; audited download), so integration and e2e did not run. Also needs the PR #18 changes and the two security corrections (OI-78 amended). Directives in §9. |
 | WP-S | Sales Representative authorization infrastructure (03 §4.1; approved as a separate work package, OI-78) | Not started. Needs AUTH-005 granted and activated, and its entry criteria (AUTHORIZATIONS §3A). |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. |
 | WP-E | Legal, tax, and commercial approvals | Owner. Not started (DEP-03, DEP-04, DEP-05). |
@@ -43,15 +43,15 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 | Spec | Version | State |
 |---|---|---|
-| 01 Project overview | 0.4.1 | Approved (v0.4.1: OI-74 and OI-77 amendments) |
+| 01 Project overview | 0.4.2 | Approved (v0.4.1: OI-74, OI-77; v0.4.2: §9.1.1 integrated R1 browser acceptance, Owner direction) |
 | 02 Architecture and environments | 0.4.0 | Approved |
-| 03 Security, auth, tenancy | 0.5.2 (OI-77, OI-78 Sales Representative) | Approved (03A is supporting evidence) |
-| 04 Agreement and billing | 0.9.0 (OI-74) | Approved for implementation and test mode. **Not approved for production:** legal review (DEP-03) and provider verification (DEP-06) remain conditions. |
+| 03 Security, auth, tenancy | 0.5.3 (OI-77, OI-78, OI-83) | Approved (03A is supporting evidence) |
+| 04 Agreement and billing | 0.9.1 (OI-74, OI-81; OI-82 proposed) | Approved for implementation and test mode. **Not approved for production:** legal review (DEP-03) and provider verification (DEP-06) remain conditions. |
 | 05 Lifecycle and uploads | 0.4.2 | Approved (v0.4.2 OI-74 amendment) |
 | 06 Publishing and post-launch | 0.5.0 | Approved |
 | 07 Notifications, privacy, design | 0.4.0 | Approved. Retention periods remain provisional (DEP-05). |
-| 08 Decisions and changelog | 0.17.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
-| AUTHORIZATIONS, CURRENT-STATE | 1.4.0 (AUTH-002 scope amended, still inactive; AUTH-005 scope final, not granted), 1.5.0 | Approved |
+| 08 Decisions and changelog | 0.18.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
+| AUTHORIZATIONS, CURRENT-STATE | 1.5.0 (AUTH-002 scope amended, still inactive; AUTH-005 scope final with rate limiting, not granted), 1.6.0 | Approved |
 | CLAUDE.md | rewritten 2026-11-24 | Approved |
 
 ## 4. Dependencies
@@ -88,12 +88,14 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. **AUTH-005** scope is final (OI-78). It authorizes nothing until you grant and activate it, after its entry criteria (AUTHORIZATIONS §3A); until then the Sales Representative role is documentation only.
-2. Review and merge PR #18 (OI-73 to OI-78; AUTH-002 scope amendment; AUTH-005 scope final). WP-B and WP-C, already in progress locally, then merge `main` and push; the integration stream reconciles the §8 sequence against their branches (§9).
-3. Confirm the required status checks on `main` (§5 discrepancy). **Stays open until the actual ruleset is independently verified** (for example, a ruleset export or settings screenshot reviewed in a PR).
-4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 now includes the OI-74 items.
-5. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
-6. When ready for WP-D: create the accounts in AUTH-003.
+1. Decide **OI-79** item by item (eight WP-C values; 08 OI-79 lists each value, rationale, security implication, and alternatives).
+2. Decide **OI-82** (refund and dispute allocation on the combined initial charge; proposed policy in 04 §15.2.1). Until then, non-full reversals fail closed.
+3. Review and merge PR #18. Then WP-C and WP-B apply the §9 directives; neither is merge-ready yet.
+4. **AUTH-005** (scope final, v1.5.0) authorizes nothing until you grant it and its entry criteria are met.
+5. Confirm the required status checks on `main` (§5 discrepancy). **Stays open until the actual ruleset is independently verified.**
+6. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05); DEP-03 includes the OI-74 items and refund terms (OI-82).
+7. When ready for WP-B's Stripe work: meet the AUTH-002 activation conditions.
+8. When ready for WP-D: create the accounts in AUTH-003.
 
 ## 7. Known follow-ups
 
@@ -158,7 +160,7 @@ WP-B and WP-C already have substantial local implementation (Owner-reported). Th
 | Order preparation | WP-B `issue_order_summary(project, package_key, …)` takes no amounts (catalog-resolved) and requires `is_staff()` | **WP-B amendment:** also allow an assigned Sales Representative (one condition), after the foundation PR |
 | Commercial progress | No Sales read path | `sales_project_progress(project)` returning derived states only, read through the two gate interfaces (as Admin under OI-72) |
 | App layer | `src/server/auth/context.ts` maps only owner/admin (a `sales` value would become a non-staff user and skip forced MFA); `guards.ts`, `mfa/*`, `sign-in/*` key on `staffRole` | Add the Sales role to the context, a `requireSales` guard, forced MFA, global sign-out, and a minimal sales area; `requireStaff` stays Owner/Admin |
-| WP-C | Fulfillment, queue, and publication functions use `wpc_is_staff_aal2` and `requireStaff`, which exclude Sales once `is_staff()` is redefined. **Corrected (mechanics review, `bd03be1`):** `wpc_is_client_member` tests `not private.is_staff()`, and `record_live_verification` accepts a requester with any staff role | **WP-S replacements, reviewed by WP-C:** client test becomes `staff_role_of(uid) is null`; requester must be Owner or Admin. Identical for existing data |
+| WP-C | Fulfillment, queue, and publication functions use `wpc_is_staff_aal2` and `requireStaff`, which exclude Sales once `is_staff()` is redefined. `wpc_is_client_member` tests `not private.is_staff()`, and `record_live_verification` accepts a requester with any staff role (verified at `bd03be1`) | **WP-C corrects both in PR #19 before merge (OI-78 amended):** client test `staff_role_of(auth.uid()) is null` plus membership; requester Owner or Admin. WP-S touches no WP-C function |
 | Client-role separation | `accept_invitation` lets any verified user accept a client invitation. After `is_staff()` is narrowed, a Sales user holding a membership would pass `wpc_is_client_member`, so a representative could invite its own address to its own project and record a client approval (refinement 6). WP-B client paths already test `staff_role_of(...) is null` (`ae482c4`) and deny Sales | A Sales user can never hold a membership: `create_invitation`, `accept_invitation`, and `set_staff_role` add rejections (Owner and Admin unchanged); T-SALES-24. Direct table access: Sales has no permissive grant beyond its own profile; T-SALES-23 |
 | Tests | — | T-SALES-01 to T-SALES-28 (03 §13), including the adversarial set, the OI-78 termination, invitation, and attribution regressions, and an enumerated regression proving every existing staff-only function denies Sales |
 
@@ -175,9 +177,31 @@ A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, the
 | Stream | Next step | Read first | Authorization |
 |---|---|---|---|
 | Integration (primary session) | Wait for the PR #18 merge. When WP-B and WP-C push, reconcile the §8 sequence against their actual branches (migration timestamps, contract-extension placement, shared-file sections) before recommending merge order; never ask either stream to restart. Then own migration ordering, shared-file conflicts, and the end-to-end R1 journey test. Do not start WP-B or WP-C in the integration session. | §8; 08 OI-71, OI-72, OI-74 | AUTH-000; AUTH-001 for cross-package tests |
-| WP-B (`wp-b/*`, local work in progress) | Continue the existing local work; merge `main` after PR #18; push. Remaining scope as needed: agreements and order summaries → Checkout records (card-only, mocked Stripe) → webhook ingestion → ledger → `payment_authorizations` and recovery (04 §8.1) → final-balance invoice with automatic collection (04 §10) → reconciliation, holds, disputes → financial status interface with G1 and `payment_authorization_ready` | 04 (all), 03 §4, 03 §13, 01 §7, §9.1 | AUTH-001 only. AUTH-002 is **not active**: no Stripe credential or request |
-| WP-C (`wp-c/*`, local work in progress) | Continue the existing local work; merge `main` after PR #18; push. Remaining scope as needed: intake (precondition includes `payment_authorization_ready`) → uploads and quarantine → releases and approvals (emits `release.approved`) → QA and security evidence → domain readiness (G6) → gate evaluator (G8 fail-closed) → publication authorization and deployment records → derived queues | 05, 06, 03 §4, §13, 01 §7, §9.1 | AUTH-001 and AUTH-004 |
+| WP-B (PR #20, `wp-b/billing-ledger`) | See **WP-B directive** below | 04 (all, v0.9.1), 03 §4 (v0.5.3), 01 §7, §9.1, §9.1.1 | AUTH-001 only; AUTH-002 **not active** (mocked Stripe, synthetic signed events) |
+| WP-C (PR #19, `wp-c/fulfillment-r1`) | See **WP-C directive** below | 05 (v0.4.2), 06, 03 §4, §13, 01 §7, §9.1, §9.1.1 | AUTH-001 and AUTH-004 |
 | WP-S (`wp-s/sales-representative`, integration stream) | Not started. Starts only when the AUTH-005 entry criteria are met (PR #18, WP-C, and WP-B merged; AUTH-005 granted and activated; re-verification on `main`). Scope, exit criteria, and coordination: AUTHORIZATIONS AUTH-005; tests T-SALES-01 to T-SALES-28 | 03 §3, §4, §4.1, §13; 08 OI-77 | AUTH-005 (proposed) |
+
+**WP-C directive (PR #19; issue IDs OI-79, OI-80):**
+1. **Fix CI first:** pgTAP `210_wpc_intake_uploads` tests 64 ("release writes the record for the released path only after the clean scan": `released_path` is NULL) and 69 ("an available asset can be downloaded, and the access is audited") fail in CI run 45332174739. Local results do not substitute for CI (CLAUDE.md §6).
+2. After PR #18 merges, merge `main`. In `OPEN-ISSUES.md` and `docs/CURRENT-STATE.md`, take `main`'s version and re-add only WP-C's rows. Rename WP-C's OI-73 to **OI-79** (open, itemized; keep the values as implemented) and OI-74 to **OI-80** (decided: fail-closed, no new dependency or provider access).
+3. **Security corrections (OI-78 amended; within AUTH-001, own new functions only):** `private.wpc_is_client_member` uses `private.staff_role_of(auth.uid()) is null` plus an active membership, never `not private.is_staff()`; `private.record_live_verification` accepts only `staff_role_of(p_requested_by) in ('owner', 'admin')`. Add pgTAP tests that any staff-role holder is never a client member and that a non-Owner/Admin requester is rejected. No Phase 2 object changes.
+4. Intake also requires `payment_authorization_ready = true` from `private.project_financial_status` (read through `to_jsonb`; a missing attribute fails closed). Update T-LC-01.
+5. Approval action label **Approve Website & Authorize Final Payment** and screen text per 04 §10 and 05 §7 (v0.4.2); no amount shown until the WP-B interface provides it (OI-80 item 3). Final wording is for counsel (DEP-03).
+6. **Browser tests:** add Playwright tests for WP-C pages in the states reachable without WP-B: intake locked for an unpaid project, the staff queue, release recording, upload type rejection, and cross-project denial for pages and asset URLs. The full journey is T-E2E-01 to T-E2E-10 (01 §9.1.1), owned by the integration stream.
+7. Keep migrations `20261124140000` to `140200`; edit shared files only in WP-C's sections (`src/domain/contracts/*`, `GATE_SOURCES.G6`, tests 050 and 060 additive). Do not touch WP-B tables or functions.
+8. Merge-ready when: CI `CI result` succeeds with the full suite on the exact head, the items above are done, and the Owner approves.
+
+**WP-B directive (PR #20; issue IDs OI-81, OI-82, OI-83):**
+1. Rebase on `main` after PR #19 merges. Take `main`'s `OPEN-ISSUES.md` and `CURRENT-STATE.md` and re-add only WP-B's rows. Rename WP-B's OI-73 to **OI-81**, OI-74 to **OI-82**, OI-75 to **OI-83**.
+2. **OI-74 and OI-75:** `payment_authorizations` and its history (Owner-only read); card-only `allowed_payment_method_types` on every Checkout Session; automatic collection on the single final-balance invoice with `default_payment_method` set to the authorized card and `auto_advance` set deliberately; no automatic attempt when the authorization is not `active` (hosted page only); setup-mode recovery and revocation through the mocked gateway; never write the subscription's payment method; `payment_authorization_ready` and `payment_authorization_state` on `private.project_financial_status` with `contract_version` incremented. Tests T-PAY-13, T-PAY-14, T-PAY-18 to T-PAY-26; T-PAY-17 retired.
+3. **OI-81:** `issue_order_summary` rejects (and audits) any new order summary whose total, deposit, or balance differs from the accepted order summary once the deposit is verified.
+4. **OI-82:** do not implement deposit-first allocation. Until the Owner decides, any refund or dispute on the initial charge other than a full reversal posts to `unallocated_reversal`, creates an Owner reconciliation item, and makes G2 fail closed (04 §15.2.1 rule 2(c)).
+5. **OI-83:** Admin reads agreed order-summary pricing (total, deposit, balance); paid amounts, invoices, ledger, refunds, and disputes stay Owner-only.
+6. Keep the final-balance trigger on `release.approved` (OI-73). Do not add any Sales condition (WP-S owns that). Client-only checks keep `staff_role_of(...) is null`.
+7. **Browser tests:** agreement acceptance and initial Checkout start with the mocked gateway and a synthetic signed webhook (redirect alone leaves intake locked), the client billing page, and the staff billing section including Admin's derived view.
+8. Merge-ready when: CI `CI result` succeeds with the full suite on the exact rebased head, the items above are done, and the Owner approves. Stripe remains mocked; AUTH-002 stays inactive.
+
+**Updated integration sequence:** PR #18 → PR #19 (WP-C, directive done, CI green) → PR #20 (WP-B, rebased, directive done, CI green) → OI-79 and OI-82 decisions (any changed WP-C constant or the WP-B allocation policy land as a small follow-up in the owning package) → WP-S (after AUTH-005 grant and entry criteria) → integrated R1 browser and security verification (T-E2E-01 to T-E2E-10, T-SALES) → Stripe test-mode verification (after AUTH-002 activation).
 
 Standing constraints for every stream: no live Stripe and no Stripe request without an active AUTH-002; no production or hosted environment; no change to existing Phase 2 security objects; never merge without Owner approval; never edit a merged migration; OI-73 (option A): never add a publication precondition to collection; publication requires verified payment (G4). OI-75 (option A): final-balance recovery and revocation never write the maintenance subscription's payment method.
 

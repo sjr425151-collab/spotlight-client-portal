@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.9.0 |
-| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). v0.9.0 (**OI-74**, Owner decision 2026-11-24): mandatory payment method retention; the automatic off-session final-balance charge moves to R1; card only; payment authorization record (§8.1); setup-mode payment method recovery and authorization revocation (§8.1); Tier 0 provider-documentation record (§8.2); tests T-PAY-18 to T-PAY-26; OI-75 (scope independent of the maintenance subscription). The §3.1 clause is unchanged. The collection order is unchanged by **OI-73** (option A). |
+| Version | 0.9.1 |
+| Status | **Approved for implementation and Stripe test mode** (Owner, 2026-11-23; v0.8.0 approved in the consolidated execution plan approval). **Not approved for production:** qualified legal review (DEP-03, OI-34) and provider verification of every **[VERIFY-PROVIDER]** item (DEP-06, OI-39) remain conditions for production use. Approval authorizes no Stripe request; Stripe requests are governed by [AUTHORIZATIONS.md](AUTHORIZATIONS.md) (AUTH-002). v0.8.0: R1/R2 release tags (OI-68), the R1 hosted final-balance invoice (§10), payment architecture invariants (§17), the test-only fixture (OI-69), and the corrected §6 status. Earlier: v0.5.0 automatic final-balance collection (OI-17 revised); v0.5.1 OI-47; v0.6.0 test-mode approval and OI-63; v0.7.0–v0.7.4 test-mode catalog design, verification, and created IDs (OI-64 to OI-66, DEP-01). v0.9.0 (**OI-74**, Owner decision 2026-11-24): mandatory payment method retention; the automatic off-session final-balance charge moves to R1; card only; payment authorization record (§8.1); setup-mode payment method recovery and authorization revocation (§8.1); Tier 0 provider-documentation record (§8.2); tests T-PAY-18 to T-PAY-26; OI-75 (scope independent of the maintenance subscription). The §3.1 clause is unchanged. The collection order is unchanged by **OI-73** (option A). v0.9.1 (Owner, 2026-11-24): **OI-81** no price change after a verified deposit in R1 (§4); refund and dispute allocation for the combined initial charge **[PENDING OI-82]** (§15.2.1). |
 | Decisions | OI-05, OI-13–OI-17, OI-19, OI-26–OI-30, OI-34–OI-37, OI-39, OI-43, OI-44, OI-46, OI-47, OI-55, OI-63–OI-66, OI-68, OI-69 |
 | Open issues | None |
 | Dependencies | DEP-01, DEP-02, DEP-03, DEP-04, DEP-06, DEP-15 (see [OPEN-ISSUES.md](../OPEN-ISSUES.md)) |
@@ -113,6 +113,8 @@ The order summary is an immutable snapshot. It holds:
 - a new agreement version with substantive changes
 
 Non-material corrections, such as a typo in the business name, are audited staff edits with no price effect, pending owner confirmation of this definition.
+
+**No price change after a verified deposit [APPROVED OI-81, R1]:** once the deposit is verified, the agreed package price (total, deposit, and balance) of the project is fixed. Issuing a new order summary whose total, deposit, or balance differs from the order summary accepted with the verified deposit is rejected and audited. The original snapshot and every financial invariant (§17) are preserved; the final balance remains the snapshot balance (§10).
 
 ## 5. Package pricing and live Stripe catalog reference **[APPROVED OI-14, OI-15]**
 
@@ -706,6 +708,21 @@ Self-service cancellation in the Stripe Customer Portal is disabled (§9.2).
 - The financial architecture is tax-ready: service categories (§12), Stripe product tax codes per category, and Stripe Tax support where appropriate **[VERIFY-PROVIDER]**.
 - No taxability is assumed.
 - **Production tax collection is not activated** without qualified tax review and Owner authorization (DEP-04). Test mode runs without tax collection.
+
+#### 15.2.1 Allocation of refunds and disputes on the combined initial charge **[PENDING OI-82; proposed policy]**
+
+The initial Checkout charges the deposit and the first maintenance period together (§8). Deposit-first allocation is **not** approved as policy (Owner, 2026-11-24). Proposed deterministic, auditable model, for Owner approval before implementation:
+
+1. **Unit of allocation.** The initial invoice's line items: the deposit line (snapshot deposit cents, category `development_deposit`) and the maintenance line (9900, category `maintenance`). Later maintenance invoices and the final-balance invoice are single-purpose, so their refunds and disputes are allocated by construction.
+2. **Rules, applied in order to each verified refund or dispute event on the initial charge:**
+   - (a) **Full reversal** (amount equals the full charge): each line is reversed in full.
+   - (b) **Owner-recorded allocation**: a refund issued as a Tier 3 Owner action carries an allocation recorded **before** issuance (deposit cents + maintenance cents = refund amount; each within that line's remaining refundable amount), referenced from the Stripe refund **[VERIFY-PROVIDER: refund metadata, or a credit note with line amounts]**. A matching event posts one ledger entry per line.
+   - (c) **Anything else** (a partial dispute, a partial refund without a matching allocation, an amount mismatch, or a refund made outside the portal): **fail closed**. The amount posts to an `unallocated_reversal` suspense entry; no category is assumed; an Owner reconciliation item is created; G2 is treated as **not satisfied** until the Owner records the allocation. OI-37 dispute holds apply independently.
+3. **Never** deposit-first, maintenance-first, or pro-rata by default.
+4. **Owner reconciliation** (Tier 3, reauthentication, audited): the Owner records the allocation with a reason; append-only reclassification entries move the suspense amount to the line categories; the sum must match exactly.
+5. **Tests (proposed):** full refund; Owner-allocated partial refund; unallocated partial refund (suspense, G2 fails closed); full and partial disputes; Dashboard-originated refund; replayed and out-of-order events.
+
+Until OI-82 is decided, WP-B implements rule 2(c) for every refund or dispute on the initial charge other than a full reversal.
 
 ### 15.4 Disputes and chargebacks **[APPROVED OI-37]**
 

@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.1 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). v0.4.1 (**OI-74**, 2026-11-24): the automatic off-session final charge and mandatory payment method retention move to R1 (§9.1 items 10 and 13; §9.2 item 2); the Sales Representative role (§6, OI-77). |
+| Version | 0.4.2 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). v0.4.1 (**OI-74**, 2026-11-24): the automatic off-session final charge and mandatory payment method retention move to R1 (§9.1 items 10 and 13; §9.2 item 2); the Sales Representative role (§6, OI-77). v0.4.2 (Owner direction, 2026-11-24): integrated R1 browser acceptance criteria (§9.1.1). |
 | Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41, OI-67, OI-68 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
@@ -162,6 +162,23 @@ A release candidate is accepted only when every item passes in **staging with St
 15. **Staff-assisted publication.** Staff deploy exactly the authorized release to the client's isolated deployment and record the deployment, live verification, and rollback reference. A deployment that does not match the authorization fails verification. A failed deployment after verified payment keeps the paid status and goes to recovery with no new charge (T-PUB-06, T-PUB-08 to 10, T-PUB-15, T-PUB-18, T-PUB-19).
 16. **Subscription lifecycle.** Failed maintenance renewals are recorded from webhooks; the 7-day recovery period, `maintenance_payment_hold`, and Owner review apply; an unexpected Stripe cancellation creates an exception review; cancellation requests record the request and effective dates and compute M1 and M2 (T-BIL-01 to 03, T-BIL-07, T-BIL-08, T-BIL-14 to 19). M1 and M2 are not enforced against production clients until counsel-approved terms exist (04 §15.1).
 17. **Audit and quality.** Each privileged action produces an immutable audit event (T-AUD-01). Portal pages meet the OI-23 Lighthouse thresholds in CI and on the staging build (02 §7).
+
+### 9.1.1 Integrated R1 browser acceptance (Owner direction, 2026-11-24)
+
+Run with Playwright in CI against the local stack, with the mocked Stripe gateway, synthetic signed webhook events (OI-63), and the mock scanner. Owned by the integration stream after WP-C and WP-B merge; each package adds browser tests for its own pages in the states it can reach alone. Every test also asserts the server-side outcome (database state and audit event), never only the page.
+
+| ID | Criterion |
+|---|---|
+| T-E2E-01 | **Onboarding:** staff (Owner or Admin; the Sales Representative after WP-S) creates the customer and project, issues the catalog order summary, and sends the invitation; the client receives it (Mailpit) and signs in with an email code |
+| T-E2E-02 | **Agreement and payment readiness:** the client sees the fixed package and agreed pricing, accepts with an unchecked-by-default checkbox, and starts Checkout; the success redirect alone shows "processing" and leaves intake locked; after the signed `checkout.session.completed`, the deposit is verified and `payment_authorization_ready` is true; a verified deposit without a reusable card leaves intake locked |
+| T-E2E-03 | **Intake:** save and resume, submit, staff requests changes, client resubmits, staff accepts; intake routes deny another project's client |
+| T-E2E-04 | **Uploads:** a valid file is quarantined, scanned clean (mock), and becomes available; a file the mock scanner flags is never served; a type mismatch is rejected by content; a guessed URL for another project's asset is denied |
+| T-E2E-05 | **Approval:** staff record a release; the client approves it with **Approve Website & Authorize Final Payment**; a superseded release cannot be approved; a double submission creates one approval |
+| T-E2E-06 | **Final balance:** approval creates one final-balance invoice and one automatic charge attempt (mock); a signed `invoice.paid` verifies the balance; a failed or authentication-required charge shows the hosted completion link for the same invoice, and publication stays blocked |
+| T-E2E-07 | **Fulfillment evidence:** QA, security, and domain-readiness results are recorded; the admin queue shows derived states only |
+| T-E2E-08 | **Publication:** the Owner, with fresh reauthentication, authorizes exactly the approved release only when G1–G8 pass; any failing gate (for example an active hold) is rejected server-side; the deployment record and live verification are recorded; a mismatched build fails verification |
+| T-E2E-09 | **Role separation:** Admin sees derived payment states and agreed pricing only; a client of project B cannot reach project A's pages or assets; a Sales Representative (after WP-S) sees only assigned customers |
+| T-E2E-10 | **Quality:** the R1 pages meet the OI-23 Lighthouse thresholds (02 §7) and have no console errors |
 
 ### 9.2 R2: fulfillment automation
 

@@ -608,3 +608,216 @@ describe("WP-S concurrency (two connections)", () => {
     expect([roleChange.ok, accept.ok].filter(Boolean).length).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// OI-85 (CURRENT-STATE §12): integrity triggers under concurrency, and authorization that holds
+// without them. Direct writers are the migration owner (privileged writer) on two connections.
+// ---------------------------------------------------------------------------
+async function ownerTx(): Promise<Client> {
+  const url =
+    process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+  if (!["127.0.0.1", "localhost"].includes(new URL(url).hostname)) throw new Error("local only");
+  const c = new Client({ connectionString: url });
+  await c.connect();
+  await c.query("begin");
+  return c;
+}
+async function freshUser(label: string, role?: "admin" | "sales"): Promise<string> {
+  const email = `${label}.${RUN}.${Math.random().toString(36).slice(2, 7)}@example.test`;
+  const id = await newClientUser(email);
+  await withDb(async (db) => {
+    await db.query("insert into public.profiles (id, email, full_name) values ($1, $2, 'OI-85')", [
+      id,
+      email,
+    ]);
+    if (role)
+      await db.query("insert into public.staff_roles (user_id, role) values ($1, $2)", [id, role]);
+  });
+  return id;
+}
+const PROJECT_B = "20000000-0000-4000-8000-0000000000b0";
+const outcome = async (p: Promise<unknown>) => {
+  try {
+    await p;
+    return "ok";
+  } catch (error) {
+    return `error:${(error as { code?: string }).code}`;
+  }
+};
+
+describe("OI-85 integrity triggers under concurrency (T-SALES-24)", () => {
+  it("a membership write first, then a Sales role grant: the grant waits and is refused", async () => {
+    const user = await freshUser("oi85-m-first", "admin");
+    const t1 = await ownerTx();
+    await t1.query("insert into public.project_memberships (project_id, user_id) values ($1, $2)", [
+      PROJECT_B,
+      user,
+    ]);
+    const t2 = await ownerTx();
+    const grant = await startBlocked(
+      outcome(t2.query("update public.staff_roles set role = 'sales' where user_id = $1", [user])),
+    );
+    expect(grant.blocked).toBe(true);
+    await close(t1, true);
+    expect(await grant.result).toBe("error:42501");
+    await close(t2, false);
+  });
+
+  it("a Sales role grant first, then a membership write: the membership waits and is refused", async () => {
+    const user = await freshUser("oi85-r-first", "admin");
+    const t1 = await ownerTx();
+    await t1.query("update public.staff_roles set role = 'sales' where user_id = $1", [user]);
+    const t2 = await ownerTx();
+    const member = await startBlocked(
+      outcome(
+        t2.query("insert into public.project_memberships (project_id, user_id) values ($1, $2)", [
+          PROJECT_B,
+          user,
+        ]),
+      ),
+    );
+    expect(member.blocked).toBe(true);
+    await close(t1, true);
+    expect(await member.result).toBe("error:42501");
+    await close(t2, false);
+  });
+
+  it("true races between direct writers never leave a Sales role together with a membership", async () => {
+    for (let i = 0; i < 6; i += 1) {
+      const user = await freshUser(`oi85-race-${i}`, "admin");
+      const run = async (sql: string) => {
+        const c = await ownerTx();
+        try {
+          await c.query(sql, [user]);
+          await c.query("commit");
+          return "ok";
+        } catch (error) {
+          await c.query("rollback");
+          return `error:${(error as { code?: string }).code}`;
+        } finally {
+          await c.end();
+        }
+      };
+      const results = await Promise.all([
+        run("update public.staff_roles set role = 'sales' where user_id = $1"),
+        run(
+          `insert into public.project_memberships (project_id, user_id) values ('${PROJECT_B}', $1)`,
+        ),
+      ]);
+      expect(results.filter((r) => r === "ok")).toHaveLength(1);
+      expect(results.filter((r) => r === "error:42501")).toHaveLength(1);
+      const state = await withDb((db) =>
+        db.query(
+          `select (select role::text from public.staff_roles where user_id = $1 and status = 'active') as role,
+                  (select count(*)::int from public.project_memberships where user_id = $1 and status = 'active') as m`,
+          [user],
+        ),
+      );
+      expect(state.rows[0].role === "sales" && state.rows[0].m > 0).toBe(false);
+    }
+  });
+
+  it("service_role writes are refused by the triggers in both directions", async () => {
+    const client = await freshUser("oi85-svc-client");
+    await withDb((db) =>
+      db.query("insert into public.project_memberships (project_id, user_id) values ($1, $2)", [
+        PROJECT_B,
+        client,
+      ]),
+    );
+    const svc = adminClient();
+    const role = await svc.from("staff_roles").insert({ user_id: client, role: "sales" });
+    expect(role.error?.code).toBe("42501");
+    expect(role.error?.message).toMatch(/cannot hold an active Sales role/);
+    const member = await svc
+      .from("project_memberships")
+      .insert({ project_id: PROJECT_B, user_id: SALES_ID });
+    expect(member.error?.code).toBe("42501");
+    expect(member.error?.message).toMatch(/cannot hold an active project membership/);
+  });
+});
+
+describe("OI-85 authorization without the triggers: released-file access (T-SALES-24)", () => {
+  it("a real Sales session holding an inconsistent membership is refused the released file", async () => {
+    // Controlled local-only fixture: a separate project, an available upload row, and a Sales
+    // membership inserted with the C2 trigger disabled by name only inside that one transaction
+    // (DDL is transactional: no other session ever sees the trigger disabled). Removed after.
+    const projectId = randomUUID();
+    const uploadId = randomUUID();
+    await withDb(async (db) => {
+      await db.query("begin");
+      await db.query("select set_config('request.jwt.claims', $1, true)", [
+        JSON.stringify({ sub: OWNER_ID, role: "authenticated" }),
+      ]);
+      const business = await db.query(
+        "insert into public.client_businesses (legal_name, display_name) values ($1, 'OI-85') returning id",
+        [`OI-85 ${RUN} LLC`],
+      );
+      await db.query(
+        "insert into public.projects (id, client_business_id, name) values ($1, $2, 'OI-85 site')",
+        [projectId, business.rows[0].id],
+      );
+      await db.query(
+        `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
+           original_name, status, quarantine_path, released_path, size_bytes, sha256, released_sha256, released_bytes,
+           completed_at, uploaded_by)
+         values ($1, $2, gen_random_uuid(), 1, 'logo', 'image/png', 100, 'f.png', 'available', $3, $4, 100,
+           repeat('4', 64), repeat('4', 64), 100, now(), $5)`,
+        [
+          uploadId,
+          projectId,
+          `quarantine/${projectId}/${uploadId}`,
+          `${projectId}/assets/${uploadId}`,
+          OWNER_ID,
+        ],
+      );
+      await db.query(
+        "alter table public.project_memberships disable trigger project_memberships_sales_separation",
+      );
+      await db.query(
+        "insert into public.project_memberships (project_id, user_id) values ($1, $2)",
+        [projectId, SALES_ID],
+      );
+      await db.query(
+        "alter table public.project_memberships enable trigger project_memberships_sales_separation",
+      );
+      await db.query("commit");
+    });
+    try {
+      const { deliverAsset } = await import("@/server/uploads/delivery");
+      expect(await deliverAsset(sales, adminClient(), projectId, uploadId)).toEqual({
+        ok: false,
+        error: "not_found",
+      });
+      const { data: rpc } = await sales.rpc("record_asset_access", { p_upload_id: uploadId });
+      expect(rpc).toMatchObject({ ok: false });
+      const { data: status } = await sales.rpc("project_status", { p_project_id: projectId });
+      expect(status).toMatchObject({ ok: false });
+      // requireProjectAccess resolves the project through RLS: nothing, so the route is a 404.
+      const { data: projects } = await sales.from("projects").select("id").eq("id", projectId);
+      expect(projects).toEqual([]);
+      const { data: uploads } = await sales.from("asset_uploads").select("id").eq("id", uploadId);
+      expect(uploads).toEqual([]);
+      const audit = await withDb((db) =>
+        db.query(
+          "select count(*)::int as n from public.audit_events where action = 'upload.accessed' and target_id = $1",
+          [uploadId],
+        ),
+      );
+      expect(audit.rows[0].n).toBe(0);
+      const trigger = await withDb((db) =>
+        db.query(
+          "select tgenabled::text as e from pg_trigger where tgname = 'project_memberships_sales_separation'",
+        ),
+      );
+      expect(trigger.rows[0].e).toBe("O");
+    } finally {
+      await withDb((db) =>
+        db.query("delete from public.project_memberships where project_id = $1 and user_id = $2", [
+          projectId,
+          SALES_ID,
+        ]),
+      );
+    }
+  });
+});

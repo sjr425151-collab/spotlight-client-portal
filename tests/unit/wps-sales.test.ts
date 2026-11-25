@@ -235,4 +235,41 @@ describe("WP-S repository checks", () => {
       "public.invitations:invitations_kind_shape",
     ]);
   });
+
+  it("OI-85 correction: the new migration changes only C1 to C5, and checks for conflicts first", () => {
+    const sql = readFileSync("supabase/migrations/20261125120200_wps_oi85_separation.sql", "utf8");
+    const code = sql
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("--"))
+      .join("\n");
+    expect([...code.matchAll(/create or replace function (\w+\.\w+)/g)].map((m) => m[1])).toEqual([
+      "private.is_project_member",
+    ]);
+    expect([...code.matchAll(/create function (\w+\.\w+)/g)].map((m) => m[1])).toEqual([
+      "private.project_memberships_sales_separation",
+      "private.staff_roles_sales_separation",
+    ]);
+    expect(
+      [...code.matchAll(/create trigger (\w+)\s+(?:before|after) [\w ]+ on (\S+)/g)].map(
+        (m) => `${m[2]}:${m[1]}`,
+      ),
+    ).toEqual([
+      "public.project_memberships:project_memberships_sales_separation",
+      "public.staff_roles:staff_roles_sales_separation",
+      "private.billing_package_scope:billing_package_scope_append_only",
+      "private.billing_package_scope:billing_package_scope_no_truncate",
+    ]);
+    // No data change and no other DDL statement (statements start a line).
+    expect(code).not.toMatch(/^\s*(?:alter|drop|update|delete|insert|grant|truncate)\b/im);
+    // C4 runs before C2 and C3 exist.
+    expect(code.indexOf("raise exception 'OI-85: %")).toBeGreaterThan(-1);
+    expect(code.indexOf("raise exception 'OI-85: %")).toBeLessThan(
+      code.indexOf("create trigger project_memberships_sales_separation"),
+    );
+    // The reviewed WP-S migrations are unchanged from the reviewed head (byte-for-byte is
+    // checked by scripts/check-migrations.sh against main once merged; here: no new edits).
+    expect(
+      readFileSync("supabase/migrations/20261125120000_wps_staff_role_sales.sql", "utf8"),
+    ).toContain("alter type public.staff_role add value if not exists 'sales';");
+  });
 });

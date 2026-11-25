@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(157);
+select plan(173);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false)
 returns uuid language plpgsql as $$
@@ -244,7 +244,11 @@ select is((select summary ->> 'scope_version' from public.audit_events where id 
   and action = 'order_summary.issued' and target_id = pg_temp.id('os1')::text and actor_role = 'sales'), '1',
   'T-SALES-31: the scope version is recorded in the order_summary.issued audit metadata');
 -- Missing definition fails closed.
+-- Controlled test fixture: the C5 append-only trigger is disabled by name only around this
+-- deletion, as the migration owner, inside this rolled-back transaction.
+alter table private.billing_package_scope disable trigger billing_package_scope_append_only;
 delete from private.billing_package_scope where package_key = 'advanced';
+alter table private.billing_package_scope enable trigger billing_package_scope_append_only;
 select pg_temp.use_session('00000000-0000-4000-8000-000000000005', pg_temp.id('s1'), 'aal2', true);
 select is(public.issue_order_summary(pg_temp.id('c1'), 'advanced', '[]'::jsonb, null, 'Upgrade') ->> 'error', 'scope_definition_missing',
   'T-SALES-31: a package without a scope definition fails closed');
@@ -268,6 +272,28 @@ select is((select status::text from public.order_summaries where id = pg_temp.id
   'T-SALES-31: the earlier summary is superseded, not changed');
 select is((select summary ->> 'scope_version' from public.audit_events where id > (select last_id from mark)
   and action = 'order_summary.issued' and target_id = pg_temp.id('os2')::text), '2', 'T-SALES-31: the new version is recorded');
+-- Append-only versions (T-SALES-31; DEP-18, Owner 2026-11-25): no role can update, delete,
+-- or truncate a version; the earlier version stays reproducible.
+select throws_ok($$ update private.billing_package_scope set item_text = 'TEST FIXTURE — NOT A DELIVERABLE (edited)'
+  where package_key = 'essential' and scope_version = 1 and position = 1 $$, '42501', 'billing_package_scope is insert-only',
+  'T-SALES-31: the migration owner cannot update a scope version');
+select throws_ok($$ delete from private.billing_package_scope where package_key = 'essential' and scope_version = 1 $$, '42501',
+  'billing_package_scope is insert-only', 'T-SALES-31: the migration owner cannot delete a scope version');
+select throws_ok($$ truncate private.billing_package_scope $$, '42501', null, 'T-SALES-31: the scope table cannot be truncated');
+select is((select jsonb_agg(item_text order by position) from private.billing_package_scope where package_key = 'essential' and scope_version = 1),
+  (select scope_items from public.order_summaries where id = pg_temp.id('os1')),
+  'T-SALES-31: the earlier version is still exactly what the first summary copied (reproducible)');
+select is((select count(distinct scope_version)::int from private.billing_package_scope where package_key = 'essential'), 2,
+  'T-SALES-31: the new definition is a new version beside the old one');
+select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
+select throws_ok($$ update private.billing_package_scope set item_text = 'x' $$, '42501', null, 'T-SALES-31: the Owner cannot update scope rows');
+select throws_ok($$ delete from private.billing_package_scope $$, '42501', null, 'T-SALES-31: the Owner cannot delete scope rows');
+reset role;
+select pg_temp.as_service();
+select throws_ok($$ update private.billing_package_scope set item_text = 'x' $$, '42501', null, 'T-SALES-31: service_role cannot update scope rows');
+select throws_ok($$ delete from private.billing_package_scope $$, '42501', null, 'T-SALES-31: service_role cannot delete scope rows');
+select throws_ok($$ truncate private.billing_package_scope $$, '42501', null, 'T-SALES-31: service_role cannot truncate scope rows');
+reset role;
 -- Owner and Admin keep scope and notes (T-SALES-31, T-SALES-13).
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
 select is(public.issue_order_summary('20000000-0000-4000-8000-0000000000b0', 'professional', '["Custom scope"]'::jsonb, 'Staff note') ->> 'ok',
@@ -420,7 +446,11 @@ reset role;
 -- T-SALES-24 (functions): client-only paths deny a Sales Representative even with a
 -- membership row inserted directly by a fixture.
 -- ===========================================================================
+-- Controlled local/CI-only inconsistent-data fixture (OI-85): the C2 trigger is disabled by
+-- name, as the migration owner, only around this insert, inside this rolled-back transaction.
+alter table public.project_memberships disable trigger project_memberships_sales_separation;
 insert into public.project_memberships (project_id, user_id) values (pg_temp.id('c3'), '00000000-0000-4000-8000-000000000005');
+alter table public.project_memberships enable trigger project_memberships_sales_separation;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
 insert into ids select 'os_c3', public.issue_order_summary(pg_temp.id('c3'), 'essential') ->> 'order_summary_id';
 reset role;
@@ -439,16 +469,16 @@ select is(private.wpc_is_client_member(pg_temp.id('c3')), false,
   'T-SALES-24: the WP-C client check (which gates preview approval) denies the representative');
 select is((select count(*)::int from public.agreement_acceptances where project_id = pg_temp.id('c3')), 0,
   'T-SALES-24: no acceptance was recorded');
--- Escalated (proposed issue WPS-P1, ID to be allocated by Main), not asserted: Phase 2 and WP-B READ policies use
--- private.is_project_member(), which AUTH-005 does not allow WP-S to change, so a membership
--- row inserted directly by the migration owner exposes those rows (projects,
--- client_businesses, the own membership, and WP-B rows keyed on is_project_member). No API
--- path can create such a membership for a Sales Representative (proven above). Reported as
--- a diagnostic only, so it is neither hidden nor counted as a pass.
+-- OI-85 (C1): the read policies built on is_project_member no longer admit a Sales
+-- Representative holding a membership (the enumerated proof over every table and RPC is in 300).
 select pg_temp.use_session('00000000-0000-4000-8000-000000000005', pg_temp.id('s1'), 'aal2', true);
-select diag('WPS-P1: rows readable by a Sales Representative holding a fixture membership: projects='
-  || (select count(*) from public.projects) || ', client_businesses=' || (select count(*) from public.client_businesses)
-  || ', order_summaries=' || (select count(*) from public.order_summaries));
+select is((select count(*)::int from public.projects where id = pg_temp.id('c3')), 0,
+  'T-SALES-24: no project row through the fixture membership');
+select is((select count(*)::int from public.client_businesses b join public.projects p on p.client_business_id = b.id
+  where p.id = pg_temp.id('c3')), 0, 'T-SALES-24: no business row through the fixture membership');
+select is((select count(*)::int from public.order_summaries where project_id = pg_temp.id('c3')), 0,
+  'T-SALES-24: no order-summary row through the fixture membership');
+select is(public.project_status(pg_temp.id('c3')) ->> 'ok', 'false', 'T-SALES-24: project_status is refused');
 reset role;
 update public.project_memberships set status = 'revoked', revoked_at = now()
  where user_id = '00000000-0000-4000-8000-000000000005';
@@ -572,10 +602,18 @@ select throws_ok($$ insert into private.billing_package_scope (package_key, scop
 select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
   values ('prestige', 9, 1, 'TEST FIXTURE — NOT A DELIVERABLE (unflagged)', false) $$, '23514', null,
   'T-SALES-36: an unflagged row carrying the label is rejected');
+select throws_ok($$ update private.billing_package_scope set is_test_fixture = false where package_key = 'prestige' $$, '42501',
+  'billing_package_scope is insert-only', 'T-SALES-36: clearing the flag on a labeled row is rejected (append-only)');
+select throws_ok($$ update private.billing_package_scope set item_text = 'Relabeled' where package_key = 'prestige' and position = 1 $$, '42501',
+  'billing_package_scope is insert-only', 'T-SALES-36: removing the label from a fixture row is rejected (append-only)');
+-- The bidirectional label check also holds on update on its own (C5 disabled by name only here,
+-- inside this rolled-back transaction).
+alter table private.billing_package_scope disable trigger billing_package_scope_append_only;
 select throws_ok($$ update private.billing_package_scope set is_test_fixture = false where package_key = 'prestige' $$, '23514', null,
-  'T-SALES-36: clearing the flag on a labeled row is rejected (update)');
+  'T-SALES-36: without C5, clearing the flag is still rejected by the label check');
 select throws_ok($$ update private.billing_package_scope set item_text = 'Relabeled' where package_key = 'prestige' and position = 1 $$, '23514', null,
-  'T-SALES-36: removing the label from a fixture row is rejected (update)');
+  'T-SALES-36: without C5, removing the label is still rejected by the label check');
+alter table private.billing_package_scope enable trigger billing_package_scope_append_only;
 create function pg_temp.scope_rows(p_key text) returns integer language sql as $$ select count(*)::int from private.current_package_scope(p_key) $$;
 -- staging
 update private.environment_settings set app_env = 'staging';
@@ -611,7 +649,6 @@ reset role;
 insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
 values ('signature', 7, 1, 'PGTAP SYNTHETIC NON-FIXTURE ROW (rolled back)', false);
 select is(pg_temp.scope_rows('signature'), 1, 'T-SALES-36: non-fixture rows are not affected by the allowlist');
-delete from private.billing_package_scope where scope_version = 7;
 -- development and test
 insert into private.environment_settings (app_env) values ('test');
 select is(pg_temp.scope_rows('prestige'), 3, 'T-SALES-36: under test, fixtures resolve');

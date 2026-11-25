@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(90);
+select plan(113);
 
 -- Sessions: aal, fresh TOTP, and session age (12-hour staff rule) are explicit.
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false,
@@ -188,7 +188,9 @@ reset role;
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and p.prosrc ~ '''sales'''
     and p.proname not in ('create_invitation', 'revoke_invitation', 'accept_invitation', 'set_staff_role',
-      'issue_order_summary', 'is_sales', 'assign_sales_representative', 'end_sales_assignment')), null,
+      'issue_order_summary', 'is_sales', 'assign_sales_representative', 'end_sales_assignment',
+      -- OI-85 integrity triggers (CURRENT-STATE §12, C2 and C3): they only refuse.
+      'project_memberships_sales_separation', 'staff_roles_sales_separation')), null,
   'T-SALES-02: only the AUTH-005 objects grant anything to the Sales role');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and p.prosrc ~ 'is_staff\(\)' and p.prosrc ~ '''sales'''
@@ -289,6 +291,120 @@ select pg_temp.act_as('00000000-0000-4000-8000-000000000005', 'aal2', true);
 select throws_ok($$ insert into public.client_businesses (legal_name, display_name) values ('Direct LLC', 'Direct') $$,
   '42501', null, 'T-SALES-23: a Sales Representative cannot create a business directly (no table policy)');
 reset role;
+
+-- ===========================================================================
+-- T-SALES-24 (OI-85): authorization holds INDEPENDENTLY of the integrity triggers.
+-- Controlled local/CI-only inconsistent-data fixture: the C2 trigger is disabled by name,
+-- as the migration owner, only around this insert, inside this rolled-back transaction.
+-- ===========================================================================
+insert into storage.objects (bucket_id, name) values ('project-assets',
+  '20000000-0000-4000-8000-0000000000a0/assets/52000000-0000-4000-8000-0000000000a1');
+insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
+  original_name, status, quarantine_path, released_path, size_bytes, sha256, released_sha256, released_bytes,
+  completed_at, uploaded_by)
+values ('52000000-0000-4000-8000-0000000000a1', '20000000-0000-4000-8000-0000000000a0', gen_random_uuid(), 1, 'logo',
+  'image/png', 100, 'f.png', 'available', 'quarantine/20000000-0000-4000-8000-0000000000a0/52000000-0000-4000-8000-0000000000a1',
+  '20000000-0000-4000-8000-0000000000a0/assets/52000000-0000-4000-8000-0000000000a1', 100, repeat('5', 64), repeat('5', 64),
+  100, now(), '00000000-0000-4000-8000-0000000000a1');
+alter table public.project_memberships disable trigger project_memberships_sales_separation;
+insert into public.project_memberships (project_id, user_id) values
+  ((select v::uuid from ids where k = 'ps1'), '00000000-0000-4000-8000-000000000005'),
+  ('20000000-0000-4000-8000-0000000000a0', '00000000-0000-4000-8000-000000000005');
+alter table public.project_memberships enable trigger project_memberships_sales_separation;
+select is((select count(*)::int from public.project_memberships m join public.staff_roles s on s.user_id = m.user_id
+  where m.status = 'active' and s.status = 'active' and s.role = 'sales'), 2,
+  'T-SALES-24 fixture: inconsistent Sales memberships exist (inside this transaction only)');
+select is((select tgenabled::text from pg_trigger where tgname = 'project_memberships_sales_separation'), 'O',
+  'T-SALES-24 fixture: the trigger is enabled again before any assertion');
+create temp table fixture_counts as select pg_temp.table_counts() as c;
+
+-- Positive control: the real client of Project A is authorized on the same records.
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
+select is(public.record_asset_access('52000000-0000-4000-8000-0000000000a1') ->> 'ok', 'true',
+  'T-SALES-24 control: the client is authorized to download the released file');
+select is(public.project_status('20000000-0000-4000-8000-0000000000a0') ->> 'ok', 'true',
+  'T-SALES-24 control: the client reads the project status');
+select is((select count(*)::int from public.projects where id = '20000000-0000-4000-8000-0000000000a0'), 1,
+  'T-SALES-24 control: the client reads its project row');
+reset role;
+create temp table control_counts as select pg_temp.table_counts() as c;
+
+select pg_temp.act_as('00000000-0000-4000-8000-000000000005', 'aal2', true);
+select is(private.is_project_member('20000000-0000-4000-8000-0000000000a0'), false,
+  'T-SALES-24 (C1): is_project_member is false for a Sales Representative holding a membership');
+select is(private.can_access_project('20000000-0000-4000-8000-0000000000a0'), false,
+  'T-SALES-24 (C1): so can_access_project is false');
+select is((select count(*)::int from public.projects), 0, 'T-SALES-24: no project row');
+select is((select count(*)::int from public.client_businesses), 0, 'T-SALES-24: no business row');
+select is((select count(*)::int from public.order_summaries), 0, 'T-SALES-24: no order-summary row');
+select is((select count(*)::int from public.agreement_versions), 0, 'T-SALES-24: no agreement-version row');
+select is((select count(*)::int from public.agreement_acceptances), 0, 'T-SALES-24: no acceptance row');
+select is((select count(*)::int from public.asset_uploads), 0, 'T-SALES-24: no upload row');
+select is((select count(*)::int from public.intake_submissions) + (select count(*)::int from public.intake_reviews), 0,
+  'T-SALES-24: no intake row');
+select is((select count(*)::int from public.preview_releases), 0, 'T-SALES-24: no release row');
+select is((select count(*)::int from storage.objects), 0, 'T-SALES-24: no storage object');
+select is(public.record_asset_access('52000000-0000-4000-8000-0000000000a1') ->> 'ok', 'false',
+  'T-SALES-24: released-file download authorization is refused');
+select is(public.project_status('20000000-0000-4000-8000-0000000000a0') ->> 'ok', 'false',
+  'T-SALES-24: project_status is refused');
+select is(public.get_intake_state('20000000-0000-4000-8000-0000000000a0'), null, 'T-SALES-24: the intake state is refused');
+-- Every exposed table and view: only the own identity rows (profile, staff role, own active
+-- assignments, and the fixture's own membership rows, readable through the unchanged Phase 2
+-- policy project_memberships_select) are visible.
+create function pg_temp.fixture_violations(p_self uuid) returns text[] language plpgsql as $$
+declare
+  r record;
+  n bigint;
+  v text[] := '{}';
+begin
+  for r in select c.relname from pg_class c join pg_namespace s on s.oid = c.relnamespace
+           where s.nspname = 'public' and c.relkind in ('r', 'p', 'v', 'm') order by 1 loop
+    begin
+      execute format('select count(*) from public.%I where %s', r.relname, case r.relname
+        when 'profiles' then format('id <> %L', p_self)
+        when 'staff_roles' then format('user_id <> %L', p_self)
+        when 'project_memberships' then format('user_id <> %L', p_self)
+        when 'project_sales_assignments' then format('not (sales_user_id = %L and active)', p_self)
+        else 'true' end) into n;
+    exception when insufficient_privilege then
+      n := 0;
+    end;
+    if n > 0 then
+      v := v || r.relname::text;
+    end if;
+  end loop;
+  return v;
+end;
+$$;
+grant execute on function pg_temp.fixture_violations(uuid) to authenticated;
+select is(pg_temp.fixture_violations('00000000-0000-4000-8000-000000000005'), '{}'::text[],
+  'T-SALES-24: with a membership, a Sales Representative still reads no client-only row of any table or view');
+create temp table enumerated_fixture (name text, refused boolean);
+grant select, insert on enumerated_fixture to authenticated;
+insert into enumerated_fixture
+select p.proname, pg_temp.rpc_refused(p.oid, '20000000-0000-4000-8000-0000000000a0')
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
+  and p.proname not in ('auth_context', 'create_invitation', 'revoke_invitation', 'issue_order_summary',
+    'sales_create_customer_project', 'assign_sales_representative', 'end_sales_assignment',
+    'sales_list_customers', 'sales_project_progress');
+insert into enumerated_fixture
+select p.proname || ':own', pg_temp.rpc_refused(p.oid, (select v::uuid from ids where k = 'ps1'))
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')
+  and p.proname not in ('auth_context', 'create_invitation', 'revoke_invitation', 'issue_order_summary',
+    'sales_create_customer_project', 'assign_sales_representative', 'end_sales_assignment',
+    'sales_list_customers', 'sales_project_progress');
+reset role;
+select is((select array_agg(name order by name) from enumerated_fixture where not refused), null,
+  'T-SALES-24: with a membership, every exposed RPC still refuses the Sales Representative (Project A and its own project)');
+select is(pg_temp.table_counts(), (select c from control_counts),
+  'T-SALES-24: the refused calls wrote no row to any application table');
+select is((select count(*)::int from public.audit_events where action = 'upload.accessed'
+  and actor_user_id = '00000000-0000-4000-8000-000000000005'), 0, 'T-SALES-24: no download access was recorded for the representative');
+update public.project_memberships set status = 'revoked', revoked_at = now()
+ where user_id = '00000000-0000-4000-8000-000000000005';
 
 -- ===========================================================================
 -- T-SALES-11: no project-assets storage access, including the assigned project's path

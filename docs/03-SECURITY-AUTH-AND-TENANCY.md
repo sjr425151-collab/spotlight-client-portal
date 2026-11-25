@@ -136,7 +136,7 @@ Owner and Admin **cannot** approve a preview on a client's behalf, accept an agr
 
 ### 4.1 Sales Representative **[APPROVED OI-77; mechanics APPROVED OI-78, OI-84(a)]**
 
-**Implementation status (WP-S, AUTH-005):** implemented on `wp-s/sales-representative` (migrations `20261125120000` and `20261125120100`, the `/sales` area, the app guards), **pending WP-B review of `issue_order_summary`, Main's review, and the Owner's merge**. Implementation notes and the items proposed for Owner decision are in [CURRENT-STATE §11](CURRENT-STATE.md#11-wp-s-implementation-record); none changes an approved rule below.
+**Implementation status (WP-S, AUTH-005):** implemented on `wp-s/sales-representative` (migrations `20261125120000`, `20261125120100`, and the OI-85 correction `20261125120200`; the `/sales` area; the app guards), **pending WP-B review recorded on PR #23, Main's focused re-review, and the Owner's merge**. Implementation notes are in [CURRENT-STATE §11](CURRENT-STATE.md#11-wp-s-implementation-record) (correction record §11.4); none changes an approved rule below.
 
 | Capability (assigned projects only) | Sales Representative | Owner / Admin |
 |---|---|---|

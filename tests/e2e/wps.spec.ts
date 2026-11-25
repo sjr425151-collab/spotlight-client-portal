@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
@@ -247,6 +249,78 @@ test("T-SALES-05: an unassigned project is not found", async () => {
   await expect(sales).toHaveURL(/\/sales$/);
   expect(staffView?.ok()).toBe(true);
   await expect(sales.getByTestId("sales-customers")).not.toContainText("Project A website");
+});
+
+test("T-SALES-24 (OI-85): the portal asset route refuses a Sales session holding an inconsistent membership", async () => {
+  // Controlled local-only fixture: a separate project with an available upload and a Sales
+  // membership, inserted with the C2 trigger disabled by name only inside that one transaction.
+  const fixtureProject = randomUUID();
+  const fixtureUpload = randomUUID();
+  await withDb(async (db) => {
+    await db.query("begin");
+    await db.query("select set_config('request.jwt.claims', $1, true)", [
+      JSON.stringify({ sub: OWNER_ID, role: "authenticated" }),
+    ]);
+    const business = await db.query(
+      "insert into public.client_businesses (legal_name, display_name) values ($1, 'OI-85') returning id",
+      [`OI-85 e2e ${RUN} LLC`],
+    );
+    await db.query(
+      "insert into public.projects (id, client_business_id, name) values ($1, $2, 'OI-85 e2e site')",
+      [fixtureProject, business.rows[0].id],
+    );
+    await db.query(
+      `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
+         original_name, status, quarantine_path, released_path, size_bytes, sha256, released_sha256, released_bytes,
+         completed_at, uploaded_by)
+       values ($1, $2, gen_random_uuid(), 1, 'logo', 'image/png', 100, 'f.png', 'available', $3, $4, 100,
+         repeat('3', 64), repeat('3', 64), 100, now(), $5)`,
+      [
+        fixtureUpload,
+        fixtureProject,
+        `quarantine/${fixtureProject}/${fixtureUpload}`,
+        `${fixtureProject}/assets/${fixtureUpload}`,
+        OWNER_ID,
+      ],
+    );
+    await db.query(
+      "alter table public.project_memberships disable trigger project_memberships_sales_separation",
+    );
+    await db.query("insert into public.project_memberships (project_id, user_id) values ($1, $2)", [
+      fixtureProject,
+      SALES_ID,
+    ]);
+    await db.query(
+      "alter table public.project_memberships enable trigger project_memberships_sales_separation",
+    );
+    await db.query("commit");
+  });
+  try {
+    // Requested with the signed-in browser context's own cookies (a download route, not a page).
+    const response = await sales.request.get(
+      `/portal/projects/${fixtureProject}/assets/${fixtureUpload}`,
+      { maxRedirects: 0 },
+    );
+    expect(response.status()).toBe(404);
+    expect(response.headers()["content-disposition"]).toBeUndefined();
+    // The portal page itself sends the representative to its own area (requireClient).
+    await sales.goto(`/portal/projects/${fixtureProject}`);
+    await expect(sales).toHaveURL(/\/sales$/);
+    const { rows } = await withDb((db) =>
+      db.query(
+        "select count(*)::int as n from public.audit_events where action = 'upload.accessed' and target_id = $1",
+        [fixtureUpload],
+      ),
+    );
+    expect(rows[0].n).toBe(0);
+  } finally {
+    await withDb((db) =>
+      db.query("delete from public.project_memberships where project_id = $1 and user_id = $2", [
+        fixtureProject,
+        SALES_ID,
+      ]),
+    );
+  }
 });
 
 test("T-SALES-14 / T-SALES-26 / T-SALES-28: ending the assignment removes access from the open session", async ({

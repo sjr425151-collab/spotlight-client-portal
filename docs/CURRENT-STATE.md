@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.12.0 |
+| Version | 1.13.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the PR #23 review disposition (OI-85 to OI-89; correction directive §12), on `wp-s/sales-representative` at `72da723` |
+| Last updated | 2026-11-25, by the WP-S correction (§12 directive executed; §11.4 record), on `wp-s/sales-representative` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -31,7 +31,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI run #39 on `main` concluded `success`, 2026-11-24). OI-71 and OI-72 decided. Integration closed by the integration closure PR. |
 | WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including OI-74, OI-75, OI-81, OI-82, OI-83, and B1 | **Done** (PR #20, merge commit `8ac8143`; post-merge CI run #66 `success`). **N1 is a mandatory blocker for R1 release-candidate acceptance** (04 §15.2.1 rule 9; §7). Implementation record in §10. |
 | WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **Done** (PR #19, merge commit `bcddb1f`; post-merge CI run #63 `success`). Review findings H1, M1, M2 closed. |
-| WP-S | Sales Representative authorization infrastructure (03 §4.1; OI-77, OI-78, OI-84) | **Returned for targeted correction** (2026-11-25): Main's review of `72da723` accepted by the Owner; not authorized for merge; correction directive §12 (OI-85 amendment, append-only scope versions). WP-S proposals allocated as OI-85 to OI-89. Implementation record in §11. **DEP-18 remains a mandatory R1 release-candidate blocker.** |
+| WP-S | Sales Representative authorization infrastructure (03 §4.1; OI-77, OI-78, OI-84, OI-85) | **Corrected; in re-review** (2026-11-25). The §12 directive is executed in migration `20261125120200` (C1 to C5 only; the two reviewed migrations unchanged); record in §11.4. Awaiting WP-B's review recorded on PR #23, Main's focused re-review, and the Owner's merge. **DEP-18 remains a mandatory R1 release-candidate blocker**; OI-86 and OI-87 (WP-B) and the OI-88 reassessment stay R1 release-candidate items. |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. Hosted environments receive reviewed migrations only: no seed, no database reset; WP-D verifies and documents this before hosted-environment acceptance (A3). |
 | WP-E | Legal, tax, and commercial approvals | Owner. Not started (DEP-03, DEP-04, DEP-05). |
 | **R1** release candidate | Complete controlled transaction (01 §9.1) | Not started |
@@ -186,7 +186,7 @@ A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, the
 | Stream | Next step | Read first | Authorization |
 |---|---|---|---|
 | Integration (primary session) | Merge order and reviews for WP-S; F2 (§7); then the integrated R1 browser and security suite T-E2E-01 to T-E2E-10 and the T-SALES set; track the R1 release-candidate blockers (§7) | §7, §9; 01 §9.1, §9.1.1 | AUTH-000; AUTH-001 for cross-package tests |
-| WP-S (`wp-s/sales-representative`, integration stream) | **Targeted correction** (§12). Next: WP-S correction, WP-B review recorded on PR #23, Main focused re-review, Owner merge | §11; 03 §4.1, §13; AUTHORIZATIONS AUTH-005 | **AUTH-005 (granted, active)** |
+| WP-S (`wp-s/sales-representative`, integration stream) | **Correction done** (§11.4). Next: WP-B review recorded on PR #23, Main focused re-review, Owner merge | §11.4, §12; 03 §4.1, §13; AUTHORIZATIONS AUTH-005 | **AUTH-005 (granted, active, with the OI-85 amendment)** |
 | WP-B follow-up | N1(a) safe attribution of deferred reversal events, as a small PR before the R1 release candidate | 04 §15.2.1 rules 8–9 | AUTH-001 |
 
 **AUTH-005 activation record (2026-11-25):** Owner grant 2026-11-25 (conditional, with the environment-isolation amendment). Conditions: (a) PR #22 merged at `005cc36130e582b098bcbcbc3c9d85dd87bb91e9` (parents `0b289f3`, `eb34fe2`; tree identical to the reviewed head; no migration changed), post-merge CI run #72 (id 45514706755) `success` with the full suite including T-MIG-01 and T-MIG-02; (b) read-only revalidation on `005cc36`: no migration or source change since `8ac8143`; Phase 2 objects (1) to (7) as recorded (`staff_role` = owner, admin, fulfillment; `invitations_kind_shape`; `is_staff()` = any staff role; `create_invitation` staff path Owner with fresh MFA and the per-user rate limit; `revoke_invitation`, `accept_invitation`, `set_staff_role` present); app files present; `issue_order_summary` guard and lock order as recorded; `begin_initial_checkout` client-only; order-summary snapshot guard covers scope and notes; both WP-C corrections present; no name collision; 46 `is_staff()` and 20 `wpc_is_staff_aal2()` call sites; environment classification (`private.environment_settings`) writable only by the migration owner, so the allowlist amendment is enforceable without changes; (c) inventory accurate; (d) this record committed on `wp-s/sales-representative` before implementation; (e) no unresolved conflict. **AUTH-005 is active.** Reviews: WP-B independently approves the `issue_order_summary` replacement; Main reviews architecture, security, and integration; WP-S never merges its own PR; the Owner alone merges.
@@ -345,6 +345,55 @@ Concurrency also covered (integration): assignment end racing an order summary a
 | Lighthouse | Not run locally (CI) |
 
 **Environment note:** the session environment's allowlist gained `pkg-containers.githubusercontent.com` (Owner-approved in-session, 2026-11-25) so the local Supabase images could be pulled; no credential, secret, or provider access was added.
+
+### 11.4 Correction record (§12 directive, OI-85, DEP-18 append-only)
+
+Executed on `wp-s/sales-representative` after the authorization commit `9803af7` (and Main's clarification `d053550`). **Verified** on a freshly reset local stack in the CI order. Remote CI on the exact corrected head is recorded in PR #23.
+
+**Pre-implementation checks (recorded before any change, fresh `supabase db reset`):** conflicting users (active Sales role and active membership) **0**; staff of any kind with an active membership **0**; existing triggers `project_memberships`: `audit_project_memberships`; `staff_roles`: `audit_staff_roles`, `staff_roles_protect_last_owner`; `billing_package_scope`: `billing_package_scope_fixture_guard`; `service_role` may INSERT into `staff_roles` and `project_memberships` but not UPDATE (so service-role evidence uses inserts, update paths run as the migration owner); `is_project_member` matched the Phase 2 definition. Callers of `is_project_member`: `can_access_project` (and through it `record_asset_access`, `project_status`, `get_intake_state`, the WP-C table policies, storage), the `client_businesses`, `order_summaries`, `agreement_versions`, and `agreement_acceptances` policies, `accept_agreement`, and the WP-B client functions and policies (which already also required `staff_role_of(...) is null`). Lock order: `accept_invitation` and `set_staff_role('sales')` take the per-user lock first; the advisory lock is re-entrant, so they are unchanged. Merged suites rely on Owner and Admin memberships (225 §9), which the Sales-scoped C2 and C3 keep permitted.
+
+**Changed-object inventory (exactly C1 to C5, one migration `20261125120200_wps_oi85_separation.sql`):**
+
+| # | Object |
+|---|---|
+| C1 | `private.is_project_member(uuid)` replaced: existing conditions plus `staff_role_of(uid) is null` and no active `staff_roles` row; same signature and grants |
+| C2 | `private.project_memberships_sales_separation()` + trigger `project_memberships_sales_separation` (BEFORE INSERT OR UPDATE) |
+| C3 | `private.staff_roles_sales_separation()` + trigger `staff_roles_sales_separation` (BEFORE INSERT OR UPDATE) |
+| C4 | Migration-time conflict check (raises, changes nothing), before C2 and C3 are created |
+| C5 | Triggers `billing_package_scope_append_only` (BEFORE UPDATE OR DELETE, `private.insert_only()`) and `billing_package_scope_no_truncate` (BEFORE TRUNCATE, `private.audit_events_immutable()`) |
+
+Trigger functions are SECURITY DEFINER with `search_path = ''` and no execute grant for any API role. The two reviewed WP-S migrations are byte-for-byte unchanged (`git diff 72da723` empty for both). No other database object, no app change.
+
+**Tests changed or added (WP-S files only; no existing Phase 2, WP-0, WP-B, or WP-C assertion changed):**
+- pgTAP **300** (90 → 113): the authorization-without-triggers fixture (C2 disabled by name only around the insert, inside the rolled-back transaction, and re-enabled before any assertion). With a Sales membership on Project A and its own project, the representative reads no `projects`, `client_businesses`, `order_summaries`, `agreement_versions`, `agreement_acceptances`, upload, intake, release, or storage row, and the enumeration over every table and view shows only its own identity rows. `record_asset_access` on a released file, `project_status`, and `get_intake_state` are refused, and every exposed RPC is refused on both projects with no row written. Positive controls: the real client is authorized on the same released file and project. The static list adds the two C2/C3 functions.
+- pgTAP **310** (157 → 173): the function checks use the controlled fixture. The diagnostic is replaced with real assertions (no project, business, or order-summary row; `project_status` refused). T-SALES-31 adds append-only enforcement: owner, Owner (authenticated), and `service_role` cannot update, delete, or truncate; version 1 stays exactly what the first summary copied; version 2 is a new row set. T-SALES-36's update assertions expect the append-only rejection, and the label check is still proven on update with C5 disabled only inside the transaction. The missing-definition case disables C5 only around its deletion.
+- pgTAP **320** (new, 32): C2 and C3 for the migration owner and `service_role`, insert and update, both directions; inactive rows are not conflicts; scoped to Sales (an Admin may hold a membership and keep it); `set_staff_role` and `accept_invitation` keep their own audited rejections ahead of the trigger; C1 for Admin, Owner, client, a former staff member, and a deactivated user; the client invitation path; and C4 (no conflict remains).
+- Integration (+5): direct-writer interleavings in both orders (the second waits on the per-user lock, then fails 42501); six true races (exactly one succeeds each time); `service_role` refused in both directions; and a real signed-in Sales session holding an inconsistent membership (a temporary local fixture, trigger disabled only inside its one transaction, removed afterwards) is refused by `deliverAsset`, `record_asset_access`, and `project_status`, and reads no project or upload row, with no `upload.accessed` audit.
+- E2E (+1): the portal asset route returns 404 to the Sales browser session under the same fixture; the portal page sends it to `/sales`; no access audit.
+- Unit (+1): the new migration contains only C1 to C5, runs C4 before the triggers, and contains no data change or other DDL.
+
+| Suite (local, fresh reset, CI order) | Result |
+|---|---|
+| Migration immutability | Pass |
+| pgTAP | 27 files, **1484** assertions, all pass (existing 1166 unchanged) |
+| Unit | 16 files, **284** tests, all pass |
+| Integration | 6 files, **81** tests, all pass (WP-S 19) |
+| Build, bundle scan, production build | Pass |
+| E2E | **51** tests, all pass (WP-S 7) |
+| Lint, typecheck, format | Pass |
+
+**T-SALES-24** now passes in full (every clause asserted; no diagnostic or expected failure). **T-SALES-31** and **T-SALES-36** are verified with the append-only rule.
+
+**Remaining findings and limitations (not in this round):**
+- **OI-86:** the deadlock is preserved as-is; the integration race test still records it.
+- **OI-87:** `change_reason` is still client-readable.
+- **OI-88:** the user-experience reassessment is still pending.
+- **DEP-18:** no production scope content exists, so Sales issuance stays fail-closed outside the seed.
+- **The triggers have one stated limit:** they do not protect against a database owner who disables or replaces them, as approved.
+- **With an inconsistent fixture membership, a Sales user can still read its own membership row** through the unchanged Phase 2 `project_memberships_select` policy (its own identity row; no client-only data). That state cannot be created while the triggers are enabled.
+- **This environment only:** e2e ran with the preinstalled Chromium, and the allowlist entry from §11.3 is unchanged.
+
+**Correction effort (OI-67):** AI session about 0.3 h (2026-11-25, 01:58–02:16 UTC); administrative about 0.05 h (local Docker restart after a container recycle); Owner review 0 h so far.
 
 ## 12. PR #23 targeted correction directive (Main, 2026-11-25)
 

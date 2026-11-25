@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.39.0 |
+| Version | 0.40.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,14 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### PR #35 merge and the AUTH-013 grant (Owner, 2026-11-25)
+
+Owner decision "PR #35 pinned merge approved; AUTH-013 implementation grant approved". Documentation only.
+
+- **PR #35 (final):** merged by Main under the Owner's pinned authorization at head `85ec6cef1ecd27e45fb037edf36d42b8db8eadaa`, base `e3a7508`, exact-head CI 45687359888 (#122) 7/7. Merge commit `30414c78b80594a735c8031a3a285a3e88d8f6cb` (parents `e3a7508`, `85ec6ce`; tree identical). Post-merge CI run 45689577718 (#123), all seven jobs passed with the full suite. **AUTH-006 completed.**
+- **AUTH-013 (granted, activation pending):** the implementation scope, six validation conditions, strict canonical-key selection, no fallback, fixture moves 1 to 6, refinements A to D and the independent reviews are approved. **Fixture-integrity clarification:** the helper may emit the canonical event only when creating a genuinely new first approval; it never fabricates, replaces or repairs one for an existing approval; an existing approval with a missing or inconsistent canonical event fails closed; negative tests and mutation coverage are kept. Executable only after this record merges and its post-merge CI succeeds.
+- **Unchanged:** OI-113 open until the correction is implemented, verified and merged; AUTH-009 and AUTH-010 non-executable; AUTH-002 Stage A inactive; no provider or production access.
+
 ### PR #37 merge, OI-95 closure and AUTH-012 completion (Owner, 2026-11-25)
 
 Owner decision "PR #37 pinned merge approved". Documentation only.
@@ -1549,6 +1557,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.37.0 | 2026-11-25 | **PR #34 merged** (`a5dfad0`, CI 45665855580 7/7; the Amendment 3 correction active); PR #35 sequencing; the baseline-integrity correction; AUTH-013 design and fixture moves approved; AUTH-009 site rulings and stop-reconciliation direction; deadline defaults; Stage A Gate A and Gate B. AUTHORIZATIONS v1.23.0; OPEN-ISSUES v0.31.0. | Main session | Owner |
 | 0.38.0 | 2026-11-25 | **PR #28 merged** (`b027e41`, CI 45675171938 (#116) 7/7); F2 closed with residual items carried forward; PR #33 and PR #34 activation records reconciled in CURRENT-STATE (v1.24.0); AUTH-012 released. | Main session | Owner |
 | 0.39.0 | 2026-11-25 | **PR #37 merged** (`e3a7508`, CI 45682383873 (#120) 7/7); OI-95 closed; AUTH-012 completed; O-1 carried forward to I-2. OPEN-ISSUES v0.32.0. | Main session | Owner |
+| 0.40.0 | 2026-11-25 | **PR #35 merged** (`30414c7`, CI 45689577718 (#123) 7/7); AUTH-006 completed; **AUTH-013 granted** (activation pending; fixture-integrity clarification). CURRENT-STATE v1.25.0; OPEN-ISSUES v0.33.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

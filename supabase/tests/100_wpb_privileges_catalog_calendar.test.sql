@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(41);
+select plan(42);
 
 -- ---------------------------------------------------------------------------
 -- 1. Table privileges: reads only through RLS; writes only through definer functions
@@ -44,10 +44,15 @@ select ok(not has_column_privilege('authenticated', 'public.agreement_acceptance
 select is_empty($$
   select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'private' and c.relname in ('environment_settings', 'billing_packages', 'stripe_catalog_prices',
-    'stripe_payment_links', 'event_consumptions')
+    'stripe_payment_links', 'event_consumptions',
+    -- WP-H, AUTH-006 Amendment 1: attribution-conflict candidate evidence
+    'financial_event_project_candidates')
     and (has_table_privilege('authenticated', c.oid, 'select') or has_table_privilege('service_role', c.oid, 'select')
          or has_table_privilege('anon', c.oid, 'select'))
 $$, 'private WP-B tables are unreadable by every API role');
+select is((select count(*)::integer from pg_class c join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'private' and c.relname = 'financial_event_project_candidates'), 1,
+  'WP-H Amendment 1: the candidate-evidence table exists in private (so the check above is not vacuous)');
 
 -- ---------------------------------------------------------------------------
 -- 2. Function privileges

@@ -4,7 +4,7 @@
 |---|---|
 | Version | 1.24.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the WP-H implementation PR (AUTH-006 and Amendments 1 and 2; §10.2), synchronized with `main` at `b027e41` after the WP-I I-1 merge |
+| Last updated | 2026-11-25, by the WP-H implementation PR (AUTH-006 and Amendments 1 and 2; §10.2), synchronized with `main` at `e3a7508` (after the WP-I I-1 merge and PR #37) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -278,7 +278,8 @@ Local evidence for the §9 WP-B directive, on branch `wp-b/billing-ledger` rebas
 - **Method:** `main` at `b027e41` was merged into the branch. There was no rebase and no force-push, so every reviewed commit is preserved. The merge was conflict-free.
 - **Equivalence:** the implementation diff against `main` is patch-identical (`git patch-id --stable`) to the reviewed `58d0e98..aec8ff3` diff, file by file. That includes `tests/integration/wps-sales.test.ts`, which PR #28 also changes; T-SALES-32 keeps its 12 iterations and its `aborted:`-free assertions.
 - **Readiness gate:** PR #28's gate runs through `tests/support/local-supabase.ts` in every file that uses PostgREST. `wph-hardening.test.ts` uses direct database connections only.
-- **This file:** the header version is allocated from the baseline (v1.23.0 to v1.24.0).
+- **Second synchronization:** `main` at `e3a7508` (PR #37, OI-95; post-merge CI run 45682383873, 7/7) was merged in, again conflict-free, with no rebase and no force-push. PR #37 changes `src/app/sales/page.tsx`, `tests/e2e/wps.spec.ts` and this file's §16, which is kept intact. None is a WP-H file, and all 17 WP-H files remain patch-identical to the reviewed diff.
+- **This file:** the header version is allocated from the baseline (v1.23.0 to v1.24.0; PR #37 did not change it).
 - **Merge order is unchanged** (WP-I-1, WP-H, WP-D18). AUTHORIZATIONS AUTH-006 "Merge" applies: full CI on the synchronized head, and a new record from every reviewer.
 
 | Commit | Content | Migration (SHA-256) |

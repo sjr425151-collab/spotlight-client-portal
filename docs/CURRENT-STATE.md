@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.23.0 |
+| Version | 1.24.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the WP-I I-1 implementation PR (AUTH-008 and Amendment 1, including the W-1 correction; §14) |
+| Last updated | 2026-11-25, by the WP-H implementation PR (AUTH-006 and Amendments 1 and 2; §10.2), synchronized with `main` at `b027e41` after the WP-I I-1 merge |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -273,7 +273,13 @@ Local evidence for the §9 WP-B directive, on branch `wp-b/billing-ledger` rebas
 
 ### 10.2 WP-H implementation record (AUTH-006, Amendments 1 and 2)
 
-**Authorization:** AUTH-006, active since 2026-11-25 (merge `58d0e98`, CI run 45543204966). Amendment 1 is active (merge `7469b2d`, CI run 45558153619). Amendment 2 is active (merge `f37cf7e`, CI run 45583992649, 7/7 with the full suite, verified before implementation). Branch `wp-h/financial-hardening` from `58d0e98`; it is not yet rebased. Merge order is unchanged (WP-I-1, WP-H, WP-D18). Before merge, WP-H is rebased onto the verified `main`, with the full rebase verification (AUTHORIZATIONS AUTH-006 "Merge"). That rebase also reconciles this file's header with `main`.
+**Authorization:** AUTH-006, active since 2026-11-25 (merge `58d0e98`, CI run 45543204966). Amendment 1 is active (merge `7469b2d`, CI run 45558153619). Amendment 2 is active (merge `f37cf7e`, CI run 45583992649, 7/7 with the full suite, verified before implementation). Branch `wp-h/financial-hardening` from `58d0e98`. **Synchronized** after WP-I-1 merged (PR #28 at `b027e41`, post-merge CI run 45675171938, 7/7 with the full suite).
+
+- **Method:** `main` at `b027e41` was merged into the branch. There was no rebase and no force-push, so every reviewed commit is preserved. The merge was conflict-free.
+- **Equivalence:** the implementation diff against `main` is patch-identical (`git patch-id --stable`) to the reviewed `58d0e98..aec8ff3` diff, file by file. That includes `tests/integration/wps-sales.test.ts`, which PR #28 also changes; T-SALES-32 keeps its 12 iterations and its `aborted:`-free assertions.
+- **Readiness gate:** PR #28's gate runs through `tests/support/local-supabase.ts` in every file that uses PostgREST. `wph-hardening.test.ts` uses direct database connections only.
+- **This file:** the header version is allocated from the baseline (v1.23.0 to v1.24.0).
+- **Merge order is unchanged** (WP-I-1, WP-H, WP-D18). AUTHORIZATIONS AUTH-006 "Merge" applies: full CI on the synchronized head, and a new record from every reviewer.
 
 | Commit | Content | Migration (SHA-256) |
 |---|---|---|
@@ -348,7 +354,34 @@ Local evidence for the §9 WP-B directive, on branch `wp-b/billing-ledger` rebas
 | `pnpm test:e2e --trace off` | 51 passed |
 | Lighthouse | Not run locally (CI) |
 
-**Reviews (pending):** an independent financial review by a session other than WP-B; the WP-C read-only review of the release lock key and interface contract; Main. Each review is recorded as a durable non-approval PR comment. The Owner merges, pinned to the exact head.
+**Local verification after synchronization** (merge of `b027e41`; same environment as above).
+
+| Command | Result |
+|---|---|
+| `sha256sum` of `20261126120300` | `20953c2e36d44f5a496e69ba0c0f84451f6577d7dbf4d018af706d6b953be18a` (unchanged) |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, 303 passed (adds PR #28's readiness-gate unit file) |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `supabase db reset --local`; `supabase test db` | 30 files, 1,605 tests, PASS |
+| `pnpm test:integration` | 7 files, 96 passed (PR #28's 81 plus WP-H's 15) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 51 passed |
+
+**Reviews at `0b1e542`** (durable non-approval PR comments). Each needs a new record for the synchronized head (AUTH-006 "Merge").
+
+| Reviewer | Comment | Result |
+|---|---|---|
+| Main | 7159127341 | No blocking findings. M-1 to M-4: M-1 is this synchronization; M-2 is AUTH-009's inventory; M-3 and M-4 need no change |
+| WP-S, independent financial | 7168757687 | No blocking findings. F-1 to F-3 need no change; F-1 is consolidated into AUTH-013 |
+| WP-C, read-only | 7168769499 | B-1, recorded as **OI-113** |
+
+**Known limitation until AUTH-013 lands: OI-113, a mandatory R1 release-candidate blocker that is open.**
+- **When it happens:** two client members of one project approve the same release concurrently, and the earlier-started transaction takes the release lock second.
+- **What goes wrong:** WP-C's emitting approval and `project_fulfillment_status.current_release_approval_id` disagree. The WP-H cross-check then rejects the initiation with **`approval_mismatch`**.
+- **Effect:** it fails closed, with no obligation, no outbound request and no charge. The automatic initiation does not happen, and the Owner receives `payment.final_balance_blocked`.
+- **Decision (Owner, 2026-11-25):** option (a), a separately authorized WP-C interface correction (AUTH-013, proposed). WP-H's strict approval matching is kept, and WP-H does not change for it. Option (c), re-release and re-approval, is an emergency recovery procedure only, never closure.
+
+The Owner merges, pinned to the exact head.
 
 ## 11. WP-S implementation record
 

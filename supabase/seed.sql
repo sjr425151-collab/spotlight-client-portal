@@ -60,3 +60,20 @@ insert into private.runtime_environment (app_env) values ('development');
 -- fixture and test-mode path fails closed there.
 insert into private.environment_settings (app_env) values ('development');
 select private.install_test_agreement_fixture();
+
+-- WP-S (03 §4.1; AUTH-005): one synthetic Sales Representative, with no assignment (tests
+-- and the /sales area create customers and assignments through the authorized functions).
+select pg_temp.seed_user('00000000-0000-4000-8000-000000000005', 'sales@example.test');
+insert into public.profiles (id, email, full_name) values
+  ('00000000-0000-4000-8000-000000000005', 'sales@example.test', 'Synthetic Sales Representative');
+insert into public.staff_roles (user_id, role) values ('00000000-0000-4000-8000-000000000005', 'sales');
+
+-- WP-S (OI-84(b); A2 as amended 2026-11-25): test-only package scope definitions for local
+-- and CI only. Every row is a labeled fixture; the database accepts and resolves fixture rows
+-- only because this database is classified `development` above. These are NOT deliverables:
+-- the production scope content is supplied by the Owner (DEP-18) through a reviewed migration.
+insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+select p.package_key, 1, n.position,
+       'TEST FIXTURE — NOT A DELIVERABLE (' || p.package_key || ' item ' || n.position || ')', true
+from private.billing_packages p
+cross join (values (1::smallint), (2::smallint), (3::smallint)) as n (position);

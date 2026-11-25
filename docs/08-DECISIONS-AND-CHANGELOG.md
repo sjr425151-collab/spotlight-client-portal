@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.24.0 |
+| Version | 0.25.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1120,6 +1120,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.22.1 | 2026-11-25 | **WP-S implementation PR** (AUTH-005; no decision changed): 03 v0.5.9 status labels (§4 key, §4.1 implementation status); CURRENT-STATE v1.11.0 (§2 row, §11 implementation record); OPEN-ISSUES v0.21.2 lists seven WP-S proposals (WPS-P1 to WPS-P7) for ID allocation by Main and Owner decision; DEVELOPMENT seeded-user note. | WP-S session | Pending Owner review |
 | 0.23.0 | 2026-11-25 | **PR #23 review disposition** (Owner): PR #23 at `72da723` not authorized for merge; **OI-85** (AUTH-005 amendment: `is_project_member`, invariant triggers, T-SALES-24 in full), **OI-86** (deadlock, R1 RC blocker, WP-B), **OI-87** (change reason staff-only, before R1 RC, WP-B), **OI-88** (strict `requireClient`), **OI-89** (confirmations); DEP-18 append-only scope versions. Specs: 03 v0.5.10, 04 v0.9.7; AUTHORIZATIONS v1.9.0; CURRENT-STATE v1.12.0; OPEN-ISSUES v0.22.0. Recorded on `wp-s/sales-representative` before the correction. | Main session | Owner |
 | 0.24.0 | 2026-11-25 | **PR #23 final governance and documentation** (Owner): OI-85 closed; AUTH-005 exit-criterion 4 governance amendment (technical review record on the PR, not a GitHub approval); DEP-18 version sealing and corrected T-SALES-31 and 04 §4 wording; **OI-90** (direct-writer lock ordering; runbook before R1 RC). Specs: 03 v0.5.11, 04 v0.9.8; AUTHORIZATIONS v1.10.0; CURRENT-STATE v1.14.0; OPEN-ISSUES v0.23.0; OWNER-RUNBOOKS v0.2.0. Documentation only, after `1eda945`. | Main session | Owner |
+| 0.25.0 | 2026-11-25 | **WP-S complete** (no decision changed): PR #23 merged at `d75bd94` (parents `005cc36`, `6843bd2`; tree identical to the authorized head), post-merge CI run 45535755135 7/7 `success` with the full suite; OI-85 closed; T-SALES-01 to T-SALES-36 satisfied; WP-B independent technical review record: PR comment 7151195165 (not a GitHub APPROVED review). **AUTH-005 expired** on the merge. Specs: 03 v0.5.12; AUTHORIZATIONS v1.11.0; CURRENT-STATE v1.15.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

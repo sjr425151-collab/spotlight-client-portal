@@ -517,7 +517,172 @@ No WP-B (`issue_order_summary` unchanged), WP-C, Phase 2, or API-grant change. N
 
 **Findings and limitations:**
 - **`pnpm test:db` can't run the 320 concurrency case.** That runner connects over the container's socket, where `dblink` is refused (a trust-authenticated connection). `supabase test db` and CI connect over TCP and run it.
-- **Construction-marker forgery:** like the C2/C3 triggers, the insert protection does not stop a database owner who disables triggers or forges the transaction-local construction marker. API roles have no privilege on these objects. A forged marker still cannot add to a sealed version or make an unsealed version resolvable.
+- **Construction marker and contractual content (corrected under AUTH-007 Amendment 1, item 5; supersedes the earlier wording here):** the construction marker `wpd18.scope_construction` is an unprivileged, transaction-local setting. API roles cannot use it: they hold no table privilege and no execute on the constructor, the guard, or the resolver. It cannot add items to a sealed version, and an unsealed version is never resolved. The database owner, however, can construct a new version (through the constructor, or by setting the marker and inserting directly). That is **not** an authorized content path. Non-fixture contractual content is loaded only through an **Owner-controlled, audited and hash-verified contractual content loading mechanism** (Owner decision FD-05). Authoritative legal text and counsel evidence remain outside Git. That mechanism is not yet designed or authorized (PWP-0, not active, and later separately authorized work), and **no non-fixture content loading is authorized**.
 - **DEP-18 remains a mandatory R1 release-candidate blocker:** no production content exists, so Sales issuance stays fail-closed outside the seed.
 
 **Effort (OI-67):** AI session about 0.6 h (2026-11-25, 04:35–05:15 UTC); administrative about 0.05 h (local stack restarts after container and worker recycles); Owner review: one in-session decision on the two assertions.
+
+### 14A. AUTH-007 Amendment 1 correction record (R1-HANDOFFS §2A)
+
+Continued on `wp-d18/scope-sealing` from `6173ffa`, keeping its commits; not rebased. **Activation:** AUTH-007 Amendment 1 is on `main` at merge `393e3c875c2db46efb45811ac4ef2a522a09ed26` (PR #30). Post-merge CI run 45565499637 (#95) on that commit completed `success`. Both were confirmed read-only before starting. AUTH-007 Amendment 2 is **not active**, so item 7 was not executed and `supabase/seed.sql` was not touched. Implementation commit: `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38`.
+
+**Scope executed:** tests and records only. No migration, seed, immutability, API-privilege, workflow, or script change. No existing or rewritten assertion's expected result changed.
+
+| Item | Result |
+|---|---|
+| 1. Compensating controls (unit) | **Done.** Two new tests in `tests/unit/wps-sales.test.ts`. Outside the exact file name `20261126140000_wpd18_scope_version_sealing.sql`, a migration fails if it names the constructor, uses the construction marker, or carries the fixture label in any form the control recognizes. Recognized label forms are any case, any separators, split by `\|\|`, either half alone, and hex or base64 halves. The one label occurrence allowed elsewhere is the merged label constraint text in `20261125120100`, removed by exact match, and that match is asserted to occur exactly once. Twelve synthetic inputs prove the controls are not vacuous: a clean migration passes, every offending form fails, a similarly named file is not exempt, and an extra label in the constraint migration fails. A real-file mutation check (scratch, not committed) placed a temporary `20270101000000_wpd18_scope_version_sealing_x.sql` containing a constructor call, then a marker use. Each run failed the control and was then removed. Change 1 is unchanged. Its corrected form is presented under D-1 for the Owner's disposition. |
+| 2. FD-14 evidence (pgTAP 310, plan 204 → 217) | **Done**, additive. A forged marker on a new, unsealed version (`prestige:60`) is used. An unlabeled fixture item and a labeled unflagged item each fail with 23514, with the exact message naming `billing_package_scope_fixture_label`, and the constraint name is read from the error diagnostics. A fixture item fails with 42501 and the `billing_package_scope_fixture_guard` message under staging, preview, and a missing classification, with the raising function read from the error context. Catalog checks confirm the constraint definition is unchanged and the fixture-guard trigger is `BEFORE INSERT OR UPDATE … FOR EACH ROW` and enabled (`O`). Scratch checks (not committed) confirm the attribution helper is not vacuous: without the marker, or with a sealed version, it reports `billing_package_scope_construction_guard`, and with the forged marker under development a labeled fixture item inserts. They also confirm the rewritten constructor-path statements D-4 to D-8 each reach the intended constraint or guard function. |
+| 3. Two-session concurrent-commit test | **Stopped: no disposable state within the authorized inventory.** See the options below. The rollback concurrency test is kept unchanged in substance. |
+| 4. Runner handling (pgTAP 320, plan 37 unchanged) | **Done.** The two-session block is a `pg_temp` function. Over TCP (`supabase test db`, CI) it must run: the vacuous `ok(c is not null)` is replaced by a real round trip, in which a second backend answers with its own process id and that id must differ from this one. A connection failure fails all five assertions and is never a skip. This was verified on a scratch copy with a wrong password: `not ok 33` to `37`, "failed 5 tests of 37". Only over a Unix socket (`pnpm test:db`, where `inet_server_addr()` is null) are the five assertions skipped explicitly with the reason, so the other 32 assertions run (verified: `ok 33 # SKIP …` to `ok 37 # SKIP …`). **Limitation:** `pnpm test:db` does not exercise the two-session tests. `scripts/run-db-tests.sh` counts skips as passes and does not print them, and changing that script is outside AUTH-007. |
+| 5. Construction marker and contractual-content wording | **Done.** The §14 bullet is corrected, citing FD-05. The PR body is corrected to match. The known residual comments in `supabase/seed.sql` (WP-S section) and the merged `20261125120100` still describe a reviewed-migration content path. They are unchanged here, because no seed change is permitted and merged migrations are never edited. FD-05 prevails. |
+| 6. Disposition records | **Done**, below, one record per row (D-1 to D-10). |
+
+**Item 3 options for the Owner's decision (nothing implemented).**
+
+A genuine commit leaves rows in the append-only scope tables. Removing them would need the immutability triggers disabled, which is prohibited, and a committed version on a seeded package would change what later suites resolve. A disposable database copy is not available in the current workflow. `create database … template postgres` was attempted read-only and refused ("source database "postgres" is being accessed by other users", 5 other sessions: PostgREST, auth, storage, pg_net, pg_cron). No probe database was created. `max_prepared_transactions` is 0.
+
+| Option | What it needs | Residual |
+|---|---|---|
+| (a) Dedicated synthetic package | A new `private.billing_packages` row (a WP-B table) committed by the test, used only by the commit test, with relative version assertions so reruns pass. Also proof that no later suite (integration, e2e) lists or counts packages. | Writes durable synthetic rows to a WP-B table and to the append-only scope tables in the local and CI database. Needs an Owner decision on the WP-B data write. |
+| (b) Disposable database in CI | A workflow step (for example after `supabase test db`) that stops the stack's service connections or creates a fresh database from `template0` and replays the migrations, then runs only the commit test there. | Needs a `.github/workflows/ci.yml` or scripts change, outside AUTH-007. |
+| (c) Run the commit test last, then reset | A workflow change that runs the commit test after the other suites, or adds a `supabase db reset` after it. | As (b): a workflow change. |
+| (d) Keep the current evidence only | Nothing. | The committed-A, B-gets-version-3 path stays untested across two sessions. It rests on the per-package advisory lock and on each statement taking a fresh snapshot under read committed, plus the sequential consecutive-version test (310). |
+
+**Individual assertion disposition records (FD-14).** Line numbers are at `6173ffa` and unchanged at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38`, because the new 310 assertions are inserted after line 768. Evidence common to every record: a fresh local reset in CI order at `1eefdd9` (results in the suite table below), the remote CI run on the exact head (PR #27), and the scratch checks named in items 1 and 2.
+
+**D-1: unit T-SALES-36 migration check (Change 1, `tests/unit/wps-sales.test.ts` 177).**
+- *Original:* every migration has zero `insert into private.billing_package_scope…` statements.
+- *Replacement:* the regex also covers `_versions`. A migration whose name contains `wpd18_scope_version_sealing` may have inserts, provided none contains a single quote. All others have zero.
+- *Original guarantee:* no migration writes scope rows.
+- *Replacement guarantee:* no migration writes literal scope content, and only one file (by substring) writes scope rows at all.
+- *Exposure:*
+  - The substring exemption: a later file named, for example, `…_wpd18_scope_version_sealing_x.sql` passes Change 1 with a non-literal insert. This was shown in a scratch run: all 16 unit tests passed.
+  - The quote heuristic misses dollar-quoted or `chr()`-built text.
+  - Constructor calls and marker use were not covered.
+- *Compensating coverage:*
+  - The item 1 controls with their twelve synthetic proofs. They fail constructor or marker use and label forms in any non-exact-named file, including the substring-named one.
+  - The runtime construction guard: a direct insert without the marker is rejected (310 "a direct item insert is rejected").
+  - Remaining after the controls: a non-literal `insert … select` in a substring-named file, caught only at runtime by the construction guard. Also dollar-quoted or `chr()`-built text inside the exact exempt file, which is merged once and never edited.
+- *Proposed correction for disposition (not applied):* replace `if (!file.includes("wpd18_scope_version_sealing"))` with `if (file !== "20261126140000_wpd18_scope_version_sealing.sql")`. In a scratch run it passes on the real migrations (16/16) and fails on the substring-named mutation ("1 failed | 15 passed").
+- *Authorization:* individual Owner disposition. Ratification is **withheld as written** (AUTH-007 Amendment 1, FD-14). Applying the correction is an assertion change needing the Owner's decision.
+- *Evidence:* unit suite at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38`; the scratch runs above.
+
+**D-2: unit seed fixtures flagged and labeled (Change 2, 199).**
+- *Original:* the block from the seed's `insert into private.billing_package_scope` contains the label and `, true\nfrom private.billing_packages`, and comes after `insert into private.environment_settings`.
+- *Replacement:* the seed has no direct scope insert. The block from `select private.create_package_scope_version(` contains the label and `], true)\nfrom private.billing_packages`, and comes after the classification.
+- *Original guarantee:* seed rows are labeled, flagged, and inserted after the classification.
+- *Replacement guarantee:* the same three properties, checked on the constructor call, and no other seed write path.
+- *Exposure:* none essential. The check is lexical, like the original.
+- *Compensating coverage:*
+  - The additive WP-D18 seed test requires exactly three labeled items and the call shape.
+  - The database label constraint and fixture guard (310 FD-14 rows).
+  - A missing anchor fails, because `indexOf` returns −1.
+- *Authorization:* approved in principle (AUTH-007 Amendment 1). Needs an individual Owner disposition. No seed change is made here, and Amendment 2 is not active.
+- *Evidence:* unit suite at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38`.
+
+**D-3: 310 A5 setup, essential version 2 (260 to 265).**
+- *Original:* a direct insert of `essential` v2 (two labeled fixture items). The existing assertions then check that the issued summary's `scope_items` and `snapshot_sha256` equal the pre-insert values.
+- *Replacement:* `select private.create_package_scope_version('essential', array[… item 1, … item 2], true)`, which creates sealed v2. The same assertions follow, with unchanged expectations.
+- *Original guarantee:* a later scope version leaves an issued snapshot and its hash unchanged (A5).
+- *Replacement guarantee:* the same, with the later version sealed. That is the realistic path, because the direct path is now rejected.
+- *Exposure:* none identified. The setup is the only change.
+- *Compensating coverage:* WP-D18 "the historical version reproduces the issued snapshot exactly", plus the hash recomputation and re-verification assertions.
+- *Authorization:* approved in principle. Needs an individual Owner disposition.
+- *Evidence:* 310 at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38` (217/217).
+
+**D-4: fixture without the label rejected, 23514 (602).**
+- *Original:* a direct insert of `('prestige', 9, 1, 'Unlabeled item', true)` throws 23514.
+- *Replacement:* `create_package_scope_version('prestige', array['Unlabeled item'], true)` throws 23514.
+- *Original guarantee:* the label constraint rejects a flagged, unlabeled row.
+- *Replacement guarantee:* the same constraint, reached through the constructor. The scratch attribution reports `23514 billing_package_scope_fixture_label`.
+- *Exposure:*
+  - The message is not pinned in the rewritten assertion (a null message, as originally).
+  - The direct path now stops at the construction guard, so the original direct path no longer reaches the constraint.
+- *Compensating coverage:*
+  - Item 2(a): with a forged marker, the direct path reaches the constraint. The exact message and the diagnostic constraint name are asserted.
+  - Item 2(d): the constraint definition is unchanged.
+- *Authorization:* approved in principle, subject to 2(a) and 2(d), both now present. Needs an individual Owner disposition.
+- *Evidence:* 310 at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38` ("FD-14 (D-4)" rows); scratch attribution.
+
+**D-5: unflagged labeled row rejected, 23514 (604).**
+- *Original:* a direct insert of a labeled row with `false` throws 23514.
+- *Replacement:* the constructor with `array['TEST FIXTURE — NOT A DELIVERABLE (unflagged)'], false` throws 23514.
+- *Original guarantee:* the reverse direction of the label constraint.
+- *Replacement guarantee:* the same constraint through the constructor. The scratch attribution reports `23514 billing_package_scope_fixture_label`.
+- *Exposure:* as D-4.
+- *Compensating coverage:* item 2(b) and 2(d).
+- *Authorization:* approved in principle, subject to 2(b) and 2(d), now present. Needs an individual Owner disposition.
+- *Evidence:* 310 at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38` ("FD-14 (D-5)" rows); scratch attribution.
+
+**D-6: fixture rejected under staging, 42501 (622).**
+- *Original:* under staging, a direct fixture insert throws 42501.
+- *Replacement:* under staging, the constructor with a labeled fixture item throws 42501.
+- *Original guarantee:* the fixture guard rejects fixtures outside `development`/`test`.
+- *Replacement guarantee:* the same guard through the constructor. The constructor's marker matches, so the construction guard admits the item, and the scratch attribution reports `42501 private.billing_package_scope_fixture_guard`.
+- *Exposure:*
+  - The message is not pinned in the rewritten assertion.
+  - The construction guard is a second 42501 source on the path. Its header branch carries the identical message, but it is never reached here, because the item insert fails first.
+- *Compensating coverage:*
+  - Item 2(c), staging: exact message, plus the raising function read from the error context.
+  - Item 2(d): the trigger definition and enabled state.
+  - The WP-D18 "a fixture header is rejected under staging".
+- *Authorization:* approved in principle, subject to 2(c) and 2(d), now present. Needs an individual Owner disposition.
+- *Evidence:* 310 at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38` ("FD-14 (D-6)" rows); scratch attribution.
+
+**D-7: fixture rejected under preview, 42501 (632).**
+- *Original and replacement:* as D-6, under preview.
+- *Guarantees:* as D-6. The scratch attribution reports `42501 private.billing_package_scope_fixture_guard`.
+- *Exposure:* as D-6.
+- *Compensating coverage:* item 2(c), preview; 2(d).
+- *Authorization:* as D-6.
+- *Evidence:* 310 at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38` ("FD-14 (D-7)" rows).
+
+**D-8: fixture rejected with a missing classification, 42501 (638).**
+- *Original and replacement:* as D-6, with no `environment_settings` row (read as production).
+- *Guarantees:* as D-6. The scratch attribution reports `42501 private.billing_package_scope_fixture_guard`.
+- *Exposure:* as D-6.
+- *Compensating coverage:* item 2(c), missing classification; 2(d).
+- *Authorization:* as D-6.
+- *Evidence:* 310 at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38` ("FD-14 (D-8)" rows).
+
+**D-9: non-fixture setup, signature (646 to 647).**
+- *Original:* a direct insert of `('signature', 7, 1, 'PGTAP SYNTHETIC NON-FIXTURE ROW (rolled back)', false)`. Then `scope_rows('signature') = 1` with a missing classification.
+- *Replacement:* `create_package_scope_version('signature', array['PGTAP SYNTHETIC NON-FIXTURE ROW (rolled back)'], false)` creates sealed v2. The same assertion follows, with the same expectation.
+- *Original guarantee:* a non-fixture row resolves under any classification (the allowlist affects fixtures only).
+- *Replacement guarantee:* the same, through the sealed, re-verified resolver.
+- *Exposure:* none identified. The row is synthetic and rolled back with the transaction.
+- *Compensating coverage:* the WP-D18 re-verification assertions (hash, count, fixture consistency).
+- *Authorization:* approved in principle. Needs an individual Owner disposition.
+- *Evidence:* 310 at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38`.
+
+**D-10: fixture inserts under `test`, `lives_ok` (652).**
+- *Original:* under `test`, a direct fixture insert lives.
+- *Replacement:* under `test`, the constructor with a labeled fixture item lives.
+- *Original guarantee:* the allowlist admits fixtures under `test`.
+- *Replacement guarantee:* the same, through the constructor. The direct insertion is now intentionally rejected.
+- *Exposure:* none identified.
+- *Compensating coverage:* the WP-D18 direct-insert rejection assertions, and the following `scope_rows('prestige') = 1` under development (the newest fixture version resolves).
+- *Authorization:* approved in principle. Needs an individual Owner disposition.
+- *Evidence:* 310 at `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38`.
+
+**Findings for Main (no ID allocated; only Main allocates):**
+1. R1-HANDOFFS §2A item 2 cites "H-1", but no H-1 record exists on `main` (08, AUTHORIZATIONS, CURRENT-STATE and OPEN-ISSUES were searched). The item's own text was followed.
+2. Item 1 asks for no fixture label "in every migration other than" the sealing migration. The merged `20261125120100` necessarily contains it once, in the label constraint, and can never be edited. The controls exempt exactly that constraint text, asserted to match exactly once. Any other occurrence fails.
+3. Item 3 is stopped (options above).
+
+**Suites at `1eefdd9`** (local, fresh reset, CI order; the working tree was identical to `1eefdd9` for the test files):
+
+| Suite | Result |
+|---|---|
+| Lint, typecheck, format | Pass |
+| Unit | 16 files, **288** pass (286 + 2 new) |
+| Migration immutability | Pass |
+| pgTAP (`supabase test db`, TCP) | 27 files, **1533** pass (1520 + 13 new in 310). The 320 two-session block ran: 5 of 5 |
+| pgTAP (`pnpm test:db`, socket; after a fresh reset) | 27 files, 1533 planned, 0 failed; the 320 two-session block is 5 explicit skips |
+| Integration | 6 files, **81** pass |
+| Build, bundle scan, production build | Pass |
+| E2E | **51** pass |
+
+`pnpm test:db` must start from a fresh reset. Run after the integration and e2e suites, it reports failures in 13 files, because those suites leave data behind. This is pre-existing behavior of those files, not part of this change. The remote CI result on the exact head is recorded in PR #27.
+
+**Effort (OI-67), Amendment 1 continuation:** AI session about 0.5 h (2026-11-25, 07:10–07:40 UTC); administrative about 0.05 h (local stack restart); Owner review: the individual D-1 to D-10 dispositions and the item 3 decision are pending.

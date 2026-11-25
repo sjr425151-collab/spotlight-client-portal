@@ -711,3 +711,109 @@ No executable SQL, seed data, constructor call, fixture content, or environment 
 **Suites at `5ebd664`** (local, fresh reset, CI order): lint, typecheck, format pass; unit **288** pass; migration immutability pass; pgTAP (`supabase test db`) 27 files, **1533** pass; integration **81** pass; build, bundle scan, production build pass; e2e **51** pass. These counts are identical to `1eefdd9`.
 
 **Effort (OI-67), Amendment 2:** AI session about 0.2 h (2026-11-25, 07:33–07:45 UTC); administrative: none; Owner: none.
+
+### 14C. AUTH-007 Amendment 3: isolated concurrent-commit verification and D-1 correction (R1-HANDOFFS §2B)
+
+**Activation (confirmed read-only before starting):**
+- PR #33 merged into `main` at `f37cf7ecf13c7f25e37477684731a2e7d11e0943`.
+- Post-merge CI run 45583992649 (#103) on that exact commit completed `success`.
+- Work continues on `wp-d18/scope-sealing` from `9f9a5ca`, keeping its commits; not rebased.
+- Implementation commit: `d2077d2`.
+
+**Owner dispositions (FD-14, OI-105; Amendment 3):**
+- **D-2 to D-10 are individually approved.** Their records are in §14A, written at `bbf9b05` with evidence at `1eefdd9`; the line numbers were taken at `6173ffa`. CI evidence for that state: `9f9a5ca`, run 45569788777, 7/7.
+- **D-1 (Change 1) is not ratified as written.** The exact-filename correction is implemented below. Final ratification needs independent review of the corrected check, of the mutation evidence below, and of the stricter rule, which is held (see below).
+
+**Files:**
+
+| File | Status |
+|---|---|
+| F1 `scripts/wpd18-isolated-commit-test.sh` | **Done (new).** Builds `wpd18_iso_<run>_<pid>` from `template0`, refusing an existing name. Takes a read-only `pg_dump -Fc -n private` of the source and selects the 37 allow-listed entries: a missing, duplicate or extra entry, or a total other than 37, fails. Restores with `pg_restore --exit-on-error --single-transaction -L` (zero tolerated errors). A structural check refuses `--no-privileges`, `--no-acl`, `-x`, `--no-owner` and `-O` in the dump and restore commands. Requires parity, runs F4 over TCP, checks its TAP output, and verifies the source is unchanged. Drops the database in a trap on exit, error, interrupt and timeout, and asserts it is gone. The whole run is wrapped in `timeout 240`. |
+| F2 `supabase/tests-isolated/wpd18-restore-allowlist.txt` | **Done (new).** Exactly 37 descriptors (dump IDs removed): the dependency closure of the scope objects. That is 4 tables (`billing_packages`, `billing_package_scope`, `billing_package_scope_versions`, `environment_settings`), their data, 4 primary keys, 2 foreign keys and 7 triggers, plus 7 functions (`create_package_scope_version`, `current_package_scope`, the construction guard, the fixture guard, `app_environment`, `insert_only`, `audit_events_immutable`) with their ACLs, and the `private` schema with its ACL. None of these references `public`, `auth`, `storage` or `vault`; the only external dependency is `extensions.digest` (`pgcrypto`). |
+| F3 `supabase/tests-isolated/wpd18_parity.sql` | **Done (new).** Read-only. Section `fp` is the 67-line catalog fingerprint, with ACLs normalized by `acldefault()`. It covers the schema, 4 tables, 20 columns, 19 constraints, 4 indexes, 7 triggers with their enabled state, and 7 functions (owner, SECURITY DEFINER, `search_path`, ACL, definition MD5). It also records effective privileges for `anon`, `authenticated`, `service_role` and `public`, and the classification. Section `state` holds headers, items (text SHA-256), resolved scope and totals. The `fp` section is byte-identical to the fingerprint reviewed in scratch. |
+| F4 `supabase/tests-isolated/wpd18_commit_race.test.sql` | **Done (new).** TAP, `1..25`. It refuses to run outside a `wpd18_iso_*` database or without TCP. See the assertions below. |
+| F5 `.github/workflows/ci.yml` (one step) | **Not yet: by sequencing.** It lands only when PR #27 is brought up to date after WP-I-1 and WP-H merge (Amendment 3). Until then CI does not run F1; the evidence below is local. |
+| F6 `tests/unit/wps-sales.test.ts` | **Partly done.** The D-1 exact-filename correction is implemented as one helper (`scopeInsertViolations`), used for the real migrations and for the synthetic inputs, with the mutation test. **Held:** the stricter lexical rule (conflict below). **With F5:** the check that the F5 step is present and unconditional. |
+| F7 this record and the PR #27 description | **Done.** |
+
+**F4 assertions:**
+1. 1–4: every API role lacks execute on the constructor and resolver and every table privilege on both tables.
+2. 5: all 7 triggers are enabled.
+3. 6: real second and third backends answer.
+4. 7–9: while A holds version 2 uncommitted, an independent session sees 0 headers and 0 items for it and still resolves version 1 (3 items).
+5. 10–11: B waits. A bounded poll (at most 100 checks, 50 ms apart) finds B's ungranted advisory lock in `pg_locks`, and `dblink_is_busy` = 1.
+6. 12–13: A built version 2. After A commits, B builds and commits version 3.
+7. 14–17:
+   - headers are exactly `1:3, 2:1, 3:2` (version:items), all fixtures
+   - positions run 1..n with item counts equal to the headers
+   - every hash equals an independent canonical recomputation
+   - the resolver returns version 3, positions 1 and 2, with the exact texts
+8. 18–23: each of these is rejected with 42501:
+   - a forged-marker addition to version 2 ("sealed")
+   - a header update or delete
+   - truncating the headers
+   - an item update
+
+   All 7 triggers are still enabled afterwards.
+9. 24–25: A holds and never commits; B fails with `55P03` (lock timeout) within 5 s. A's version rolls back when its session ends.
+
+Every session sets `statement_timeout` (20 s) and `lock_timeout` (15 s); the coordinator's limit is 60 s.
+
+**Conflict, escalated to Main and the Owner; not resolved here, and no ID allocated.**
+- The recorded stricter rule says: outside `20261125120100` and the exact `20261126140000`, a migration that names `billing_package_scope` in any form fails.
+- The **merged** `20261125120200_wps_oi85_separation.sql` names the table at lines 109–113 (the C5 append-only and no-truncate triggers). Merged migrations are never edited, so the rule as recorded would fail CI.
+- The WP-S proposal (§6.4) made the same omission.
+- Options:
+  - (a) Add `20261125120200_wps_oi85_separation.sql` to the exact-name exemptions (recommended).
+  - (b) Apply the rule only to migrations after `20261126140000`.
+- The stricter rule is held until a decision is recorded. The runtime construction guard remains the enforcing control.
+
+**Evidence at `d2077d2` (local stack; F1 is not yet in CI):**
+
+| Check | Result |
+|---|---|
+| `./scripts/wpd18-isolated-commit-test.sh`, fresh reset | PASS 25/25: 37 of 683 dump entries selected, restore with no errors, 67 fingerprint lines and 26 state lines identical, source identical before and after, about 8 s, the disposable database dropped and its absence verified |
+| The same, after the full suite (post-e2e database) | PASS 25/25, cleanup verified |
+| Negative cases (scratch mutations of the working files, restored after each and compared with `cmp` against a baseline copy) | Each exits 1 and leaves no `wpd18_iso_*` database:<br>• allow-list with an entry missing: "36 entries, expected 37"<br>• unknown entry: "matched 0 dump entries"<br>• duplicate entry: "duplicate entries"<br>• replaced entry: "matched 0"<br>• wrong race expectation: `not ok 13`<br>• injected `# SKIP` line: TAP check fails<br>• `--no-privileges` or `--no-owner` in the dump command: refused before anything is created<br>• conflicting object before the restore: `pg_restore` aborts ("schema "private" already exists"), cleanup runs<br>• TERM during the race: cleanup drops the database |
+| Shared database after all the runs | Package-scope state byte-identical to the seeded state |
+| D-1 mutation, synthetic (unit) | The exact `20261126140000_wpd18_scope_version_sealing.sql` passes. `…_wpd18_scope_version_sealing_v2.sql`, `…_x_wpd18_scope_version_sealing.sql` and `…sealing.sql.bak` each fail (`insert-outside-sealing-migration`). An insert into `_versions` in another migration fails. A literal fails even in the exact file. A clean migration passes. |
+| D-1 mutation, real file (scratch) | A temporary `supabase/migrations/20270101000000_wpd18_scope_version_sealing_v2.sql` containing `insert into private.billing_package_scope select * from private.staging_rows;` fails the T-SALES-36 check ("1 failed \| 16 passed"); after removal, 17/17 pass. The former substring exemption let the same file pass (scratch, 16/16). |
+| Full suites, CI order | Lint, typecheck, format pass. Unit 289 (288 + 1). Migration immutability pass. pgTAP 27 files, 1533. Integration 81. Build, bundle scan, production build pass. E2E 51. |
+
+**D-1 lexical limitations (measured):** the Change 1 pattern recognizes only `insert into private.billing_package_scope…`. It does not recognize:
+- quoted identifiers
+- whitespace around the dot
+- an unqualified name under `search_path`
+- `COPY`
+- `MERGE`
+- dynamic SQL
+- a comment between `insert` and `into`
+- dollar-quoted or `chr()`-built text inside the exact exempt file
+
+All of these are rejected at runtime by `billing_package_scope_construction_guard`, which fires BEFORE INSERT for INSERT, COPY and MERGE, unless the construction marker is set; marker use is a separate lexical control. The held stricter rule would close the quoted, spaced, COPY, MERGE and comment forms.
+
+**Scratch evidence carried into this record:**
+- The full-clone probes: `--no-privileges` widened privileges, and the clone without that flag had 74 restore errors.
+- The scoped design probe: zero errors, parity, the race, the 55P03 case, cleanup.
+- The F1 baseline and negative-case outputs.
+- The Amendment 2 seed evidence.
+
+It is in the WP-S session scratchpad (41 files; `MANIFEST.sha256` SHA-256 `f150b8316909008475804a98bc3eff84f0236c75e6f6f42bd60993f0c68c9e88`).
+
+Selected entries:
+
+| File | SHA-256 |
+|---|---|
+| `commit_race_probe.sql` | `f3be881b523ee30ab817920ee3b38b9ede5753be83f55922dc89b3ef0ecd89d3` |
+| `probe-results-2026-11-25.md` | `46580faaf20c1e9972fb45ace1fe0855bc4f08943b9d0425750fc55d712f5479` |
+| `restore-design/allow.list` | `be187367564800dc7a1dcc93c9d9609b518adf0106ae8ed2275cbdf58b8ff6f1` |
+| `restore-design/commit_race_iso.out` | `0dd99c19d590cccaaf6b23cbcfccc3f4603d6f48627219f41aaffc68b17fb265` |
+| `restore-design/commit_race_iso.sql` | `55b245fe79d791df71f3b8723c22f222196fef1d443363fb144a34b786baed4c` |
+| `restore-design/parity.sql` | `213a801ac92acc6a732a65d18387447af11016b223f6bfa97c511f50a84989eb` |
+| `restore-design/timeout_probe.out` | `525aa7a3458a65380b0923e4c3f18ee5ed2344db18aff54aa88ed5e52c7bf6c0` |
+| `restore-design/timeout_probe.sql` | `f6b178208a2dc47e96482053669cb797c430b87139d7b3a5230f89ba3da5474d` |
+| `state.before.txt` | `58f3a4308d3b4131c3f4848c5cadb515017581e89d5fb0e7bbc4a13be589200d` |
+| `tools/sqlstrip.py` | `3006ad0205ec3ef0b8d35b61e00471e9addd07ea2c237cb08bfe05b6e314ac2a` |
+| `wpd18-amendment3-proposal.md` | `d7334df0104fd6d8384544911269aa26bfe99b298b8b6a691d3bede11574cef4` |
+
+**Effort (OI-67), Amendment 3:** AI session about 1.2 h (2026-11-25, design probes and implementation); administrative about 0.1 h (two Docker daemon recoveries after container recycles); Owner: dispositions D-2 to D-10, Option A, and the D-1 direction.

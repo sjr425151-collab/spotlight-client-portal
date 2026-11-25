@@ -1,0 +1,299 @@
+import AxeBuilder from "@axe-core/playwright";
+import { expect, test, type Browser, type Page } from "@playwright/test";
+
+import { withDb } from "../support/db";
+import { clearMailbox, codeFrom, waitForEmail } from "../support/mailpit";
+import { totp } from "../support/totp";
+
+/**
+ * WP-S browser tests (WP-S directive item 10; 03 §4.1, §13), against the LOCAL Supabase stack
+ * with synthetic users. Each step checks the authoritative database state and audit rows
+ * behind what the browser shows, not just the page:
+ * - forced MFA enrollment for a Sales Representative; /staff and /portal deny it (T-SALES-03,
+ *   T-SALES-12)
+ * - create a customer (atomic customer, project, and self-assignment; T-SALES-04)
+ * - issue an order summary by package key with the derived scope (T-SALES-06, T-SALES-31)
+ * - invite the client and resend as revoke and reissue (T-SALES-07, T-SALES-33)
+ * - an unassigned project is a 404 (T-SALES-05)
+ * - the Owner ends the assignment; the same signed-in session loses the project at once
+ *   (T-SALES-14, T-SALES-26, T-SALES-28)
+ */
+test.describe.configure({ mode: "serial" });
+
+const SALES = "sales@example.test";
+const OWNER = "owner@example.test";
+const SALES_ID = "00000000-0000-4000-8000-000000000005";
+const OWNER_ID = "00000000-0000-4000-8000-000000000001";
+const PROJECT_A = "20000000-0000-4000-8000-0000000000a0";
+const RUN = Date.now().toString(36);
+const LEGAL_NAME = `E2E WP-S ${RUN} LLC`;
+const PROJECT_NAME = `E2E WP-S ${RUN} website`;
+const CLIENT_EMAIL = `wps.client.${RUN}@example.test`;
+
+let sales: Page;
+let projectId = "";
+
+async function expectAccessible(page: Page) {
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map(({ id, nodes }) => ({ id, count: nodes.length }))).toEqual([]);
+}
+
+async function signIn(page: Page, email: string) {
+  await page.waitForTimeout(1100);
+  await clearMailbox(email);
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill(email);
+  await page.getByRole("button", { name: "Email me a sign-in code" }).click();
+  await expect(page.locator("main").getByRole("status")).toContainText(
+    "If this email belongs to a portal account",
+  );
+  await page.getByLabel("Sign-in code").fill(codeFrom(await waitForEmail(email)));
+  await page.getByRole("button", { name: "Sign in" }).click();
+}
+
+async function enrollTotp(page: Page, home: RegExp) {
+  await expect(page).toHaveURL(/\/mfa/);
+  await page.getByRole("button", { name: "Set up authenticator app" }).click();
+  const secret = (await page.locator("code").textContent())?.trim() ?? "";
+  await page.getByLabel("Authenticator code").fill(totp(secret));
+  await page.getByRole("button", { name: "Verify and continue" }).click();
+  await expect(page).toHaveURL(home);
+}
+
+async function ownerPage(browser: Browser): Promise<Page> {
+  await withDb((db) => db.query("delete from auth.mfa_factors where user_id = $1", [OWNER_ID]));
+  const page = await (await browser.newContext()).newPage();
+  await signIn(page, OWNER);
+  await enrollTotp(page, /\/staff/);
+  return page;
+}
+
+async function lastAudit(action: string) {
+  const { rows } = await withDb((db) =>
+    db.query(
+      `select actor_user_id, actor_role, project_id, summary from public.audit_events
+        where action = $1 order by id desc limit 1`,
+      [action],
+    ),
+  );
+  return rows[0];
+}
+
+test.beforeAll(async () => {
+  await withDb(async (db) => {
+    await db.query("delete from auth.mfa_factors where user_id = $1", [SALES_ID]);
+    await db.query("delete from private.rate_limits where bucket like 'sales-%'");
+  });
+});
+
+test("T-SALES-03 / T-SALES-12: a Sales Representative must enroll MFA and reaches only /sales", async ({
+  browser,
+}) => {
+  sales = await (await browser.newContext()).newPage();
+  await signIn(sales, SALES);
+  // aal1: every route sends the representative to MFA enrollment first.
+  await expect(sales).toHaveURL(/\/mfa\?next=%2Fsales/);
+  await expect(sales.getByRole("heading", { name: "Set up two-step verification" })).toBeVisible();
+  for (const path of ["/sales", "/staff", "/portal"]) {
+    await sales.goto(path);
+    await expect(sales, path).toHaveURL(/\/mfa/);
+  }
+  await enrollTotp(sales, /\/sales$/);
+  const factors = await withDb((db) =>
+    db.query(
+      "select count(*)::int as n from auth.mfa_factors where user_id = $1 and status = 'verified'",
+      [SALES_ID],
+    ),
+  );
+  expect(factors.rows[0].n).toBe(1);
+
+  // aal2: the staff area and the client portal still deny the representative.
+  await sales.goto("/staff");
+  await expect(sales).toHaveURL(/\/sales$/);
+  await sales.goto("/staff/team");
+  await expect(sales).toHaveURL(/\/sales$/);
+  await sales.goto("/portal");
+  await expect(sales).toHaveURL(/\/sales$/);
+  await expect(sales.getByRole("heading", { name: "Your customers" })).toBeVisible();
+  await expectAccessible(sales);
+});
+
+test("T-SALES-04: the representative creates a customer, project, and its own assignment", async () => {
+  await sales.getByLabel("Business legal name").fill(LEGAL_NAME);
+  await sales.getByLabel("Project name").fill(PROJECT_NAME);
+  await sales.getByRole("button", { name: "Create customer" }).click();
+  await expect(sales).toHaveURL(/\/sales\/projects\/[0-9a-f-]{36}\?notice=customer_created/);
+  projectId = /projects\/([0-9a-f-]{36})/.exec(sales.url())![1]!;
+  await expect(sales.getByRole("heading", { name: PROJECT_NAME })).toBeVisible();
+
+  const { rows } = await withDb((db) =>
+    db.query(
+      `select p.created_by as project_by, b.created_by as business_by, b.legal_name,
+              a.sales_user_id, a.assigned_by, a.active
+         from public.projects p join public.client_businesses b on b.id = p.client_business_id
+         join public.project_sales_assignments a on a.project_id = p.id
+        where p.id = $1`,
+      [projectId],
+    ),
+  );
+  expect(rows).toEqual([
+    {
+      project_by: SALES_ID,
+      business_by: SALES_ID,
+      legal_name: LEGAL_NAME,
+      sales_user_id: SALES_ID,
+      assigned_by: SALES_ID,
+      active: true,
+    },
+  ]);
+  expect(await lastAudit("sales.customer_created")).toMatchObject({
+    actor_user_id: SALES_ID,
+    actor_role: "sales",
+    project_id: projectId,
+  });
+  await expectAccessible(sales);
+});
+
+test("T-SALES-06 / T-SALES-31: the order summary takes the package key; pricing and scope are derived", async () => {
+  // The form offers no scope, note, amount, or price field (OI-84(b)).
+  for (const label of ["Scope", "Project notes", "Amount", "Price", "Discount"]) {
+    await expect(sales.getByLabel(label, { exact: true })).toHaveCount(0);
+  }
+  await sales.getByLabel("Package").selectOption("professional");
+  await sales.getByRole("button", { name: "Issue order summary" }).click();
+  await expect(sales).toHaveURL(/notice=order_summary_issued/);
+  const summary = sales.getByTestId("sales-order-summary");
+  await expect(summary).toContainText("$1,495.00");
+  await expect(summary).toContainText("$299.00");
+  await expect(summary).toContainText("$1,196.00");
+  await expect(summary).toContainText("TEST FIXTURE — NOT A DELIVERABLE");
+
+  const { rows } = await withDb((db) =>
+    db.query(
+      `select package_key, package_total_cents, deposit_cents, balance_cents, maintenance_monthly_cents,
+              scope_items, project_notes, issued_by
+         from public.order_summaries where project_id = $1 and status = 'presented'`,
+      [projectId],
+    ),
+  );
+  const scope = await withDb((db) =>
+    db.query(
+      `select jsonb_agg(item_text order by position) as items from private.billing_package_scope
+        where package_key = 'professional'
+          and scope_version = (select max(scope_version) from private.billing_package_scope where package_key = 'professional')`,
+    ),
+  );
+  expect(rows).toEqual([
+    {
+      package_key: "professional",
+      package_total_cents: 149500,
+      deposit_cents: 29900,
+      balance_cents: 119600,
+      maintenance_monthly_cents: 9900,
+      scope_items: scope.rows[0].items,
+      project_notes: null,
+      issued_by: SALES_ID,
+    },
+  ]);
+  expect((await lastAudit("order_summary.issued")).summary).toMatchObject({
+    package_key: "professional",
+    scope_version: 1,
+  });
+});
+
+test("T-SALES-07 / T-SALES-33: invite the client, then resend as revoke and reissue", async () => {
+  await sales.getByLabel("Full name").fill("WP-S Client");
+  await sales.getByLabel("Email").fill(CLIENT_EMAIL);
+  await sales.getByRole("button", { name: "Send invitation" }).click();
+  await expect(sales).toHaveURL(/notice=invite_sent|notice=invite_existing_user/);
+  const invitations = sales.getByTestId("sales-invitations");
+  await expect(invitations).toContainText(CLIENT_EMAIL);
+
+  const pending = async () =>
+    (
+      await withDb((db) =>
+        db.query(
+          "select id, created_by, status from public.invitations where email = $1 order by created_at",
+          [CLIENT_EMAIL],
+        ),
+      )
+    ).rows;
+  const before = await pending();
+  expect(before).toEqual([{ id: expect.any(String), created_by: SALES_ID, status: "pending" }]);
+  expect(await lastAudit("invitation.created")).toMatchObject({
+    actor_role: "sales",
+    project_id: projectId,
+  });
+
+  await invitations.getByRole("button", { name: "Resend" }).click();
+  await expect(sales).toHaveURL(/notice=invitation_resent/);
+  const after = await pending();
+  expect(after.map((r) => r.status)).toEqual(["revoked", "pending"]);
+  expect(after[0]!.id).toBe(before[0]!.id);
+  expect(after[1]!.id).not.toBe(before[0]!.id);
+  expect(await lastAudit("invitation.revoked")).toMatchObject({
+    actor_role: "sales",
+    project_id: projectId,
+  });
+  await expectAccessible(sales);
+});
+
+test("T-SALES-05: an unassigned project is not found", async () => {
+  const response = await sales.goto(`/sales/projects/${PROJECT_A}`);
+  expect(response?.status()).toBe(404);
+  const staffView = await sales.goto(`/staff/projects/${PROJECT_A}`);
+  await expect(sales).toHaveURL(/\/sales$/);
+  expect(staffView?.ok()).toBe(true);
+  await expect(sales.getByTestId("sales-customers")).not.toContainText("Project A website");
+});
+
+test("T-SALES-14 / T-SALES-26 / T-SALES-28: ending the assignment removes access from the open session", async ({
+  browser,
+}) => {
+  const owner = await ownerPage(browser);
+  await owner.goto("/staff/team");
+  const row = owner.getByTestId("sales-assignments").locator("li", { hasText: PROJECT_NAME });
+  await expect(row).toHaveCount(1);
+  await row.getByRole("button", { name: "End assignment" }).click();
+  await expect(owner).toHaveURL(/notice=assignment_ended/);
+  await expect(
+    owner.getByTestId("sales-assignments").locator("li", { hasText: PROJECT_NAME }),
+  ).toHaveCount(0);
+
+  const { rows } = await withDb((db) =>
+    db.query(
+      `select a.active, a.ended_by,
+              (select array_agg(event order by id) from public.project_sales_assignment_history h where h.assignment_id = a.id) as history,
+              (select issued_by from public.order_summaries o where o.project_id = a.project_id and o.status = 'presented') as issued_by
+         from public.project_sales_assignments a where a.project_id = $1`,
+      [projectId],
+    ),
+  );
+  expect(rows).toEqual([
+    { active: false, ended_by: OWNER_ID, history: ["created", "ended"], issued_by: SALES_ID },
+  ]);
+  expect(await lastAudit("sales_assignment.ended")).toMatchObject({
+    actor_user_id: OWNER_ID,
+    actor_role: "owner",
+    project_id: projectId,
+  });
+
+  // The representative's existing, still-valid session: no sign-in again.
+  const response = await sales.goto(`/sales/projects/${projectId}`);
+  expect(response?.status()).toBe(404);
+  await sales.goto("/sales");
+  await expect(sales.getByTestId("sales-customers")).not.toContainText(PROJECT_NAME);
+
+  // The invitation the representative sent stays pending for the agency (OI-78).
+  await owner.goto(`/staff/projects/${projectId}`);
+  await expect(owner.getByRole("main")).toContainText(CLIENT_EMAIL);
+  const pending = await withDb((db) =>
+    db.query(
+      "select count(*)::int as n from public.invitations where email = $1 and status = 'pending'",
+      [CLIENT_EMAIL],
+    ),
+  );
+  expect(pending.rows[0].n).toBe(1);
+});

@@ -439,14 +439,14 @@ select is(private.wpc_is_client_member(pg_temp.id('c3')), false,
   'T-SALES-24: the WP-C client check (which gates preview approval) denies the representative');
 select is((select count(*)::int from public.agreement_acceptances where project_id = pg_temp.id('c3')), 0,
   'T-SALES-24: no acceptance was recorded');
--- Escalated (OI-85), not asserted: Phase 2 and WP-B READ policies use
+-- Escalated (proposed issue WPS-P1, ID to be allocated by Main), not asserted: Phase 2 and WP-B READ policies use
 -- private.is_project_member(), which AUTH-005 does not allow WP-S to change, so a membership
 -- row inserted directly by the migration owner exposes those rows (projects,
 -- client_businesses, the own membership, and WP-B rows keyed on is_project_member). No API
 -- path can create such a membership for a Sales Representative (proven above). Reported as
 -- a diagnostic only, so it is neither hidden nor counted as a pass.
 select pg_temp.use_session('00000000-0000-4000-8000-000000000005', pg_temp.id('s1'), 'aal2', true);
-select diag('OI-85: rows readable by a Sales Representative holding a fixture membership: projects='
+select diag('WPS-P1: rows readable by a Sales Representative holding a fixture membership: projects='
   || (select count(*) from public.projects) || ', client_businesses=' || (select count(*) from public.client_businesses)
   || ', order_summaries=' || (select count(*) from public.order_summaries));
 reset role;

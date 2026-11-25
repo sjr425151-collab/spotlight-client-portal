@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.21.1 |
+| Version | 0.21.2 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
 | Next unused issue ID | **OI-85** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-19** |
@@ -118,7 +118,21 @@ OI-79 (item by item) and OI-82 (allocation architecture, subject to DEP-03 and D
 
 OI-84 was decided on 2026-11-24; its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The discrepancies and options considered remain in this file's Git history.
 
-**None open.**
+**None open with an ID.**
+
+### Proposed by WP-S (2026-11-25), awaiting ID allocation by Main and Owner decision
+
+WP-S does not allocate IDs (central allocation, Owner 2026-11-24). Labels WPS-P1 to WPS-P7 are temporary. None blocks the WP-S pull request's review. Each was implemented with the more restrictive reading where a choice existed; nothing approved was changed. Evidence: [CURRENT-STATE §11](docs/CURRENT-STATE.md#11-wp-s-implementation-record).
+
+| Label | Item | Conflict or gap | Implemented now | Options for the Owner |
+|---|---|---|---|---|
+| **WPS-P1** | T-SALES-24, policy clause | T-SALES-24 requires every client-only **policy** to deny a Sales Representative "even when a test fixture inserts a membership row directly". The Phase 2 read policies (`projects`, `client_businesses`, `project_memberships`) and WP-B's (`order_summaries`, `agreement_versions`, `agreement_acceptances`) key on `private.is_project_member()`, which is not in the AUTH-005 object list (stop condition: no other Phase 2 object may change). Measured: with a fixture membership, the representative reads that project's row, its business row, and its order summary | Every client-only **function** denies (pgTAP 310); a Sales user can never acquire a membership through any API, including under concurrency (create, accept, and `set_staff_role` rejections, serialized per user); the measurement is reported as a pgTAP diagnostic, not as a pass | (a) Accept prevention as the control and amend T-SALES-24's policy clause; (b) a separate Tier 2 grant to add `and private.staff_role_of(auth.uid()) is distinct from 'sales'` to `private.is_project_member()` (one Phase 2 helper; recommended, small, closes the gap at the policy layer) |
+| **WPS-P2** | T-SALES-23 wording | T-SALES-23 says a Sales Representative reads no row "except its own profile". The Phase 2 policy `staff_roles_select` (`user_id = auth.uid()`, unchangeable under AUTH-005) shows every user its own role row, and AUTH-005 itself grants "its own active rows" of `project_sales_assignments` | The enumerated test allows exactly: own profile, own staff-role row, and own active assignments (aal2 only; none at aal1); every other row of every exposed table and view is denied | Confirm this reading (recommended), or amend the wording |
+| **WPS-P3** | `requireClient` strictness | 03 §4.1 requires an active membership for `requireClient`. An existing confirmed user with **no** active membership who receives a new client invitation can no longer accept it in the portal (03 §6.1 step 2, 03A S-06), and Supabase does not email confirmed users | Strict reading; such a user is shown "no active project" and can sign out. `src/app/portal/*` is not in the AUTH-005 file list, so no separate invitee-only path was added | (a) Keep strict; (b) authorize an invitee-only portal path (shows and accepts only invitations bound to the verified email) |
+| **WPS-P4** | Pre-existing WP-B lock order (finding for WP-B) | `issue_order_summary` locks the project row `FOR UPDATE`, then the presented order summary; `accept_agreement` locks the order summary, then takes `FOR KEY SHARE` on the project through the acceptance foreign key. A true race deadlocks; PostgreSQL aborts one side (40P01). Reproduced for the **Owner** path as well as the Sales path | Outcome is correct (exactly one succeeds; the aborted side leaves nothing; T-SALES-32 integration). The client or staff member sees "Something went wrong" and retries | WP-B follow-up: lock the project `FOR NO KEY UPDATE` in `issue_order_summary` (no conflict with the foreign-key lock), with its own review |
+| **WPS-P5** | Rate-limit values | AUTH-005 requires per-user buckets but names no limits | `sales_create_customer_project`: 10 per hour; Sales invitation operations (create, revoke; resend counts both): 30 per hour; the Phase 2 50-per-hour invitation bucket still applies | Confirm or set values |
+| **WPS-P6** | Audit names beyond the directive's list | 03 §4.1 requires the rejections to be audited, but the directive lists no name for them | `sales_assignment.change_rejected` (T-SALES-16), `invitation.create_rejected` (T-SALES-24), `staff_role.sales_assignment_rejected` (T-SALES-24); all general, in the WP-S contract section | Confirm the names |
+| **WPS-P7** | Progress view scope | The directive limits `sales_project_progress` to derived states "through the two gate interfaces"; two of Admin's six OI-72 states (payment recovery required, Owner intervention required) are not derivable from them | Returned: agreement state, deposit and final-balance requirements, billing-hold presence (boolean), intake state, preview approved, publication eligible (the single evaluator) | Confirm, or authorize the two extra derived booleans |
 ---
 
 ## Part 3 — Implementation and production dependencies

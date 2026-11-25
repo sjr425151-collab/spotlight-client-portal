@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.10.0 |
+| Version | 1.11.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the WP-S branch authorization record (AUTH-005 granted and active), based on `main` at `005cc36` |
+| Last updated | 2026-11-25, by the WP-S implementation pull request (AUTH-005), based on `main` at `005cc36` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -16,7 +16,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
-| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI) |
+| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-005** (Tier 2: WP-S, local and CI; active 2026-11-25) |
 | Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
@@ -31,7 +31,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI run #39 on `main` concluded `success`, 2026-11-24). OI-71 and OI-72 decided. Integration closed by the integration closure PR. |
 | WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including OI-74, OI-75, OI-81, OI-82, OI-83, and B1 | **Done** (PR #20, merge commit `8ac8143`; post-merge CI run #66 `success`). **N1 is a mandatory blocker for R1 release-candidate acceptance** (04 §15.2.1 rule 9; §7). Implementation record in §10. |
 | WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **Done** (PR #19, merge commit `bcddb1f`; post-merge CI run #63 `success`). Review findings H1, M1, M2 closed. |
-| WP-S | Sales Representative authorization infrastructure (03 §4.1; OI-77, OI-78, OI-84) | **Authorized; implementation not started.** AUTH-005 granted and active 2026-11-25 (§9 activation record); branch `wp-s/sales-representative` from `005cc36`. |
+| WP-S | Sales Representative authorization infrastructure (03 §4.1; OI-77, OI-78, OI-84) | **Implemented; in review.** Branch `wp-s/sales-representative` from `005cc36` (AUTH-005 active 2026-11-25). Awaiting WP-B review of the `issue_order_summary` replacement, Main's architecture, security and integration review, and the Owner's merge. Seven proposals for Owner decision (WPS-P1 to WPS-P7, OPEN-ISSUES). Implementation record in §11. **DEP-18 remains a mandatory R1 release-candidate blocker.** |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. Hosted environments receive reviewed migrations only: no seed, no database reset; WP-D verifies and documents this before hosted-environment acceptance (A3). |
 | WP-E | Legal, tax, and commercial approvals | Owner. Not started (DEP-03, DEP-04, DEP-05). |
 | **R1** release candidate | Complete controlled transaction (01 §9.1) | Not started |
@@ -91,7 +91,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. Review the WP-S pull request when it is ready (WP-B and Main reviews first); only the Owner merges it. PR #21 and PR #22 are merged; AUTH-005 is granted and active.
+1. Review the WP-S pull request (WP-B and Main reviews first); only the Owner merges it. Decide WPS-P1 to WPS-P7 (OPEN-ISSUES, after Main allocates IDs).
 2. (Done 2026-11-25) AUTH-005 granted.
 2a. Supply the standard scope for each package (DEP-18) and include it in counsel review (DEP-03).
 3. Review OWNER-RUNBOOKS (proposed).
@@ -186,7 +186,7 @@ A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, the
 | Stream | Next step | Read first | Authorization |
 |---|---|---|---|
 | Integration (primary session) | Merge order and reviews for WP-S; F2 (§7); then the integrated R1 browser and security suite T-E2E-01 to T-E2E-10 and the T-SALES set; track the R1 release-candidate blockers (§7) | §7, §9; 01 §9.1, §9.1.1 | AUTH-000; AUTH-001 for cross-package tests |
-| WP-S (`wp-s/sales-representative`, integration stream) | Implement the **WP-S directive** below; entry recorded (activation record) | 03 §3, §4, §4.1, §13; 04 §4; 08 OI-77, OI-78, OI-84; AUTHORIZATIONS AUTH-005 | **AUTH-005 (granted, active)** |
+| WP-S (`wp-s/sales-representative`, integration stream) | **Implemented** (§11). Next: WP-B review of `issue_order_summary`, Main review, corrections from review, Owner merge | §11; 03 §4.1, §13; AUTHORIZATIONS AUTH-005 | **AUTH-005 (granted, active)** |
 | WP-B follow-up | N1(a) safe attribution of deferred reversal events, as a small PR before the R1 release candidate | 04 §15.2.1 rules 8–9 | AUTH-001 |
 
 **AUTH-005 activation record (2026-11-25):** Owner grant 2026-11-25 (conditional, with the environment-isolation amendment). Conditions: (a) PR #22 merged at `005cc36130e582b098bcbcbc3c9d85dd87bb91e9` (parents `0b289f3`, `eb34fe2`; tree identical to the reviewed head; no migration changed), post-merge CI run #72 (id 45514706755) `success` with the full suite including T-MIG-01 and T-MIG-02; (b) read-only revalidation on `005cc36`: no migration or source change since `8ac8143`; Phase 2 objects (1) to (7) as recorded (`staff_role` = owner, admin, fulfillment; `invitations_kind_shape`; `is_staff()` = any staff role; `create_invitation` staff path Owner with fresh MFA and the per-user rate limit; `revoke_invitation`, `accept_invitation`, `set_staff_role` present); app files present; `issue_order_summary` guard and lock order as recorded; `begin_initial_checkout` client-only; order-summary snapshot guard covers scope and notes; both WP-C corrections present; no name collision; 46 `is_staff()` and 20 `wpc_is_staff_aal2()` call sites; environment classification (`private.environment_settings`) writable only by the migration owner, so the allowlist amendment is enforceable without changes; (c) inventory accurate; (d) this record committed on `wp-s/sales-representative` before implementation; (e) no unresolved conflict. **AUTH-005 is active.** Reviews: WP-B independently approves the `issue_order_summary` replacement; Main reviews architecture, security, and integration; WP-S never merges its own PR; the Owner alone merges.
@@ -267,3 +267,81 @@ Local evidence for the §9 WP-B directive, on branch `wp-b/billing-ledger` rebas
 - The OI-82 holding path cannot be reached on the final-balance charge (one obligation, rule a); its G4 wiring is proven with a fixture in pgTAP 140.
 
 **Remaining dependencies:** DEP-06 (Stripe items) and DEP-15 (T-PAY-16) under AUTH-002; DEP-17 scheduler binding (WP-D); DEP-03 final UI and legal wording; integrated R1 journey T-E2E-01 to T-E2E-10 (integration stream).
+
+## 11. WP-S implementation record
+
+Local evidence for the §9 WP-S directive on `wp-s/sales-representative` (from `005cc36`; AUTH-005 recorded at `a8ae91d` before any implementation). **Verified** by the commands named, on a freshly reset local stack (Supabase CLI 3.2.0, checksum verified; Node 24.22.3; pnpm 12.21.0), in the CI order. Remote CI for the exact head is recorded in the pull request. Lighthouse was **not run locally**; it runs in CI.
+
+### 11.1 Directive items
+
+| Item | Implementation |
+|---|---|
+| 1. Entry | Branch, baseline `005cc36`, and authorization commit `a8ae91d` verified; `wpc_is_client_member` (`staff_role_of(...) is null` plus membership) and `record_live_verification` (Owner or Admin requester) present; baseline pgTAP 24 files, 1166 assertions, all pass |
+| 2. Migration A | `20261125120000_wps_staff_role_sales.sql`: `staff_role` adds `sales` (only statement) |
+| 3. Migration B, Phase 2 objects | `20261125120100_wps_sales_representative.sql`: `invitations_kind_shape` (adds `sales`); `is_staff()` = `coalesce(staff_role_of(uid) in ('owner','admin'), false)` (strict boolean, so every `not is_staff() or …` restrictive policy is unchanged for clients); `create_invitation` and `revoke_invitation` (Sales: client invitations to an actively assigned project only, never to a staff address, per-user Sales bucket; any inviter: no client invitation to a Sales address); `accept_invitation` (adds `sales_role` and `client_membership` rejections); `set_staff_role` (rejects `sales` with an active membership). Owner and Admin bodies copied verbatim |
+| 4. New objects | `project_sales_assignments` (one active per project; ended once, never deleted) and `project_sales_assignment_history` (append-only, trigger-written), both with RLS and the restrictive loops, no write grant to any API role; `is_sales()`, `sales_assigned(uuid)`; `sales_create_customer_project`, `assign_sales_representative`, `end_sales_assignment`, `sales_list_customers`, `sales_project_progress` (definer, `search_path = ''`, invoker wrappers); `billing_package_scope` (flag, bidirectional label check, environment-allowlist trigger, no grants) and `current_package_scope(text)` (allowlist re-checked per call; a current version with an ineligible fixture returns nothing). Helper triggers: `project_sales_assignments_guard`, `project_sales_assignments_history`, `billing_package_scope_fixture_guard` |
+| 5. Rate limits | Per-user buckets: customer creation 10/hour, Sales invitation operations 30/hour (WPS-P5); rejections audited `sales.rate_limited` |
+| 6. WP-B | `issue_order_summary` replaced with one added caller (`sales_assigned`, re-read after the project lock); for Sales only: scope or notes rejected and audited, scope copied from the current definition with its version in `order_summary.issued`, missing definition fails closed, acceptance or verified deposit rejects after the order-summary lock. Owner and Admin path, signature, grants, pricing, OI-81 unchanged. **Awaiting WP-B review** |
+| 7, 7a | Termination at the next check; `end_sales_assignment` locks the project row, so concurrent Sales writes wait and then see the ended assignment. Invitations and order summaries survive the end. Resend = revoke then reissue in `src/server/services/invitations.ts`, for every role, with controls in `/staff`, `/staff/team`, and `/sales` |
+| 8. App | `AuthContext.sales` and `anyStaffRole`; `requireSales` (aal2, forced MFA); `requireStaff` unchanged (Sales sent to `/sales`); `requireClient` = no staff role of any kind plus an active membership (WPS-P3); global sign-out for every staff role; MFA pages accept Sales; Owner role selector with `sales`; Owner and Admin assign and end assignments on the team page; `/sales` (customers, create, order summary, invite, resend, revoke, progress) |
+| 9. Audit | WP-S contract section (`WP_S_AUDIT_ACTIONS`), plus three rejection names (WPS-P6) |
+| 10. Tests | §11.2 |
+| 11. Shared files | Additive only: `src/domain/contracts/audit-actions.ts`, pgTAP 050 list, `seed.sql`, `src/lib/messages.ts`; also `playwright.config.ts` (a `wps` project), the static guard test (recognizes `requireSales`), and the `AppShell` nav union |
+| 12. Order | After `20261124160100`; A before B |
+| Serialization added | Per-user transaction lock in `accept_invitation` and `set_staff_role('sales')`, so a concurrent role grant and client acceptance can never both succeed |
+
+### 11.2 Acceptance-test traceability
+
+pgTAP: `supabase/tests/300_wps_sales_access.test.sql` (90), `310_wps_sales_commercial.test.sql` (157). Integration: `tests/integration/wps-sales.test.ts` (14). Unit: `tests/unit/wps-sales.test.ts` (11). E2E: `tests/e2e/wps.spec.ts` (6).
+
+| Test | Where |
+|---|---|
+| T-SALES-01 | 300 |
+| T-SALES-02 | 300: enumerated call of every exposed RPC (≥ 60) as Sales at aal2 with its own assigned project, all refused, no table written, with positive controls; helper results; static check that no other definer function mentions the role |
+| T-SALES-03 | 300 (aal1); integration (real aal1 session); e2e (forced enrollment) |
+| T-SALES-04 | 310; e2e (database and audit rows) |
+| T-SALES-05, T-SALES-21 | 310; e2e (404) |
+| T-SALES-06 | 310; unit (no amount, scope, or note on the Sales path); e2e |
+| T-SALES-07 | 310; e2e |
+| T-SALES-08, T-SALES-30 | 310 |
+| T-SALES-09 | 300 |
+| T-SALES-10 | 310 |
+| T-SALES-11 | 300 |
+| T-SALES-12 | unit (guards); e2e |
+| T-SALES-13 | 310 |
+| T-SALES-14, T-SALES-18 | 310 (role revoked in the same session); e2e |
+| T-SALES-15 | 300 |
+| T-SALES-16 | 300 |
+| T-SALES-17 | 310 (duplicate, invalid input, injected failure); integration (5 concurrent duplicates → one set) |
+| T-SALES-19 | 310 |
+| T-SALES-20 | 300 (aal1, 13-hour session, deleted session, deactivated user) |
+| T-SALES-22 | 300; the full existing suites below |
+| T-SALES-23 | 300: every exposed table and view, aal1 and aal2, reads and writes (reading per WPS-P2) |
+| T-SALES-24 | 310 (create, link and portal acceptance, staff acceptance, `set_staff_role`, client-only functions with a fixture membership); unit (`requireClient`); integration (role grant racing acceptance). **Policy clause not satisfiable under AUTH-005: WPS-P1** |
+| T-SALES-25 | 300 |
+| T-SALES-26 | 310; integration (real, unexpired token); e2e (open browser session) |
+| T-SALES-27, T-SALES-35 | 310; e2e |
+| T-SALES-28 | 300, 310; e2e |
+| T-SALES-29 | 310; integration (12 concurrent → exactly 10 succeed) |
+| T-SALES-31 | 310 (including A5: a new version leaves the issued snapshot and hash unchanged); e2e |
+| T-SALES-32 | 310 (serial); integration (both interleavings deterministic; true races for the Sales and Owner paths, WPS-P4) |
+| T-SALES-33 | 310 (Sales; Owner); integration (Sales, Owner, Admin, real Auth); e2e |
+| T-SALES-34 | 310 |
+| T-SALES-36 | 310 (label and flag both ways, insert and update; staging, preview, missing; leftover fixtures not returned; development and test; no API access to the classification); unit (no fixture row in any migration) |
+
+Concurrency also covered (integration): assignment end racing an order summary and an invitation (the write waits, then is refused); invitation revocation racing acceptance, both orders.
+
+### 11.3 Suites (local, fresh reset, CI order)
+
+| Suite | Result |
+|---|---|
+| Migration immutability (`scripts/check-migrations.sh origin/main`) | Pass |
+| pgTAP (`supabase test db`) | 26 files, **1413** assertions, all pass (existing 24 files and 1166 assertions unchanged except the additive 050 row) |
+| Unit (`pnpm test`) | 16 files, **283** tests, all pass |
+| Integration (`pnpm test:integration`) | 6 files, **76** tests, all pass (WP-S 14) |
+| Build, bundle secret scan (13 files), production-mode build | Pass |
+| E2E (`pnpm test:e2e`, `APP_ENV=test`) | **50** tests, all pass (WP-S 6). Locally with the preinstalled Chromium (`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`); CI installs its own |
+| Lint, typecheck, format | Pass |
+| Lighthouse | Not run locally (CI) |
+
+**Environment note:** the session environment's allowlist gained `pkg-containers.githubusercontent.com` (Owner-approved in-session, 2026-11-25) so the local Supabase images could be pulled; no credential, secret, or provider access was added.

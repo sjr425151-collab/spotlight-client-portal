@@ -332,4 +332,94 @@ describe("WP-S repository checks", () => {
       seed.indexOf("select private.create_package_scope_version("),
     );
   });
+
+  // AUTH-007 Amendment 1, item 1 (FD-14): compensating controls for the T-SALES-36 migration
+  // check. They do not ratify or replace Change 1 (its disposition is the Owner's); they add
+  // failures that Change 1 alone does not give. Outside the one defining migration, identified
+  // by its exact file name, no migration may call the version constructor, use the construction
+  // marker, or carry the fixture label in any recognizable form. The only label occurrence
+  // allowed elsewhere is the merged label constraint itself (20261125120100, never edited).
+  const SEALING_MIGRATION = "20261126140000_wpd18_scope_version_sealing.sql";
+  const LABEL_CONSTRAINT_MIGRATION = "20261125120100_wps_sales_representative.sql";
+  const LABEL_CONSTRAINT_TEXT =
+    "constraint billing_package_scope_fixture_label check (\n    is_test_fixture = starts_with(item_text, 'TEST FIXTURE — NOT A DELIVERABLE'))";
+  const SCOPE_CONTENT_CONTROLS: ReadonlyArray<readonly [string, RegExp]> = [
+    // The constructor by name, including names split by concatenation or quoting.
+    ["constructor", /create[\W_]*package[\W_]*scope[\W_]*version/i],
+    // The construction marker, including split forms.
+    ["marker", /scope[\W_]*construction|wpd18\s*\./i],
+    // The fixture label: any case, any separators (spaces, dashes, quotes, ||), either half alone.
+    ["label", /test[\W_]*fixture[\W_]*not[\W_]*a[\W_]*deliverable|not[\W_]*a[\W_]*deliverable/i],
+    // The label's halves hex-encoded (UTF-8) or base64-encoded, as decode() would take them.
+    ["label", /5445535420464958545552|44454c4956455241424c45|VEVTVCBGSVhUVVJF|REVMSVZFUkFCTEU/i],
+  ];
+  function scopeContentViolations(file: string, sql: string): string[] {
+    if (file === SEALING_MIGRATION) return [];
+    const scanned =
+      file === LABEL_CONSTRAINT_MIGRATION ? sql.replace(LABEL_CONSTRAINT_TEXT, "") : sql;
+    return SCOPE_CONTENT_CONTROLS.filter(([, pattern]) => pattern.test(scanned)).map(
+      ([name]) => name,
+    );
+  }
+
+  it("FD-14 compensating controls: no migration but the sealing migration calls the constructor, uses the marker, or carries the label", () => {
+    // Non-vacuous scan: every migration is read, including the two named above.
+    expect(migrations).toContain(SEALING_MIGRATION);
+    expect(migrations).toContain(LABEL_CONSTRAINT_MIGRATION);
+    expect(migrations.length).toBeGreaterThan(10);
+    // The merged constraint exemption matches exactly once (it would silently exempt nothing otherwise).
+    expect(
+      readFileSync(join("supabase/migrations", LABEL_CONSTRAINT_MIGRATION), "utf8").split(
+        LABEL_CONSTRAINT_TEXT,
+      ).length - 1,
+    ).toBe(1);
+    for (const file of migrations) {
+      const sql = readFileSync(join("supabase/migrations", file), "utf8");
+      expect(scopeContentViolations(file, sql), file).toEqual([]);
+    }
+  });
+
+  it("FD-14 compensating controls fail on synthetic offending inputs (no vacuous pass)", () => {
+    const later = "20270101000000_later_change.sql";
+    const cases: ReadonlyArray<readonly [string, string, string[]]> = [
+      // A clean later migration passes, so the controls are not trivially failing.
+      [later, "create table private.example (id integer primary key);", []],
+      [
+        later,
+        "select private.create_package_scope_version('essential', array['Item'], false);",
+        ["constructor"],
+      ],
+      [
+        later,
+        "do $$ begin execute format('select private.%s(%L, %L, false)', 'create_package_' || 'scope_version', 'essential', '{Item}'); end $$;",
+        ["constructor"],
+      ],
+      [later, "select set_config('wpd18.scope_construction', 'essential:9', true);", ["marker"]],
+      [later, "select set_config('wpd18.' || 'scope_' || 'construction', 'x', true);", ["marker"]],
+      [
+        later,
+        "insert into private.example values ('TEST FIXTURE — NOT A DELIVERABLE (item)');",
+        ["label"],
+      ],
+      [later, "select 'test fixture - not a deliverable';", ["label"]],
+      [later, "select 'TEST FIXTURE' || ' — NOT A ' || 'DELIVERABLE';", ["label"]],
+      [later, "select convert_from(decode('5445535420464958545552', 'hex'), 'UTF8');", ["label"]],
+      [later, "select convert_from(decode('VEVTVCBGSVhUVVJF', 'base64'), 'UTF8');", ["label"]],
+      // The exemption is the exact file name, not a substring: a similarly named file is checked.
+      [
+        "20270101000000_wpd18_scope_version_sealing_v2.sql",
+        "select private.create_package_scope_version('essential', array['Item'], false);",
+        ["constructor"],
+      ],
+      // The merged constraint exemption removes only the constraint text itself.
+      [
+        LABEL_CONSTRAINT_MIGRATION,
+        `${LABEL_CONSTRAINT_TEXT}\nselect 'TEST FIXTURE — NOT A DELIVERABLE (extra)';`,
+        ["label"],
+      ],
+    ];
+    for (const [file, sql, expected] of cases) {
+      expect(scopeContentViolations(file, sql), `${file}: ${sql}`).toEqual(expected);
+    }
+  });
 });

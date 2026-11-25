@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(204);
+select plan(217);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false)
 returns uuid language plpgsql as $$
@@ -766,6 +766,78 @@ select throws_ok($$ insert into private.billing_package_scope_versions (package_
   'package-scope test fixtures are allowed only in development and test databases', 'WP-D18: a fixture header is rejected under staging');
 select set_config('wpd18.scope_construction', '', true);
 update private.environment_settings set app_env = 'development';
+-- AUTH-007 Amendment 1 (FD-14): the label constraint and the environment guard are still
+-- enforced on the item path itself. A forged construction marker for a new, unsealed version
+-- (prestige:60) lets a direct insert pass the construction guard, so each rejection below comes
+-- from the named constraint or the fixture-guard function, identified by name (error
+-- diagnostics), not from the construction guard. Every statement fails, so nothing persists.
+create function pg_temp.error_source(p_sql text) returns text language plpgsql as $$
+declare
+  v_state text;
+  v_constraint text;
+  v_context text;
+begin
+  execute p_sql;
+  return 'no error';
+exception when others then
+  get stacked diagnostics v_state = returned_sqlstate, v_constraint = constraint_name, v_context = pg_exception_context;
+  return v_state || ' ' || coalesce(nullif(v_constraint, ''),
+    substring(v_context from 'function (private\.[a-z_]+)\(\)'), '?');
+end;
+$$;
+select set_config('wpd18.scope_construction', 'prestige:60', true);
+select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'Unlabeled item', true) $$, '23514',
+  'new row for relation "billing_package_scope" violates check constraint "billing_package_scope_fixture_label"',
+  'FD-14 (D-4): with a forged marker on an unsealed version, an unlabeled fixture item is rejected by the label constraint');
+select is(pg_temp.error_source($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'Unlabeled item', true) $$), '23514 billing_package_scope_fixture_label',
+  'FD-14 (D-4): the rejection is raised by billing_package_scope_fixture_label');
+select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (unflagged, forged marker)', false) $$, '23514',
+  'new row for relation "billing_package_scope" violates check constraint "billing_package_scope_fixture_label"',
+  'FD-14 (D-5): with a forged marker on an unsealed version, a labeled unflagged item is rejected by the label constraint');
+select is(pg_temp.error_source($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (unflagged, forged marker)', false) $$), '23514 billing_package_scope_fixture_label',
+  'FD-14 (D-5): the rejection is raised by billing_package_scope_fixture_label');
+update private.environment_settings set app_env = 'staging';
+select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (staging, forged marker)', true) $$, '42501',
+  'package-scope test fixtures are allowed only in development and test databases',
+  'FD-14 (D-6): with a forged marker, a fixture item is rejected under staging by the environment guard message');
+select is(pg_temp.error_source($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (staging, forged marker)', true) $$), '42501 private.billing_package_scope_fixture_guard',
+  'FD-14 (D-6): the staging rejection is raised by billing_package_scope_fixture_guard');
+update private.environment_settings set app_env = 'preview';
+select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (preview, forged marker)', true) $$, '42501',
+  'package-scope test fixtures are allowed only in development and test databases',
+  'FD-14 (D-7): with a forged marker, a fixture item is rejected under preview by the environment guard message');
+select is(pg_temp.error_source($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (preview, forged marker)', true) $$), '42501 private.billing_package_scope_fixture_guard',
+  'FD-14 (D-7): the preview rejection is raised by billing_package_scope_fixture_guard');
+delete from private.environment_settings;
+select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (missing classification, forged marker)', true) $$, '42501',
+  'package-scope test fixtures are allowed only in development and test databases',
+  'FD-14 (D-8): with a forged marker, a fixture item is rejected when the classification is missing');
+select is(pg_temp.error_source($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (missing classification, forged marker)', true) $$), '42501 private.billing_package_scope_fixture_guard',
+  'FD-14 (D-8): the missing-classification rejection is raised by billing_package_scope_fixture_guard');
+insert into private.environment_settings (app_env) values ('development');
+select set_config('wpd18.scope_construction', '', true);
+-- Catalog evidence: the label constraint and the fixture guard are present and unchanged.
+select is((select pg_get_constraintdef(c.oid) from pg_constraint c
+  where c.conrelid = 'private.billing_package_scope'::regclass and c.conname = 'billing_package_scope_fixture_label'),
+  'CHECK ((is_test_fixture = starts_with(item_text, ''TEST FIXTURE — NOT A DELIVERABLE''::text)))',
+  'FD-14 (D-4, D-5): the label constraint exists with its definition unchanged');
+select is((select pg_get_triggerdef(t.oid) from pg_trigger t
+  where t.tgrelid = 'private.billing_package_scope'::regclass and t.tgname = 'billing_package_scope_fixture_guard'),
+  'CREATE TRIGGER billing_package_scope_fixture_guard BEFORE INSERT OR UPDATE ON private.billing_package_scope FOR EACH ROW EXECUTE FUNCTION private.billing_package_scope_fixture_guard()',
+  'FD-14 (D-6 to D-8): the fixture-guard trigger exists, BEFORE INSERT OR UPDATE, for each row');
+select is((select t.tgenabled::text from pg_trigger t
+  where t.tgrelid = 'private.billing_package_scope'::regclass and t.tgname = 'billing_package_scope_fixture_guard'),
+  'O', 'FD-14 (D-6 to D-8): the fixture-guard trigger is enabled');
 -- Tampering fails closed (destructive inside this transaction: C5 and the header guard are
 -- disabled by name only here, as the migration owner)
 alter table private.billing_package_scope disable trigger billing_package_scope_append_only;

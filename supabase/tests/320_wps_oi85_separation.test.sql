@@ -198,32 +198,74 @@ select is((select summary ->> 'reason' from public.audit_events where action = '
 -- ---------------------------------------------------------------------------
 create extension if not exists dblink with schema extensions;
 -- The sessions connect to this server's own network address (password authentication; the
--- loopback address is trust-authenticated, which dblink refuses for a non-superuser). Run this
--- file over TCP, as `supabase test db` and CI do.
-create temp table dblink_conn as select format('dbname=postgres user=postgres password=postgres host=%s port=%s',
-  host(inet_server_addr()), inet_server_port()) as c;
-select ok((select c from dblink_conn) is not null, 'WP-D18 setup: the test runs over TCP (needed for the two concurrent sessions)');
-select extensions.dblink_connect('wpd18_a', (select c from dblink_conn));
-select extensions.dblink_connect('wpd18_b', (select c from dblink_conn));
-select extensions.dblink_exec('wpd18_a', 'begin');
-create temp table race_a as select v from extensions.dblink('wpd18_a',
-  $$select (private.create_package_scope_version('advanced', array['TEST FIXTURE — NOT A DELIVERABLE (race a)'], true)) ->> 'scope_version'$$) as t(v text);
-select extensions.dblink_exec('wpd18_b', 'begin');
-select extensions.dblink_send_query('wpd18_b',
-  $$select (private.create_package_scope_version('advanced', array['TEST FIXTURE — NOT A DELIVERABLE (race b)'], true)) ->> 'scope_version'$$);
-select pg_sleep(0.5);
-select is(extensions.dblink_is_busy('wpd18_b'), 1, 'WP-D18: a concurrent creation of the same package waits on the per-package lock');
-select extensions.dblink_exec('wpd18_a', 'rollback');
-create temp table race_b as select v from extensions.dblink_get_result('wpd18_b') as t(v text);
--- Drain the asynchronous connection (the second call returns the empty end-of-results).
-select count(*) from extensions.dblink_get_result('wpd18_b') as t(v text);
-select extensions.dblink_exec('wpd18_b', 'rollback');
-select extensions.dblink_disconnect('wpd18_a');
-select extensions.dblink_disconnect('wpd18_b');
-select is((select v from race_a), '2', 'WP-D18: the first session builds the next version');
-select is((select v from race_b), (select v from race_a),
-  'WP-D18: the waiting session assigns the next free version only after the first ends (no duplicate, no gap)');
-select is((select count(*)::int from private.billing_package_scope_versions where package_key = 'advanced' and scope_version > 1), 0,
-  'WP-D18: both concurrent sessions rolled back; nothing persisted');
+-- loopback address is trust-authenticated, which dblink refuses for a non-superuser).
+-- Runner handling (AUTH-007 Amendment 1, item 4): over TCP (`supabase test db`, CI) the block
+-- must run: a real round trip through a second session is asserted, and a failure is a test
+-- failure, never a skip. Only over a Unix socket (`pnpm test:db`, where this server has no
+-- network address and dblink cannot authenticate) are the five assertions skipped, explicitly
+-- and with the reason, so the rest of this file still runs.
+create function pg_temp.wpd18_two_session_tests() returns setof text language plpgsql as $f$
+declare
+  v_conn text;
+  v_probe integer;
+  v_error text;
+  v_a text;
+  v_b text;
+  v_busy integer;
+begin
+  if inet_server_addr() is null then
+    return next extensions.skip('WP-D18 two-session tests need a TCP connection; this runner (Unix socket, pnpm test:db) '
+      || 'cannot open dblink sessions; supabase test db and CI run them', 5);
+    return;
+  end if;
+  v_conn := format('dbname=postgres user=postgres password=postgres host=%s port=%s',
+    host(inet_server_addr()), inet_server_port());
+  begin
+    perform extensions.dblink_connect('wpd18_probe', v_conn);
+    -- The remote backend answers with its own process id, which must differ from this one.
+    select case when t.pid <> pg_backend_pid() then 1 end into v_probe
+      from extensions.dblink('wpd18_probe', 'select pg_backend_pid()') as t(pid integer);
+    perform extensions.dblink_disconnect('wpd18_probe');
+  exception when others then
+    v_error := sqlerrm;
+  end;
+  return next extensions.is(v_probe, 1,
+    'WP-D18 setup: a second session connects over TCP (real dblink round trip from another backend)'
+    || coalesce(' [' || v_error || ']', ''));
+  if v_probe is distinct from 1 then
+    return next extensions.fail('WP-D18: a concurrent creation of the same package waits on the per-package lock (no second session)');
+    return next extensions.fail('WP-D18: the first session builds the next version (no second session)');
+    return next extensions.fail('WP-D18: the waiting session assigns the next free version only after the first ends (no second session)');
+    return next extensions.fail('WP-D18: both concurrent sessions rolled back; nothing persisted (no second session)');
+    return;
+  end if;
+  -- Rollback race (kept): A builds the next version and holds; B waits; A rolls back; B then
+  -- assigns the same free number; both roll back, so nothing persists.
+  perform extensions.dblink_connect('wpd18_a', v_conn);
+  perform extensions.dblink_connect('wpd18_b', v_conn);
+  perform extensions.dblink_exec('wpd18_a', 'begin');
+  select v into v_a from extensions.dblink('wpd18_a',
+    $$select (private.create_package_scope_version('advanced', array['TEST FIXTURE — NOT A DELIVERABLE (race a)'], true)) ->> 'scope_version'$$) as t(v text);
+  perform extensions.dblink_exec('wpd18_b', 'begin');
+  perform extensions.dblink_send_query('wpd18_b',
+    $$select (private.create_package_scope_version('advanced', array['TEST FIXTURE — NOT A DELIVERABLE (race b)'], true)) ->> 'scope_version'$$);
+  perform pg_sleep(0.5);
+  v_busy := extensions.dblink_is_busy('wpd18_b');
+  perform extensions.dblink_exec('wpd18_a', 'rollback');
+  select v into v_b from extensions.dblink_get_result('wpd18_b') as t(v text);
+  -- Drain the asynchronous connection (the second call returns the empty end-of-results).
+  perform count(*) from extensions.dblink_get_result('wpd18_b') as t(v text);
+  perform extensions.dblink_exec('wpd18_b', 'rollback');
+  perform extensions.dblink_disconnect('wpd18_a');
+  perform extensions.dblink_disconnect('wpd18_b');
+  return next extensions.is(v_busy, 1, 'WP-D18: a concurrent creation of the same package waits on the per-package lock');
+  return next extensions.is(v_a, '2', 'WP-D18: the first session builds the next version');
+  return next extensions.is(v_b, v_a,
+    'WP-D18: the waiting session assigns the next free version only after the first ends (no duplicate, no gap)');
+  return next extensions.is((select count(*)::int from private.billing_package_scope_versions where package_key = 'advanced' and scope_version > 1), 0,
+    'WP-D18: both concurrent sessions rolled back; nothing persisted');
+end;
+$f$;
+select * from pg_temp.wpd18_two_session_tests();
 select * from finish();
 rollback;

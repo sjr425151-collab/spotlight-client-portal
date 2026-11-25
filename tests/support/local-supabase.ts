@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import { clearMailbox, codeFrom, waitForEmail } from "./mailpit";
+import { waitForPostgrestReady } from "./postgrest-ready";
 import { totp } from "./totp";
 
 /**
@@ -20,6 +21,11 @@ const SECRET_KEY = process.env.SUPABASE_SECRET_KEY ?? "";
 if (!["127.0.0.1", "localhost"].includes(new URL(SUPABASE_URL).hostname)) {
   throw new Error("Integration tests may only run against a local Supabase stack");
 }
+
+// F2 (AUTH-008 I-1): every integration file that talks to PostgREST imports this module, so
+// each file starts only once PostgREST is serving (it can still be reconnecting after a
+// `supabase db reset`; see postgrest-ready.ts). Runs once per file, before any test.
+await waitForPostgrestReady();
 
 const options = { auth: { persistSession: false, autoRefreshToken: false } };
 

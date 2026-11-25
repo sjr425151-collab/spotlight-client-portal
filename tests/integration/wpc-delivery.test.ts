@@ -2,7 +2,14 @@ import { randomBytes, randomUUID } from "node:crypto";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Client } from "pg";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+// The billing service used by createPaidProject imports the admin client module; the same
+// mock as tests/integration/wpb-billing.test.ts (the local stack's secret-key client).
+vi.mock("@/server/supabase/admin", async () => {
+  const support = await import("../support/local-supabase");
+  return { createAdminClient: async () => support.adminClient() };
+});
 
 import { processObjectDeletions } from "@/server/uploads/deletions";
 import { assetResponseHeaders, deliverAsset } from "@/server/uploads/delivery";
@@ -16,15 +23,8 @@ import {
   signInWithCode,
   upgradeToAal2,
 } from "../support/local-supabase";
-import {
-  BUCKET,
-  PROJECT_A,
-  PROJECT_B,
-  freeQuota,
-  installDepositFixture,
-  png,
-  type DepositFixture,
-} from "../support/wpc-fixtures";
+import { callRpc } from "../support/rpc";
+import { BUCKET, createPaidProject, createProject, freeQuota, png } from "../support/wpc-fixtures";
 
 /**
  * PR #19 review corrections against the LOCAL Supabase stack (real Auth sessions, the real
@@ -37,6 +37,10 @@ import {
  *       verdict for identical bytes, in both orders; racing deletion claims
  * Storage failures are injected by wrapping the real secret-key client, so the database
  * state machine and the Storage API are the real ones.
+ *
+ * Projects (AUTH-008 I-1): project A is a fresh project paid through real WP-B records
+ * (createPaidProject; no financial function is replaced), and project B is a fresh unpaid
+ * project whose only client is client B. The seeded projects are not used or changed.
  */
 
 const DATABASE_URL =
@@ -45,7 +49,8 @@ const CLIENT_A_ID = "00000000-0000-4000-8000-0000000000a1";
 const CLIENT_B_ID = "00000000-0000-4000-8000-0000000000b1";
 const OWNER_ID = "00000000-0000-4000-8000-000000000001";
 
-let fixture: DepositFixture;
+let projectA: string;
+let projectB: string;
 let clientA: SupabaseClient;
 let clientB: SupabaseClient;
 let owner: SupabaseClient;
@@ -79,20 +84,23 @@ function withStorage(admin: SupabaseClient, overrides: StorageOverrides): Supaba
 
 /** A clean file uploaded by client A through the real pipeline, released. */
 async function released(bytes = png()) {
-  const { data } = await clientA.rpc("request_upload", {
-    p_project_id: PROJECT_A,
-    p_category: "logo",
-    p_mime: "image/png",
-    p_bytes: bytes.length,
-    p_original_name: "asset.png",
-  });
-  const req = data as { ok: boolean; upload_id: string; quarantine_path: string };
+  const req = await callRpc<{ ok: boolean; upload_id: string; quarantine_path: string }>(
+    clientA,
+    "request_upload",
+    {
+      p_project_id: projectA,
+      p_category: "logo",
+      p_mime: "image/png",
+      p_bytes: bytes.length,
+      p_original_name: "asset.png",
+    },
+  );
   expect(req.ok).toBe(true);
   const outcome = await runUploadPipeline(
     adminClient(),
     {
       uploadId: req.upload_id,
-      projectId: PROJECT_A,
+      projectId: projectA,
       category: "logo",
       declaredMime: "image/png",
       quarantinePath: req.quarantine_path,
@@ -132,18 +140,16 @@ const malicious = (id: string, sha: string, admin = adminClient()) =>
   );
 
 /** Records the verdict in the database only (the process stops before deleting). */
-const maliciousNoWorker = async (id: string, sha: string) =>
-  (
-    await adminClient().rpc("record_scan_result", {
-      p_upload_id: id,
-      p_attempt_id: null,
-      p_scanner: "mock_scanner",
-      p_engine_version: "mock-1",
-      p_verdict: "malicious",
-      p_scanned_sha256: sha,
-      p_signature: "it",
-    })
-  ).data as { revoked?: boolean; deletion_ids?: string[] };
+const maliciousNoWorker = (id: string, sha: string) =>
+  callRpc<{ revoked?: boolean; deletion_ids?: string[] }>(adminClient(), "record_scan_result", {
+    p_upload_id: id,
+    p_attempt_id: null,
+    p_scanner: "mock_scanner",
+    p_engine_version: "mock-1",
+    p_verdict: "malicious",
+    p_scanned_sha256: sha,
+    p_signature: "it",
+  });
 
 const makeDue = (deletionId: string) =>
   withDb((db) =>
@@ -154,19 +160,28 @@ const makeDue = (deletionId: string) =>
   );
 
 beforeAll(async () => {
-  fixture = await installDepositFixture();
-  await freeQuota();
+  await withDb((db) => db.query("delete from private.rate_limits"));
   await withDb((db) => db.query(`delete from auth.mfa_factors where user_id = '${OWNER_ID}'`));
   clientA = await signInWithCode("client.a@example.test");
   clientB = await signInWithCode("client.b@example.test");
   owner = await signInWithCode("owner@example.test");
   await upgradeToAal2(owner, new Map());
+  projectA = (
+    await createPaidProject({
+      label: "WP-C delivery A",
+      owner,
+      client: clientA,
+      clientUserId: CLIENT_A_ID,
+    })
+  ).projectId;
+  projectB = (await createProject("WP-C delivery B", CLIENT_B_ID)).projectId;
+  await withDb((db) => db.query("delete from private.rate_limits"));
+  await freeQuota(projectA);
 });
 
 afterAll(async () => {
-  await freeQuota();
+  await freeQuota(projectA);
   await withDb((db) => db.query(`delete from auth.mfa_factors where user_id = '${OWNER_ID}'`));
-  await fixture.restore();
 });
 
 describe("H1: no user-JWT path to a released object", () => {
@@ -177,7 +192,7 @@ describe("H1: no user-JWT path to a released object", () => {
       expect((await client.storage.from(BUCKET).createSignedUrl(asset.path, 60)).data).toBeNull();
       const many = await client.storage.from(BUCKET).createSignedUrls([asset.path], 60);
       expect((many.data ?? []).filter((d) => d.signedUrl)).toEqual([]);
-      const listed = await client.storage.from(BUCKET).list(`${PROJECT_A}/assets`);
+      const listed = await client.storage.from(BUCKET).list(`${projectA}/assets`);
       expect((listed.data ?? []).map((o) => o.name)).not.toContain(asset.id);
     }
     // The bucket is private: the public URL form serves nothing.
@@ -188,7 +203,7 @@ describe("H1: no user-JWT path to a released object", () => {
 
   it("the server route serves the exact released bytes privately and audits the access", async () => {
     const asset = await released();
-    const delivered = await deliverAsset(clientA, adminClient(), PROJECT_A, asset.id);
+    const delivered = await deliverAsset(clientA, adminClient(), projectA, asset.id);
     expect(delivered.ok).toBe(true);
     if (!delivered.ok) return;
     const stored = await adminClient().storage.from(BUCKET).download(asset.path);
@@ -203,18 +218,18 @@ describe("H1: no user-JWT path to a released object", () => {
           where action = 'upload.accessed' and target_id = $1`,
         [asset.id],
       );
-      expect(rows).toEqual([{ actor: CLIENT_A_ID, project: PROJECT_A }]);
+      expect(rows).toEqual([{ actor: CLIENT_A_ID, project: projectA }]);
     });
   });
 
   it("another client is refused and leaves no access record", async () => {
     const asset = await released();
-    expect(await deliverAsset(clientB, adminClient(), PROJECT_A, asset.id)).toEqual({
+    expect(await deliverAsset(clientB, adminClient(), projectA, asset.id)).toEqual({
       ok: false,
       error: "not_found",
     });
     // A mismatched project in the URL is refused too, even for the owning client.
-    expect((await deliverAsset(clientA, adminClient(), PROJECT_B, asset.id)).ok).toBe(false);
+    expect((await deliverAsset(clientA, adminClient(), projectB, asset.id)).ok).toBe(false);
     await withDb(async (db) => {
       const { rows } = await db.query(
         `select count(*)::int as n from public.audit_events where action = 'upload.accessed'
@@ -234,11 +249,11 @@ describe("H1: no user-JWT path to a released object", () => {
         return admin.storage.from(BUCKET).download(path);
       },
     });
-    expect(await deliverAsset(clientA, racing, PROJECT_A, asset.id)).toEqual({
+    expect(await deliverAsset(clientA, racing, projectA, asset.id)).toEqual({
       ok: false,
       error: "not_available",
     });
-    expect(await deliverAsset(clientA, admin, PROJECT_A, asset.id)).toEqual({
+    expect(await deliverAsset(clientA, admin, projectA, asset.id)).toEqual({
       ok: false,
       error: "not_available",
     });
@@ -262,7 +277,7 @@ describe("H1: durable deletion of revoked objects", () => {
     const row = await deletionOf(asset.id);
     expect(row).toMatchObject({ status: "pending", attempts: 1, last_error: "storage_error" });
     expect(await present(asset.path)).toBe(true); // still stored, but never served:
-    expect((await deliverAsset(clientA, adminClient(), PROJECT_A, asset.id)).ok).toBe(false);
+    expect((await deliverAsset(clientA, adminClient(), projectA, asset.id)).ok).toBe(false);
     await withDb(async (db) => {
       const { rows } = await db.query(
         `select recipient_roles::text[] as roles from public.notification_outbox
@@ -312,7 +327,7 @@ describe("H1: durable deletion of revoked objects", () => {
     expect(verdict.deletion_ids).toHaveLength(1);
     expect(await deletionOf(asset.id)).toMatchObject({ status: "pending", attempts: 0 });
     expect(await present(asset.path)).toBe(true);
-    expect((await deliverAsset(clientA, adminClient(), PROJECT_A, asset.id)).ok).toBe(false);
+    expect((await deliverAsset(clientA, adminClient(), projectA, asset.id)).ok).toBe(false);
     const [outcome] = await processObjectDeletions(adminClient(), verdict.deletion_ids!);
     expect(outcome).toMatchObject({ deleted: true, attempt: 1 });
     expect(await present(asset.path)).toBe(false);
@@ -323,7 +338,7 @@ describe("H1: durable deletion of revoked objects", () => {
     const verdict = await maliciousNoWorker(asset.id, asset.sha);
     const id = verdict.deletion_ids![0]!;
     // A worker claims the row and dies before deleting or reporting.
-    await adminClient().rpc("claim_object_deletions", { p_ids: [id], p_limit: 1 });
+    await callRpc(adminClient(), "claim_object_deletions", { p_ids: [id], p_limit: 1 });
     expect(await processObjectDeletions(adminClient(), [id])).toEqual([]); // lease still live
     await withDb((db) =>
       db.query(
@@ -350,10 +365,13 @@ describe("H1: durable deletion of revoked objects", () => {
     const id = verdict.deletion_ids![0]!;
     const results = await Promise.all(
       Array.from({ length: 5 }, () =>
-        adminClient().rpc("claim_object_deletions", { p_ids: [id], p_limit: 1 }),
+        callRpc<{ claimed: unknown[] }>(adminClient(), "claim_object_deletions", {
+          p_ids: [id],
+          p_limit: 1,
+        }),
       ),
     );
-    const claimed = results.map((r) => (r.data as { claimed: unknown[] }).claimed.length);
+    const claimed = results.map((r) => r.claimed.length);
     expect(claimed.sort()).toEqual([0, 0, 0, 0, 1]);
     await withDb((db) =>
       db.query(
@@ -378,9 +396,9 @@ describe("H1: durable deletion of revoked objects", () => {
     expect(await deletionOf(asset.id)).toMatchObject({ status: "failed", attempts: 5 });
     expect(await processObjectDeletions(adminClient(), [id])).toEqual([]);
 
-    const { data: refused } = await clientA.rpc("retry_object_deletion", { p_deletion_id: id });
+    const refused = await callRpc(clientA, "retry_object_deletion", { p_deletion_id: id });
     expect(refused).toMatchObject({ ok: false, error: "forbidden" });
-    const { data: allowed } = await owner.rpc("retry_object_deletion", { p_deletion_id: id });
+    const allowed = await callRpc(owner, "retry_object_deletion", { p_deletion_id: id });
     expect(allowed).toMatchObject({ ok: true });
     expect(await processObjectDeletions(adminClient(), [id])).toEqual([
       { id, attempt: 6, deleted: true },
@@ -407,9 +425,9 @@ describe("M1: malicious bytes are identified by the stored hash", () => {
     const first = await released(bytes);
     const second = await released(bytes);
     expect(second.sha).toBe(first.sha);
-    // The same bytes released in Project B (synthetic record and object; B's intake is locked).
+    // The same bytes released in Project B (synthetic record and object; project B is unpaid, so B's intake is locked).
     const other = randomUUID();
-    const otherPath = `${PROJECT_B}/assets/${other}`;
+    const otherPath = `${projectB}/assets/${other}`;
     await withDb((db) =>
       db.query(
         `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
@@ -417,7 +435,7 @@ describe("M1: malicious bytes are identified by the stored hash", () => {
            completed_at, uploaded_by)
          values ($1, $2, gen_random_uuid(), 1, 'logo', 'image/png', 100, 'b.png', 'available', $3, $4, 100, $5, $5, 100,
            now(), $6)`,
-        [other, PROJECT_B, `quarantine/${PROJECT_B}/${other}`, otherPath, first.sha, CLIENT_B_ID],
+        [other, projectB, `quarantine/${projectB}/${other}`, otherPath, first.sha, CLIENT_B_ID],
       ),
     );
     expect(
@@ -430,7 +448,7 @@ describe("M1: malicious bytes are identified by the stored hash", () => {
       expect(await present(asset.path)).toBe(false);
       expect(await deletionOf(asset.id)).toMatchObject({ status: "deleted" });
     }
-    expect((await deliverAsset(clientA, adminClient(), PROJECT_A, second.id)).ok).toBe(false);
+    expect((await deliverAsset(clientA, adminClient(), projectA, second.id)).ok).toBe(false);
     // Project B's client is told only about Project B's upload.
     await withDb(async (db) => {
       const { rows } = await db.query(
@@ -438,11 +456,11 @@ describe("M1: malicious bytes are identified by the stored hash", () => {
           where notification_type = 'upload.rejected' and payload_ref ->> 'upload_id' = $1`,
         [other],
       );
-      expect(rows).toEqual([{ project: PROJECT_B, users: [CLIENT_B_ID] }]);
+      expect(rows).toEqual([{ project: projectB, users: [CLIENT_B_ID] }]);
       const { rows: leaks } = await db.query(
         `select count(*)::int as n from public.notification_outbox
           where project_id = $1 and payload_ref::text like '%' || $2 || '%'`,
-        [PROJECT_B, first.id],
+        [projectB, first.id],
       );
       expect(leaks[0].n).toBe(0);
     });
@@ -453,8 +471,8 @@ describe("M1: malicious bytes are identified by the stored hash", () => {
     const bystander = await released();
     // The scanner reports the bystander's hash for the target upload.
     await malicious(target.id, bystander.sha);
-    expect((await deliverAsset(clientA, adminClient(), PROJECT_A, target.id)).ok).toBe(false);
-    expect((await deliverAsset(clientA, adminClient(), PROJECT_A, bystander.id)).ok).toBe(true);
+    expect((await deliverAsset(clientA, adminClient(), projectA, target.id)).ok).toBe(false);
+    expect((await deliverAsset(clientA, adminClient(), projectA, bystander.id)).ok).toBe(true);
   });
 });
 
@@ -474,13 +492,13 @@ describe("M1: release racing a malicious verdict for identical bytes (real concu
     for (const c of connections) await c.end();
   });
 
-  /** X (Project A) ready to release and Y (Project B) scanning, both holding the same bytes. */
+  /** X (project A) ready to release and Y (project B) scanning, both holding the same bytes. */
   async function pair(setup: Client) {
     const sha = randomBytes(32).toString("hex");
     const ids: string[] = [];
     for (const [project, uploader] of [
-      [PROJECT_A, CLIENT_A_ID],
-      [PROJECT_B, CLIENT_B_ID],
+      [projectA, CLIENT_A_ID],
+      [projectB, CLIENT_B_ID],
     ] as const) {
       const { rows } = await setup.query(
         `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,

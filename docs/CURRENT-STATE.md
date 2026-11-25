@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.22.0 |
+| Version | 1.23.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the consolidated authorization record (PWP-0 merged; AUTH-007 Amendment 2 active; AUTH-006 Amendment 2, AUTH-007 Amendment 3 and AUTH-012 pending) |
+| Last updated | 2026-11-25, by the WP-I I-1 implementation PR (AUTH-008 and Amendment 1, including the W-1 correction; §14) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -112,7 +112,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | PR #6 (AI operations proposal): header corrected to the current next unused ID; remains a draft outside the release path (OI-67) | Done in PR #6 |
 | Time tracking: each implementation PR description records AI session hours, Owner review hours, and admin hours (OI-67) | From WP-0 onward |
 | **R1 release-candidate blockers (mandatory before R1 acceptance)** | **N1** (04 §15.2.1 rule 9): (a) safe project attribution of deferred refund and dispute events (WP-B follow-up); (b) Owner runs reconciliation before publication (OWNER-RUNBOOKS §5) until DEP-17; (c) the multi-payment linking criterion passes in test mode (AUTH-002). Also: F7 and F8 test-mode criteria (04 §8.2, DEP-06, DEP-15); the integrated R1 browser suite T-E2E-01 to T-E2E-10 (integration stream); DEP-07, DEP-12, DEP-17; DEP-18 package scope content (OI-84(b); append-only versions); **OI-86** (lock-order deadlock; WP-B, separate authorization); **OI-87** (change reason staff-only; WP-B, separate authorization); OI-88 user-experience reassessment; **OI-90** operator runbook (OWNER-RUNBOOKS §7); DEP-18 version sealing before non-fixture content; **OI-91** (outbound/revocation deadlock; separate authorization); **OI-95** (Sales empty-list accessibility; separate correction); OI-93 conflict-representation mechanism (if R1 needs conflicts cleared); DEP-03 wording, never presented as legally approved until approved (F10) |
-| **F2** (integration stream; root cause unconfirmed) | Before the T-E2E work: replace the WP-C integration fixture that swaps `private.project_financial_status` by global DDL with real WP-B records; make WP-C assertions report PostgREST `error`; wait for the schema-cache reload after any test DDL |
+| **F2** (integration stream; **open**; WP-I I-1 implementation, §14) | Cause reproduced: after `supabase db reset`, PostgREST answers `503 PGRST001` while it reconnects from dead pooled connections to the restarted database (11 of 12 consecutive cold-reset runs failed before the readiness gate). Done in I-1 and Amendment 1: real WP-B records replace the global `private.project_financial_status` fixture; WP-C RPC helpers report the PostgREST `error`; a deadline-bounded PostgREST readiness gate per integration file (WPI-P1 accepted); a deterministic, deadline-bounded schema-cache sync after the trigger toggles, including the W-1 database bounds. Stays open until Main's independent verification |
 | Optional (nonblocking) | L1: atomic write of the OTP spacing file; L2: rate-limit refused upload requests |
 | Low notes (accepted) | N2–N4 (OWNER-RUNBOOKS §6) |
 | Code comments describing OI-71 as open | **Done** (corrected in PRs #19 and #20) |
@@ -471,6 +471,159 @@ Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Autho
 **PWP-0 merge record (2026-11-25):** PR #32 merged by the Owner at `c89bf56740f01e8cf646cf6d4d1838233e606d81` (parents `d9cf32a`, `02761b5`; tree identical; documentation only); post-merge CI run 45575951029 (#101) 7/7 `success` with the full suite. AUTH-011 expired on the merge. Independent records: Main 7156287899 and 7156307411, WP-S 7156346268, WP-C 7156570799, WP-B 7156577361 (none blocking). Next unused identifiers verified on `main` and every remote branch after the merge: OI-113, DEP-21, AUTH-012 (AUTH-012 is allocated by this record to the OI-95 correction; next AUTH-013).
 
 **Consolidated authorization cycle (2026-11-25; 08):** recorded, **activation pending this record's merge and post-merge CI:** AUTH-006 Amendment 2 (WP-H test corrections for the cross-check; R1-HANDOFFS §1B), AUTH-007 Amendment 3 (D-2 to D-10 approved, D-1 unratified, Option A; §2B), AUTH-012 (OI-95; §4, after WP-I-1 merges). Recorded without new authority: the AUTH-008 Amendment 1 clarification (W-1 and the baseline synchronization; §3B). **Not authorized:** AUTH-009 and AUTH-010 (design directions only, OPEN-ISSUES OI-91 and OI-93). Deferred PR #32 findings: S1 and S2 after PR #27 merges; WP-C O-1 and O-2 in PWP-5. Merge order unchanged: WP-I-1, WP-H, WP-D18; OI-95 may follow WP-I-1.
+
+## 14. WP-I I-1 implementation record (AUTH-008, I-1 only)
+
+Original I-1 record (14.1 to 14.3, as reviewed at `a01b84e`), followed by the AUTH-008 Amendment 1 correction (14.4), the Owner-approved W-1 correction (14.5), decisions (14.6), and final-candidate verification (14.7). Implemented by the dedicated integration session (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`; not Main) on `wp-i/integration-infra`. Branched from `58d0e98981befe32f8ddff11c89ce7952dad3a72`; before review, rebased onto `main` at `b4a43bc` (PR #26; `git diff --name-only 58d0e98 b4a43bc` lists only `.md` files and AUTH-008's boundaries are unchanged). `git range-diff` shows both implementation commits identical after the rebase. **Implementation commit: `c829fdb`** (rebased from `045470f`; the same non-documentation tree). Tests and test infrastructure only: no production code, migration, `seed.sql`, workflow, `lighthouserc.json`, WP-B static guard test, or dependency change.
+
+### 14.1 Scope delivered
+
+| Item | Change |
+|---|---|
+| 1. Real WP-B records | `installDepositFixture` is removed. `createPaidProject` in `tests/support/wpc-fixtures.ts` creates a fresh business, project, and client membership, then runs the WP-B path of `wpb-billing.test.ts`: the Owner issues the order summary, the client accepts, the mocked Checkout gateway starts the session, a synthetic signed `checkout.session.completed` webhook (per-run test secret, OI-63) posts the deposit, and the payment-method lookup records the card. It then checks that the real `private.project_financial_status` reports the deposit verified and the authorization ready and that `private.wpc_intake_unlocked` is true. No test setup replaces a financial function (`grep` of `tests/` finds no `create or replace function`, `alter type`, or `pg_get_functiondef` outside static tests that read migration text). |
+| 2. WP-C integration files | `wpc-delivery.test.ts`: project A is a fresh paid project and project B a fresh unpaid project for client B. `wpc-uploads.test.ts`: project A is a fresh paid project, and the seeded `PROJECT_B` is only read (`intake_locked`). `freeQuota(projectId)` is parameterized. The seeded `PROJECT_A` is never paid or written by integration tests (e2e T-LC-01 passes). Every RPC helper reports the PostgREST `error` (`tests/support/rpc.ts` `callRpc`, or an explicit throw before the unchanged `expect(error).toBeNull()`). The T-UP-04 quota setup sums usage for project A only, because client A is now a member of several projects; this is setup arithmetic, not an assertion. |
+| 3. Schema-cache sync | `tests/support/postgrest-sync.ts` `withSchemaCacheSync` wraps the committed trigger toggle in `wps-sales.test.ts` and `wps.spec.ts`. A primed PostgREST pool backend from before the DDL is released only when the reload triggered by `pgrst_ddl_watch` finishes, so the helper waits for that release (bounded at 15 s, with diagnostics) and then requires a successful PostgREST request. Measured reloads: 91–137 ms. |
+| 4. Shared e2e helpers, `r1` project | `tests/support/e2e.ts` (accessibility check, sign-in, staff at aal2, audit and row helpers) and `tests/support/stripe-events.ts` (signed synthetic events). `playwright.config.ts` has an `r1` project (`r1.spec.ts`, after `wps`), and `r1.` is added to the `testIgnore` lists of `desktop-chromium` and `mobile-chromium`. A temporary probe file was listed only under `[r1]` and then removed. `r1.spec.ts` itself is I-2. |
+| F2 gate | `tests/support/postgrest-ready.ts` `waitForPostgrestReady`, run once per integration file from `local-supabase.ts`, before any test (§14.3). |
+
+**Assertions preserved (mechanical check against `58d0e98`).** `expect(` count and test count are unchanged: `wpc-delivery` 70/16, `wpc-uploads` 42/8, `wps-sales` 71/18, `wps.spec` 50/7. In both WP-C files, the multiset of `expect(...)` lines is identical once `PROJECT_A`/`PROJECT_B` are renamed to the fresh `projectA`/`projectB`. In the WP-S files only the wrapping changed (`git diff -w`).
+
+### 14.2 F2 investigation
+
+| # | Suspected cause | Evidence | Finding |
+|---|---|---|---|
+| a | Schema-cache reload after test DDL | Supabase's `pgrst_ddl_watch` sends `NOTIFY pgrst` for `ALTER TABLE`, `CREATE FUNCTION`, and `ALTER TYPE`. PostgREST v16.5 logs a pool re-initialization and a config and schema-cache reload for each one. Baseline suite: 5 reloads (4 from the old fixture's install and restore, 1 from the WP-S trigger toggle); after I-1: 1. A probe with eight concurrent request streams through 40 committed reloads (10 trigger toggles, 10 identical-body function replacements, and 10 fixture install and restore cycles as an authenticated client) returned **0 errors in 22,435 requests**. Controls with no reload (idle, and rolled-back toggles, which send no `NOTIFY`) returned 0 errors in 15,835 requests | Mechanism real; **no transient error reproduced**. The sync now removes this timing dependence deterministically |
+| b | Global replacement of `private.project_financial_status` | The fixture made Project A "paid" for every session while installed and depended on an `afterAll` restore | Removed (item 1); no setup DDL remains in the WP-C files |
+| c | Unreported PostgREST errors | Some WP-C helpers discarded `error` and read `data` | Fixed (item 2) |
+| d | **PostgREST reconnect after `supabase db reset`** | First series (I-1 items 1 to 4 only), 12 consecutive cold resets, each immediately followed by the full integration suite: **run 1 passed** (after more than a minute without PostgREST traffic); **runs 2 to 12 failed**, 2 to 4 `auth-tenancy` tests each, all `503 PGRST001 "no connection to the server"` on the suite's first PostgREST requests, failing within 3–4 ms. Targeted reproduction with PostgREST's log captured from the start of the reset (05:12:44 to 05:12:59 UTC): the listener drops when Postgres restarts; on reconnect, PostgREST's version, settings, and schema-cache queries fail on dead pooled connections; it backs off for 1, 2, then 4 s; requests at 05:12:55 get 503; it recovers at 05:12:59. Synthetic probes from an idle pool did not reproduce it | **Cause supported by evidence:** a suite started within seconds of a reset that followed PostgREST traffic. CI does one reset right after `supabase start`, with no earlier PostgREST traffic, which matches CI never showing it |
+
+A failure that stopped reproducing was not used as evidence. Cause (d) was reproduced on demand, explained step by step from PostgREST's own log, and removed only by the gate below.
+
+### 14.3 Verification (local stack, Supabase CLI 3.2.0 checksum-verified as in CI, Node 24.22.3; synthetic data only)
+
+| Command | Result |
+|---|---|
+| `pnpm test:integration` at baseline `58d0e98` (warm stack) | 6 files, **81 passed** |
+| F2 series 1: 12 × (`supabase db reset`, then `pnpm test:integration`), before the gate | 1 of 12 passed; runs 2 to 12 failed with `PGRST001` (cause d) |
+| **F2 series 2:** 12 × (`supabase db reset`, then `pnpm test:integration --silent=false`), implementation as committed | **12 of 12 consecutive runs passed, 81/81 each; 0 PostgREST error codes in any test output.** Reset 9.3–9.8 s; suite 40.1–42.2 s. The gate waited in 10 of 12 runs (258–374 ms; 2–3 `503 PGRST001` each, all before the first test); in runs 1 and 9 it did not wait. Schema-cache sync 91–137 ms |
+| `supabase db reset`; `supabase test db` | 27 files, **1,484 tests, PASS** |
+| `pnpm test:integration` (same fresh reset) | 6 files, **81 passed** |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` (same stack, CI settings) | **51 passed** (auth-setup 1, auth 8, wpc 5, wpb 5, wps 7, desktop 11, mobile 11, production-gating 3; `r1` 0) |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, `pnpm test` | Pass; unit tests 16 files, **284 passed** |
+| CI on the PR head | Recorded in the PR (7/7 required) |
+
+Not run locally: the dependency audit, gitleaks, and Lighthouse (CI only).
+
+### 14.4 AUTH-008 Amendment 1 correction (`99615e2`)
+
+Files: exactly `tests/support/postgrest-ready.ts`, `tests/support/postgrest-sync.ts`, and the new `tests/unit/postgrest-ready.test.ts` (`git diff --name-only a01b84e 99615e2`).
+
+- **Readiness gate (`postgrest-ready.ts`):** a real overall deadline (60 s). Each request is bounded by min(remaining deadline, request timeout 5 s) and aborted with an `AbortSignal` that also covers reading the body; the pause after a failure is bounded by the remaining deadline. Every failed attempt is recorded (kind `http`, `timeout` or `network`; HTTP status; PGRST code; attempt; time). Three consecutive successes are required. At the deadline the gate throws `PostgrestNotReadyError` with the diagnostics (fail closed). It runs once per integration file before any test and never around a test, a financial operation, or an application RPC.
+- **Unit tests:** deterministic local fake HTTP servers for the five authorized scenarios (immediate readiness, startup recovery, persistent unavailability, a non-responding request, overall-deadline expiry), plus the three-consecutive-successes rule, a refused connection, and a non-local URL.
+- **Renewed cold-reset series at `99615e2`:** 12 of 12 consecutive runs passed (81/81 each); the gate waited in 11 runs (160–266 ms; 1–2 `503 PGRST001` each) and not in run 1. In every run the 503 count in PostgREST's access log equalled the gate's recorded failures: every startup 503 was a gate probe, none reached a test, and no PGRST code appears in any test output. Schema-cache sync 88–126 ms.
+- **Real-world fail-closed evidence:** while the local stack was down, the gate stopped after 60,001 ms (588 attempts, all `network ECONNREFUSED`) with those diagnostics, and no test ran.
+- **Finding W-1 (reported by this session, confirmed by Main):** the sync helper's database polls went through `tests/support/db.ts` `withDb`, whose connect, client-side response wait, and close are unbounded; `statement_timeout` bounds only server-side execution. Corrected in 14.5.
+
+### 14.5 W-1 correction and `ddl()` clarification (`b415327`; Owner direction and AUTH-008 Amendment 1 clarification, R1-HANDOFFS §3B)
+
+Files: exactly `tests/support/postgrest-sync.ts` and `tests/unit/postgrest-ready.test.ts`. `tests/support/db.ts` is unchanged.
+
+| Requirement | Implementation |
+|---|---|
+| One absolute deadline over helper-owned operations | `SyncBudget` (15 s): the priming probe, each database connect, `SET`, query, close, the pauses between polls, and the final probe all draw on it |
+| Remaining budget recalculated before every step | `budget.bound(step)` before each operation returns min(remaining, step timeout 5 s) and throws once the budget is exhausted |
+| Bounds independent of the server | A pg client local to the helper (the local-only host check is kept): `connectionTimeoutMillis` bounds connecting; a client-side `query_timeout` bounds each response wait; the close races `client.end()` against the bound |
+| `statement_timeout` | Kept, set before each poll, as defense in depth only |
+| No abandoned work | A timed-out query, a failed step, or an unfinished close destroys the socket. A client `error` listener prevents unhandled `error` events, every `end()` promise is settled, timers are cleared, and polling is sequential, so nothing continues after a failure |
+| pg internals | pg 8.16.3 (pinned) was verified: `connectionTimeoutMillis` destroys the stream on expiry; `query_timeout` rejects the query but leaves the connection open; `client.end()` waits for the socket's `end` event. The socket is destroyed through `client.connection.stream` (guarded; if absent, the step still fails closed and says so), documented in the file header |
+| Diagnostics | `SchemaCacheSyncError` names the step (`probe-before`, `connect`, `set-statement-timeout`, `query`, `close`, `poll-wait`, `reload-wait`, `probe-after`), helper-owned elapsed time, the bound, and the cause |
+| `ddl()` | The caller's own authorized local test operation, **not bounded by this helper**. The budget is paused while it runs, so its duration is excluded; code comments, behaviour, and this record say the same |
+| Existing fail-closed behaviour | Unchanged: three consecutive successes in the gate; failed probes, missing pooled backends, and an incomplete reload all throw |
+
+**New unit tests** (a minimal fake Postgres wire-protocol server; every test checks the client socket is closed): a stalled connection establishment; a stalled query response; a stalled close (the fake ignores Terminate and stays half-open; destruction is proven by a write being reset); a normal poll and close; cumulative deadline exhaustion, with `ddl()` excluded and no polling after the failure; successful completion with `ddl()` excluded from the helper's time; a failed probe before any DDL; a non-local database URL. File total: 16 tests.
+
+**Mutation sensitivity** (each mutation reverted afterwards): no `connectionTimeoutMillis` → the stalled-connect test fails; no `query_timeout` → the stalled-query test fails; an unbounded close → the stalled-close test fails; no socket destruction → the stalled-close test fails; `ddl()` counted in the budget → both `ddl()`-exclusion tests fail.
+
+**One assertion in the new unit file made deterministic.** It is not an existing acceptance assertion: it was added in this PR at `99615e2` and never merged. The persistent-unavailability test required every attempt to be a 503; 1 run in 20 failed because the final attempt, whose timeout is only the few milliseconds left before the deadline, was correctly aborted as `timeout`. The assertion now requires every attempt except the last to be `503 PGRST001`, and the last to be a 503 or that deadline-bounded timeout. The gate's code did not change. Determinism: each fake-server scenario scripts every answer, and every timing assertion has at least 1 s of slack except the deadline lower bounds (with 20 ms tolerance for timer granularity). Repeat evidence: 30 of 30 runs of the file passed after the change.
+
+### 14.6 Decisions
+
+- **WPI-P1: accepted by the Owner** (AUTH-008 Amendment 1). Bounded, observable PostgREST startup-only failures before any test runs are acceptable: no test before readiness, failures and timing visible, a timeout that fails the suite, no transient PostgREST error during test execution, no weakened assertion, and no general retry masking application failures.
+- **WPI-P2 (informational):** `tests/integration/wpc-scan-authority.test.ts` uses `pg` only and needs no gate; RPC calls outside items 1 and 2 already assert `error` and are unchanged.
+- **Baseline synchronization (Option A):** `main` was merged into `wp-i/integration-infra` once, after PR #33, with no rebase or force-push. Every `main` record is kept. This record takes §14 (free on `main`; `tests/support/postgrest-ready.ts` cites it), and WP-D18 renumbers its section when it rebases.
+- **F2 stays open** until Main's independent verification.
+
+### 14.7 Final-candidate verification
+
+Final candidate: the merge commit `d45e624` (implementation tree identical to `b415327`: `git diff --name-only b415327 d45e624` lists no non-documentation file), integrating `main` at `f37cf7e` (PR #33; post-merge CI run 45583992649 (#103) 7/7 with the full suite). This record is added in a documentation-only commit on top; the exact-head CI run is recorded in the PR.
+
+| Check (local stack; Supabase CLI 3.2.0; Node 24.22.3; synthetic data) | Result |
+|---|---|
+| **Cold-reset series:** 12 × (`supabase db reset`, then `pnpm test:integration --silent=false`) | **12 of 12 consecutive runs passed, 81/81 each; 0 PGRST codes in any test output.** Reset 11.3–16.3 s; suite 43.9–52.1 s. The gate waited in 8 runs (273–302 ms, 5 attempts, 2 `http 503 PGRST001` each) and not in runs 1, 2, 11, 12; in every run the 503 count in PostgREST's access log equalled the gate's recorded failures. Schema-cache sync 104–168 ms |
+| `supabase db reset`; `supabase test db` | 27 files, **1,484 tests, PASS** |
+| `pnpm test:integration` (same reset) | 6 files, **81 passed** |
+| `pnpm test:e2e --trace off` (CI settings) | **51 passed** |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm lhci` (the CI Lighthouse configuration) | Pass: 2 URLs, 6 runs, all assertions met |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, **300 passed** (16 in `tests/unit/postgrest-ready.test.ts`) |
+| `tests/unit/postgrest-ready.test.ts` repeated | 30 of 30 runs passed |
+
+No test was retried, skipped, or quarantined, and no assertion outside the one disclosed in 14.5 changed. Not run locally: the dependency audit and gitleaks (CI only).
+
+### 14.8 B-1 correction (WP-C final-head finding at `9e6aba1`; Owner-approved under AUTH-008 Amendment 1)
+
+WP-C's final-head reconfirmation (PR #28 comment 7159321922) found one blocking, test-only issue in the new Amendment 1 unit file. Main found a second race in the same test. Both are in the test "cumulative deadline exhaustion: repeated polls stop at the budget; the caller's ddl() is excluded" in `tests/unit/postgrest-ready.test.ts`. The file was added in this PR and never merged, so no existing acceptance assertion is affected. The helpers behave correctly in both cases: they fail closed and destroy the socket.
+
+| | B-1a (WP-C) | B-1b (Main) |
+|---|---|---|
+| Assertion | the message regex `/exhausted\|did not complete a reload\|timeout/` | `expect(pg.polls()).toBe(pollsAtFailure)` |
+| Cause | `close` was an accepted step, but the regex rejected the close-path message ("client.end() did not finish within the bound; socket destroyed") | the fake Postgres counts a poll when its server side reads the query, so a query sent just before the failure could be counted after the snapshot |
+| Observed | WP-C: 2 failures in 86 runs | Main: 1 failure in 45 runs (`expected 55 to be 54`) |
+| Reproduction (this session) | deterministic, 3 of 3, in a scratch copy where closes stall after `ddl()`: step `close` at 601 ms of a 600 ms budget, socket destroyed | not reproduced in 100 instrumented parallel runs; the cause is confirmed from the code |
+
+**Correction** (Owner-approved; `tests/unit/postgrest-ready.test.ts` only, +60/−12; no helper change; N-1 excluded):
+1. **Per-step message expectations** in place of the single regex. They are stricter, and the accepted step list is unchanged.
+2. **The no-background-polling check waits until every connection is closed.** Node delivers a socket's pending data before it closes, so the fake has by then read everything it was sent. The check then asserts that neither the poll count nor the connection count changes.
+3. **One new deterministic test** for the budget running out during a poll's close after `ddl()`: step `close`, the message, helper-owned elapsed time, and socket closure.
+
+**Sweep:** all 33 timing and count assertions in the file were reviewed. Only these two could race. The weakest remaining margin is about 1.3× (at least three aborted attempts in 700 ms with 150 ms per-request timeouts), and that assertion has never been observed to fail.
+
+**Verification of the corrected file:**
+- Repeated runs: 150 of 150 passed (50 sequential, 100 at four in parallel).
+- Mutations, each caught:
+  - a close failure reported as step `query`;
+  - a changed close message;
+  - the helper polling in the background after failure;
+  - the old regex restored in the new test;
+  - all five earlier W-1 mutations.
+- Full unit suite: 17 files, 301 passed.
+- Lint, typecheck and format pass.
+
+WP-C and Main agreed the correction resolves B-1 before it was committed. Final-head verification of the combined candidate is in 14.9.
+
+### 14.9 Combined-candidate verification
+
+The combined candidate is the merge commit `cb541df`. Its parents are the B-1 commit `977e1df` and `main` at `a5dfad0`: PR #34, whose post-merge CI run 45665855580 (#112) passed 7/7 with the full suite. This was the second and last single synchronization (Option A), with no rebase or force-push.
+
+Since `f37cf7e`, `main` changed only `OPEN-ISSUES.md`, `docs/08-DECISIONS-AND-CHANGELOG.md`, `docs/AUTHORIZATIONS.md` and `docs/R1-HANDOFFS.md`. The merge was conflict-free, and `git diff --name-only 977e1df cb541df` lists no non-documentation file. `main`'s CURRENT-STATE is unchanged at 1.22.0, so this file keeps 1.23.0. This record is added in a documentation-only commit on top; the exact-head CI run is recorded in the PR.
+
+| Check (local stack; Supabase CLI 3.2.0; Node 24.22.3; synthetic data) | Result |
+|---|---|
+| **Cold-reset series:** 12 × (`supabase db reset`, then `pnpm test:integration --silent=false`) | **12 of 12 consecutive runs passed, 81/81 each; 0 PGRST codes in any test output.** In every run, the 503 count in PostgREST's access log equalled the gate's recorded failures. Runs 2 to 12: the gate waited 247–277 ms (5 attempts, 2 `http 503 PGRST001` each). Run 1 directly followed a restart of the local stack: PostgREST was still loading its schema cache, and the gate waited **19,869 ms** (190 attempts, 187 `http 503 PGRST002`) before the first test, within the 60 s deadline. This is the bounded, observable startup-only case WPI-P1 accepts. Reset 8.3–22.7 s; suite 37.8–60.4 s; schema-cache sync 77–124 ms |
+| `supabase db reset`; `supabase test db` | 27 files, **1,484 tests, PASS** |
+| `pnpm test:integration` (same reset) | 6 files, **81 passed** |
+| `pnpm test:e2e --trace off` (CI settings) | **51 passed** |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm lhci` (the CI Lighthouse configuration) | Pass: 2 URLs, 6 runs, all assertions met |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, **301 passed** (17 in `tests/unit/postgrest-ready.test.ts`) |
+| `tests/unit/postgrest-ready.test.ts` repeated | **140 of 140 passed** (50 sequential, 90 at three in parallel) |
+
+No test was retried, skipped or quarantined. The only assertions changed are the two B-1 assertions in the new unit file (14.8). Not run locally: the dependency audit and gitleaks (CI only).
+
+**Effort (OI-67):** AI session about 4.5 h in total (I-1 about 1.5 h; Amendment 1 and W-1 about 2 h; B-1 about 1 h); Owner review and administrative time not recorded by this session.
 
 ## 15. PWP-0 contractual governance reconciliation record (AUTH-011)
 

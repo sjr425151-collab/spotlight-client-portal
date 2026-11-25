@@ -432,24 +432,72 @@ describe("withSchemaCacheSync deadline (W-1)", () => {
     );
     const wall = Date.now() - started;
     expect(ddl).toHaveBeenCalledOnce();
-    expect([
-      "reload-wait",
-      "poll-wait",
-      "connect",
-      "set-statement-timeout",
-      "query",
-      "close",
-    ]).toContain(error.step);
-    expect(error.message).toMatch(/exhausted|did not complete a reload|timeout/);
+    // The budget can run out in any helper-owned step; each step reports its own cause (B-1).
+    const expectedMessage: Record<string, RegExp> = {
+      "reload-wait": /did not complete a reload/,
+      "poll-wait": /exhausted/,
+      connect: /exhausted|timeout/,
+      "set-statement-timeout": /exhausted|Query read timeout/,
+      query: /exhausted|Query read timeout/,
+      close: /client\.end\(\) did not finish within the bound; socket destroyed/,
+    };
+    expect(Object.keys(expectedMessage)).toContain(error.step);
+    expect(error.message).toMatch(expectedMessage[error.step]!);
     // Helper-owned time stops at the budget; the 500 ms ddl() is not counted against it.
     expect(error.elapsedMs).toBeLessThan(600 + 500);
     expect(wall).toBeGreaterThanOrEqual(600 + 500 - 20); // timer granularity
     expect(wall).toBeLessThan(600 + 500 + 1_000);
     expect(pg.polls()).toBeGreaterThan(2);
-    const pollsAtFailure = pg.polls();
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(pg.polls()).toBe(pollsAtFailure); // no background polling continues
+    // No background polling continues (B-1). The fake counts a poll when it reads the query,
+    // so a query the client sent just before failing can still be read after the error. Wait
+    // until every connection is closed (the fake has read everything it was sent), then any
+    // later poll would need a new connection: neither the poll count nor the connection count
+    // may change.
     await vi.waitFor(() => expect(pg.allClosed()).toBe(true));
+    const pollsAtRest = pg.polls();
+    const connectionsAtRest = pg.sockets.length;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(pg.polls()).toBe(pollsAtRest);
+    expect(pg.sockets.length).toBe(connectionsAtRest);
+  });
+
+  it("budget exhausted during a poll's close after ddl(): fails at close, destroys the socket", async () => {
+    const http = await fakePostgrest((_req, res) => ok(res));
+    let afterDdl = false;
+    // Closes complete until ddl() has run; afterwards the fake ignores Terminate, so the
+    // first poll after ddl() exhausts the remaining budget in its close.
+    const pg = await fakePostgres({
+      startup: true,
+      answer: true,
+      pids: () => [42],
+      get closeOnTerminate() {
+        return !afterDdl;
+      },
+    });
+    const ddl = vi.fn(async () => {
+      afterDdl = true;
+      return "ddl-done";
+    });
+    const error = await failure(
+      withSchemaCacheSync(ddl, {
+        databaseUrl: pg.url,
+        baseUrl: http.baseUrl,
+        key: "test-only-key",
+        deadlineMs: 600,
+        stepTimeoutMs: 5_000,
+      }),
+    );
+    expect(ddl).toHaveBeenCalledOnce();
+    expect(error.step).toBe("close");
+    expect(error.message).toMatch(
+      /client\.end\(\) did not finish within the bound; socket destroyed/,
+    );
+    expect(error.elapsedMs).toBeGreaterThanOrEqual(600 - 20); // timer granularity
+    expect(error.elapsedMs).toBeLessThan(600 + 1_000);
+    await vi.waitFor(() => {
+      pg.pokeOpen();
+      expect(pg.allClosed()).toBe(true);
+    });
   });
 
   it("completes once the pooled backend is released, excluding ddl() from the helper's time", async () => {

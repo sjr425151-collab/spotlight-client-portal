@@ -572,7 +572,42 @@ Final candidate: the merge commit `d45e624` (implementation tree identical to `b
 
 No test was retried, skipped, or quarantined, and no assertion outside the one disclosed in 14.5 changed. Not run locally: the dependency audit and gitleaks (CI only).
 
-**Effort (OI-67):** AI session about 3.5 h in total (I-1 about 1.5 h; Amendment 1 and W-1 about 2 h); Owner review and administrative time not recorded by this session.
+### 14.8 B-1 correction (WP-C final-head finding at `9e6aba1`; Owner-approved under AUTH-008 Amendment 1)
+
+WP-C's final-head reconfirmation (PR #28 comment 7159321922) found one blocking, test-only issue in the new Amendment 1 unit file. Main found a second race in the same test. Both are in the test "cumulative deadline exhaustion: repeated polls stop at the budget; the caller's ddl() is excluded" in `tests/unit/postgrest-ready.test.ts`. The file was added in this PR and never merged, so no existing acceptance assertion is affected. The helpers behave correctly in both cases: they fail closed and destroy the socket.
+
+| | B-1a (WP-C) | B-1b (Main) |
+|---|---|---|
+| Assertion | the message regex `/exhausted\|did not complete a reload\|timeout/` | `expect(pg.polls()).toBe(pollsAtFailure)` |
+| Cause | `close` was an accepted step, but the regex rejected the close-path message ("client.end() did not finish within the bound; socket destroyed") | the fake Postgres counts a poll when its server side reads the query, so a query sent just before the failure could be counted after the snapshot |
+| Observed | WP-C: 2 failures in 86 runs | Main: 1 failure in 45 runs (`expected 55 to be 54`) |
+| Reproduction (this session) | deterministic, 3 of 3, in a scratch copy where closes stall after `ddl()`: step `close` at 601 ms of a 600 ms budget, socket destroyed | not reproduced in 100 instrumented parallel runs; the cause is confirmed from the code |
+
+**Correction** (Owner-approved; `tests/unit/postgrest-ready.test.ts` only, +60/−12; no helper change; N-1 excluded):
+1. **Per-step message expectations** in place of the single regex. They are stricter, and the accepted step list is unchanged.
+2. **The no-background-polling check waits until every connection is closed.** Node delivers a socket's pending data before it closes, so the fake has by then read everything it was sent. The check then asserts that neither the poll count nor the connection count changes.
+3. **One new deterministic test** for the budget running out during a poll's close after `ddl()`: step `close`, the message, helper-owned elapsed time, and socket closure.
+
+**Sweep:** all 33 timing and count assertions in the file were reviewed. Only these two could race. The weakest remaining margin is about 1.3× (at least three aborted attempts in 700 ms with 150 ms per-request timeouts), and that assertion has never been observed to fail.
+
+**Verification of the corrected file:**
+- Repeated runs: 150 of 150 passed (50 sequential, 100 at four in parallel).
+- Mutations, each caught:
+  - a close failure reported as step `query`;
+  - a changed close message;
+  - the helper polling in the background after failure;
+  - the old regex restored in the new test;
+  - all five earlier W-1 mutations.
+- Full unit suite: 17 files, 301 passed.
+- Lint, typecheck and format pass.
+
+WP-C and Main agreed the correction resolves B-1 before it was committed. Final-head verification of the combined candidate is in 14.9.
+
+### 14.9 Combined-candidate verification
+
+Recorded after the synchronization with `main` that follows PR #34.
+
+**Effort (OI-67):** AI session about 4.5 h in total (I-1 about 1.5 h; Amendment 1 and W-1 about 2 h; B-1 about 1 h); Owner review and administrative time not recorded by this session.
 
 ## 15. PWP-0 contractual governance reconciliation record (AUTH-011)
 

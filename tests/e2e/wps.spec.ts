@@ -5,6 +5,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { withDb } from "../support/db";
 import { clearMailbox, codeFrom, waitForEmail } from "../support/mailpit";
+import { withSchemaCacheSync } from "../support/postgrest-sync";
 import { totp } from "../support/totp";
 
 /**
@@ -256,45 +257,49 @@ test("T-SALES-24 (OI-85): the portal asset route refuses a Sales session holding
   // membership, inserted with the C2 trigger disabled by name only inside that one transaction.
   const fixtureProject = randomUUID();
   const fixtureUpload = randomUUID();
-  await withDb(async (db) => {
-    await db.query("begin");
-    await db.query("select set_config('request.jwt.claims', $1, true)", [
-      JSON.stringify({ sub: OWNER_ID, role: "authenticated" }),
-    ]);
-    const business = await db.query(
-      "insert into public.client_businesses (legal_name, display_name) values ($1, 'OI-85') returning id",
-      [`OI-85 e2e ${RUN} LLC`],
-    );
-    await db.query(
-      "insert into public.projects (id, client_business_id, name) values ($1, $2, 'OI-85 e2e site')",
-      [fixtureProject, business.rows[0].id],
-    );
-    await db.query(
-      `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
+  // The committed trigger toggle makes PostgREST reload its schema cache (pgrst_ddl_watch);
+  // wait for that reload to finish before any request through PostgREST (AUTH-008 I-1).
+  await withSchemaCacheSync(() =>
+    withDb(async (db) => {
+      await db.query("begin");
+      await db.query("select set_config('request.jwt.claims', $1, true)", [
+        JSON.stringify({ sub: OWNER_ID, role: "authenticated" }),
+      ]);
+      const business = await db.query(
+        "insert into public.client_businesses (legal_name, display_name) values ($1, 'OI-85') returning id",
+        [`OI-85 e2e ${RUN} LLC`],
+      );
+      await db.query(
+        "insert into public.projects (id, client_business_id, name) values ($1, $2, 'OI-85 e2e site')",
+        [fixtureProject, business.rows[0].id],
+      );
+      await db.query(
+        `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
          original_name, status, quarantine_path, released_path, size_bytes, sha256, released_sha256, released_bytes,
          completed_at, uploaded_by)
        values ($1, $2, gen_random_uuid(), 1, 'logo', 'image/png', 100, 'f.png', 'available', $3, $4, 100,
          repeat('3', 64), repeat('3', 64), 100, now(), $5)`,
-      [
-        fixtureUpload,
-        fixtureProject,
-        `quarantine/${fixtureProject}/${fixtureUpload}`,
-        `${fixtureProject}/assets/${fixtureUpload}`,
-        OWNER_ID,
-      ],
-    );
-    await db.query(
-      "alter table public.project_memberships disable trigger project_memberships_sales_separation",
-    );
-    await db.query("insert into public.project_memberships (project_id, user_id) values ($1, $2)", [
-      fixtureProject,
-      SALES_ID,
-    ]);
-    await db.query(
-      "alter table public.project_memberships enable trigger project_memberships_sales_separation",
-    );
-    await db.query("commit");
-  });
+        [
+          fixtureUpload,
+          fixtureProject,
+          `quarantine/${fixtureProject}/${fixtureUpload}`,
+          `${fixtureProject}/assets/${fixtureUpload}`,
+          OWNER_ID,
+        ],
+      );
+      await db.query(
+        "alter table public.project_memberships disable trigger project_memberships_sales_separation",
+      );
+      await db.query(
+        "insert into public.project_memberships (project_id, user_id) values ($1, $2)",
+        [fixtureProject, SALES_ID],
+      );
+      await db.query(
+        "alter table public.project_memberships enable trigger project_memberships_sales_separation",
+      );
+      await db.query("commit");
+    }),
+  );
   try {
     // Requested with the signed-in browser context's own cookies (a download route, not a page).
     const response = await sales.request.get(

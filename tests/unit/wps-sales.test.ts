@@ -174,6 +174,70 @@ describe("WP-S audit action names (03 §11, §4.1)", () => {
 describe("WP-S repository checks", () => {
   const migrations = readdirSync("supabase/migrations").filter((f) => f.endsWith(".sql"));
 
+  // T-SALES-36 migration-insertion check (Change 1) with the D-1 exact-filename correction
+  // (AUTH-007 Amendment 3). One helper, used unchanged for the real migrations and for the
+  // synthetic mutation inputs. Lexical limitation (disclosed in the D-1 record): it recognizes
+  // `insert into private.billing_package_scope…` only; quoted or unqualified names, COPY, MERGE,
+  // dynamic SQL and comments inside the statement are not recognized here and are rejected at
+  // runtime by private.billing_package_scope_construction_guard.
+  function scopeInsertViolations(file: string, sql: string): string[] {
+    const inserts = [
+      ...sql.matchAll(/insert\s+into\s+private\.billing_package_scope(?:_versions)?\b[\s\S]*?;/gi),
+    ].map((m) => m[0]);
+    const violations: string[] = [];
+    if (inserts.some((statement) => /'/.test(statement))) violations.push("literal");
+    if (file !== "20261126140000_wpd18_scope_version_sealing.sql" && inserts.length > 0) {
+      violations.push("insert-outside-sealing-migration");
+    }
+    return violations;
+  }
+
+  it("D-1 (AUTH-007 Amendment 3): the migration-insertion exemption is the exact file name, shown on mutation inputs", () => {
+    const nonLiteralInsert =
+      "insert into private.billing_package_scope select * from private.staging_rows;";
+    const cases: ReadonlyArray<readonly [string, string, string[]]> = [
+      // The exact sealing migration may copy parameters or rows (no literal).
+      ["20261126140000_wpd18_scope_version_sealing.sql", nonLiteralInsert, []],
+      // A similarly named migration is not exempt (the former substring exemption let it pass).
+      [
+        "20270101000000_wpd18_scope_version_sealing_v2.sql",
+        nonLiteralInsert,
+        ["insert-outside-sealing-migration"],
+      ],
+      [
+        "20270101000000_x_wpd18_scope_version_sealing.sql",
+        nonLiteralInsert,
+        ["insert-outside-sealing-migration"],
+      ],
+      [
+        "20261126140000_wpd18_scope_version_sealing.sql.bak",
+        nonLiteralInsert,
+        ["insert-outside-sealing-migration"],
+      ],
+      // Any other migration with an insert fails, into either scope table.
+      [
+        "20270101000000_later_change.sql",
+        "insert into private.billing_package_scope_versions select * from private.staging_headers;",
+        ["insert-outside-sealing-migration"],
+      ],
+      // A literal fails everywhere, including in the exact sealing migration.
+      [
+        "20261126140000_wpd18_scope_version_sealing.sql",
+        "insert into private.billing_package_scope values ('essential', 9, 1, 'Item', false);",
+        ["literal"],
+      ],
+      // A clean later migration passes, so the check is not trivially failing.
+      [
+        "20270101000000_later_change.sql",
+        "create table private.example (id integer primary key);",
+        [],
+      ],
+    ];
+    for (const [file, sql, expected] of cases) {
+      expect(scopeInsertViolations(file, sql), `${file}: ${sql}`).toEqual(expected);
+    }
+  });
+
   it("T-SALES-36: no migration contains a synthetic or fixture package-scope row (A2)", () => {
     for (const file of migrations) {
       const sql = readFileSync(join("supabase/migrations", file), "utf8");
@@ -181,16 +245,9 @@ describe("WP-S repository checks", () => {
       // Refined for WP-D18 (Owner, 2026-11-25; AUTH-007 requires the version constructor in a
       // migration): an insert into the scope tables may only copy function parameters or existing
       // rows, never a literal, so no migration can carry synthetic or fixture content.
-      const inserts = [
-        ...sql.matchAll(
-          /insert\s+into\s+private\.billing_package_scope(?:_versions)?\b[\s\S]*?;/gi,
-        ),
-      ].map((m) => m[0]);
-      expect(
-        inserts.filter((statement) => /'/.test(statement)),
-        file,
-      ).toEqual([]);
-      if (!file.includes("wpd18_scope_version_sealing")) expect(inserts, file).toEqual([]);
+      // D-1 exact-filename correction (AUTH-007 Amendment 3): only the exact sealing migration
+      // may insert at all; see scopeInsertViolations and its mutation test below.
+      expect(scopeInsertViolations(file, sql), file).toEqual([]);
       const labelUses = sql.split("TEST FIXTURE — NOT A DELIVERABLE").length - 1;
       expect(labelUses, file).toBe(file.includes("wps_sales_representative") ? 1 : 0);
     }

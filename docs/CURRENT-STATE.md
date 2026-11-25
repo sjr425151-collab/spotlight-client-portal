@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.14.0 |
+| Version | 1.15.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the PR #23 final governance and documentation commit (documentation only after `1eda945`) |
+| Last updated | 2026-11-25, by the post-WP-S documentation reconciliation, based on `main` at `d75bd94` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -16,12 +16,14 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
-| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-005** (Tier 2: WP-S, local and CI; active 2026-11-25) |
+| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI). **AUTH-005** (WP-S) **expired 2026-11-25** on the WP-S merge |
 | Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
 
 ## 2. Releases and work packages (OI-67, OI-68)
+
+**Readiness levels (kept distinct):** *implemented* = merged with its package suites passing (Phase 2, WP-0, WP-C, WP-B, WP-S); *integrated R1 verification* = the cross-package browser and security suite T-E2E-01 to T-E2E-10 and the R1 release-candidate blockers (§7), **not yet done**; *production readiness* = legal, provider, hosted-environment, and Tier 3 launch steps, **not authorized**.
 
 | Item | Scope | State |
 |---|---|---|
@@ -31,7 +33,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 | WP-0 | Shared contracts: domain-event and outbox tables, state-domain types, audit action names, gate-function interfaces | **Done** (PR #15, merge commit `60954d4`; post-merge CI run #39 on `main` concluded `success`, 2026-11-24). OI-71 and OI-72 decided. Integration closed by the integration closure PR. |
 | WP-B | Agreements, payments, webhooks, ledger, reconciliation (R1 scope), including OI-74, OI-75, OI-81, OI-82, OI-83, and B1 | **Done** (PR #20, merge commit `8ac8143`; post-merge CI run #66 `success`). **N1 is a mandatory blocker for R1 release-candidate acceptance** (04 §15.2.1 rule 9; §7). Implementation record in §10. |
 | WP-C | Intake, uploads, approvals, publication authorization, admin queue (R1 scope) | **Done** (PR #19, merge commit `bcddb1f`; post-merge CI run #63 `success`). Review findings H1, M1, M2 closed. |
-| WP-S | Sales Representative authorization infrastructure (03 §4.1; OI-77, OI-78, OI-84, OI-85) | **Technically approved; awaiting final governance steps** (2026-11-25). Implementation `1eda945` accepted by Main's focused re-review (OI-85 closed); later commits documentation only. Remaining: WP-B's technical review record on the final PR head (AUTH-005 exit-criterion 4 governance amendment), 7/7 CI on that head, and the Owner's pinned merge. **DEP-18 (with version sealing), OI-86, OI-87, OI-88, and OI-90 stay R1 release-candidate items.** |
+| WP-S | Sales Representative authorization infrastructure (03 §4.1; OI-77, OI-78, OI-84, OI-85) | **Done** (PR #23, merge commit `d75bd94`; post-merge CI run #78 (id 45535755135) 7/7 `success` with the full suite). OI-85 closed; T-SALES-01 to T-SALES-36 satisfied; WP-B independent technical review record [PR comment 7151195165](https://github.com/sjr425151-collab/spotlight-client-portal/pull/23#issuecomment-7151195165) (not a GitHub APPROVED review). AUTH-005 expired on the merge. Records in §11. **DEP-18 (content and version sealing), OI-86, OI-87, OI-88, and OI-90 remain R1 release-candidate items.** |
 | WP-D | Hosted non-production infrastructure, then production readiness | Not started. Needs AUTH-003 active. Production steps are Tier 3. Hosted environments receive reviewed migrations only: no seed, no database reset; WP-D verifies and documents this before hosted-environment acceptance (A3). |
 | WP-E | Legal, tax, and commercial approvals | Owner. Not started (DEP-03, DEP-04, DEP-05). |
 | **R1** release candidate | Complete controlled transaction (01 §9.1) | Not started |
@@ -45,14 +47,14 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 |---|---|---|
 | 01 Project overview | 0.4.2 | Approved (v0.4.1: OI-74, OI-77; v0.4.2: §9.1.1 integrated R1 browser acceptance, Owner direction) |
 | 02 Architecture and environments | 0.4.0 | Approved |
-| 03 Security, auth, tenancy | 0.5.8 (OI-77, OI-78, OI-79, OI-83, OI-84; client guard for WP-S) | Approved (03A is supporting evidence) |
-| 04 Agreement and billing | 0.9.6 (OI-74, OI-81, OI-82, OI-84; F3–F6; B1; N1) | Approved for implementation and test mode. **Not approved for production:** legal review (DEP-03) and provider verification (DEP-06) remain conditions. |
+| 03 Security, auth, tenancy | 0.5.12 (OI-77, OI-78, OI-79, OI-83 to OI-85, OI-89; WP-S merged) | Approved (03A is supporting evidence) |
+| 04 Agreement and billing | 0.9.8 (OI-74, OI-81, OI-82, OI-84; F3–F6; B1; N1; DEP-18 sealing) | Approved for implementation and test mode. **Not approved for production:** legal review (DEP-03) and provider verification (DEP-06) remain conditions. |
 | 05 Lifecycle and uploads | 0.4.5 (OI-74, OI-79; §5.5 rules 1–9) | Approved |
 | 06 Publishing and post-launch | 0.5.2 (OI-79 item 5; G7 clarification; B1 note) | Approved |
 | 07 Notifications, privacy, design | 0.4.0 | Approved. Retention periods remain provisional (DEP-05). |
-| 08 Decisions and changelog | 0.22.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
-| AUTHORIZATIONS, CURRENT-STATE | 1.8.0 (AUTH-002 and AUTH-003 inactive; **AUTH-005 granted and active**, 2026-11-25), 1.10.0 | Approved |
-| OWNER-RUNBOOKS | 0.1.0 | **[PROPOSED]** Owner review |
+| 08 Decisions and changelog | 0.25.0 | Approved. The provenance caveat in 08 §1 still applies to transcribed decisions. |
+| AUTHORIZATIONS, CURRENT-STATE | 1.11.0 (AUTH-002 and AUTH-003 inactive; AUTH-005 expired 2026-11-25), 1.15.0 | Approved |
+| OWNER-RUNBOOKS | 0.2.0 (§7 direct role and membership writes, OI-90) | **[PROPOSED]** Owner review, including §7 |
 | CLAUDE.md | rewritten 2026-11-24 | Approved |
 
 ## 4. Dependencies
@@ -81,6 +83,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | Fact | Evidence |
 |---|---|
 | `main` is protected by ruleset `protect-main`: enforcement **Active**; target `main`; pull request required; **required status checks enabled** with "require branches to be up to date"; force pushes and branch creation blocked; repository-admin bypass for pull requests only (agents never use it, CLAUDE.md §7). Required checks (GitHub Actions): `Lint, types, format, unit tests`, `Dependency audit`, `Secret scan (gitleaks, full history)`, `CI result`. Lighthouse and the database, integration, and e2e suite are enforced through `CI result`, which fails closed on any required suite (OI-70) | **Owner-evidenced** (ruleset screenshots, 2026-11-24); a ruleset JSON export would be stronger evidence |
+| `main` at `d75bd94` (PR #23 merge, WP-S; parents `005cc36`, `6843bd2`; tree identical to the authorized head; three WP-S migrations added, no earlier migration changed). Post-merge CI run #78 (id 45535755135): all 7 jobs `success`, with the full suite executed (T-MIG-02, T-MIG-01, pgTAP, integration, builds, bundle check, e2e, Lighthouse). Earlier: `005cc36` (PR #22, run #72), `0b289f3` (PR #21, run #70) | **Verified** (GitHub API, git, CI) |
 | `main` at `0b289f3` (PR #21 merge, documentation only; parents `8ac8143`, `7ba7cb3`; tree identical to the reviewed head). Post-merge CI run #70 (id 45511277460): all 7 jobs `success`, including the full suite. Previously `main` at `8ac8143` (PR #20 merge; parents `bcddb1f`, `aa7a20a`; tree identical to the reviewed head). Post-merge CI run #66 (id 45506039608): all 7 jobs `success`, including migrations applied from scratch (T-MIG-01), pgTAP, integration, and e2e. Earlier: `bcddb1f` (PR #19) run #63 `success`; `77a887b` (PR #18) run #59 `success` | **Verified** via the GitHub API, 2026-11-24 |
 | `main` at `19b68cb` (PR #17 merge; parents `3f3b59d`, `33c082b`; tree identical to the reviewed head). Post-merge CI run #43 (id 45322697836): all 7 jobs `success`, including `CI result` | **Verified** via the GitHub API, 2026-11-24 |
 | The `spotlight-client-portal-dev` environment: Limited network; allowlist `github.com`, `api.github.com`, `registry.npmjs.org`, `nodejs.org`, `docs.stripe.com`; no network secrets; no environment variables | **Verified** via the environment API, 2026-11-24 |
@@ -91,10 +94,10 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 
 ## 6. Pending Owner actions
 
-1. Review the WP-S pull request (WP-B and Main reviews first); only the Owner merges it. Decide WPS-P1 to WPS-P7 (OPEN-ISSUES, after Main allocates IDs).
-2. (Done 2026-11-25) AUTH-005 granted.
+1. (Done 2026-11-25) WP-S merged (PR #23); WPS-P1 to WPS-P7 decided as OI-85 to OI-89.
+2. Decide the next work packages and their authorizations (financial hardening: OI-86, OI-87, N1(a); integration verification: F2, T-E2E; DEP-18 sealing).
 2a. Supply the standard scope for each package (DEP-18) and include it in counsel review (DEP-03).
-3. Review OWNER-RUNBOOKS (proposed).
+3. Review OWNER-RUNBOOKS (proposed), **including §7** (direct role and membership writes, OI-90; required before R1 release-candidate acceptance).
 4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10), and the contractual package-scope language (A4).
 5. When ready: meet the AUTH-002 activation conditions for the Stripe test-mode criteria (04 §8.2: F7, F8, N1 linking; DEP-15).
 6. When ready for WP-D: create the accounts in AUTH-003 (DEP-14, DEP-17).
@@ -185,9 +188,9 @@ A new session starts by reading CLAUDE.md, this file, and AUTHORIZATIONS.md, the
 
 | Stream | Next step | Read first | Authorization |
 |---|---|---|---|
-| Integration (primary session) | Merge order and reviews for WP-S; F2 (§7); then the integrated R1 browser and security suite T-E2E-01 to T-E2E-10 and the T-SALES set; track the R1 release-candidate blockers (§7) | §7, §9; 01 §9.1, §9.1.1 | AUTH-000; AUTH-001 for cross-package tests |
-| WP-S (`wp-s/sales-representative`, integration stream) | **Technically approved** (§11.4, §12). Next: WP-B review record on the final head, Owner's pinned merge | §11.4, §12; 03 §4.1, §13; AUTHORIZATIONS AUTH-005 | **AUTH-005 (granted, active, with the OI-85 and exit-criterion 4 amendments)** |
-| WP-B follow-up | N1(a) safe attribution of deferred reversal events, as a small PR before the R1 release candidate | 04 §15.2.1 rules 8–9 | AUTH-001 |
+| Integration (primary session) | F2 (§7); then the integrated R1 browser and security suite T-E2E-01 to T-E2E-10, including the Sales-assisted onboarding journey; track the R1 release-candidate blockers (§7) | §7, §9; 01 §9.1, §9.1.1 | AUTH-000; AUTH-001 for cross-package tests (confirm scope with the Owner) |
+| WP-S | **Done** (PR #23, `d75bd94`) | §11 | AUTH-005 expired |
+| WP-B follow-up (financial hardening) | OI-86 (lock order), OI-87 (change reason staff-only), N1(a) (safe attribution), each before the R1 release candidate | 04 §15.2.1 rules 8–9; 08 OI-86, OI-87 | Owner authorization required (OI-86, OI-87: separate WP-B authorization) |
 
 **AUTH-005 activation record (2026-11-25):** Owner grant 2026-11-25 (conditional, with the environment-isolation amendment). Conditions: (a) PR #22 merged at `005cc36130e582b098bcbcbc3c9d85dd87bb91e9` (parents `0b289f3`, `eb34fe2`; tree identical to the reviewed head; no migration changed), post-merge CI run #72 (id 45514706755) `success` with the full suite including T-MIG-01 and T-MIG-02; (b) read-only revalidation on `005cc36`: no migration or source change since `8ac8143`; Phase 2 objects (1) to (7) as recorded (`staff_role` = owner, admin, fulfillment; `invitations_kind_shape`; `is_staff()` = any staff role; `create_invitation` staff path Owner with fresh MFA and the per-user rate limit; `revoke_invitation`, `accept_invitation`, `set_staff_role` present); app files present; `issue_order_summary` guard and lock order as recorded; `begin_initial_checkout` client-only; order-summary snapshot guard covers scope and notes; both WP-C corrections present; no name collision; 46 `is_staff()` and 20 `wpc_is_staff_aal2()` call sites; environment classification (`private.environment_settings`) writable only by the migration owner, so the allowlist amendment is enforceable without changes; (c) inventory accurate; (d) this record committed on `wp-s/sales-representative` before implementation; (e) no unresolved conflict. **AUTH-005 is active.** Reviews: WP-B independently approves the `issue_order_summary` replacement; Main reviews architecture, security, and integration; WP-S never merges its own PR; the Owner alone merges.
 
@@ -406,7 +409,7 @@ Trigger functions are SECURITY DEFINER with `search_path = ''` and no execute gr
 
 **Correction effort (OI-67):** AI session about 0.3 h (2026-11-25, 01:58–02:16 UTC); administrative about 0.05 h (local Docker restart after a container recycle); Owner review 0 h so far.
 
-## 12. PR #23 targeted correction directive (Main, 2026-11-25)
+## 12. PR #23 targeted correction directive (Main, 2026-11-25) — executed; PR #23 merged at `d75bd94`
 
 Owner disposition of Main's independent review of PR #23 at `72da723` (base `005cc36`, CI run 45521097273): **not authorized for merge; one targeted correction round**. Authority: AUTH-005 with the **OI-85 amendment** and the DEP-18 append-only approval (AUTHORIZATIONS AUTH-005). This record precedes every corrective change. WP-S implements; Main re-reviews; WP-B reviews and records its approval in the PR review mechanism; the Owner alone merges.
 

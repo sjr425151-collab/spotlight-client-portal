@@ -479,4 +479,149 @@ describe("WP-S repository checks", () => {
       expect(scopeContentViolations(file, sql), `${file}: ${sql}`).toEqual(expected);
     }
   });
+
+  // D-1 stricter lexical rule (AUTH-007 Amendment 3 and its correction, option (a), active at a5dfad0);
+  // exemptions are exactly three file names, with no other form. Outside the migrations that legitimately
+  // define or protect the package-scope tables, a migration that names billing_package_scope in
+  // any form fails. Before matching, comments are removed with a quote-aware lexer (string,
+  // E-string, dollar-quoted and quoted-identifier contents are kept, so a name inside a string or
+  // a dynamic-SQL body still counts), identifier quotes are dropped, and whitespace around dots is
+  // collapsed. Remaining exposure: a name assembled from fragments at run time (for example
+  // 'billing_package_' || 'scope'); the runtime construction guard remains the enforcing control.
+  const SCOPE_TABLE_MIGRATIONS = new Set([
+    "20261125120100_wps_sales_representative.sql",
+    "20261125120200_wps_oi85_separation.sql",
+    "20261126140000_wpd18_scope_version_sealing.sql",
+  ]);
+  function withoutSqlComments(sql: string): string {
+    let out = "";
+    let i = 0;
+    while (i < sql.length) {
+      const rest = sql.slice(i);
+      if (rest.startsWith("--")) {
+        const end = sql.indexOf("\n", i);
+        i = end < 0 ? sql.length : end;
+        out += " ";
+        continue;
+      }
+      if (rest.startsWith("/*")) {
+        let depth = 1;
+        let j = i + 2;
+        while (j < sql.length && depth > 0) {
+          if (sql.startsWith("/*", j)) {
+            depth += 1;
+            j += 2;
+          } else if (sql.startsWith("*/", j)) {
+            depth -= 1;
+            j += 2;
+          } else j += 1;
+        }
+        i = j;
+        out += " ";
+        continue;
+      }
+      const dollar = /^\$([A-Za-z_][A-Za-z_0-9]*)?\$/.exec(rest);
+      if (dollar && !/[A-Za-z0-9_]/.test(sql[i - 1] ?? "")) {
+        const close = sql.indexOf(dollar[0], i + dollar[0].length);
+        const end = close < 0 ? sql.length : close + dollar[0].length;
+        out += sql.slice(i, end);
+        i = end;
+        continue;
+      }
+      const c = sql[i];
+      if (c === "'" || c === '"') {
+        const escapes =
+          c === "'" && /[eE]/.test(sql[i - 1] ?? "") && !/[A-Za-z0-9_]/.test(sql[i - 2] ?? "");
+        let j = i + 1;
+        while (j < sql.length) {
+          if (escapes && sql[j] === "\\") {
+            j += 2;
+            continue;
+          }
+          if (sql[j] === c) {
+            if (sql[j + 1] === c) {
+              j += 2;
+              continue;
+            }
+            break;
+          }
+          j += 1;
+        }
+        out += sql.slice(i, j + 1);
+        i = j + 1;
+        continue;
+      }
+      out += c;
+      i += 1;
+    }
+    return out;
+  }
+  function namesScopeTables(sql: string): boolean {
+    const normalized = withoutSqlComments(sql)
+      .replace(/"/g, "")
+      .replace(/\s*\.\s*/g, ".");
+    return /billing_package_scope/i.test(normalized);
+  }
+  function stricterScopeViolations(file: string, sql: string): string[] {
+    return !SCOPE_TABLE_MIGRATIONS.has(file) && namesScopeTables(sql) ? ["names-scope-table"] : [];
+  }
+
+  it("D-1 stricter lexical rule: no other migration names the package-scope tables in any form", () => {
+    for (const file of SCOPE_TABLE_MIGRATIONS) expect(migrations, file).toContain(file);
+    for (const file of SCOPE_TABLE_MIGRATIONS) {
+      expect(namesScopeTables(readFileSync(join("supabase/migrations", file), "utf8")), file).toBe(
+        true,
+      );
+    }
+    for (const file of migrations) {
+      const sql = readFileSync(join("supabase/migrations", file), "utf8");
+      expect(stricterScopeViolations(file, sql), file).toEqual([]);
+    }
+  });
+
+  it("D-1 stricter lexical rule fails on synthetic offending inputs (no vacuous pass)", () => {
+    const later = "20270101000000_later_change.sql";
+    const offending = [
+      "insert into private.billing_package_scope select * from x;",
+      'insert into "private"."billing_package_scope" select * from x;',
+      "insert into private . billing_package_scope select * from x;",
+      "set search_path = private; insert into billing_package_scope select * from x;",
+      "copy private.billing_package_scope from stdin;",
+      "merge into private.billing_package_scope s using x on false when not matched then insert values (x.a);",
+      "do $$ begin execute format('insert into private.%I select * from x', 'billing_package_scope'); end $$;",
+      "insert /* hidden */ into private.billing_package_scope select * from x;",
+      "insert into private.BILLING_PACKAGE_SCOPE_VERSIONS select * from x;",
+      "create trigger t before insert on private.billing_package_scope for each row execute function f();",
+    ];
+    for (const sql of offending)
+      expect(stricterScopeViolations(later, sql), sql).toEqual(["names-scope-table"]);
+    // Exempt only by exact file name.
+    const plainInsert = "insert into private.billing_package_scope select * from x;";
+    expect(stricterScopeViolations("20270101000000_wps_oi85_separation.sql", plainInsert)).toEqual([
+      "names-scope-table",
+    ]);
+    expect(stricterScopeViolations("20261125120200_wps_oi85_separation.sql", plainInsert)).toEqual(
+      [],
+    );
+    // Not trivially failing: comments alone, and an unrelated table, pass.
+    expect(
+      stricterScopeViolations(
+        later,
+        "-- billing_package_scope is mentioned only in a comment\nselect 1;",
+      ),
+    ).toEqual([]);
+    expect(
+      stricterScopeViolations(later, "/* billing_package_scope /* nested */ */ select 1;"),
+    ).toEqual([]);
+    expect(
+      stricterScopeViolations(later, "create table private.billing_packages_audit (id int);"),
+    ).toEqual([]);
+    // Disclosed remaining exposure: a name assembled from fragments is not recognized lexically.
+    expect(
+      stricterScopeViolations(
+        later,
+        "do $$ begin execute 'insert into private.billing_package_' || 'scope select 1'; end $$;",
+      ),
+    ).toEqual([]);
+  });
 });

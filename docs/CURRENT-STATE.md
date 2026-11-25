@@ -556,7 +556,21 @@ Files: exactly `tests/support/postgrest-sync.ts` and `tests/unit/postgrest-ready
 
 ### 14.7 Final-candidate verification
 
-Recorded in the follow-up documentation commit of this PR (cold-reset series, full local suites, and the exact-head CI reference), after the merge commit.
+Final candidate: the merge commit `d45e624` (implementation tree identical to `b415327`: `git diff --name-only b415327 d45e624` lists no non-documentation file), integrating `main` at `f37cf7e` (PR #33; post-merge CI run 45583992649 (#103) 7/7 with the full suite). This record is added in a documentation-only commit on top; the exact-head CI run is recorded in the PR.
+
+| Check (local stack; Supabase CLI 3.2.0; Node 24.22.3; synthetic data) | Result |
+|---|---|
+| **Cold-reset series:** 12 × (`supabase db reset`, then `pnpm test:integration --silent=false`) | **12 of 12 consecutive runs passed, 81/81 each; 0 PGRST codes in any test output.** Reset 11.3–16.3 s; suite 43.9–52.1 s. The gate waited in 8 runs (273–302 ms, 5 attempts, 2 `http 503 PGRST001` each) and not in runs 1, 2, 11, 12; in every run the 503 count in PostgREST's access log equalled the gate's recorded failures. Schema-cache sync 104–168 ms |
+| `supabase db reset`; `supabase test db` | 27 files, **1,484 tests, PASS** |
+| `pnpm test:integration` (same reset) | 6 files, **81 passed** |
+| `pnpm test:e2e --trace off` (CI settings) | **51 passed** |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm lhci` (the CI Lighthouse configuration) | Pass: 2 URLs, 6 runs, all assertions met |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, **300 passed** (16 in `tests/unit/postgrest-ready.test.ts`) |
+| `tests/unit/postgrest-ready.test.ts` repeated | 30 of 30 runs passed |
+
+No test was retried, skipped, or quarantined, and no assertion outside the one disclosed in 14.5 changed. Not run locally: the dependency audit and gitleaks (CI only).
 
 **Effort (OI-67):** AI session about 3.5 h in total (I-1 about 1.5 h; Amendment 1 and W-1 about 2 h); Owner review and administrative time not recorded by this session.
 

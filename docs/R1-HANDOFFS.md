@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.1 |
+| Version | 0.3.0 |
 | Status | **Active handoffs.** AUTH-006, AUTH-007, and AUTH-008 (I-1 only) are active since 2026-11-25 (PR #25 merge `58d0e98981befe32f8ddff11c89ce7952dad3a72`, CI run 45543204966). The common baseline is filled in below. |
 | Prepared by | Main (architecture, security, and integration review authority), 2026-11-25 |
 
@@ -44,6 +44,25 @@ You are the WP-B implementation session. Implement WP-H under AUTH-006 on `wp-h/
 **Review:** independent financial review by a session other than WP-B, and Main.
 
 **Stop conditions:** any object outside this list; any existing assertion would change; any permission would widen; a rule cannot be implemented as written; the cross-check gap cannot be closed with the existing mechanisms.
+
+## 1A. WP-B session — WP-H continuation under AUTH-006 Amendment 1
+
+Use only after Amendment 1 is active (its record merged and full post-merge CI recorded in CURRENT-STATE). All common rules above apply.
+
+You are the WP-B implementation session. Continue WP-H on `wp-h/financial-hardening` from its current head `33eb953` (OI-86 and OI-87 done; keep both commits unchanged). If `main` has moved, follow the rebase rule only when preparing the merge.
+
+**Remaining scope (exhaustive, AUTHORIZATIONS AUTH-006 and Amendment 1):**
+1. `20261126120200` (N1(a)): the attribution helper and the three handlers (one candidate: current path; two or more: `quarantined:attribution_conflict`, no project set; none: `deferred`; never re-point an existing project); `private.financial_event_project_candidates` exactly as specified; `process_stripe_event` captures the handler's candidate set before the rollback and records it after the rollback in the same transaction as the quarantine; the additive `project_financial_anomalies` branch (both G2 and G4 for every candidate, kind `quarantined_event`); `resolve_quarantined_event` body only (re-check and audit every candidate; **candidate blocks persist**, OI-93).
+2. `20261126120300` (cross-check): the 04 §10.2 eligibility and lock order in `consume_release_approved` (release advisory lock, release row `FOR SHARE`, then the checks, then the existing authorization lock).
+3. Static guards: an exact `create or replace` allow-list for the functions named in AUTH-006 and Amendment 1; every other restriction unchanged; include all four WP-H migrations.
+
+**Acceptance:** the "Amendment 1 acceptance" row in full, plus the original WP-H acceptance; T-PAY-32 and B1 unchanged; full suites unchanged; 7/7 CI on the exact head.
+
+**Review:** financial review by a session other than WP-B; WP-C read-only review of the lock-key interface contract; Main.
+
+**Prohibited:** everything in §1, plus: any conflict-clearing or allocation mechanism (OI-93), any withdrawal notification hook (OI-92(e), OI-91), any change to `outbound_request_for_execution` or revocation (OI-91), `contract_version` or anomaly-kind changes, any WP-C change.
+
+**Stop conditions:** the Amendment 1 stop conditions, and everything in §1.
 
 ## 2. WP-S session — AUTH-007 / WP-D18 (package-scope version sealing)
 

@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.2 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). v0.4.1 (**OI-74**, 2026-11-24): the automatic off-session final charge and mandatory payment method retention move to R1 (§9.1 items 10 and 13; §9.2 item 2); the Sales Representative role (§6, OI-77). v0.4.2 (Owner direction, 2026-11-24): integrated R1 browser acceptance criteria (§9.1.1). |
+| Version | 0.4.3 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: work packages and releases replace phases 3–5 (OI-67), R1/R2 journey and acceptance criteria (OI-68); status moved to [CURRENT-STATE.md](CURRENT-STATE.md). Earlier history: v0.3.2 final approval (Phase 1 authorization, 2026-11-23); v0.3.3 automatic final payment (OI-17 revised). v0.4.1 (**OI-74**, 2026-11-24): the automatic off-session final charge and mandatory payment method retention move to R1 (§9.1 items 10 and 13; §9.2 item 2); the Sales Representative role (§6, OI-77). v0.4.2 (Owner direction, 2026-11-24): integrated R1 browser acceptance criteria (§9.1.1). v0.4.3 (PWP-0, AUTH-011; OI-112, 2026-11-25): §7 records the contractual work packages PWP-0 to PWP-6 (proposed; each needs its own authorization) and §9.1 adds the contractual architecture and verification criterion (DEP-18, DEP-19). No existing criterion is removed or weakened. |
 | Decisions | OI-01, OI-02, OI-03, OI-06, OI-07, OI-09, OI-24, OI-29, OI-41, OI-67, OI-68 |
 | Labels | See [08 §2](08-DECISIONS-AND-CHANGELOG.md#2-requirement-classification-legend) |
 
@@ -105,6 +105,8 @@ Phases 1 (foundation and CI) and 2 (authentication, security, and tenant isolati
 | **WP-D** | Hosted non-production environments, then production readiness | Phase 5 | AUTH-003 (non-production); Tier 3 for production |
 | **WP-E** | Legal, tax, and commercial approvals | — | Owner and advisors; runs in parallel from now |
 
+**Contractual work packages [APPROVED OI-112, Owner 2026-11-25; proposed, none authorized except PWP-0 (AUTH-011)]:** PWP-0 documentation and decision reconciliation; PWP-1 contractual instruments, bundles and governance events; PWP-2 standardized issuance and snapshot v2; PWP-3 counsel and publication evidence; PWP-4 non-production contractual materialization and verification; PWP-5 project-specific scope confirmation, operational notes and the inactivity reconciliation. PWP-0 to PWP-5 are required for R1; PWP-6 (automated additional-work billing) is post-R1. Production activation is separately authorized (DEP-20). Existing WP-I, WP-H and WP-D18 ownership and merge order are unchanged.
+
 ```mermaid
 flowchart LR
   A[WP-A governance] --> Z[WP-0 shared contracts]
@@ -162,6 +164,7 @@ A release candidate is accepted only when every item passes in **staging with St
 15. **Staff-assisted publication.** Staff deploy exactly the authorized release to the client's isolated deployment and record the deployment, live verification, and rollback reference. A deployment that does not match the authorization fails verification. A failed deployment after verified payment keeps the paid status and goes to recovery with no new charge (T-PUB-06, T-PUB-08 to 10, T-PUB-15, T-PUB-18, T-PUB-19).
 16. **Subscription lifecycle.** Failed maintenance renewals are recorded from webhooks; the 7-day recovery period, `maintenance_payment_hold`, and Owner review apply; an unexpected Stripe cancellation creates an exception review; cancellation requests record the request and effective dates and compute M1 and M2 (T-BIL-01 to 03, T-BIL-07, T-BIL-08, T-BIL-14 to 19). M1 and M2 are not enforced against production clients until counsel-approved terms exist (04 §15.1).
 17. **Audit and quality.** Each privileged action produces an immutable audit event (T-AUD-01). Portal pages meet the OI-23 Lighthouse thresholds in CI and on the staging build (02 §7).
+18. **Contractual architecture and verification [APPROVED OI-112; not implemented].** The contractual architecture is implemented and verified (DEP-19: PWP-1, PWP-2, PWP-5), authorized non-production contractual materialization has passed integrity and end-to-end verification covering the complete R1 lifecycle, including mandatory scope confirmation and acknowledgment (DEP-18; R-04), and the DEP-03 evidence for the R1 instruments is reconciled. Production contractual activation (DEP-20) is not a release-candidate prerequisite.
 
 ### 9.1.1 Integrated R1 browser acceptance (Owner direction, 2026-11-24)
 

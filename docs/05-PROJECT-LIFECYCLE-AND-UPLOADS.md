@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.5 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. v0.4.3 (**OI-79**, Owner decision 2026-11-24): resolved values for uploads, image limits, scanner retries, the quarantine review threshold, domain-expiry warnings, release precondition, and intake corrections (§3, §5.4). v0.4.4 (Owner direction, 2026-11-24): authoritative scan-result rules (§5.5) after the PR #19 CI root cause; tests T-UP-14 to T-UP-19. No release requirement is weakened. v0.4.5 (documentation reconciliation, 2026-11-24): T-LC-15 aligned with OI-74 and OI-80; duplicate T-UP-10 resolved (decimal units is T-UP-20); scan-retry bounds; delivery, deletion, and malicious-content rules from the PR #19 reviews (§5.5 rules 7–9); WP-C audit names. |
-| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68, OI-72 |
+| Version | 0.5.1 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.4.0: R1/R2 release tags (OI-68): staff-recorded preview releases, staff-performed and recorded outreach, and the R1 approval wording. Earlier: v0.3.2 automatic final payment (OI-17 revised). v0.4.1 adds §9 queue visibility for **OI-72** (Owner decision, 2026-11-24); no other approved text or value is changed. v0.4.2 (**OI-74**, 2026-11-24): intake also requires an active payment authorization (§3); the R1 approval label and T-LC-14 move to R1. v0.4.3 (**OI-79**, Owner decision 2026-11-24): resolved values for uploads, image limits, scanner retries, the quarantine review threshold, domain-expiry warnings, release precondition, and intake corrections (§3, §5.4). v0.4.4 (Owner direction, 2026-11-24): authoritative scan-result rules (§5.5) after the PR #19 CI root cause; tests T-UP-14 to T-UP-19. No release requirement is weakened. v0.4.5 (documentation reconciliation, 2026-11-24): T-LC-15 aligned with OI-74 and OI-80; duplicate T-UP-10 resolved (decimal units is T-UP-20); scan-retry bounds; delivery, deletion, and malicious-content rules from the PR #19 reviews (§5.5 rules 7–9); WP-C audit names. v0.5.0 (PWP-0, AUTH-011; Owner direction 2026-11-25): project-specific scope confirmation and mandatory acknowledgment before preview release (§3A, §5.4, §6; OI-111); the 7/14/30/60 inactivity procedure and the day-3 courtesy reminder (§7.1, §7.2, §9; OI-110); revision handling reconciled with OI-81 (§8; OI-101). **Approved direction, not implemented**; the implemented R1 behavior (day 3/7/14/21 schedule, day-21 hold, release precondition) is unchanged until PWP-5 lands under separate authorization. v0.5.1 (2026-11-25, Main, PR #32 review reconciliation): the Decisions header lists OI-101, OI-110 and OI-111; the §9 "Approval hold eligible" row states the precise pending OI-110 effect. The implemented schedule and day-21 hold are unchanged. |
+| Decisions | OI-05, OI-09, OI-18, OI-20, OI-25, OI-26, OI-31, OI-39, OI-42, OI-43, OI-45, OI-46, OI-68, OI-72, OI-101, OI-110, OI-111 |
 | Open issues | None |
 | Dependencies | DEP-06, DEP-07 |
 
@@ -61,6 +61,22 @@ Transition rules:
 | Retention | Abandoned intake: 90 days (07 §6) |
 
 The exact field list and required/optional flags are **[PROPOSED]** above, for owner refinement.
+
+## 3A. Project-specific scope confirmation **[APPROVED OI-111, Owner 2026-11-25; not implemented: PWP-5, required for R1]**
+
+After intake is `accepted_by_staff`, Owner or Admin records a scope confirmation for the project's effective order summary.
+
+| Element | Rule |
+|---|---|
+| Content | Distinguishes four things: the purchased contractual entitlements (from the accepted bundle, OI-98); the client's requirements (from the intake version); the confirmed fulfillment selections; and any separately authorized scope amendments (OI-101) |
+| Versions | Each confirmation is an immutable version with an integrity hash; a change creates a new version and never edits an earlier one |
+| Acknowledgment | An affirmative acknowledgment by the client's authorized signer, bound to the exact current confirmation version (unchecked by default; verified email; audited) |
+| Gate | **Mandatory preview-release prerequisite.** A preview can be released only when the current confirmation version is acknowledged. **No administrative bypass.** |
+| Material change | A material change to confirmed selections requires renewed acknowledgment before the next preview release, without re-accepting unchanged governing terms |
+| Never | Reduces purchased entitlements; increases the accepted development price; introduces charges; alters the original contractual snapshot; substitutes for a separately accepted amendment |
+| Operational notes | Kept outside the contractual snapshot in a staff-only, append-only record (OI-100); never a contractual obligation |
+
+Entitlement checks against the selections need the final approved package specification (SLM-CPS-002 once completed, approved and published); until then no entitlement is represented as available.
 
 ## 4. Project asset uploads **[APPROVED OI-20]**
 
@@ -125,7 +141,7 @@ Rules:
 | 2 | Upload review queue (§9): "quarantined beyond the SLA" | A file still quarantined **24 hours** after upload is flagged for review |
 | 3 | Domain expiries queue (§9): "approaching the end of the initial term" | Warning **60 days** before the registration's expiry |
 | 4 | Decompression-bomb limits (§5.3 rule 5) | At most **12,000 px per side and 100 megapixels**. Dimensions are read from the file header and checked **before** any full decode; decoding is bounded in memory and processing time; malformed or oversized images are rejected before expensive processing wherever possible. No unapproved dependency is introduced (OI-80) |
-| 6 | Release precondition (§6) | A preview can be released only when intake is `accepted_by_staff`. **No override** |
+| 6 | Release precondition (§6) | A preview can be released only when intake is `accepted_by_staff`. **No override** **[APPROVED OI-111; not implemented: PWP-5]** Additionally, the current scope confirmation version must be acknowledged (§3A); no override |
 | 7 | Intake corrections (§3) | Owner and Admin; original submission, correction history, actor, and reason preserved; existing authorization and tenant isolation apply |
 | 8 | Scanner errors (§5.3) | The file stays **quarantined**. Bounded retries: at most **5** scan attempts, with backoff after scanner errors on the 07 §3 schedule (1 min, 5 min, 30 min, 2 h, 12 h); after the last attempt the file goes to the Upload review queue. No unscanned file is ever released. Scheduled retries are DEP-17 (WP-D); in R1 staff trigger them |
 
@@ -150,6 +166,7 @@ Item 5 (security findings) is in 06 §2 and §7.
 - A **preview release** is an immutable, uniquely identified artifact released to the client. **[PROPOSED]** It is identified by a sequential release number per project, the source commit SHA, the deployment ID, and the preview URL.
 - **[R1, OI-68]** Staff create the release record by entering the source commit SHA, deployment ID, and preview URL of a build they have deployed to a protected preview. The record is immutable once released. **[R2]** The portal builds and records releases itself.
 - **Internal drafts** (unreleased builds) are not visible to the client, and they do not affect existing approvals.
+- **[APPROVED OI-111; not implemented]** Releasing a preview also requires the acknowledged current scope confirmation (§3A).
 - Releasing a new preview marks earlier releases `superseded` for approval purposes. Their records and approvals are preserved.
 - Release records are insert-only. Only `withdrawn` (with a reason) may be applied after release.
 
@@ -174,6 +191,18 @@ The owner-authored draft agreement §3 gives the client five business days to id
 
 ### 7.1 Nonresponsive client escalation **[APPROVED OI-25]**
 
+**Revised (2026-11-25, OI-110; Owner direction, CD-21 reaffirmed; not implemented: PWP-5).** The contractual inactivity procedure, in calendar days from the current released preview (02 §13), is:
+
+| Day | Action |
+|---|---|
+| 3 | Courtesy reminder only. **Non-contractual:** it creates no contractual consequence, suspends no performance, alters no payment obligation, triggers no approval, publication, forfeiture or termination, and does not modify this procedure |
+| 7 | Reminder |
+| 14 | Formal notice and applicable preview-estimate suspension |
+| 30 | Administrative suspension or rescheduling eligibility, following appropriate notice (replaces the day-21 hold prospectively) |
+| 60 | Individual review under counsel-approved termination procedures |
+
+No milestone creates automatic approval, automatic remaining-balance collection, automatic publication or automatic deposit forfeiture. Exact contractual consequences need counsel-approved wording (DEP-03). **Until PWP-5 is implemented under separate authorization, the implemented schedule below (days 3, 7, 14 and the day-21 hold) stays in force.**
+
 **[R1, OI-68]** The day 3 and day 7 reminders and the day-7 Admin notification are performed by staff and recorded in the portal as outreach records (`approval.reminder_1_sent`, `approval.reminder_2_sent`, `approval.admin_notified`, with channel, date, and summary). The "Approval outreach due" queue (§9) shows what is due each day. **[R2]** The system sends them from the outbox.
 
 Days are calendar days in America/Detroit, counted from the local release date of the **current** released preview. Day *N* is the release date + *N* (02 §13). **[APPROVED OI-43]** Releasing a new preview restarts the schedule.
@@ -194,6 +223,8 @@ Rules **[APPROVED OI-25]**:
 
 ### 7.2 Day-21 approval hold **[APPROVED OI-45]**
 
+**Revised (2026-11-25, OI-110; not implemented: PWP-5):** prospectively replaced by the day-30 administrative suspension or rescheduling eligibility after formal notice at day 14 (§7.1), with every protection below preserved. The implemented day-21 hold is unchanged until then.
+
 `approval_nonresponsive_hold` is a **fulfillment** hold. It is a separate type from every billing hold, and it never represents an approved preview.
 
 | Aspect | Rule |
@@ -213,7 +244,7 @@ Rules **[APPROVED OI-25]**:
 ## 8. Revision handling **[PROPOSED]**
 
 - The client may submit revision requests against a release. Each request is linked to the release ID, with structured comments.
-- Staff classify each request as in-scope or out-of-scope. Out-of-scope work requires a new order summary and re-acceptance (04 §4) before it is performed under a price change.
+- Staff classify each request as in-scope or out-of-scope. Out-of-scope work requires a new order summary and re-acceptance (04 §4) before it is performed under a price change. **Revised (2026-11-25, OI-101):** before a verified deposit, a material change is a new standardized order summary and re-acceptance. After a verified deposit the development price is fixed (OI-81); out-of-scope work is a separately accepted additional-work obligation (04 §4; OWNER-RUNBOOKS §10), never a change to the accepted price. Automated additional-work billing is post-R1.
 - A revision cycle ends with a new released preview, which requires a new approval.
 
 ## 9. Derived administrative queues **[APPROVED OI-05]**
@@ -228,9 +259,9 @@ Queues are **computed** from authoritative state. They are never maintained by h
 | Intake review | Intake `submitted` |
 | In development | Intake accepted, no current release |
 | Awaiting client approval | Current release with no approval |
-| Approval outreach due **[R1]** | Current release unapproved at day 3 or day 7 with no matching outreach record (OI-25) |
+| Approval outreach due **[R1]** | Current release unapproved at day 3 or day 7 with no matching outreach record (OI-25) (OI-110 revision pending implementation: day 3 courtesy only; days 7, 14, 30, 60) |
 | Approval follow-up due | Current release unapproved at day 14 with no recorded personal follow-up (OI-25) |
-| Approval hold eligible | Current release unapproved at day 21+ with documented outreach (OI-25) |
+| Approval hold eligible | Current release unapproved at day 21+ with documented outreach (OI-25) (OI-110 revision pending implementation, PWP-5: hold eligibility is replaced by day-30 administrative suspension or rescheduling eligibility after the day-14 formal notice, §7.2; until then this row is in force) |
 | Payment recovery | Failed maintenance renewal within the 7-day recovery period (OI-26) |
 | Cancellation milestones | Effective cancellations with M1 (12 business days) or M2 (60 calendar days) approaching or passed, or required notices due (OI-35) |
 | Domain expiries | Spotlight-registered domains approaching the end of their initial one-year term **[PROPOSED]** |
@@ -290,7 +321,7 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-UP-17 | A clean result followed by a `malicious` result (any attempt, any non-terminal state, or after release) rejects the upload and blocks or revokes access; a clean result followed by an `error` returns it to quarantine |
 | T-UP-18 | A stale or replayed clean result (earlier attempt, duplicate, or re-sent after a newer malicious, error, or invalid result) never supersedes it and never releases the file |
 | T-UP-19 | A result whose SHA-256 differs from the stored quarantine object, or a stored object changed after scanning, blocks release; the released object's hash is server-computed |
-| T-LC-10 | **[R2]** Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) |
+| T-LC-10 | **[R2]** Reminders are sent on days 3 and 7, the Admin notification on day 7, and the follow-up queue entry appears on day 14. A new release restarts the schedule. (OI-25) **Revised (OI-110):** replaced on PWP-5 implementation by T-LC-18 |
 | T-LC-11 | The approval hold cannot be placed without a recorded personal follow-up. Placing it never creates an approval or alters billing. |
 | T-LC-12 | During an approval hold, the client can view the preview, approve it, or request revisions. The approval satisfies G3, and a review queue item is created. (OI-45) |
 | T-LC-13 | An approval hold does not change portal access, subscription status, balances, or any published site |
@@ -298,3 +329,6 @@ The event catalog is in [07 §4](07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md#4-event-
 | T-LC-16 | **[OI-79]** Releasing a preview while intake is not `accepted_by_staff` is rejected for every actor; no override exists |
 | T-LC-17 | **[OI-79]** Owner and Admin can correct intake only with a reason; the original submission and every earlier version stay unchanged and readable; actor and reason are recorded; another project's staff-facing intake is unreachable by clients, and a client cannot correct intake |
 | T-UP-10 | Incorporating an asset into a released preview sets `used`. The flag never reverts. Assets that were never incorporated are reported as unused. (OI-42) |
+| T-LC-18 | **[OI-110; PROPOSED, PWP-5]** The day-3 courtesy reminder has no contractual effect; day-7 reminder, day-14 formal notice and estimate suspension, day-30 suspension or rescheduling eligibility after notice, and day-60 individual review are recorded; no milestone approves, charges, publishes or forfeits |
+| T-LC-19 | **[OI-111; PROPOSED, PWP-5]** A preview release is rejected for every actor unless the current scope confirmation version is acknowledged by the authorized client signer; a new confirmation version requires renewed acknowledgment; there is no override |
+| T-LC-20 | **[OI-111; PROPOSED, PWP-5]** A scope confirmation or acknowledgment never changes the order summary, its hash, the accepted price, or any ledger entry |

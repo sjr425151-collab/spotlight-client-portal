@@ -50,6 +50,7 @@ Requirement labels: **[APPROVED OI-nn]**, **[PROPOSED]**, **[PENDING OI-nn]**, *
 ## 5. Legal text and test fixtures (OI-69)
 
 - Never draft or invent legal text. Legal documents are incorporated only from the final counsel-approved publication copy (Owner sign-off, 2026-11-22).
+- Authoritative legal text, publication copies, counsel correspondence and approval evidence never enter Git, including the substantive text of external reconstruction drafts. The repository may hold only approved non-sensitive identifiers, version references, integrity hashes and provenance metadata (OI-106). No migration is a contractual-content loading path.
 - Tests and non-production environments may use a **test-only agreement fixture**. Its body is a non-legal placeholder ("TEST FIXTURE — NOT AN AGREEMENT"). It may contain only the verbatim, already-approved clause text in 04 §3.1. It is labeled on every screen that shows it.
 - A fixture must be **technically prevented** from production use: the environment schema rejects it when `APP_ENV=production`, the database refuses to mark a fixture version `approved` for production use, and a CI test proves both.
 

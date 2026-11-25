@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.2 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). v0.5.2 (documentation reconciliation, 2026-11-24): G7 clarification (failed medium and low findings do not fail G7, Owner-confirmed); B1 financial-integrity note for G2 and G4. |
-| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68 |
+| Version | 0.5.4 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). v0.5.2 (documentation reconciliation, 2026-11-24): G7 clarification (failed medium and low findings do not fail G7, Owner-confirmed); B1 financial-integrity note for G2 and G4. v0.5.3 (PWP-0, AUTH-011; Owner direction 2026-11-25): §5 and §8.5 record Owner-reported post-launch commercial direction (CD-10, CD-12, CD-13, CD-22 to CD-24; INT-02) pending individual reconciliation and counsel-approved wording (OI-108, OI-110). No gate, check or implemented behavior changes. v0.5.4 (2026-11-25, Main, PR #32 review reconciliation): the Decisions header lists OI-108 and OI-110. No rule changed. |
+| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68, OI-108, OI-110 |
 | Open issues | None |
 | Dependencies | DEP-03, DEP-06, DEP-09 |
 
@@ -79,7 +79,7 @@ Checks:
 - `www`/apex redirect policy configured.
 - The domain registrant record is in the client's name where feasible (draft agreement §5).
 - Where Spotlight registered the domain: the actual registration date and the registrar-reported expiry are recorded. The initial term is one year from actual registration (04 §15.1). Domain registration is tracked separately from hosting.
-- Third-party domain charges are disclosed and approved.
+- Third-party domain charges are disclosed and approved. **[Owner-reported direction, CD-12; OI-110; pending reconciliation]** An eligible standard domain carries a $25 annual expense allowance; amounts beyond it, and non-standard domains, follow the counsel-approved terms. Not implemented and not represented as a contractual commitment until approved and published.
 
 Results are recorded with timestamps. **[PROPOSED]** Freshness window: 24 hours.
 
@@ -180,6 +180,19 @@ Discontinuation (M1) and deactivation (M2) actions **[PROPOSED]**:
 - Neither action ever changes, cancels, or transfers a client-owned domain registration.
 - Neither action ever applies intentional degradation.
 - Records are retained per 07 §6.
+
+### 8.5 Post-launch commercial direction **[Owner-reported, 2026-11-25; OI-108, OI-110; pending individual reconciliation and counsel-approved wording]**
+
+The items below are preserved as approved commercial direction. Each needs reconciliation against recoverable source evidence or a later explicit Owner decision (08, CD cross-reference). None is implemented, and none is represented as a contractual commitment or as technically verified.
+
+| Item | Direction | Status |
+|---|---|---|
+| Launch stabilization (CD-10) | A 30-day launch stabilization period after publication | Needs source wording; terms in the maintenance or governing instrument once approved |
+| Domain (CD-12, CD-23) | Eligible standard domain with a $25 annual expense allowance; client domain ownership preserved; no automatic cancellation, transfer or lapse (04 §15.1, unchanged) | Allowance needs source; ownership rules recoverable (OI-32, OI-35) |
+| Hosting resources (CD-13, INT-02) | Provisional: 5 GB website asset storage; 100 GB monthly transfer; 2,000 monthly form submissions; usage measured by the supported provider's documented methodology | Provisional pending TV-03 (OPEN-ISSUES DEP-06 detail) |
+| Maintenance operating frequencies (CD-22) | Provisional: five-minute availability monitoring; daily recoverable backups; a 30-day backup retention target; weekly vulnerability checks; monthly website health, technical SEO and routine maintenance reviews | Provisional pending TV-03; never an unconditional service level (OI-108) |
+| Intellectual property (CD-23) | A hybrid intellectual property model | Needs source wording (DEP-03) |
+| Export and migration (CD-24) | One eligible standard website export; migration services separately priced | Transfer materials recoverable (04 §15.1); export terms need source |
 
 ## 9. Live verification **[APPROVED OI-22]**
 

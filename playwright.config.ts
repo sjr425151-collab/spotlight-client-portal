@@ -63,13 +63,22 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
+      // Integrated R1 journey (T-E2E-01 to T-E2E-10, tests/e2e/r1.spec.ts, WP-I I-2). Isolated:
+      // after WP-S's project so no two projects enroll MFA factors for the same seeded users at
+      // the same time, and ignored by the generic projects below. Matches no file until I-2.
+      name: "r1",
+      testMatch: /r1\.spec\.ts/,
+      dependencies: ["wps"],
+      use: { ...devices["Desktop Chrome"], launchOptions },
+    },
+    {
       name: "desktop-chromium",
-      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\./,
+      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\./,
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
       name: "mobile-chromium",
-      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\./,
+      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\./,
       use: { ...devices["Pixel 7"], launchOptions },
     },
     {

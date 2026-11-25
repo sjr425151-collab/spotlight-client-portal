@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(173);
+select plan(204);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false)
 returns uuid language plpgsql as $$
@@ -256,9 +256,10 @@ reset role;
 select is(pg_temp.audits('sales.order_summary_rejected'), 4, 'T-SALES-31: the fail-closed rejection is audited');
 -- A5: a new scope version never alters an issued summary.
 create temp table os1_before as select scope_items, snapshot_sha256 from public.order_summaries where id = pg_temp.id('os1');
-insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture) values
-  ('essential', 2, 1, 'TEST FIXTURE — NOT A DELIVERABLE (essential v2 item 1)', true),
-  ('essential', 2, 2, 'TEST FIXTURE — NOT A DELIVERABLE (essential v2 item 2)', true);
+-- WP-D18: a new version is created only through the authorized constructor (version 2).
+select private.create_package_scope_version('essential', array[
+  'TEST FIXTURE — NOT A DELIVERABLE (essential v2 item 1)',
+  'TEST FIXTURE — NOT A DELIVERABLE (essential v2 item 2)'], true);
 select is((select (scope_items, snapshot_sha256)::text from public.order_summaries where id = pg_temp.id('os1')),
   (select (scope_items, snapshot_sha256)::text from os1_before),
   'T-SALES-31 (A5): a later scope version leaves the issued snapshot and hash unchanged');
@@ -597,10 +598,9 @@ reset role;
 -- ===========================================================================
 -- T-SALES-36: fixture isolation with the environment allowlist
 -- ===========================================================================
-select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
-  values ('prestige', 9, 1, 'Unlabeled item', true) $$, '23514', null, 'T-SALES-36: a fixture row without the label is rejected');
-select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
-  values ('prestige', 9, 1, 'TEST FIXTURE — NOT A DELIVERABLE (unflagged)', false) $$, '23514', null,
+select throws_ok($$ select private.create_package_scope_version('prestige', array['Unlabeled item'], true) $$, '23514', null,
+  'T-SALES-36: a fixture row without the label is rejected');
+select throws_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (unflagged)'], false) $$, '23514', null,
   'T-SALES-36: an unflagged row carrying the label is rejected');
 select throws_ok($$ update private.billing_package_scope set is_test_fixture = false where package_key = 'prestige' $$, '42501',
   'billing_package_scope is insert-only', 'T-SALES-36: clearing the flag on a labeled row is rejected (append-only)');
@@ -618,8 +618,7 @@ create function pg_temp.scope_rows(p_key text) returns integer language sql as $
 -- staging
 update private.environment_settings set app_env = 'staging';
 select is(private.app_environment(), 'staging', 'setup: classified staging');
-select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
-  values ('prestige', 9, 1, 'TEST FIXTURE — NOT A DELIVERABLE (staging)', true) $$, '42501', null,
+select throws_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (staging)'], true) $$, '42501', null,
   'T-SALES-36: a fixture row is rejected under staging');
 select is(pg_temp.scope_rows('prestige'), 0, 'T-SALES-36: fixtures inserted under development are not returned under staging');
 select pg_temp.use_session('00000000-0000-4000-8000-000000000005', pg_temp.id('s1'), 'aal2', true);
@@ -629,15 +628,13 @@ select is(public.issue_order_summary(pg_temp.id('c5'), 'prestige') ->> 'error', 
 reset role;
 -- preview
 update private.environment_settings set app_env = 'preview';
-select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
-  values ('prestige', 9, 1, 'TEST FIXTURE — NOT A DELIVERABLE (preview)', true) $$, '42501', null,
+select throws_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (preview)'], true) $$, '42501', null,
   'T-SALES-36: a fixture row is rejected under preview');
 select is(pg_temp.scope_rows('prestige'), 0, 'T-SALES-36: no fixture is returned under preview');
 -- missing classification (read as production)
 delete from private.environment_settings;
 select is(private.app_environment(), 'production', 'setup: no classification reads as production');
-select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
-  values ('prestige', 9, 1, 'TEST FIXTURE — NOT A DELIVERABLE (prod)', true) $$, '42501', null,
+select throws_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (prod)'], true) $$, '42501', null,
   'T-SALES-36: a fixture row is rejected when the classification is missing');
 select is(pg_temp.scope_rows('prestige'), 0, 'T-SALES-36: no fixture is returned when the classification is missing');
 select is(pg_temp.scope_rows('essential'), 0, 'T-SALES-36: not even the newest fixture version');
@@ -646,14 +643,13 @@ select is(public.issue_order_summary(pg_temp.id('c5'), 'essential') ->> 'error',
   'T-SALES-36: Sales issuance fails closed when the classification is missing');
 reset role;
 -- A non-fixture row still resolves anywhere (synthetic, inside this rolled-back transaction).
-insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
-values ('signature', 7, 1, 'PGTAP SYNTHETIC NON-FIXTURE ROW (rolled back)', false);
+select private.create_package_scope_version('signature', array['PGTAP SYNTHETIC NON-FIXTURE ROW (rolled back)'], false);
 select is(pg_temp.scope_rows('signature'), 1, 'T-SALES-36: non-fixture rows are not affected by the allowlist');
 -- development and test
 insert into private.environment_settings (app_env) values ('test');
 select is(pg_temp.scope_rows('prestige'), 3, 'T-SALES-36: under test, fixtures resolve');
-select lives_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
-  values ('prestige', 9, 1, 'TEST FIXTURE — NOT A DELIVERABLE (test)', true) $$, 'T-SALES-36: under test, a fixture inserts');
+select lives_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (test)'], true) $$,
+  'T-SALES-36: under test, a fixture inserts');
 update private.environment_settings set app_env = 'development';
 select is(pg_temp.scope_rows('prestige'), 1, 'T-SALES-36: under development, the newest fixture version resolves');
 -- API roles cannot read or write the classification.
@@ -666,6 +662,135 @@ select throws_ok($$ select * from private.environment_settings $$, '42501', null
 select throws_ok($$ update private.environment_settings set app_env = 'test' $$, '42501', null, 'T-SALES-36: service_role cannot write it');
 select throws_ok($$ select * from private.billing_package_scope $$, '42501', null, 'T-SALES-36: service_role cannot read scope definitions');
 reset role;
+
+-- ===========================================================================
+-- WP-D18 (AUTH-007; DEP-18 sealing): sealed, verified, atomic package-scope versions.
+-- T-SALES-31 and T-SALES-36 extended. Runs last: the tamper checks below are destructive
+-- inside this rolled-back transaction.
+-- ===========================================================================
+create function pg_temp.canonical_sha(p_key text, p_version integer) returns text language sql as $$
+  -- Independent recomputation of the canonical, length-prefixed serialization (AUTH-007 rules).
+  select encode(extensions.digest(convert_to('spotlight.package_scope.v1'
+    || '|k' || octet_length(p_key) || ':' || p_key || '|v' || p_version || '|n' || count(*)
+    || string_agg('|p' || position || ':' || octet_length(item_text) || ':' || item_text, '' order by position),
+    'UTF8'), 'sha256'), 'hex')
+  from private.billing_package_scope where package_key = p_key and scope_version = p_version;
+$$;
+-- Insertion only inside the authorized construction
+select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('prestige', 30, 1, 'TEST FIXTURE — NOT A DELIVERABLE (direct)', true) $$, '42501',
+  'package scope rows are created only by private.create_package_scope_version',
+  'WP-D18: a direct item insert is rejected, even for the migration owner');
+select throws_ok($$ insert into private.billing_package_scope_versions (package_key, scope_version, item_count, content_sha256, is_test_fixture)
+  values ('prestige', 30, 1, repeat('0', 64), true) $$, '42501',
+  'package scope rows are created only by private.create_package_scope_version',
+  'WP-D18: a direct header insert (a forged seal) is rejected');
+select set_config('wpd18.scope_construction', 'essential:1', true);
+select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+  values ('essential', 1, 4, 'TEST FIXTURE — NOT A DELIVERABLE (late addition)', true) $$, '42501',
+  'package scope version essential:1 is sealed', 'WP-D18: no item can be added to a sealed version, even with a forged marker');
+select set_config('wpd18.scope_construction', '', true);
+-- Sealed headers are never modified, deleted, truncated, or unsealed
+select throws_ok($$ update private.billing_package_scope_versions set sealed_at = null where package_key = 'essential' $$, '42501',
+  'billing_package_scope_versions is insert-only', 'WP-D18: a seal cannot be removed');
+select throws_ok($$ update private.billing_package_scope_versions set item_count = 2 where package_key = 'essential' and scope_version = 1 $$,
+  '42501', 'billing_package_scope_versions is insert-only', 'WP-D18: a sealed header cannot be modified');
+select throws_ok($$ delete from private.billing_package_scope_versions where package_key = 'essential' $$, '42501',
+  'billing_package_scope_versions is insert-only', 'WP-D18: a sealed header cannot be deleted');
+select throws_ok($$ truncate private.billing_package_scope_versions $$, '42501', null, 'WP-D18: headers cannot be truncated');
+-- No API role can execute the constructor or touch either table
+select pg_temp.as_service();
+select throws_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (svc)'], true) $$,
+  '42501', null, 'WP-D18: service_role cannot execute the constructor');
+select throws_ok($$ insert into private.billing_package_scope_versions (package_key, scope_version, item_count, content_sha256, is_test_fixture)
+  values ('prestige', 31, 1, repeat('0', 64), true) $$, '42501', null, 'WP-D18: service_role cannot write headers');
+select throws_ok($$ update private.billing_package_scope_versions set item_count = 9 $$, '42501', null, 'WP-D18: service_role cannot update headers');
+select throws_ok($$ truncate private.billing_package_scope_versions $$, '42501', null, 'WP-D18: service_role cannot truncate headers');
+reset role;
+select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
+select throws_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (owner)'], true) $$,
+  '42501', null, 'WP-D18: an authenticated Owner cannot execute the constructor');
+select throws_ok($$ select * from private.billing_package_scope_versions $$, '42501', null, 'WP-D18: authenticated cannot read headers');
+reset role;
+select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and p.proname in ('create_package_scope_version', 'billing_package_scope_construction_guard', 'current_package_scope')
+    and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute')
+         or has_function_privilege('service_role', p.oid, 'execute'))), 0,
+  'WP-D18: no API role can execute the constructor, the guard, or the resolver');
+select is((select bool_and(p.prosecdef and p.proconfig @> array['search_path=""']) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and p.proname in ('create_package_scope_version', 'billing_package_scope_construction_guard', 'current_package_scope')), true,
+  'WP-D18: SECURITY DEFINER with search_path = ''''');
+-- Hash, count, order, and fixture consistency
+select is((select content_sha256 from private.billing_package_scope_versions where package_key = 'essential' and scope_version = 1),
+  pg_temp.canonical_sha('essential', 1), 'WP-D18: an independent recomputation of the canonical hash matches the seal');
+select is((select count(*)::int from private.billing_package_scope_versions h
+  where h.content_sha256 is distinct from pg_temp.canonical_sha(h.package_key, h.scope_version)
+    and h.package_key <> 'advanced'), 0, 'WP-D18: every intact sealed version re-verifies');
+select is((select count(*)::int from private.billing_package_scope_versions h join private.billing_package_scope i
+  on i.package_key = h.package_key and i.scope_version = h.scope_version where i.is_test_fixture <> h.is_test_fixture), 0,
+  'WP-D18: the fixture status is identical on every header and its items');
+select is((select item_count from private.billing_package_scope_versions where package_key = 'essential' and scope_version = 2), 2,
+  'WP-D18: the header records the item count');
+-- Historical reproducibility (A5): version 1 is still exactly what the first summary copied
+select is((select jsonb_agg(item_text order by position) from private.billing_package_scope where package_key = 'essential' and scope_version = 1),
+  (select scope_items from public.order_summaries where id = pg_temp.id('os1')),
+  'WP-D18: the historical version reproduces the issued snapshot exactly');
+-- Consecutive versions and atomic rollback
+select is((select array[(private.create_package_scope_version('professional', array['TEST FIXTURE — NOT A DELIVERABLE (seq a)'], true) ->> 'scope_version')::int,
+                        (private.create_package_scope_version('professional', array['TEST FIXTURE — NOT A DELIVERABLE (seq b)'], true) ->> 'scope_version')::int]),
+  array[2, 3], 'WP-D18: successive creations of one package get consecutive versions');
+create temp table before_fail as select (select count(*) from private.billing_package_scope where package_key = 'professional') as items,
+  (select count(*) from private.billing_package_scope_versions where package_key = 'professional') as headers;
+select throws_ok($$ select private.create_package_scope_version('professional',
+  array['TEST FIXTURE — NOT A DELIVERABLE (good)', 'Unlabeled bad item'], true) $$, '23514', null,
+  'WP-D18: a failure on the second item fails the construction');
+select is((select (count(*), (select count(*) from private.billing_package_scope_versions where package_key = 'professional'))::text
+  from private.billing_package_scope where package_key = 'professional'),
+  (select (items, headers)::text from before_fail), 'WP-D18: nothing of the failed version remains (whole-version rollback)');
+select throws_ok($$ select private.create_package_scope_version('professional', array[]::text[], true) $$, '22023', null,
+  'WP-D18: an empty version is rejected');
+-- A half-created (unsealed) version is never resolved
+select set_config('wpd18.scope_construction', 'professional:4', true);
+insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
+values ('professional', 4, 1, 'TEST FIXTURE — NOT A DELIVERABLE (half-created)', true);
+select set_config('wpd18.scope_construction', '', true);
+select is((select max(scope_version) from private.current_package_scope('professional')), 3,
+  'WP-D18: unsealed rows are never resolved; the newest sealed version (3) is');
+select is((select string_agg(item_text, '|') from private.current_package_scope('professional')), 'TEST FIXTURE — NOT A DELIVERABLE (seq b)',
+  'WP-D18: and only its items');
+-- Fixture headers keep the development/test allowlist
+update private.environment_settings set app_env = 'staging';
+select set_config('wpd18.scope_construction', 'prestige:40', true);
+select throws_ok($$ insert into private.billing_package_scope_versions (package_key, scope_version, item_count, content_sha256, is_test_fixture)
+  values ('prestige', 40, 1, repeat('0', 64), true) $$, '42501',
+  'package-scope test fixtures are allowed only in development and test databases', 'WP-D18: a fixture header is rejected under staging');
+select set_config('wpd18.scope_construction', '', true);
+update private.environment_settings set app_env = 'development';
+-- Tampering fails closed (destructive inside this transaction: C5 and the header guard are
+-- disabled by name only here, as the migration owner)
+alter table private.billing_package_scope disable trigger billing_package_scope_append_only;
+-- The newest sealed version of 'essential' (version 2) is the one Sales issuance resolves.
+update private.billing_package_scope set item_text = 'TEST FIXTURE — NOT A DELIVERABLE (tampered)'
+ where package_key = 'essential' and position = 2
+   and scope_version = (select max(scope_version) from private.billing_package_scope_versions where package_key = 'essential');
+alter table private.billing_package_scope enable trigger billing_package_scope_append_only;
+select is((select count(*)::int from private.current_package_scope('essential')), 0,
+  'WP-D18: an item altered after sealing (hash mismatch) is never resolved (no fallback to an older version)');
+select pg_temp.use_session('00000000-0000-4000-8000-000000000005', pg_temp.id('s1'), 'aal2', true);
+insert into ids select 'c6', public.sales_create_customer_project('Foxtrot LLC', 'Foxtrot', 'Foxtrot website') ->> 'project_id';
+select is(public.issue_order_summary(pg_temp.id('c6'), 'essential') ->> 'error', 'scope_definition_missing',
+  'WP-D18: so Sales issuance fails closed on a tampered version');
+reset role;
+alter table private.billing_package_scope_versions disable trigger billing_package_scope_versions_append_only;
+update private.billing_package_scope_versions set item_count = 4 where package_key = 'prestige'
+  and scope_version = (select max(scope_version) from private.billing_package_scope_versions where package_key = 'prestige');
+alter table private.billing_package_scope_versions enable trigger billing_package_scope_versions_append_only;
+select is((select count(*)::int from private.current_package_scope('prestige')), 0,
+  'WP-D18: a header whose count no longer matches is never resolved');
+select is((select string_agg(tgname::text || ':' || tgenabled::text, ',' order by tgname) from pg_trigger
+  where tgrelid in ('private.billing_package_scope'::regclass, 'private.billing_package_scope_versions'::regclass) and not tgisinternal),
+  'billing_package_scope_append_only:O,billing_package_scope_construction_guard:O,billing_package_scope_fixture_guard:O,billing_package_scope_no_truncate:O,billing_package_scope_versions_append_only:O,billing_package_scope_versions_construction_guard:O,billing_package_scope_versions_no_truncate:O',
+  'WP-D18: every protection trigger is enabled again');
 
 select * from finish();
 rollback;

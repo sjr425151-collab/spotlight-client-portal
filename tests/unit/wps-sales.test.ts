@@ -272,4 +272,51 @@ describe("WP-S repository checks", () => {
       readFileSync("supabase/migrations/20261125120000_wps_staff_role_sales.sql", "utf8"),
     ).toContain("alter type public.staff_role add value if not exists 'sales';");
   });
+
+  it("WP-D18 (AUTH-007): the sealing migration changes only the authorized objects and adds no content", () => {
+    const sql = readFileSync(
+      "supabase/migrations/20261126140000_wpd18_scope_version_sealing.sql",
+      "utf8",
+    );
+    const code = sql
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("--"))
+      .join("\n");
+    expect([...code.matchAll(/create table (\S+)/g)].map((m) => m[1])).toEqual([
+      "private.billing_package_scope_versions",
+    ]);
+    expect(
+      [...code.matchAll(/create (?:or replace )?function (\w+\.\w+)/g)].map((m) => m[1]),
+    ).toEqual([
+      "private.billing_package_scope_construction_guard",
+      "private.create_package_scope_version",
+      "private.current_package_scope",
+    ]);
+    // No literal package content: the fixture label never appears, and no VALUES clause writes items.
+    expect(sql).not.toContain("TEST FIXTURE");
+    expect(code).not.toMatch(
+      /insert\s+into\s+private\.billing_package_scope\s*\([^)]*\)\s*values/i,
+    );
+    // No API role is granted anything.
+    expect(code).not.toMatch(/\bgrant\b/i);
+    // A non-fixture row stops the migration before anything is sealed.
+    expect(code.indexOf("where not is_test_fixture")).toBeGreaterThan(-1);
+    expect(code.indexOf("where not is_test_fixture")).toBeLessThan(
+      code.indexOf("insert into private.billing_package_scope_versions"),
+    );
+    // No WP-B object is touched (issue_order_summary keeps calling the resolver unchanged).
+    expect(code).not.toMatch(/issue_order_summary|order_summaries/);
+  });
+
+  it("WP-D18 (AUTH-007): the seed creates every fixture version through the constructor, labeled", () => {
+    const seed = readFileSync("supabase/seed.sql", "utf8");
+    expect(seed).not.toMatch(/insert\s+into\s+private\.billing_package_scope/i);
+    const call = seed.slice(seed.indexOf("select private.create_package_scope_version("));
+    expect(call).toMatch(/^select private\.create_package_scope_version\(p\.package_key, array\[/);
+    expect((call.match(/'TEST FIXTURE — NOT A DELIVERABLE \(/g) ?? []).length).toBe(3);
+    expect(call).toMatch(/\], true\)\s*\nfrom private\.billing_packages p/);
+    expect(seed.indexOf("insert into private.environment_settings")).toBeLessThan(
+      seed.indexOf("select private.create_package_scope_version("),
+    );
+  });
 });

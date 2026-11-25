@@ -1,0 +1,44 @@
+# WP-D18 isolated concurrent-commit verification (AUTH-007 Amendment 3, F2).
+# The exact pg_restore table-of-contents descriptors restored into the disposable database:
+# the dependency closure of the package-scope objects (4 tables, 7 functions, their
+# constraints, triggers, data and ACLs). One descriptor per line, dump IDs removed.
+# scripts/wpd18-isolated-commit-test.sh fails unless every line below matches exactly one
+# entry of the source dump and exactly 37 entries are selected. Lines starting with # are
+# comments.
+SCHEMA - private postgres
+ACL - SCHEMA private postgres
+FUNCTION private app_environment() postgres
+ACL private FUNCTION app_environment() postgres
+FUNCTION private audit_events_immutable() postgres
+ACL private FUNCTION audit_events_immutable() postgres
+FUNCTION private billing_package_scope_construction_guard() postgres
+ACL private FUNCTION billing_package_scope_construction_guard() postgres
+FUNCTION private billing_package_scope_fixture_guard() postgres
+ACL private FUNCTION billing_package_scope_fixture_guard() postgres
+FUNCTION private create_package_scope_version(text, text[], boolean) postgres
+ACL private FUNCTION create_package_scope_version(p_package_key text, p_items text[], p_is_test_fixture boolean) postgres
+FUNCTION private current_package_scope(text) postgres
+ACL private FUNCTION current_package_scope(p_package_key text) postgres
+FUNCTION private insert_only() postgres
+ACL private FUNCTION insert_only() postgres
+TABLE private billing_package_scope postgres
+TABLE private billing_package_scope_versions postgres
+TABLE private billing_packages postgres
+TABLE private environment_settings postgres
+TABLE DATA private billing_package_scope postgres
+TABLE DATA private billing_package_scope_versions postgres
+TABLE DATA private billing_packages postgres
+TABLE DATA private environment_settings postgres
+CONSTRAINT private billing_package_scope billing_package_scope_pkey postgres
+CONSTRAINT private billing_package_scope_versions billing_package_scope_versions_pkey postgres
+CONSTRAINT private billing_packages billing_packages_pkey postgres
+CONSTRAINT private environment_settings environment_settings_pkey postgres
+TRIGGER private billing_package_scope billing_package_scope_append_only postgres
+TRIGGER private billing_package_scope billing_package_scope_construction_guard postgres
+TRIGGER private billing_package_scope billing_package_scope_fixture_guard postgres
+TRIGGER private billing_package_scope billing_package_scope_no_truncate postgres
+TRIGGER private billing_package_scope_versions billing_package_scope_versions_append_only postgres
+TRIGGER private billing_package_scope_versions billing_package_scope_versions_construction_guard postgres
+TRIGGER private billing_package_scope_versions billing_package_scope_versions_no_truncate postgres
+FK CONSTRAINT private billing_package_scope billing_package_scope_package_key_fkey postgres
+FK CONSTRAINT private billing_package_scope_versions billing_package_scope_versions_package_key_fkey postgres

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.42.0 |
+| Version | 0.41.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1577,7 +1577,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.38.0 | 2026-11-25 | **PR #28 merged** (`b027e41`, CI 45675171938 (#116) 7/7); F2 closed with residual items carried forward; PR #33 and PR #34 activation records reconciled in CURRENT-STATE (v1.24.0); AUTH-012 released. | Main session | Owner |
 | 0.39.0 | 2026-11-25 | **PR #37 merged** (`e3a7508`, CI 45682383873 (#120) 7/7); OI-95 closed; AUTH-012 completed; O-1 carried forward to I-2. OPEN-ISSUES v0.32.0. | Main session | Owner |
 | 0.40.0 | 2026-11-25 | **PR #35 merged** (`30414c7`, CI 45689577718 (#123) 7/7); AUTH-006 completed; **AUTH-013 granted** (activation pending; fixture-integrity clarification). CURRENT-STATE v1.25.0; OPEN-ISSUES v0.33.0. | Main session | Owner |
-| 0.42.0 | 2026-11-25 | **AUTH-013 active** (PR #36 `19f6103`, post-merge CI 45694804255); **OI-113 correction implemented** (in review): migration `20261127110000`, pgTAP 235, the race test, fixture moves 1 to 6. **05 v0.5.2** (§7 "Gate rule", OI-113). CURRENT-STATE v1.27.0 (§18). v0.41.0 is reserved for Main's next record. | WP-C session | Owner (on merge) |
+| 0.41.0 | 2026-11-25 | **AUTH-013 active** (PR #36 `19f6103`, post-merge CI 45694804255); **OI-113 correction implemented** (in review): migration `20261127110000`, pgTAP 235, the race test, fixture moves 1 to 6. **05 v0.5.2** (§7 "Gate rule", OI-113). CURRENT-STATE v1.27.0 (§18). Main's next record takes v0.42.0. | WP-C session | Owner (on merge) |
 
 ## 6. Change-control rules
 

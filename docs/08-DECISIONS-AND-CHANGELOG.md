@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.30.0 |
+| Version | 0.31.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -882,6 +882,46 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Decision (Owner, 2026-11-25):** strict `requireClient` is retained; the emailed invitation link (`/invite/accept`) is the supported path for such invitees; no new portal path in WP-S; the user experience is reassessed before R1 release-candidate acceptance.
 - **Status:** Approved.
 
+### PR #30 merge and coordinated activation (Owner, 2026-11-25)
+
+Owner direction "PR #30 — Final Merge Authorization and Coordinated Activation". Documentation only.
+
+- **Merge:** PR #30 merged pinned at `a4db32afef4056dcdf61d2d4f791a12577c9cc73` (base `7469b2d`), exact-head CI run 45564562143 (#94, documentation-only set under OI-70). Merge commit `393e3c875c2db46efb45811ac4ef2a522a09ed26`: parents `7469b2d` and `a4db32a`; tree identical to the reviewed head. Post-merge CI run 45565499637 (#95): 7/7 with the full suite. **AUTH-007 Amendment 1 and AUTH-008 Amendment 1 are active.** AUTH-006 Amendment 1 stays active and unaffected.
+- **Historical counsel approval:**
+  - The Owner-reported counsel approval of the original contractual specifications stays a historical record. Its underlying evidence and exact approved artifact inventory are unverified.
+  - It does not transfer to the SLM-CPS-001 to SLM-CPS-007 v0.1.0 reconstruction drafts. Each reconstructed instrument needs its own reconciliation, formal approval, and controlled publication before contractual issuance.
+  - The 04 §3.1 Authorization for Final Payment clause is excluded from any general rescission or reopening. Its exact wording, canonicalization requirements, equality assertions, and implementation protections are preserved. Its clause-specific approval is not approval of the complete reconstructed agreement.
+- **FD-05 terminology:**
+  - The authoritative FD-05 wording is retained. "Runtime" is **not** an additional architectural requirement.
+  - FD-14's reference to "FD-05's Owner-controlled runtime loading mechanism" does not independently select or authorize a loading architecture. The controlling requirements are Owner control, auditability, and hash verification.
+  - No migration is an authorized contractual-content loading path, and the precise loading architecture needs separate authorization. Legal text and counsel evidence stay outside Git.
+  - No contractual-content loading, sealing, or issuance is authorized.
+- **FD-14 (reaffirmed):**
+  - Change 1 ratification stays withheld as currently written, with no blanket ratification. The seed-constructor refinement and the affected pgTAP 310 rewrites are approved in principle only.
+  - D-1 to D-10 individual records with all eight fields are required. The corrected Change 1 exception is limited to the exact authorized file name and preserves the original security intent.
+  - Every disposition is returned for Owner review before PR #27 merges.
+- **Additive security tests:** approved:
+  - the unflagged-but-labeled rejection category and the environment-guard rejection category;
+  - the H-1 forged-marker cases, demonstrating that manipulating the construction marker cannot bypass the fixture-label or environment restrictions.
+
+  Privilege boundaries, immutability protections, and unrelated assertions are preserved. This is not blanket ratification of the rewrites.
+- **Seed comment correction:** a comment-only correction to `supabase/seed.sql` under the WP-D18 correction, replacing the reviewed-migration statement with FD-05 wording. It changes no executable SQL, data, constructor call, fixture content, or environment behavior, and comment-only equivalence must be verified. It is recorded as **AUTH-007 Amendment 2** (activation pending this record's merge and post-merge CI). The PR #30 head was not changed for it.
+- **PWP-0 inventory: 13 to 14 files** (conditional grant):
+  - The grant adds `docs/07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md`, solely to reconcile the day-3 reminder with the authoritative contractual decisions. CD-21 and all seven courtesy-reminder limitations are preserved, and no unrelated notification, privacy, or design change is authorized.
+  - The amended reconstruction objective stays controlling.
+  - The PWP-0 session reproduces this in its grant record (R-06). PWP-0 stays **not active**, and its branch is not created.
+- **Source-independent work:** the absence of final contractual artifacts does not by itself prevent otherwise authorized source-independent architectural preparation. PWP-3 and PWP-4 keep every final-artifact dependency.
+- **Hardening proposals:**
+  - AUTH-009 (OI-91) and AUTH-010 (OI-93) stay separate proposed authorizations.
+  - OI-95 stays a mandatory R1 release-candidate blocker needing a separately authorized minimal accessibility correction.
+  - Their detailed proposals are prepared later, without implementation, after the existing implementation streams are active.
+- **Unchanged:**
+  - Merge order: WP-I-1, then WP-H, then WP-D18.
+  - Inactive or unauthorized: AUTH-002 and AUTH-003 are inactive; I-2 is unauthorized.
+  - Open dependencies: DEP-03 and DEP-18 stay open.
+  - Preserved decisions: Architecture B, FD-14 to FD-17, the scope-acknowledgment gate, historical acceptance protections, irreversible withdrawal, deterministic concurrency, and separate production authorization.
+  - Still prohibited: Stripe access, hosted-provider access, production changes, contractual-content loading, sealing, or issuance, dependency closure, unauthorized WP-D work, commission features, and PR #6 changes.
+
 ### Controlled contractual reconstruction and PWP-0 authorization amendment (Owner, 2026-11-25)
 
 Owner direction, after the DEP-18 read-only assessment. It amends the DEP-18 Phase 4 decisions recorded under the consolidated direction below. That earlier record is not rewritten: each superseded statement is quoted here, followed by its amendment. Documentation only.
@@ -939,6 +979,7 @@ Owner direction, after the DEP-18 read-only assessment. It amends the DEP-18 Pha
   - _Amended 2026-11-25: FD-04, FD-12, FD-13 and the PWP-0 objective, by "Controlled contractual reconstruction and PWP-0 authorization amendment" above; the text here is unchanged._
   - **PWP-0 refinements (Owner):**
     - **R-01 (exhaustive file scope):** exactly the 13 paths listed in section 12 of the Phase 4 report; no other file.
+      _Amended 2026-11-25: 14 files, adding `docs/07-NOTIFICATIONS-PRIVACY-AND-DESIGN.md` for the day-3 reminder only ("PR #30 merge and coordinated activation" above)._
     - **R-02 (concurrency verification):** the proposed contractual lock hierarchy is a conceptual design direction, subject to implementation-level verification. The absence of deadlocks, races, or time-of-check/time-of-use gaps is not represented as established before the implementation and concurrency tests. Deterministic acceptance-versus-withdrawal ordering and all existing financial and release-lock requirements are preserved.
     - **R-03 (idempotency integrity):** a duplicate request returns an existing result only when its identity, payload, content hashes and authorization references match the original. Conflicting duplicates fail closed and are audited. A natural-key collision never conceals conflicting content or authorization.
     - **R-04 (release-candidate verification):** PWP-5 is mandatory for R1. PWP-4 materialization may proceed independently where prerequisites permit, but final release-candidate contractual verification covers the complete R1 lifecycle, including PWP-5 and the mandatory project-specific scope-confirmation controls. Production activation is separately authorized.
@@ -1201,6 +1242,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.28.0 | 2026-11-25 | **R1 activation record:** PR #25 merged at `58d0e98` (CI run 45543204966, 7/7, full suite); AUTH-006, AUTH-007, AUTH-008 (I-1 only) active; common baseline `58d0e98`. AUTHORIZATIONS v1.14.0; CURRENT-STATE v1.18.0; R1-HANDOFFS v0.2.0. | Main session | Owner |
 | 0.29.0 | 2026-11-25 | **AUTH-006 Amendment 1** approved (activation pending); OI-91 (open, R1 blocker), OI-92 and OI-93 decided; 04 v0.9.9 §10.2 interface contract; OWNER-RUNBOOKS v0.3.0 §8, §9; AUTHORIZATIONS v1.15.0; OPEN-ISSUES v0.24.0; CURRENT-STATE v1.19.0; R1-HANDOFFS v0.3.0 (WP-H continuation). | Main session | Owner |
 | 0.30.0 | 2026-11-25 | Consolidated direction: AUTH-006 Amendment 1 active (`7469b2d`, run 45558153619); AUTH-007 and AUTH-008 Amendment 1; OI-94 to OI-97; OI-91 and OI-93 proposed architectures; T-SALES-36 governance and contractual content-loading wording reconciled with the DEP-18 Phase 4 Owner decisions (FD-05, FD-14, H-0); day-3 reminder and scope-confirmation decisions recorded; PWP-0 conditionally granted, not active, with refinements R-01 to R-06 recorded; controlled contractual reconstruction direction: FD-04, FD-12 and FD-13 amended traceably, 04 §3.1 clause approval preserved, PWP-0 objective amended (reconstruction status, historical provision counts not verified); next unused AUTH ID AUTH-011. AUTHORIZATIONS v1.16.0; OPEN-ISSUES v0.25.0; CURRENT-STATE v1.20.0; R1-HANDOFFS v0.4.0. | Main session | Owner |
+| 0.31.0 | 2026-11-25 | **PR #30 merged** (`393e3c8`, post-merge CI run 45565499637 (#95) 7/7): AUTH-007 and AUTH-008 Amendment 1 active; historical counsel-approval distinction and 04 §3.1 exclusion; FD-05 terminology (runtime is not a requirement); FD-14 reaffirmed; additive security tests approved; AUTH-007 Amendment 2 (seed comment-only exception; activation pending); PWP-0 inventory 13 to 14 files (07, day-3 reminder only). AUTHORIZATIONS v1.17.0; CURRENT-STATE v1.21.0; R1-HANDOFFS v0.5.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

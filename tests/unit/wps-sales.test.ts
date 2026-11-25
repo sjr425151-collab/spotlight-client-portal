@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -623,5 +623,93 @@ describe("WP-S repository checks", () => {
         "do $$ begin execute 'insert into private.billing_package_' || 'scope select 1'; end $$;",
       ),
     ).toEqual([]);
+  });
+
+  // F5 presence check (AUTH-007 Amendment 3, F6): the isolated concurrent-commit verification is a
+  // mandatory step of the database job, exactly as recorded: after "Database tests (pgTAP)", before
+  // "Integration tests", with no `continue-on-error` and no `if:`, so the aggregate `CI result`
+  // cannot pass without it.
+  const F5_STEP = [
+    "      - name: WP-D18 isolated concurrent-commit verification",
+    "        run: ./scripts/wpd18-isolated-commit-test.sh",
+    "        timeout-minutes: 5",
+  ];
+  function f5Violations(workflow: string): string[] {
+    const lines = workflow.split("\n");
+    const starts = lines.flatMap((l, i) => (/^ {6}- /.test(l) ? [i] : []));
+    const steps = starts.map((start, k) => {
+      let end = starts[k + 1] ?? lines.length;
+      for (let j = start + 1; j < end; j += 1) {
+        if (!/^ {8}|^\s*$/.test(lines[j] ?? "")) {
+          end = j;
+          break;
+        }
+      }
+      return { start, lines: lines.slice(start, end).filter((l) => l.trim() !== "") };
+    });
+    const named = (name: string) => steps.findIndex((s) => s.lines[0] === `      - name: ${name}`);
+    const found = steps.filter((s) =>
+      s.lines.some((l) => l.includes("wpd18-isolated-commit-test.sh")),
+    );
+    const violations: string[] = [];
+    if (found.length !== 1) violations.push(`step count ${found.length}`);
+    const f5 = named("WP-D18 isolated concurrent-commit verification");
+    if (f5 < 0) return [...violations, "step missing"];
+    const block = steps[f5]!.lines;
+    if (block.some((l) => /continue-on-error/.test(l))) violations.push("continue-on-error");
+    if (block.some((l) => /^\s+if:/.test(l))) violations.push("if");
+    if (JSON.stringify(block) !== JSON.stringify(F5_STEP)) violations.push("step content");
+    if (named("Database tests (pgTAP)") !== f5 - 1) violations.push("not right after pgTAP");
+    if (named("Integration tests") !== f5 + 1) violations.push("not right before integration");
+    const job = (i: number) => {
+      for (let j = i; j >= 0; j -= 1)
+        if (/^ {2}[a-z][a-z0-9_-]*:\s*$/.test(lines[j] ?? "")) return lines[j];
+      return undefined;
+    };
+    const pg = named("Database tests (pgTAP)");
+    if (pg < 0 || job(steps[pg]!.start) !== job(steps[f5]!.start))
+      violations.push("not in the database job");
+    return violations;
+  }
+
+  it("F5 (AUTH-007 Amendment 3): the isolated verification is a mandatory, unconditional database-job step", () => {
+    const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
+    expect(f5Violations(workflow)).toEqual([]);
+    // The script it runs exists and is executable.
+    expect(statSync("scripts/wpd18-isolated-commit-test.sh").mode & 0o111).not.toBe(0);
+  });
+
+  it("F5 presence check fails on synthetic offending workflows (no vacuous pass)", () => {
+    const workflow = readFileSync(".github/workflows/ci.yml", "utf8");
+    const step = F5_STEP.join("\n") + "\n";
+    const cases: ReadonlyArray<readonly [string, string, string]> = [
+      ["removed", workflow.replace(step, ""), "step missing"],
+      [
+        "continue-on-error",
+        workflow.replace(step, step + "        continue-on-error: true\n"),
+        "continue-on-error",
+      ],
+      ["if", workflow.replace(step, step + "        if: github.event_name == 'push'\n"), "if"],
+      [
+        "other command",
+        workflow.replace("run: ./scripts/wpd18-isolated-commit-test.sh", "run: echo skipped"),
+        "step content",
+      ],
+      [
+        "moved after integration",
+        workflow
+          .replace(step, "")
+          .replace(
+            "      - name: Integration tests\n        run: pnpm test:integration\n",
+            "      - name: Integration tests\n        run: pnpm test:integration\n" + step,
+          ),
+        "not right after pgTAP",
+      ],
+      ["duplicated", workflow.replace(step, step + step), "step count 2"],
+    ];
+    for (const [label, mutated, expected] of cases) {
+      expect(mutated, label).not.toBe(workflow);
+      expect(f5Violations(mutated), label).toContain(expected);
+    }
   });
 });

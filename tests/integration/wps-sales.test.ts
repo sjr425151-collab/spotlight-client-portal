@@ -395,15 +395,21 @@ describe("WP-S concurrency (two connections)", () => {
     }
   }
 
-  // A true race. The WP-B lock order (project row, then order-summary row, in
-  // issue_order_summary; order-summary row, then the project's key-share lock through the
-  // acceptance foreign key, in accept_agreement) can deadlock; PostgreSQL then aborts one side.
-  // Either way exactly one side succeeds and the aborted side leaves no partial state.
+  // A true race. OI-86 (WP-H, AUTH-006): issue_order_summary takes the project row FOR NO KEY
+  // UPDATE, which does not conflict with the FOR KEY SHARE lock accept_agreement's acceptance
+  // foreign key takes, so the two serialize on the order-summary row lock alone and never
+  // deadlock. A deadlock abort (40P01) is never a passing outcome.
   for (const caller of ["sales", "owner"] as const) {
     it(`T-SALES-32: a true race never lets both succeed (${caller} replacement)`, async () => {
       const ownerSid = await dbSession(OWNER_ID);
       const outcomes: string[] = [];
-      for (let i = 0; i < 4; i += 1) {
+      for (let i = 0; i < 12; i += 1) {
+        // Many iterations exceed the per-user Sales limits, which are tested above.
+        await withDb((db) =>
+          db.query("delete from private.rate_limits where bucket like 'sales-%' or bucket = $1", [
+            `invite:${SALES_ID}`,
+          ]),
+        );
         const p = await salesProjectWithClient(`Race${caller}${i}`);
         const [accept, replace] = await Promise.all([
           side(once(p.clientId, p.clientSid, acceptSql, [p.orderSummaryId, p.legalName])),
@@ -424,6 +430,8 @@ describe("WP-S concurrency (two connections)", () => {
           ),
         ]);
         outcomes.push(`${accept}|${replace}`);
+        // OI-86: no side is ever aborted by the database, on the Sales or the Owner path.
+        expect([accept, replace].filter((o) => o.startsWith("aborted:"))).toEqual([]);
         const state = await withDb((db) =>
           db.query(
             `select (select count(*)::int from public.agreement_acceptances where project_id = $1) as acceptances,
@@ -441,6 +449,9 @@ describe("WP-S concurrency (two connections)", () => {
         } else {
           // Owner path unchanged (04 §4): a replacement after acceptance is allowed (reacceptance).
           expect(accept === "ok" || replace === "ok").toBe(true);
+          // OI-86: the replacement always succeeds (it is never aborted), and the acceptance
+          // succeeds exactly when it locked the original summary first.
+          expect(replace).toBe("ok");
         }
         expect(row.acceptances).toBe(accept === "ok" ? 1 : 0);
       }

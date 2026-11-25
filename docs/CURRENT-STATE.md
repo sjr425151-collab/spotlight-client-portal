@@ -817,3 +817,33 @@ Selected entries:
 | `wpd18-amendment3-proposal.md` | `d7334df0104fd6d8384544911269aa26bfe99b298b8b6a691d3bede11574cef4` |
 
 **Effort (OI-67), Amendment 3:** AI session about 1.2 h (2026-11-25, design probes and implementation); administrative about 0.1 h (two Docker daemon recoveries after container recycles); Owner: dispositions D-2 to D-10, Option A, and the D-1 direction.
+
+**Amendment 3 correction: the stricter lexical rule (option (a)).**
+- **Activation, confirmed read-only before applying the held patch:** PR #34 merged at `a5dfad0ccdef3aa669588c49976fb784d43bfbbc` (parents `f37cf7e` and `951d7dd`). Post-merge CI run 45665855580 (#112) on that exact commit completed `success`.
+- **Exemption list (exhaustive):** exactly `20261125120100_wps_sales_representative.sql`, `20261125120200_wps_oi85_separation.sql` and `20261126140000_wpd18_scope_version_sealing.sql`, as recorded. There is no timestamp, directory, wildcard or substring exemption. The SHA-256 of `20261125120200` equals the recorded `67c8851fabbac621b421dcb995111cc367e914179d580cde15b4358ebbb9fe8c`.
+- **Implementation:** commit `1508ede`, `tests/unit/wps-sales.test.ts` only.
+  - Comments are removed with a quote-aware lexer, so string, E-string, dollar-quoted and quoted-identifier contents are kept.
+  - Identifier quotes are dropped and whitespace around dots is collapsed.
+  - Any remaining `billing_package_scope` in a non-exempt migration fails.
+  - A non-vacuity check requires each exempt file to be present and to name the table.
+- **Mutation evidence:**
+  - **Synthetic inputs that fail:** quoted identifiers, spaced dots, an unqualified name under `search_path`, `COPY`, `MERGE`, a dynamic-SQL name in a string, a comment between `insert` and `into`, upper case, and trigger DDL.
+  - **Synthetic inputs that pass:** names in comments only, nested comments, and an unrelated `billing_packages_audit`.
+  - **Exemption is by exact name:** `20270101000000_wps_oi85_separation.sql` fails, while `20261125120200_wps_oi85_separation.sql` passes.
+  - **Disclosed exposure:** a name assembled from string fragments is not recognized, and that is asserted. The runtime construction guard remains the enforcing control.
+  - **Real temporary files (scratch, removed):**
+    - a quoted-identifier insert fails ("1 failed | 18 passed")
+    - `COPY` fails ("1 failed | 18 passed")
+    - a plain insert fails both checks ("2 failed | 17 passed")
+    - a similarly named `…_wpd18_scope_version_sealing_v2.sql` fails both checks
+    - after removal, 19/19 pass
+  - **Rule as originally recorded (scratch):** without the `20261125120200` exemption it fails on that merged file ("2 failed | 17 passed").
+- **Local results at `1508ede`:**
+  - lint, typecheck and format pass
+  - unit: 16 files, **291** (289 + 2)
+  - pgTAP: 27 files, **1533**
+  - `./scripts/wpd18-isolated-commit-test.sh`: **PASS 25/25**, cleanup verified
+  - integration and e2e were not run locally for this test-only change; they run in the exact-head CI below
+- **Docker during this run:** the local Docker daemon stopped once. With the database unreachable, F1 reported the disposable database's absence as unverified and failed. That is the intended fail-closed behavior. After the restart, no `wpd18_iso_*` database existed.
+- **D-1 remains unratified.** Ratification is a separate Owner disposition after independent review.
+- **Still sequenced:** F5 and its F6 presence check, at the rebase after WP-I-1 and WP-H.

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.22.0 |
+| Version | 0.23.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -858,6 +858,35 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Status:** Approved (architecture).
 - **Dependencies:** DEP-06 (refund metadata or credit-note behavior); DEP-03 (refund terms, OI-35).
 
+### OI-85 — Staff/client separation enforced in the database (PR #23 review)
+
+- **Origin:** WPS-P1 and WP-B review note N4; Main's independent review of PR #23 at `72da723` (2026-11-25). Phase 2, WP-B, and WP-C client checks built on `private.is_project_member()` did not exclude staff roles, so a Sales Representative holding a membership inserted by a privileged writer could read that project's records and obtain released-file download authorization through the portal asset route. No application, API, invitation, or administrative path can create that state.
+- **Decision (Owner, 2026-11-25):** a narrow **AUTH-005 amendment**: `private.is_project_member` requires no staff role of any kind; invariant triggers on `project_memberships` and `staff_roles` refuse conflicting states in both directions for every writer including `service_role`, serialized by the existing per-user lock; a migration-time conflict check stops without repairing data; fail closed even with inconsistent data; no claim against a database owner who disables the enforcement. T-SALES-24 must pass in full, with authorization defense tested independently of the triggers through a controlled local/CI-only inconsistent-data fixture.
+- **Status:** Approved; corrected in PR #23. **Affected:** 03 §4.1, §13 (v0.5.10); AUTHORIZATIONS AUTH-005 (v1.9.0).
+
+### OI-86 — Lock-order deadlock (`issue_order_summary` and `accept_agreement`)
+
+- **Origin:** WPS-P4 and WP-B review note N1 (pre-existing WP-B lock order; reproduced on the Owner path). One concurrent request receives a deadlock error (40P01); financial integrity holds.
+- **Decision (Owner, 2026-11-25):** a **mandatory R1 release-candidate blocker**. The proposed `FOR NO KEY UPDATE` correction needs independent validation and separate WP-B authorization; not implemented in WP-S. Existing financial-integrity and concurrency assertions are preserved.
+- **Status:** Approved (tracking).
+
+### OI-87 — Visibility of the noncontractual change reason
+
+- **Origin:** WP-B review note N5. `order_summaries.change_reason` is noncontractual (outside the snapshot hash) and bounded (1,000 characters), but the project's clients can read it through the API.
+- **Decision (Owner, 2026-11-25):** restricted to authorized staff with no client API exposure; a **mandatory correction before the R1 release candidate** under separate WP-B authorization, after verifying the effect of column privilege changes on existing API queries, RLS, staff workflows, and client contractual views. Not implemented in WP-S.
+- **Status:** Approved (tracking).
+
+### OI-88 — Invitation acceptance without an active membership
+
+- **Origin:** WPS-P3. The strict `requireClient` (03 §4.1) blocks the in-portal invitation list for a signed-in user with no active membership.
+- **Decision (Owner, 2026-11-25):** strict `requireClient` is retained; the emailed invitation link (`/invite/accept`) is the supported path for such invitees; no new portal path in WP-S; the user experience is reassessed before R1 release-candidate acceptance.
+- **Status:** Approved.
+
+### OI-89 — WP-S confirmations
+
+- **Decision (Owner, 2026-11-25):** (a) T-SALES-23 includes the user's own staff-role row and own active assignments (WPS-P2); (b) rate limits: customer creation 10 per hour, Sales invitation operations 30 per hour (WPS-P5); (c) audit names `sales_assignment.change_rejected`, `invitation.create_rejected`, `staff_role.sales_assignment_rejected` (WPS-P6); (d) the progress view omits payment recovery required and Owner intervention required, which the gate interfaces do not provide (WPS-P7); (e) the agreed monthly maintenance price and currency are agreed commercial information under OI-83 (WP-B N3), with no access to paid amounts, invoices, payment methods, refunds, disputes, or ledger records; (f) the shared-file additions `app-shell.tsx`, `playwright.config.ts`, and the static guard test. No additional financial visibility.
+- **Status:** Approved. **Affected:** 03 §4, §13 (v0.5.10); AUTHORIZATIONS AUTH-005 (v1.9.0).
+
 ### OI-83 — Visibility of agreed order-summary pricing
 
 - **Origin:** raised by WP-B (PR #20, as its OI-75).
@@ -942,7 +971,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Dependencies:** DEP-03 (revocation effect; re-authorization after revocation), DEP-06 and DEP-15 (test-mode confirmation of the 04 §8.2 items), AUTH-002 coverage of setup-mode Checkout Sessions (Owner confirmation, CURRENT-STATE §6).
 - **Affected sections:** 01 §9.1, §9.2 (v0.4.1); 04 §8, §8.1, §8.2, §10, §11, §16, §17 (v0.9.0); 05 §3, §7, §11 (v0.4.2); README.
 
-## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-84)
+## 3A. Traceability matrix (OI-01–OI-55, OI-63–OI-89)
 
 Phase = the earliest original OI-02 phase whose implementation the decision governs. "Prod" = production launch. Since OI-67, phases 3, 4 and 5 correspond to WP-B, WP-C and WP-D, and release placement is given by the [R1]/[R2] tags in the specs (OI-68).
 
@@ -1024,6 +1053,11 @@ Phase = the earliest original OI-02 phase whose implementation the decision gove
 | OI-82 | Refund and dispute allocation | Approved (architecture; subject to DEP-03, DEP-06) | WP-B | 04 §15.2.1, §16 | DEP-03, DEP-06 | Legal (refund terms) |
 | OI-83 | Agreed order-summary pricing visible to Owner, Admin, assigned Sales | Approved | WP-B, WP-S | 03 §4, §4.1 | — | — |
 | OI-84 | WP-S commercial capabilities (derived scope, no replacement after acceptance, resend, invitations, termination) | Approved | WP-S (WP-B review) | 03 §4, §4.1, §13; 04 §4 | DEP-18 | Legal (scope text, if DEP-03 covers it) |
+| OI-85 | Staff/client separation in the database | Approved | WP-S | 03 §4.1, §13 | — | — |
+| OI-86 | Lock-order deadlock (R1 RC blocker) | Approved (tracking) | WP-B | 04 §4 | — | — |
+| OI-87 | Change reason staff-only (before R1 RC) | Approved (tracking) | WP-B | 03 §4; 04 §4 | — | — |
+| OI-88 | Strict `requireClient`; emailed link path | Approved | WP-S | 03 §4.1, §6.1 | — | — |
+| OI-89 | WP-S confirmations | Approved | WP-S | 03 §4, §13 | — | — |
 | OI-74 | Mandatory payment method retention; R1 automatic final charge | Approved | WP-B, WP-C | 01 §9; 04 §8–§17; 05 §3, §7 | DEP-03, DEP-06, DEP-15 | Legal (revocation) |
 
 ## 4. Current authorization status
@@ -1071,6 +1105,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.21.1 | 2026-11-24 | **AUTH-005 amendments A1 to A6** (Owner): `wpc_is_staff_aal2()` call sites corrected to 20 (A1); test-only package-scope seed approved with database fixture isolation and T-SALES-36 (A2); hosted deployment boundary: reviewed migrations only, no seed, no reset (A3, AUTH-003); DEP-03 covers package-scope language (A4); DEP-18 Owner-confirmed with the no-retroactive-change assertion in T-SALES-31 (A5); AUTH-005 entry status against `0b289f3` (A6). Specs: 03 v0.5.7, 04 v0.9.6; AUTHORIZATIONS v1.7.1 (AUTH-005 still not granted); CURRENT-STATE v1.9.2; OPEN-ISSUES v0.21.1. | Main session | Owner |
 | 0.22.0 | 2026-11-25 | **AUTH-005 granted and active** (Owner, conditional; conditions met): PR #22 merged at `005cc36` (post-merge CI run #72); revalidation on `005cc36` matched; package-scope fixture guard amended to an affirmative `development`/`test` allowlist (T-SALES-36 extended). Recorded on `wp-s/sales-representative` before implementation. Specs: 03 v0.5.8; AUTHORIZATIONS v1.8.0; CURRENT-STATE v1.10.0. | Main session | Owner |
 | 0.22.1 | 2026-11-25 | **WP-S implementation PR** (AUTH-005; no decision changed): 03 v0.5.9 status labels (§4 key, §4.1 implementation status); CURRENT-STATE v1.11.0 (§2 row, §11 implementation record); OPEN-ISSUES v0.21.2 lists seven WP-S proposals (WPS-P1 to WPS-P7) for ID allocation by Main and Owner decision; DEVELOPMENT seeded-user note. | WP-S session | Pending Owner review |
+| 0.23.0 | 2026-11-25 | **PR #23 review disposition** (Owner): PR #23 at `72da723` not authorized for merge; **OI-85** (AUTH-005 amendment: `is_project_member`, invariant triggers, T-SALES-24 in full), **OI-86** (deadlock, R1 RC blocker, WP-B), **OI-87** (change reason staff-only, before R1 RC, WP-B), **OI-88** (strict `requireClient`), **OI-89** (confirmations); DEP-18 append-only scope versions. Specs: 03 v0.5.10, 04 v0.9.7; AUTHORIZATIONS v1.9.0; CURRENT-STATE v1.12.0; OPEN-ISSUES v0.22.0. Recorded on `wp-s/sales-representative` before the correction. | Main session | Owner |
 
 ## 6. Change-control rules
 

@@ -686,3 +686,28 @@ A genuine commit leaves rows in the append-only scope tables. Removing them woul
 `pnpm test:db` must start from a fresh reset. Run after the integration and e2e suites, it reports failures in 13 files, because those suites leave data behind. This is pre-existing behavior of those files, not part of this change. The remote CI result on the exact head is recorded in PR #27.
 
 **Effort (OI-67), Amendment 1 continuation:** AI session about 0.5 h (2026-11-25, 07:10–07:40 UTC); administrative about 0.05 h (local stack restart); Owner review: the individual D-1 to D-10 dispositions and the item 3 decision are pending.
+
+### 14B. AUTH-007 Amendment 2: seed comment-only correction (item 7)
+
+**Activation evidence (confirmed read-only before the change):**
+- PR #31 merged into `main` at `d9cf32aec6db3e3ffbc2aa810604ddc094093834`.
+- Post-merge CI run 45567129662 (#97) on that exact commit completed `success`.
+- The AUTHORIZATIONS row still reads "activation pending"; Main corrects that record separately.
+
+**Change.** The change is in `supabase/seed.sql`, WP-S section, comment lines only.
+- Removed: "…These are NOT deliverables: the production scope content is / supplied by the Owner (DEP-18) through a reviewed migration."
+- Added: "…These are NOT deliverables. Non-fixture contractual content is loaded only through an Owner-controlled, audited and hash-verified contractual content loading mechanism (FD-05). No migration is an authorized content path. Legal text and counsel evidence remain outside Git. No loading is authorized."
+
+No executable SQL, seed data, constructor call, fixture content, or environment behavior changed. Commit: `5ebd664`.
+
+| Required evidence | Method and result |
+|---|---|
+| SQL without comments identical | A PostgreSQL-aware lexer (session scratch tool, not committed) removes `--` and nested `/* */` comments and collapses whitespace outside literals. It copies byte for byte every single-quoted string (with `''`), `E''` string (with backslash escapes), quoted identifier, and dollar-quoted body (`$$`, `$tag$`), so comment-like text inside them is never discarded. Self-tests (9 of 9) cover: `--` inside a string, an `E''` string, a quoted identifier and dollar quotes; nested block comments; positional `$1` versus dollar quotes; `1 - -1`; and detection of a changed literal and of an added statement. Result: executable SHA-256 `8b3f1d342a91f7789b6d1eb2761107ecbf73c707d47cb3dd59e3f6eb9e3f3aa3` before (the committed `bbf9b05` file, confirmed with `cmp`) and after, **identical**. Comments: 18 before, 20 after. The only comments that differ are the two removed and the four added lines above. |
+| Diff changes only the authorized lines | `git diff -U0 supabase/seed.sql`: one hunk at line 75, `-2 +4`. Every changed line (both sides) begins with `--`; count of changed lines not starting with `--`: 0. |
+| Reset package-scope state identical | `supabase db reset` before and after, then the same query of every header (key, version, item count, content hash, fixture flag), every item (key, version, position, flag, item-text SHA-256, text), the resolved scope of every package (version, count, digest), and the totals and classification. Result: 26 rows, byte-identical (output SHA-256 `58f3a4308d3b4131c3f4848c5cadb515017581e89d5fb0e7bbc4a13be589200d` both times): 5 packages, 5 headers, 15 items, all version 1 with 3 items, fixtures `t`, classification `development`. |
+| Full suites unchanged and passing | See the suite table below. |
+| Exact-head CI 7/7 | Recorded in PR #27. |
+
+**Suites at `5ebd664`** (local, fresh reset, CI order): lint, typecheck, format pass; unit **288** pass; migration immutability pass; pgTAP (`supabase test db`) 27 files, **1533** pass; integration **81** pass; build, bundle scan, production build pass; e2e **51** pass. These counts are identical to `1eefdd9`.
+
+**Effort (OI-67), Amendment 2:** AI session about 0.2 h (2026-11-25, 07:33–07:45 UTC); administrative: none; Owner: none.

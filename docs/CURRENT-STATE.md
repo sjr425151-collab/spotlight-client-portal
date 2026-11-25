@@ -605,7 +605,23 @@ WP-C and Main agreed the correction resolves B-1 before it was committed. Final-
 
 ### 14.9 Combined-candidate verification
 
-Recorded after the synchronization with `main` that follows PR #34.
+The combined candidate is the merge commit `cb541df`. Its parents are the B-1 commit `977e1df` and `main` at `a5dfad0`: PR #34, whose post-merge CI run 45665855580 (#112) passed 7/7 with the full suite. This was the second and last single synchronization (Option A), with no rebase or force-push.
+
+Since `f37cf7e`, `main` changed only `OPEN-ISSUES.md`, `docs/08-DECISIONS-AND-CHANGELOG.md`, `docs/AUTHORIZATIONS.md` and `docs/R1-HANDOFFS.md`. The merge was conflict-free, and `git diff --name-only 977e1df cb541df` lists no non-documentation file. `main`'s CURRENT-STATE is unchanged at 1.22.0, so this file keeps 1.23.0. This record is added in a documentation-only commit on top; the exact-head CI run is recorded in the PR.
+
+| Check (local stack; Supabase CLI 3.2.0; Node 24.22.3; synthetic data) | Result |
+|---|---|
+| **Cold-reset series:** 12 × (`supabase db reset`, then `pnpm test:integration --silent=false`) | **12 of 12 consecutive runs passed, 81/81 each; 0 PGRST codes in any test output.** In every run, the 503 count in PostgREST's access log equalled the gate's recorded failures. Runs 2 to 12: the gate waited 247–277 ms (5 attempts, 2 `http 503 PGRST001` each). Run 1 directly followed a restart of the local stack: PostgREST was still loading its schema cache, and the gate waited **19,869 ms** (190 attempts, 187 `http 503 PGRST002`) before the first test, within the 60 s deadline. This is the bounded, observable startup-only case WPI-P1 accepts. Reset 8.3–22.7 s; suite 37.8–60.4 s; schema-cache sync 77–124 ms |
+| `supabase db reset`; `supabase test db` | 27 files, **1,484 tests, PASS** |
+| `pnpm test:integration` (same reset) | 6 files, **81 passed** |
+| `pnpm test:e2e --trace off` (CI settings) | **51 passed** |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm lhci` (the CI Lighthouse configuration) | Pass: 2 URLs, 6 runs, all assertions met |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, **301 passed** (17 in `tests/unit/postgrest-ready.test.ts`) |
+| `tests/unit/postgrest-ready.test.ts` repeated | **140 of 140 passed** (50 sequential, 90 at three in parallel) |
+
+No test was retried, skipped or quarantined. The only assertions changed are the two B-1 assertions in the new unit file (14.8). Not run locally: the dependency audit and gitleaks (CI only).
 
 **Effort (OI-67):** AI session about 4.5 h in total (I-1 about 1.5 h; Amendment 1 and W-1 about 2 h; B-1 about 1 h); Owner review and administrative time not recorded by this session.
 

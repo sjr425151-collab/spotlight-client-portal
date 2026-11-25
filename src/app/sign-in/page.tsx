@@ -8,8 +8,12 @@ import { TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { messageFor } from "@/lib/messages";
 import { getAuthContext } from "@/server/auth/context";
+import { homeFor } from "@/server/auth/guards";
 
-import { requestCodeAction, verifyCodeAction } from "./actions";
+import { requestCodeAction, signOutAction, verifyCodeAction } from "./actions";
+
+/** Notices for a signed-in user who has no area to enter (no redirect, or it would loop). */
+const NO_ACCESS_NOTICES = new Set(["inactive", "no_active_project"]);
 
 export const metadata: Metadata = { title: "Sign in", robots: { index: false, follow: false } };
 
@@ -18,7 +22,20 @@ type Search = Promise<Record<string, string | string[] | undefined>>;
 export default async function SignInPage({ searchParams }: { searchParams: Search }) {
   const params = await searchParams;
   const ctx = await getAuthContext();
-  if (ctx?.sessionActive && ctx.active) redirect(ctx.staffRole ? "/staff" : "/portal");
+  const noAccess = typeof params.notice === "string" && NO_ACCESS_NOTICES.has(params.notice);
+  if (ctx?.sessionActive && ctx.active && !noAccess) redirect(homeFor(ctx));
+  if (ctx?.sessionActive && noAccess) {
+    return (
+      <AuthCard title="No portal access" intro="Your account has no area to open right now.">
+        <Notice>{messageFor(params.notice)}</Notice>
+        <form action={signOutAction}>
+          <Button type="submit" variant="secondary" className="w-full">
+            Sign out
+          </Button>
+        </form>
+      </AuthCard>
+    );
+  }
 
   const pendingEmail = (await cookies()).get("sp_signin_email")?.value;
   const codeStep = params.step === "code" && Boolean(pendingEmail);

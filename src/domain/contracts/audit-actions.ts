@@ -204,3 +204,42 @@ export function auditAction(name: string): AuditAction {
   if (!found) throw new Error(`Unregistered audit action: ${name}`);
   return found;
 }
+
+// --- WP-S: Sales Representative actions (03 §4.1; OI-77, OI-78, OI-84; AUTH-005) ---
+// A separate list, so the WP-B / WP-C ownership rule above is unchanged. All general
+// (non-financial). Invitation and order-summary events keep their existing names; the actor's
+// role ("sales") is recorded on every row by private.record_audit_event.
+export interface WpSAuditAction {
+  readonly action: string;
+  readonly category: "general";
+  readonly owner: "WP-S";
+  readonly spec: string;
+}
+const s = (action: string, spec: string): WpSAuditAction => ({
+  action,
+  category: "general",
+  owner: "WP-S",
+  spec,
+});
+export const WP_S_AUDIT_ACTIONS: readonly WpSAuditAction[] = [
+  s("sales.customer_created", "03 §4.1"),
+  s("sales_assignment.created", "03 §4.1"),
+  s("sales_assignment.ended", "03 §4.1"),
+  s("sales_assignment.reassigned", "03 §4.1"),
+  s("sales.rate_limited", "03 §4.1"),
+  // Reason kind only: scope_input, notes_input, after_acceptance, missing_scope_definition (OI-84).
+  s("sales.order_summary_rejected", "03 §4.1"),
+  // Rejected and audited attempts required by 03 §4.1 (assignment manipulation, T-SALES-16;
+  // client-role separation, T-SALES-24).
+  s("sales_assignment.change_rejected", "03 §4.1"),
+  s("invitation.create_rejected", "03 §4.1"),
+  s("staff_role.sales_assignment_rejected", "03 §4.1"),
+];
+
+/** The reason kinds `sales.order_summary_rejected` may carry (OI-84(b), (c)). */
+export const SALES_ORDER_REJECTION_REASONS = [
+  "scope_input",
+  "notes_input",
+  "after_acceptance",
+  "missing_scope_definition",
+] as const;

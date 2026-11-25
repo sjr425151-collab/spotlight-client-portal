@@ -245,8 +245,13 @@ declare
 begin
   if v_sales then
     -- WP-S: client invitations to an actively assigned project only (03 §4, §4.1).
-    if p_kind <> 'client' or p_intended_role is not null or p_project_id is null
-       or not private.sales_assigned(p_project_id) then
+    if p_kind <> 'client' or p_intended_role is not null or p_project_id is null then
+      return private.fail('forbidden');
+    end if;
+    -- Serializes with end_sales_assignment (which locks the project row): the assignment is
+    -- read after the lock, so an invitation can never commit after the assignment ended.
+    perform 1 from public.projects where id = p_project_id for share;
+    if not private.sales_assigned(p_project_id) then
       return private.fail('forbidden');
     end if;
     if exists (
@@ -335,7 +340,11 @@ begin
     end if;
     select kind, project_id into v_kind, v_project from public.invitations
      where id = p_invitation_id and status = 'pending' for update;
-    if not found or v_kind <> 'client' or not private.sales_assigned(v_project) then
+    if not found or v_kind <> 'client' then
+      return private.fail('not_found');
+    end if;
+    perform 1 from public.projects where id = v_project for share;
+    if not private.sales_assigned(v_project) then
       return private.fail('not_found');
     end if;
     if not private.consume_rate_limit('sales-invite:' || (select auth.uid()), 30, interval '1 hour') then
@@ -369,7 +378,8 @@ $$;
 -- ---------------------------------------------------------------------------
 -- A client invitation is rejected for a user with an active Sales role; a Sales staff
 -- invitation is rejected for a user with an active project membership. Both are audited as
--- invitation.accept_failed with their reason, like every other failed acceptance.
+-- invitation.accept_failed with their reason, like every other failed acceptance. A per-user
+-- transaction lock (shared with set_staff_role) keeps the separation race-free.
 create or replace function private.accept_invitation(p_invitation_id uuid, p_token text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -382,6 +392,10 @@ begin
   if v_uid is null then
     return private.fail('invalid');
   end if;
+  -- WP-S: serializes every role-or-membership change of this user (this acceptance, and
+  -- set_staff_role to 'sales'), so the two rejections below can never both be missed by
+  -- concurrent requests (no Sales role together with a membership, even under a race).
+  perform pg_advisory_xact_lock(hashtextextended('wps-role-membership:' || v_uid::text, 0));
   select * into v_inv from public.invitations where id = p_invitation_id for update;
   if not found then
     return private.fail('invalid');
@@ -459,7 +473,11 @@ begin
       p_user_id::text, null, p_reason);
     return private.fail('role_not_assignable');
   end if;
-  -- WP-S: the Sales role is never given to a user with an active project membership.
+  -- WP-S: the Sales role is never given to a user with an active project membership. The
+  -- per-user lock (also taken by accept_invitation) makes the check race-free.
+  if p_role = 'sales' then
+    perform pg_advisory_xact_lock(hashtextextended('wps-role-membership:' || p_user_id::text, 0));
+  end if;
   if p_role = 'sales' and exists (
     select 1 from public.project_memberships m where m.user_id = p_user_id and m.status = 'active'
   ) then
@@ -622,6 +640,12 @@ begin
   if v_reason is not null and char_length(v_reason) > 500 then
     return private.fail('invalid_input');
   end if;
+  -- Lock order (project, then assignment) matches assign_sales_representative; holding the
+  -- project lock until commit makes every concurrent Sales write on the project wait and then
+  -- see the ended assignment (03 §4.1 "Assignment termination").
+  perform 1 from public.projects p
+   where p.id = (select a.project_id from public.project_sales_assignments a where a.id = p_assignment_id)
+   for update;
   select * into v_row from public.project_sales_assignments where id = p_assignment_id and active for update;
   if not found then
     return private.fail('not_found');
@@ -725,7 +749,8 @@ $$;
 -- 10. WP-B integration: private.issue_order_summary with one added caller (AUTH-005)
 -- ---------------------------------------------------------------------------
 -- Replaces the definition in 20261124160000_wpb_agreements.sql. Differences, all for the
--- Sales caller only (v_sales): the alternative caller private.sales_assigned(p_project_id);
+-- Sales caller only (v_sales): the alternative caller private.sales_assigned(p_project_id),
+-- re-read after the project row lock;
 -- (i) a non-empty p_scope_items or any p_project_notes is rejected and audited; (ii) scope
 -- items are copied from private.current_package_scope(p_package_key), project notes are
 -- null, and the scope version is recorded in the order_summary.issued audit metadata; (iii)
@@ -767,6 +792,11 @@ begin
   select * into v_project from public.projects where id = p_project_id and archived_at is null for update;
   if not found then
     return private.fail('project_not_found');
+  end if;
+  -- WP-S: re-read the assignment after the project lock, which end_sales_assignment also
+  -- takes, so an assignment that ended concurrently is always seen (no issuance after it).
+  if v_sales and not private.sales_assigned(p_project_id) then
+    return private.fail('forbidden');
   end if;
   if v_sales then
     -- OI-84(b): the representative supplies only the package key and a change reason.

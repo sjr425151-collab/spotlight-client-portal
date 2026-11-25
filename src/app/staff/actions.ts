@@ -8,9 +8,12 @@ import { requireOwner, requireStaff } from "@/server/auth/guards";
 import {
   createInvitation,
   createInvitationSchema,
+  resendInvitation,
   uuidSchema,
 } from "@/server/services/invitations";
 import {
+  assignSalesRepresentative,
+  endSalesAssignment,
   resetMfa,
   revokeInvitation,
   revokeMembership,
@@ -99,6 +102,69 @@ export async function revokeInvitationAction(formData: FormData) {
   done(back, await revokeInvitation(await createUserClient(), text(formData, "id")));
 }
 
+/**
+ * Resend (OI-84(d)): revoke, then reissue with a new token and expiry. The invitation's
+ * address and name are read from the database through RLS, never from the form; the two
+ * database calls authorize the caller again (staff invitations: Owner with fresh MFA).
+ */
+export async function resendInvitationAction(formData: FormData) {
+  await requireStaff();
+  const id = text(formData, "id");
+  const back =
+    text(formData, "back") === "team" ? "/staff/team" : projectPath(text(formData, "projectId"));
+  if (!uuidSchema.safeParse(id).success) done(back, { ok: false, error: "not_found" });
+  const db = await createUserClient();
+  const { data: invitation } = await db
+    .from("invitations")
+    .select("id, kind, email, full_name, project_id, intended_role")
+    .eq("id", id)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (!invitation) done(back, { ok: false, error: "not_found" });
+  const role = invitation.intended_role;
+  const result = await resendInvitation(
+    { user: db, siteUrl: env.NEXT_PUBLIC_SITE_URL },
+    {
+      id: invitation.id,
+      kind: invitation.kind === "staff" ? "staff" : "client",
+      email: String(invitation.email),
+      fullName: invitation.full_name,
+      projectId: invitation.project_id,
+      role: role === "owner" || role === "admin" || role === "sales" ? role : undefined,
+    },
+  );
+  done(back, result, "invitation_resent");
+}
+
+/** Owner or Admin: assign or reassign a project to a Sales Representative (03 §4.1). */
+export async function assignSalesRepresentativeAction(formData: FormData) {
+  await requireStaff({ returnTo: "/staff/team" });
+  done(
+    "/staff/team",
+    await assignSalesRepresentative(
+      await createUserClient(),
+      text(formData, "projectId"),
+      text(formData, "salesUserId"),
+      reasonOf(formData),
+    ),
+    "assignment_saved",
+  );
+}
+
+/** Owner or Admin: end an assignment; access ends at the next check (OI-78). */
+export async function endSalesAssignmentAction(formData: FormData) {
+  await requireStaff({ returnTo: "/staff/team" });
+  done(
+    "/staff/team",
+    await endSalesAssignment(
+      await createUserClient(),
+      text(formData, "assignmentId"),
+      reasonOf(formData),
+    ),
+    "assignment_ended",
+  );
+}
+
 export async function revokeMembershipAction(formData: FormData) {
   await requireStaff();
   const path = projectPath(text(formData, "projectId"));
@@ -134,8 +200,9 @@ export async function inviteStaffAction(formData: FormData) {
 export async function setStaffRoleAction(formData: FormData) {
   await requireOwner({ fresh: true, returnTo: "/staff/team" });
   const role = text(formData, "role");
-  // "fulfillment" reaches the database, which rejects and audits it (OI-03).
-  if (role !== "owner" && role !== "admin" && role !== "fulfillment") {
+  // "fulfillment" reaches the database, which rejects and audits it (OI-03). "sales" is
+  // rejected by the database for a user with an active membership (03 §4.1(a)).
+  if (role !== "owner" && role !== "admin" && role !== "sales" && role !== "fulfillment") {
     done("/staff/team", { ok: false, error: "invalid_input" });
   }
   done(

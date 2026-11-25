@@ -14,6 +14,7 @@ import { createUserClient } from "@/server/supabase/clients";
 
 export type ActiveContext = AuthContext & { active: true; sessionActive: true };
 export type StaffContext = ActiveContext & { staffRole: StaffRole; aal: "aal2" };
+export type SalesContext = ActiveContext & { staffRole: null; sales: true; aal: "aal2" };
 
 /** Any signed-in, active user with a live session. */
 export async function requireUser(): Promise<ActiveContext> {
@@ -23,11 +24,52 @@ export async function requireUser(): Promise<ActiveContext> {
   return ctx as ActiveContext;
 }
 
-/** A client user (not staff). Staff are sent to the staff area. */
+/**
+ * A client (03 §4.1, corrected in WP-S): holds NO staff role of any kind and at least one
+ * active project membership. Owner and Admin go to the staff area, Sales Representatives to
+ * the sales area; any other staff role value, and a user without an active membership, is
+ * not a client. The database enforces the same rule (wpc_is_client_member, WP-B's
+ * staff_role_of(...) is null checks); this guard is not the control on its own.
+ */
 export async function requireClient(): Promise<ActiveContext> {
   const ctx = await requireUser();
   if (ctx.staffRole) redirect("/staff");
+  if (ctx.sales) redirect("/sales");
+  if (ctx.anyStaffRole) redirect("/sign-in?notice=inactive");
+  const { data } = await (
+    await createUserClient()
+  )
+    .from("project_memberships")
+    .select("id")
+    .eq("user_id", ctx.userId)
+    .eq("status", "active")
+    .limit(1);
+  if (!data || data.length === 0) redirect("/sign-in?notice=no_active_project");
   return ctx;
+}
+
+/**
+ * A Sales Representative (03 §4.1) at aal2 in a live staff session. Like staff, the
+ * representative must enroll and verify an authenticator first (forced MFA). Every Sales
+ * database function re-checks the role, aal2, the live session, and the assignment at each
+ * call, so this guard is never the only control (OI-78).
+ */
+export async function requireSales(options: { returnTo?: string } = {}): Promise<SalesContext> {
+  const ctx = await requireUser();
+  if (ctx.staffRole) redirect("/staff");
+  if (!ctx.sales) redirect("/portal");
+  const next = safeReturnPath(options.returnTo ?? "/sales", "/sales");
+  if (ctx.aal !== "aal2") redirect(`/mfa?next=${encodeURIComponent(next)}`);
+  return ctx as SalesContext;
+}
+
+/** The signed-in user's home area by role. */
+export function homeFor(
+  ctx: Pick<AuthContext, "staffRole" | "sales">,
+): "/staff" | "/sales" | "/portal" {
+  if (ctx.staffRole) return "/staff";
+  if (ctx.sales) return "/sales";
+  return "/portal";
 }
 
 /**
@@ -38,6 +80,7 @@ export async function requireStaff(
   options: { fresh?: boolean; returnTo?: string } = {},
 ): Promise<StaffContext> {
   const ctx = await requireUser();
+  if (ctx.sales) redirect("/sales");
   if (!ctx.staffRole) redirect("/portal");
   const next = safeReturnPath(options.returnTo ?? "/staff");
   if (ctx.aal !== "aal2") redirect(`/mfa?next=${encodeURIComponent(next)}`);

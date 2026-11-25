@@ -22,7 +22,8 @@ export const createInvitationSchema = z.object({
   fullName: z.string().trim().min(1).max(200),
   projectId: uuidSchema.optional(),
   // "fulfillment" is passed through so the database rejects and audits it (OI-03, T-ROLE-05).
-  role: z.enum(["owner", "admin", "fulfillment"]).optional(),
+  // "sales": the Sales Representative role (03 §4.1), Owner-only with fresh MFA like any staff role.
+  role: z.enum(["owner", "admin", "sales", "fulfillment"]).optional(),
 });
 export type CreateInvitationInput = z.infer<typeof createInvitationSchema>;
 
@@ -152,6 +153,57 @@ export async function resendInvitationCode(
     outcome: error && error.code !== "email_exists" ? (error.code ?? "error") : "sent",
     via: "invitation",
   });
+}
+
+/**
+ * The pending invitation to resend, as read SERVER-SIDE by the caller's own authorized path
+ * (staff: the invitations table through RLS; Sales: sales_project_progress, which checks the
+ * active assignment). Never taken from form input.
+ */
+export interface PendingInvitation {
+  id: string;
+  kind: "client" | "staff";
+  email: string;
+  fullName: string;
+  projectId: string | null;
+  role?: "owner" | "admin" | "sales";
+}
+
+export type ResendResult =
+  | { ok: true; invitationId: string; emailSent: boolean }
+  | { ok: false; error: string; revoked: boolean };
+
+/**
+ * Resend is revoke followed by reissue (03 §4.1, §6.1; OI-84(d)), for every role. Revocation
+ * comes first, so at most one usable invitation exists per address; the old link and token
+ * stop working at once. If the reissue then fails (for example on the rate limit), the old
+ * invitation stays revoked and the caller sees the failure. Both steps are database calls
+ * that authorize, rate-limit, and audit on their own; there is no resend database object.
+ */
+export async function resendInvitation(
+  deps: { user: SupabaseClient; siteUrl: string },
+  invitation: PendingInvitation,
+): Promise<ResendResult> {
+  if (!uuidSchema.safeParse(invitation.id).success) {
+    return { ok: false, error: "invalid_input", revoked: false };
+  }
+  const { data, error } = await deps.user.rpc("revoke_invitation", {
+    p_invitation_id: invitation.id,
+  });
+  const revoked = data as { ok: boolean; error?: string } | null;
+  if (error || !revoked) return { ok: false, error: "unavailable", revoked: false };
+  if (!revoked.ok) return { ok: false, error: revoked.error ?? "unavailable", revoked: false };
+
+  const input = createInvitationSchema.safeParse({
+    kind: invitation.kind,
+    email: invitation.email,
+    fullName: invitation.fullName,
+    projectId: invitation.projectId ?? undefined,
+    role: invitation.role,
+  });
+  if (!input.success) return { ok: false, error: "invalid_input", revoked: true };
+  const created = await createInvitation(deps, input.data);
+  return created.ok ? created : { ok: false, error: created.error, revoked: true };
 }
 
 export type AcceptResult =

@@ -11,7 +11,10 @@ import { requireStaff } from "@/server/auth/guards";
 import { createUserClient } from "@/server/supabase/clients";
 
 import {
+  assignSalesRepresentativeAction,
+  endSalesAssignmentAction,
   inviteStaffAction,
+  resendInvitationAction,
   resetMfaAction,
   revokeInvitationAction,
   revokeStaffAction,
@@ -24,24 +27,47 @@ export const metadata: Metadata = { title: "Team", robots: { index: false, follo
 
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
-/** Staff management (spec 03 §4). Only the Owner can change staff; Admins can view. */
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner",
+  admin: "Admin",
+  sales: "Sales Representative",
+};
+const roleLabel = (role: string | null) => (role ? (ROLE_LABELS[role] ?? role) : "");
+
+/**
+ * Staff management (spec 03 §4). Only the Owner can change staff; Admins can view. Sales
+ * assignments (03 §4.1) are managed here by the Owner and Admins.
+ */
 export default async function TeamPage({ searchParams }: { searchParams: Search }) {
   const params = await searchParams;
   const ctx = await requireStaff({ returnTo: "/staff/team" });
   const isOwner = ctx.staffRole === "owner";
   const db = await createUserClient();
-  const [{ data: staff }, { data: invitations }] = await Promise.all([
-    db
-      .from("staff_roles")
-      .select("user_id, role, status, profiles!staff_roles_user_id_fkey(email, full_name, status)")
-      .eq("status", "active")
-      .order("granted_at", { ascending: true }),
-    db
-      .from("invitations")
-      .select("id, email, full_name, intended_role, expires_at")
-      .eq("kind", "staff")
-      .eq("status", "pending"),
-  ]);
+  const [{ data: staff }, { data: invitations }, { data: assignments }, { data: projects }] =
+    await Promise.all([
+      db
+        .from("staff_roles")
+        .select(
+          "user_id, role, status, profiles!staff_roles_user_id_fkey(email, full_name, status)",
+        )
+        .eq("status", "active")
+        .order("granted_at", { ascending: true }),
+      db
+        .from("invitations")
+        .select("id, email, full_name, intended_role, expires_at")
+        .eq("kind", "staff")
+        .eq("status", "pending"),
+      db
+        .from("project_sales_assignments")
+        .select("id, project_id, sales_user_id, assigned_at, projects(name)")
+        .eq("active", true)
+        .order("assigned_at", { ascending: false }),
+      db
+        .from("projects")
+        .select("id, name")
+        .is("archived_at", null)
+        .order("created_at", { ascending: true }),
+    ]);
   const notice = messageFor(params.notice);
   const error = messageFor(params.error);
 
@@ -71,22 +97,30 @@ export default async function TeamPage({ searchParams }: { searchParams: Search 
                     {self ? <span className="text-fg-subtle">(you)</span> : null}
                   </p>
                   <p className="text-sm text-fg-muted">
-                    {profile?.email} · {member.role === "owner" ? "Owner" : "Admin"}
+                    {profile?.email} · {roleLabel(member.role)}
                     {profile?.status === "deactivated" ? " · Deactivated" : ""}
                   </p>
                 </div>
                 {isOwner ? (
                   <div className="flex flex-wrap gap-2">
-                    <form action={setStaffRoleAction}>
+                    <form action={setStaffRoleAction} className="flex flex-wrap items-center gap-2">
                       <input type="hidden" name="userId" value={member.user_id} />
-                      <input
-                        type="hidden"
-                        name="role"
-                        value={member.role === "owner" ? "admin" : "owner"}
-                      />
                       <input type="hidden" name="reason" value="Role changed by Owner" />
+                      <label className="sr-only" htmlFor={`role-${member.user_id}`}>
+                        Role for {profile?.full_name}
+                      </label>
+                      <select
+                        id={`role-${member.user_id}`}
+                        name="role"
+                        defaultValue={member.role}
+                        className="h-9 rounded-control border border-line bg-surface px-2 text-sm text-fg"
+                      >
+                        <option value="owner">Owner</option>
+                        <option value="admin">Admin</option>
+                        <option value="sales">Sales Representative</option>
+                      </select>
                       <Button type="submit" variant="secondary" className="h-9 px-3">
-                        {member.role === "owner" ? "Make Admin" : "Make Owner"}
+                        Change role
                       </Button>
                     </form>
                     <form action={revokeStaffAction}>
@@ -116,6 +150,15 @@ export default async function TeamPage({ searchParams }: { searchParams: Search 
                     </form>
                   </div>
                 ) : null}
+                {member.role === "sales" ? (
+                  <SalesAssignments
+                    salesUserId={member.user_id}
+                    assignments={(assignments ?? []).filter(
+                      (a) => a.sales_user_id === member.user_id,
+                    )}
+                    projects={projects ?? []}
+                  />
+                ) : null}
               </Card>
             </li>
           );
@@ -132,18 +175,28 @@ export default async function TeamPage({ searchParams }: { searchParams: Search 
               <li key={invitation.id}>
                 <Card className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-5">
                   <p className="text-sm text-fg-muted">
-                    {invitation.full_name} · {invitation.email} · {invitation.intended_role}
+                    {invitation.full_name} · {invitation.email} ·{" "}
+                    {roleLabel(invitation.intended_role)}
                     {isInvitationExpired(invitation.expires_at) ? (
                       <span className="text-warning"> · Expired (can no longer be used)</span>
                     ) : null}
                   </p>
-                  <form action={revokeInvitationAction}>
-                    <input type="hidden" name="id" value={invitation.id} />
-                    <input type="hidden" name="back" value="team" />
-                    <Button type="submit" variant="secondary" className="h-9 px-3">
-                      Revoke
-                    </Button>
-                  </form>
+                  <div className="flex flex-wrap gap-2">
+                    <form action={resendInvitationAction}>
+                      <input type="hidden" name="id" value={invitation.id} />
+                      <input type="hidden" name="back" value="team" />
+                      <Button type="submit" variant="secondary" className="h-9 px-3">
+                        Resend
+                      </Button>
+                    </form>
+                    <form action={revokeInvitationAction}>
+                      <input type="hidden" name="id" value={invitation.id} />
+                      <input type="hidden" name="back" value="team" />
+                      <Button type="submit" variant="secondary" className="h-9 px-3">
+                        Revoke
+                      </Button>
+                    </form>
+                  </div>
                 </Card>
               </li>
             ))}
@@ -160,6 +213,9 @@ export default async function TeamPage({ searchParams }: { searchParams: Search 
                 <label className="flex items-center gap-2 text-sm text-fg-muted">
                   <input type="radio" name="role" value="owner" /> Owner
                 </label>
+                <label className="flex items-center gap-2 text-sm text-fg-muted">
+                  <input type="radio" name="role" value="sales" /> Sales Representative
+                </label>
               </fieldset>
               <Button type="submit">Send staff invitation</Button>
             </form>
@@ -167,5 +223,72 @@ export default async function TeamPage({ searchParams }: { searchParams: Search 
         </section>
       ) : null}
     </StaffShell>
+  );
+}
+
+type AssignmentRow = {
+  id: string;
+  project_id: string;
+  sales_user_id: string;
+  assigned_at: string;
+  projects: { name: string } | { name: string }[] | null;
+};
+
+/** Active assignments of one Sales Representative, with assign and end controls (03 §4.1). */
+function SalesAssignments({
+  salesUserId,
+  assignments,
+  projects,
+}: {
+  salesUserId: string;
+  assignments: AssignmentRow[];
+  projects: { id: string; name: string }[];
+}) {
+  return (
+    <div
+      className="flex flex-col gap-3 border-t border-line/70 pt-4"
+      data-testid="sales-assignments"
+    >
+      <p className="text-sm font-medium text-fg">Assigned projects</p>
+      {assignments.length === 0 ? <p className="text-sm text-fg-muted">None.</p> : null}
+      <ul className="flex flex-col gap-2">
+        {assignments.map((a) => {
+          const project = Array.isArray(a.projects) ? a.projects[0] : a.projects;
+          return (
+            <li key={a.id} className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-sm text-fg-muted">{project?.name ?? a.project_id}</span>
+              <form action={endSalesAssignmentAction}>
+                <input type="hidden" name="assignmentId" value={a.id} />
+                <input type="hidden" name="reason" value="Ended by staff" />
+                <Button type="submit" variant="ghost" className="h-9 px-3">
+                  End assignment
+                </Button>
+              </form>
+            </li>
+          );
+        })}
+      </ul>
+      <form action={assignSalesRepresentativeAction} className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="salesUserId" value={salesUserId} />
+        <input type="hidden" name="reason" value="Assigned by staff" />
+        <label className="sr-only" htmlFor={`assign-${salesUserId}`}>
+          Project to assign
+        </label>
+        <select
+          id={`assign-${salesUserId}`}
+          name="projectId"
+          className="h-9 rounded-control border border-line bg-surface px-2 text-sm text-fg"
+        >
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <Button type="submit" variant="secondary" className="h-9 px-3">
+          Assign project
+        </Button>
+      </form>
+    </div>
   );
 }

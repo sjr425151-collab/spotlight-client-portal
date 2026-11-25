@@ -120,9 +120,8 @@ describe("static security checks", () => {
       for (const match of exports) {
         const [, comment = "", name] = match;
         const body = text.slice(match.index + match[0].length, match.index + match[0].length + 400);
-        const guarded = /^\s*(?:const \w+ = )?await require(?:User|Client|Staff|Owner)\(/.test(
-          body,
-        );
+        const guarded =
+          /^\s*(?:const \w+ = )?await require(?:User|Client|Staff|Owner|Sales)\(/.test(body);
         const publicAction = /\/\/ public-action: \S/.test(comment);
         if (!guarded && !publicAction) unguarded.push(`${path}: ${name}`);
       }
@@ -153,7 +152,7 @@ describe("static security checks", () => {
       ]
         .filter(
           ([, , body]) =>
-            !/await require(?:User|Client|Staff|Owner|ProjectAccess)\(/.test(body ?? ""),
+            !/await require(?:User|Client|Staff|Owner|Sales|ProjectAccess)\(/.test(body ?? ""),
         )
         .map(([, method]) => `${path}: ${method}`),
     );

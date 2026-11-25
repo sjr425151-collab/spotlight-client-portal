@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { messageFor } from "@/lib/messages";
-import { requireUser, safeReturnPath } from "@/server/auth/guards";
+import { homeFor, requireUser, safeReturnPath } from "@/server/auth/guards";
 import { verifiedTotpFactor } from "@/server/services/mfa";
 import { createUserClient } from "@/server/supabase/clients";
 
@@ -21,13 +21,16 @@ export const metadata: Metadata = {
 
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
-/** Staff MFA (spec 03 §7): enrollment, aal2 step-up, and fresh re-verification. */
+/**
+ * Staff MFA (spec 03 §7): enrollment, aal2 step-up, and fresh re-verification. Sales
+ * Representatives are enrolled and verified the same way (03 §4.1, forced MFA).
+ */
 export default async function MfaPage({ searchParams }: { searchParams: Search }) {
   const params = await searchParams;
   const ctx = await requireUser();
-  if (!ctx.staffRole) redirect("/portal");
+  if (!ctx.staffRole && !ctx.sales) redirect("/portal");
 
-  const next = safeReturnPath(typeof params.next === "string" ? params.next : null, "/staff");
+  const next = safeReturnPath(typeof params.next === "string" ? params.next : null, homeFor(ctx));
   const reauth = params.reauth === "1";
   if (ctx.aal === "aal2" && !reauth) redirect(next as never);
 
@@ -49,7 +52,7 @@ export default async function MfaPage({ searchParams }: { searchParams: Search }
           ? reauth
             ? "This action needs a recent authenticator check. Enter the current code from your app."
             : "Enter the current code from your authenticator app."
-          : "Staff accounts require an authenticator app (TOTP). Set it up to continue."
+          : "Staff and sales accounts require an authenticator app (TOTP). Set it up to continue."
       }
     >
       {notice ? <Notice tone="success">{notice}</Notice> : null}

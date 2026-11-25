@@ -25,10 +25,32 @@ async function call(client: SupabaseClient, fn: string, args: Record<string, unk
 export function setStaffRole(
   user: SupabaseClient,
   userId: string,
-  role: "owner" | "admin" | "fulfillment",
+  role: "owner" | "admin" | "sales" | "fulfillment",
   reason: string,
 ) {
   return call(user, "set_staff_role", { p_user_id: userId, p_role: role, p_reason: reason });
+}
+
+/** Owner or Admin assigns or reassigns a project to a Sales Representative (03 §4.1). */
+export function assignSalesRepresentative(
+  user: SupabaseClient,
+  projectId: string,
+  salesUserId: string,
+  reason: string,
+) {
+  return call(user, "assign_sales_representative", {
+    p_project_id: projectId,
+    p_sales_user_id: salesUserId,
+    p_reason: reason || null,
+  });
+}
+
+/** Owner or Admin ends an assignment; access ends at the representative's next check (OI-78). */
+export function endSalesAssignment(user: SupabaseClient, assignmentId: string, reason: string) {
+  return call(user, "end_sales_assignment", {
+    p_assignment_id: assignmentId,
+    p_reason: reason || null,
+  });
 }
 
 export function revokeStaff(user: SupabaseClient, userId: string, reason: string) {

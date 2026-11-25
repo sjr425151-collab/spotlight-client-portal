@@ -142,6 +142,25 @@ export const MESSAGES = {
     "Only the person who accepted the agreement can turn off automatic final payment.",
   client_reauthentication_required:
     "For your security, please sign in again with a new code, then turn off automatic final payment within five minutes.",
+  // WP-S: Sales Representatives (03 §4.1; OI-77, OI-78, OI-84)
+  no_active_project:
+    "Your account has no active project. If you received a new invitation, open the link in that email.",
+  invalid_recipient: "That address cannot receive a client invitation.",
+  invitation_resent: "A new invitation was sent. The previous link no longer works.",
+  invitation_revoked: "Invitation revoked.",
+  customer_created: "Customer and project created. You are assigned to this project.",
+  customer_exists: "This customer and project already exist in your list.",
+  scope_not_allowed:
+    "The package's standard scope is applied automatically; scope items cannot be entered.",
+  notes_not_allowed: "Project notes cannot be added to a sales order summary.",
+  scope_definition_missing:
+    "This package has no approved standard scope yet, so an order summary cannot be issued.",
+  replacement_after_acceptance:
+    "The client has already accepted, so the order summary can no longer be replaced. Contact an Admin.",
+  not_sales_representative: "That person is not an active Sales Representative.",
+  client_membership: "This person is a client on a project and cannot be given the Sales role.",
+  assignment_saved: "Assignment saved.",
+  assignment_ended: "Assignment ended.",
 } as const;
 
 export type MessageCode = keyof typeof MESSAGES;

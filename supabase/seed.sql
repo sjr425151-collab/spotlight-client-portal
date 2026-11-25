@@ -72,8 +72,10 @@ insert into public.staff_roles (user_id, role) values ('00000000-0000-4000-8000-
 -- definitions for local and CI only. Each is created and sealed as version 1 through
 -- private.create_package_scope_version, the only way to create a version. Every item is a
 -- labeled fixture; the database accepts and resolves fixtures only because this database is
--- classified `development` above. These are NOT deliverables: the production scope content is
--- supplied by the Owner (DEP-18) through a reviewed migration.
+-- classified `development` above. These are NOT deliverables. Non-fixture contractual content
+-- is loaded only through an Owner-controlled, audited and hash-verified contractual content
+-- loading mechanism (FD-05). No migration is an authorized content path. Legal text and
+-- counsel evidence remain outside Git. No loading is authorized.
 select private.create_package_scope_version(p.package_key, array[
          'TEST FIXTURE — NOT A DELIVERABLE (' || p.package_key || ' item 1)',
          'TEST FIXTURE — NOT A DELIVERABLE (' || p.package_key || ' item 2)',

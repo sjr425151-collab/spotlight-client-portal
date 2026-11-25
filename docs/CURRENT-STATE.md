@@ -650,3 +650,60 @@ No test was retried, skipped or quarantined. The only assertions changed are the
 **Sequencing:** existing implementation merge order is unchanged (WP-I-1, WP-H, WP-D18). Main's next documentation record follows the PWP-0 merge.
 
 **Owner actions:** review and merge this PR (pinned to its exact head); the repository visibility change (OWNER-RUNBOOKS §11); continue the external contractual reconstruction; separate authorizations for PWP-1 to PWP-5 when ready.
+
+## 16. OI-95 `/sales` empty-state accessibility correction (AUTH-012)
+
+Implemented by the WP-S session on `wp-s/oi-95-empty-state`, from the verified `main` at `b027e4192fe3100d89dec106b7ae7686f82a974a`.
+
+**Entry (confirmed read-only):**
+- WP-I-1 merged as PR #28 at `b027e41`. Post-merge CI run 45675171938 (#116) on that exact commit completed `success`.
+- AUTH-012 is active: PR #33 at `f37cf7e`, run 45583992649. Its implementation condition, the WP-I-1 merge, is now met.
+
+**Defect, reproduced before the fix:**
+- On a freshly reset database, the seeded representative has no customers. The page rendered the empty-state `<p>` inside the `<ul data-testid="sales-customers">`.
+- axe reported `list` (1 node). The existing T-SALES-03 scan failed: `[{ id: "list", count: 1 }]`.
+- CI passed only because the integration suite runs before e2e and leaves customers behind. That is the order dependence OI-95 records.
+- The new test, run alone against the unfixed page, failed the same way.
+
+**Change (files exactly as authorized):**
+
+| File | Change |
+|---|---|
+| `src/app/sales/page.tsx` | A `<div data-testid="sales-customers">` container in both states. The empty-state message sits outside any list. The `<ul>` (same classes) and its items render only when there are customers. No data, privilege or Sales behavior change. |
+| `tests/e2e/wps.spec.ts` | Additive only: 0 lines removed. One new final test, `OI-95: the customer list is accessible when empty and when populated`. |
+| This section, and the PR description | The record. |
+
+**The new test:**
+- It creates a fresh, isolated Sales Representative for itself, using the same SQL pattern as the integration suite's fresh users (`auth.users`, `profiles`, `staff_roles 'sales'`). Neither state depends on earlier tests or suites.
+- It signs in and enrolls MFA.
+- **Empty state:** the message is shown, there is no list inside the container, and the WCAG scan has zero violations. The `list` rule was evaluated: it passes on the page because the shell's navigation is a list.
+- It then creates one customer through the form, waiting for the project page as T-SALES-04 does, and returns to `/sales`.
+- **Populated state:** exactly one list with one item and the project name, no empty-state message, zero violations, and the `list` rule evaluated.
+- Existing test IDs and assertions are unchanged. T-SALES-05 and T-SALES-14 still target `sales-customers`, which exists in both states.
+
+**Local results (branch tree, fresh reset, CI order):**
+
+| Check | Result |
+|---|---|
+| Lint, typecheck, format | Pass |
+| Unit | 17 files, **301** |
+| `pnpm audit --audit-level=high` | No known vulnerabilities |
+| Migration immutability | Pass |
+| pgTAP | 27 files, **1484** |
+| Integration | 6 files, **81** |
+| Build, bundle scan, production build | Pass |
+| E2E | **52** (51 plus the new test) |
+
+The WPS project alone, on a fresh reset, gives 27 passed.
+
+**Runs during development, kept for the record:**
+- Fresh reset with the new test before the fix: T-SALES-03 failed on `list`, so the new test was skipped under serial mode.
+- The new test alone before the fix: failed on `list`.
+- The first runs after the fix failed only in the new test itself:
+  - It wrongly expected `list` to be inapplicable in the empty state. The navigation list makes it applicable.
+  - It navigated before the create action had completed.
+  
+  Both were corrected in the new test; no existing assertion was touched.
+- One run was invalid because the local Docker daemon stopped. It was repeated.
+
+**Effort (OI-67):** AI session about 0.5 h; administrative about 0.1 h (a Docker recovery); Owner: none.

@@ -36,27 +36,32 @@ export default async function SalesHomePage({ searchParams }: { searchParams: Se
       {notice ? <Notice tone="success">{notice}</Notice> : null}
       {error ? <Notice tone="danger">{error}</Notice> : null}
 
-      <ul className="flex flex-col gap-3" data-testid="sales-customers">
+      {/* OI-95: the empty-state message is outside the list, and the list is rendered only with
+          items; the container keeps data-testid="sales-customers" in both states. */}
+      <div data-testid="sales-customers">
         {customers.length === 0 ? (
           <p className="text-fg-muted">No assigned customers yet.</p>
-        ) : null}
-        {customers.map((c) => (
-          <li key={c.project_id}>
-            <Card className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-5">
-              <div>
-                <p className="font-medium text-fg">{c.business_display_name}</p>
-                <p className="text-sm text-fg-muted">{c.project_name}</p>
-              </div>
-              <Link
-                href={`/sales/projects/${c.project_id}`}
-                className="rounded-control px-3 py-2 text-sm text-fg underline-offset-4 hover:underline"
-              >
-                Open {c.project_name}
-              </Link>
-            </Card>
-          </li>
-        ))}
-      </ul>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {customers.map((c) => (
+              <li key={c.project_id}>
+                <Card className="flex flex-wrap items-center justify-between gap-4 p-5 sm:p-5">
+                  <div>
+                    <p className="font-medium text-fg">{c.business_display_name}</p>
+                    <p className="text-sm text-fg-muted">{c.project_name}</p>
+                  </div>
+                  <Link
+                    href={`/sales/projects/${c.project_id}`}
+                    className="rounded-control px-3 py-2 text-sm text-fg underline-offset-4 hover:underline"
+                  >
+                    Open {c.project_name}
+                  </Link>
+                </Card>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <Card className="max-w-xl">
         <h2 className="font-display text-xl font-semibold text-fg">New customer</h2>

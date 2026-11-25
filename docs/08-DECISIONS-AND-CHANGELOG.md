@@ -882,6 +882,49 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Decision (Owner, 2026-11-25):** strict `requireClient` is retained; the emailed invitation link (`/invite/accept`) is the supported path for such invitees; no new portal path in WP-S; the user experience is reassessed before R1 release-candidate acceptance.
 - **Status:** Approved.
 
+### Controlled contractual reconstruction and PWP-0 authorization amendment (Owner, 2026-11-25)
+
+Owner direction, after the DEP-18 read-only assessment. It amends the DEP-18 Phase 4 decisions recorded under the consolidated direction below. That earlier record is not rewritten: each superseded statement is quoted here, followed by its amendment. Documentation only.
+
+- **Reconstruction status:**
+  - The original complete contractual specification suite (historically 352 numbered provisions, 226 of them package-specific) is **not available** for controlled publication or verification.
+  - Seven external documents, SLM-CPS-001 to SLM-CPS-007, exist outside Git as **v0.1.0 reconstruction drafts**. They are not approved publication artifacts, legally approved instruments, sealed bundles, or eligible runtime content.
+  - They are not represented as reproducing all 352 original provisions. The 352 and 226 counts are historical references only, not a verified inventory of the reconstructed suite.
+  - The unavailability of the originals does not rescind previously approved commercial, architectural, operational or governance decisions. Every recoverable approved decision is preserved.
+  - Where exact source wording or approval evidence is unavailable, the limitation is recorded and reconciliation or a new Owner disposition is required.
+- **FD-04 amended:**
+  - Superseded statement: "SLM-CPS-002 is the authoritative source of package-specific contractual obligations. SLM-CPS-001 is a commercial comparison reference and is not an independently binding client-facing contractual instrument."
+  - Amendment: SLM-CPS-002 is preserved as the designated contractual package specification authority **upon completion, formal approval and controlled publication**. SLM-CPS-001 remains a non-contractual commercial comparison reference. **Neither draft currently has contractual issuance authority.**
+  - FD-04's traceability and no-invented-scope requirements are unchanged.
+- **FD-12 amended:**
+  - Superseded statement: "Preserve all 24 approved commercial decisions."
+  - Amendment: the substance of the previously approved commercial decisions is preserved, including the 7/14/30/60 inactivity milestones, which are reaffirmed as Owner direction. Their exact contractual consequences remain subject to reconciliation and approval.
+  - CD-01 to CD-24 each require individual reconciliation against recoverable source evidence or a later explicit Owner decision. The original complete provision inventory is **not** asserted to be available.
+  - FD-12's prohibitions are unchanged: no inactivity milestone creates automatic approval, automatic balance collection, automatic publication or automatic deposit forfeiture. Its other preserved obligations are also unchanged.
+- **FD-13 amended:**
+  - Superseded statement: "Preserve the approved SLM-CPS-003 maintenance specification."
+  - Amendment: preserved are the designated maintenance instrument, the previously approved maintenance decisions, and the applicable technical validation requirements (including TV-03).
+  - SLM-CPS-003 remains under controlled reconstruction and needs formal approval before contractual issuance. Provisional technical limits do not become contractual commitments without validation and approval.
+- **04 §3.1 is unchanged:**
+  - The legal-adviser-approved Authorization for Final Payment clause is preserved exactly: its wording, canonicalization requirements, equality assertions, and existing implementation protections.
+  - Its clause-specific approval (Owner-reported, 2026-11-23) is **not rescinded**.
+  - That approval is distinct from, and does not imply, approval of the complete reconstructed governing agreement or contractual suite.
+  - The earlier Owner-reported counsel approval of the original specifications stays Owner-reported and unverified (DEP-03 open) and does not attach to the v0.1.0 drafts.
+- **PWP-0 objective amended:**
+  - Superseded statements: "Preserve the complete approved contractual specification suite. Do not reconstruct, summarize as a substitute for, or modify the 352 approved numbered provisions."
+  - Replacement objective: "Establish and preserve the approved contractual architecture, recoverable commercial and governance decisions, instrument boundaries, versioning requirements, acceptance protections, controlled publication requirements, and materialization gates while the authoritative contractual content undergoes external controlled reconstruction."
+  - PWP-0 documents the reconstruction status explicitly and never represents unavailable content, provision counts, counsel evidence or publication artifacts as verified.
+  - The rest of the conditional grant is unchanged: the 13 files (R-01), the exclusions, R-02 to R-06, the activation prerequisites, and Owner-only merge. PWP-0 stays **not active**.
+- **Preserved restrictions:**
+  - FD-05 remains controlling: authoritative contractual text and counsel evidence stay outside Git.
+  - Also preserved: Architecture B (FD-01); FD-14 to FD-17; the mandatory scope-acknowledgment gate; historical acceptance protections; irreversible withdrawal (FD-06); deterministic concurrency (FD-16); separate production authorization.
+  - The day-3 reminder remains a non-contractual courtesy only.
+  - Not authorized: content loading, sealing, issuance, production activation, dependency closure, or AUTH-007 expansion. DEP-03 and DEP-18 stay open.
+- **Source-independent work:**
+  - The absence of final contractual artifacts is not a blanket prohibition on source-independent architecture and preparatory work. This amendment, however, authorizes **no** implementation work package.
+  - PWP-1, PWP-2 and PWP-5 remain subject to their own authorization, dependency and validation requirements. PWP-3 and PWP-4 keep every applicable final-artifact dependency.
+- **Status:** Approved (Owner direction). It resolves the Owner-level decision on contractual reconstruction. PWP-0 still needs PR #30 merged, post-merge CI on the exact baseline, and its remaining activation prerequisites verified.
+
 ### Consolidated direction: AUTH-006 activation, AUTH-007 and AUTH-008 amendments, OI-94 to OI-97 (Owner, 2026-11-25)
 
 - **AUTH-006 Amendment 1 active:** PR #29 merged at `7469b2d`; post-merge CI run 45558153619 (#89) 7/7, full suite.
@@ -893,6 +936,7 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
   - **Day-3 reminder (OI-25):** retained exclusively as a non-contractual courtesy communication. It must not create contractual consequences, suspend contractual performance, alter payment obligations, trigger automatic approval, trigger publication, trigger forfeiture or termination, or modify the approved 7/14/30/60-day contractual inactivity procedure; the approved CD-21 procedure remains authoritative. Not implemented.
   - **Scope confirmation:** mandatory affirmative client acknowledgment is a preview-release prerequisite, bound to the exact current confirmed-selection version; a material change to confirmed selections requires renewed acknowledgment before preview release; no administrative bypass; purchased entitlements, accepted contractual terms, original pricing and historical snapshots are preserved. Not implemented, and not implemented under PWP-0.
   - **PWP-0:** documentation-only authorization conditionally granted (13 files exactly, R-01; refinements R-02 to R-06); **not active**; branch `docs/pwp-0-contractual-reconciliation` not created; its authorization identifier is allocated at execution as the next unused ID (AUTH-011 at this record). DEP-03 and DEP-18 stay open.
+  - _Amended 2026-11-25: FD-04, FD-12, FD-13 and the PWP-0 objective, by "Controlled contractual reconstruction and PWP-0 authorization amendment" above; the text here is unchanged._
   - **PWP-0 refinements (Owner):**
     - **R-01 (exhaustive file scope):** exactly the 13 paths listed in section 12 of the Phase 4 report; no other file.
     - **R-02 (concurrency verification):** the proposed contractual lock hierarchy is a conceptual design direction, subject to implementation-level verification. The absence of deadlocks, races, or time-of-check/time-of-use gaps is not represented as established before the implementation and concurrency tests. Deterministic acceptance-versus-withdrawal ordering and all existing financial and release-lock requirements are preserved.
@@ -1156,7 +1200,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.27.0 | 2026-11-25 | **R1 conditional grants** (Owner): AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (I-1 only) granted with binding clarifications (OI-86 concurrency; OI-87 audit trail only; N1(a) conflict handling; cross-check concurrency safety; D18 sealing rules and migration cases; F2 evidence criteria); active only after this record merges and post-merge CI succeeds; branches from that merge commit; merge order I-1, WP-H, WP-D18 with re-verification. Handoffs in R1-HANDOFFS.md. AUTHORIZATIONS v1.13.0; CURRENT-STATE v1.17.0. | Main session | Owner |
 | 0.28.0 | 2026-11-25 | **R1 activation record:** PR #25 merged at `58d0e98` (CI run 45543204966, 7/7, full suite); AUTH-006, AUTH-007, AUTH-008 (I-1 only) active; common baseline `58d0e98`. AUTHORIZATIONS v1.14.0; CURRENT-STATE v1.18.0; R1-HANDOFFS v0.2.0. | Main session | Owner |
 | 0.29.0 | 2026-11-25 | **AUTH-006 Amendment 1** approved (activation pending); OI-91 (open, R1 blocker), OI-92 and OI-93 decided; 04 v0.9.9 §10.2 interface contract; OWNER-RUNBOOKS v0.3.0 §8, §9; AUTHORIZATIONS v1.15.0; OPEN-ISSUES v0.24.0; CURRENT-STATE v1.19.0; R1-HANDOFFS v0.3.0 (WP-H continuation). | Main session | Owner |
-| 0.30.0 | 2026-11-25 | Consolidated direction: AUTH-006 Amendment 1 active (`7469b2d`, run 45558153619); AUTH-007 and AUTH-008 Amendment 1; OI-94 to OI-97; OI-91 and OI-93 proposed architectures; T-SALES-36 governance and contractual content-loading wording reconciled with the DEP-18 Phase 4 Owner decisions (FD-05, FD-14, H-0); day-3 reminder and scope-confirmation decisions recorded; PWP-0 conditionally granted, not active, with refinements R-01 to R-06 recorded; next unused AUTH ID AUTH-011. AUTHORIZATIONS v1.16.0; OPEN-ISSUES v0.25.0; CURRENT-STATE v1.20.0; R1-HANDOFFS v0.4.0. | Main session | Owner |
+| 0.30.0 | 2026-11-25 | Consolidated direction: AUTH-006 Amendment 1 active (`7469b2d`, run 45558153619); AUTH-007 and AUTH-008 Amendment 1; OI-94 to OI-97; OI-91 and OI-93 proposed architectures; T-SALES-36 governance and contractual content-loading wording reconciled with the DEP-18 Phase 4 Owner decisions (FD-05, FD-14, H-0); day-3 reminder and scope-confirmation decisions recorded; PWP-0 conditionally granted, not active, with refinements R-01 to R-06 recorded; controlled contractual reconstruction direction: FD-04, FD-12 and FD-13 amended traceably, 04 §3.1 clause approval preserved, PWP-0 objective amended (reconstruction status, historical provision counts not verified); next unused AUTH ID AUTH-011. AUTHORIZATIONS v1.16.0; OPEN-ISSUES v0.25.0; CURRENT-STATE v1.20.0; R1-HANDOFFS v0.4.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

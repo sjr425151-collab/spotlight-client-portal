@@ -207,7 +207,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Expiry | WP-D18 merge, R1 release-candidate acceptance, or 2027-01-31 |
 | Granted | Owner, 2026-11-25 (conditional; **active 2026-11-25**, merge `58d0e98`, CI run 45543204966) |
 
-### AUTH-008 — Tier 2: R1 integration infrastructure and verification (WP-I) — GRANTED FOR I-1 ONLY, ACTIVE (Amendment 1 active)
+### AUTH-008 — Tier 2: R1 integration infrastructure and verification (WP-I) — GRANTED FOR I-1 ONLY, ACTIVE (Amendment 1 active; I-1 merged)
 
 | Field | Value |
 |---|---|
@@ -227,6 +227,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Stop conditions | A production-code change beyond seam (b); a needed `seed.sql` change in I-1; any assertion change; a seam that cannot be isolated as specified |
 | Merge | I-1 first; I-2 after H and D are integrated and verified. Merge order I-1, H, D (CURRENT-STATE §13). Before merge, a later package rebases onto the latest verified `main`; a clean rebase does not carry an approval forward: the rebased diff is verified, reviewed implementation changes are confirmed equivalent, newly integrated dependencies are assessed, full CI runs on the exact rebased head, each reviewer confirms in a new record that its review still applies, and a focused re-review covers anything whose behavior or dependencies changed; Owner merge only |
 | Expiry | I-2 merge, R1 release-candidate acceptance, or 2027-01-31 |
+| I-1 merge | PR #28 merged at `b027e4192fe3100d89dec106b7ae7686f82a974a` (head `38537bd`, base `a5dfad0`); post-merge CI run 45675171938 (#116) 7/7 with the full suite. F2 closed (CURRENT-STATE §7). I-2 is not authorized |
 | Granted | Owner, 2026-11-25, **I-1 only** (conditional; **active 2026-11-25**, merge `58d0e98`, CI run 45543204966); I-2 pending a separate grant |
 
 ### AUTH-011 — Documentation-only: PWP-0 contractual governance reconciliation — EXPIRED (PWP-0 merged)
@@ -250,7 +251,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Expiry | PWP-0 merge or 2027-01-31, whichever comes first |
 | Granted | Owner, 2026-11-25 (conditional; amended 2026-11-25; **active 2026-11-25** at `d9cf32a`, CI run 45567129662) |
 
-### AUTH-012 — Tier 1: OI-95 `/sales` empty-state accessibility correction — GRANTED, ACTIVE (implementation after WP-I-1 merges)
+### AUTH-012 — Tier 1: OI-95 `/sales` empty-state accessibility correction — GRANTED, ACTIVE (implementation released; WP-I-1 merged)
 
 | Field | Value |
 |---|---|

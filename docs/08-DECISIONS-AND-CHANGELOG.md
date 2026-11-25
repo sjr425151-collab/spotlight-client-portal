@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.37.0 |
+| Version | 0.38.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,17 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### PR #28 merge and the F2 closure (Owner, 2026-11-25)
+
+Owner decision "PR #28 pinned merge and conditional F2 closure approved". Documentation only.
+
+- **PR #28 (final):** merged by Main under the Owner's pinned authorization at head `38537bde26cd79fe9da1e80bfdcb452d163eefad`, base `a5dfad0`, exact-head CI 45671161028 (#114) 7/7. Merge commit `b027e4192fe3100d89dec106b7ae7686f82a974a` (parents `a5dfad0`, `38537bd`; tree identical). Post-merge CI run 45675171938 (#116), all seven jobs passed with the full suite. Reviews: Main 7170555427, WP-B 7170586962, WP-C 7170778407.
+- **F2 (closed, conditional decision met):** closed after the successful full post-merge CI, with the complete evidence trail and its residual items carried forward (CURRENT-STATE §7): the 19.9 s `PGRST002` initialization delay against the 60 s deadline; N-1/N-2 pg-internal re-verification on any pg upgrade; O-1/O-2 for I-2; WP-C's optional N-1; WPI-P2; O-3 as OI-95.
+- **CURRENT-STATE:** the PR #33 and PR #34 activation records reconciled without changing any authorization boundary.
+- **AUTH-012:** implementation released within its approved scope.
+- **PR #35:** synchronization onto `b027e41` coordinated in the established merge order, with full verification and fresh independent records. Not authorized to merge here, nor PR #36 or PR #27.
+- **Unchanged:** AUTH-009, AUTH-010, AUTH-013 proposed and non-executable; AUTH-002 Stage A inactive; no provider or production access; D-1 unratified.
+
 ### PR #34 merge, AUTH-013 design, AUTH-009 rulings, deadlines and the Stage A gates (Owner, 2026-11-25)
 
 Owner direction "Consolidated Owner Decisions — AUTH-013, AUTH-009, AUTH-010 and AUTH-002 Stage A", following "Owner Authorization — PR #34 Pinned Merge". Documentation only.
@@ -1527,6 +1538,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.35.0 | 2026-11-25 | **AUTH-002 Stage A amendment recorded** (Owner, OD-TV-09; granted, not active; no provider execution authorized); PR #35 review authorizations; PR #28 B-1 correction and sequencing approved (N-1 excluded); Stage A design approved (ceiling counts preflight, pagination and unsuccessful requests; current permission verification); OI-113 reserved (open); AUTH-009 inventory marked provisional; Amendment 3 correction wording covers WP-H's four migrations. AUTHORIZATIONS v1.21.0; OPEN-ISSUES v0.29.0. | Main session | Owner |
 | 0.36.0 | 2026-11-25 | **OI-113 decision** (Owner): mandatory R1 release-candidate blocker; option (a) selected, (b) not selected, (c) emergency only; AUTH-013 proposed (authorizes nothing); WP-S F-1 consolidated. AUTHORIZATIONS v1.22.0; OPEN-ISSUES v0.30.0. | Main session | Owner |
 | 0.37.0 | 2026-11-25 | **PR #34 merged** (`a5dfad0`, CI 45665855580 7/7; the Amendment 3 correction active); PR #35 sequencing; the baseline-integrity correction; AUTH-013 design and fixture moves approved; AUTH-009 site rulings and stop-reconciliation direction; deadline defaults; Stage A Gate A and Gate B. AUTHORIZATIONS v1.23.0; OPEN-ISSUES v0.31.0. | Main session | Owner |
+| 0.38.0 | 2026-11-25 | **PR #28 merged** (`b027e41`, CI 45675171938 (#116) 7/7); F2 closed with residual items carried forward; PR #33 and PR #34 activation records reconciled in CURRENT-STATE (v1.24.0); AUTH-012 released. | Main session | Owner |
 
 ## 6. Change-control rules
 

@@ -457,3 +457,82 @@ Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Autho
 **Sequence:** I-1, WP-H, and WP-D18 run in parallel from the verified authorization merge commit (disjoint objects; no provider); merge I-1, then WP-H, then WP-D18, each later one rebased with the re-verification in AUTHORIZATIONS; then I-2 against the integrated `main`; then AUTH-002 sandbox verification (F7, F8, N1(c)) after WP-H; then WP-D under AUTH-003 (DEP-17, DEP-12, hosted staging, migrations-only deployment); then R1 release-candidate acceptance.
 
 **Owner actions:** grant AUTH-006, AUTH-007, AUTH-008 (I-1), and later the I-2 seams; supply the five package definitions (DEP-18); engage counsel for DEP-03 (agreement, payment authorization, F10 wording, package scope); choose the malware scanner (DEP-07) and monitoring (DEP-12) vendors; review OWNER-RUNBOOKS including §7 (OI-90); reassess the OI-88 invitation experience before the R1 release candidate.
+
+## 16. WP-H implementation record (AUTH-006, Amendments 1 and 2)
+
+**Authorization:** AUTH-006, active since 2026-11-25 (merge `58d0e98`, CI run 45543204966). Amendment 1 is active (merge `7469b2d`, CI run 45558153619). Amendment 2 is active (merge `f37cf7e`, CI run 45583992649, 7/7 with the full suite, verified before implementation). Branch `wp-h/financial-hardening` from `58d0e98`; it is not yet rebased. Merge order is unchanged (WP-I-1, WP-H, WP-D18). Before merge, WP-H is rebased onto the verified `main`, with the full rebase verification (AUTHORIZATIONS AUTH-006 "Merge"). That rebase also reconciles this file's header and section numbering with `main`.
+
+| Commit | Content | Migration (SHA-256) |
+|---|---|---|
+| `fc7b236` | OI-86: `issue_order_summary` locks the project row `FOR NO KEY UPDATE` | `20261126120000` (`c57be580…5773b14`) |
+| `33eb953` | OI-87: `order_summaries.change_reason` is not readable by API users (column grants) | `20261126120100` (`f173ba41…e86fb`) |
+| `95d03a1` | N1(a): refund and dispute attribution at receipt; conflict candidates captured atomically; persistent G2 and G4 blocks | `20261126120200` (`a9d99d16…5d09b`) |
+| `aec8ff3` | The release-approval cross-check (04 §10.2) and the Amendment 2 test corrections | `20261126120300` (`20953c2e36d44f5a496e69ba0c0f84451f6577d7dbf4d018af706d6b953be18a`, identical to the held draft) |
+
+**Amendment 2 dispositions (exact inventory):**
+
+- **Disposition A** is the only assertion change.
+  - Where: `supabase/tests/120_wpb_final_balance_holds_gate.test.sql`, lines 199–201 at `95d03a1`; lines 240–242 at `aec8ff3`.
+  - Original: `array['duplicate_obligation', 'duplicate_obligation']`, "T-PAY-13: a repeated approval and a later release revision collapse onto the existing obligation".
+  - Replacement: `array['rejected', 'duplicate_obligation']`, "T-PAY-13 / OI-92: an approval of a superseded release is rejected; the current release's approval collapses onto the existing obligation".
+  - Guarantee: unchanged (no repeated or later approval creates a second obligation), plus the superseded release's approval is rejected with `release_superseded`. The "exactly one obligation and one outbound create" assertion is unchanged.
+- **Disposition B1:** T-PAY-22 (130 line 351 at `aec8ff3`) is unchanged.
+  - Immediately before it, the Owner reconciles the T-PAY-26 quarantined payment through the existing `public.resolve_quarantined_event` (`aal2`, fresh MFA, live session, a reason).
+  - That call records the review and re-derives the gates from all the evidence. No anomaly rule changes.
+- **Revision 2 helper:** `pg_temp.genuine_release_approved` in 120, 130, 150 and 160.
+  - It inserts the release (recorded by the active Admin) and the approval (by the project's non-staff client member).
+  - It fails the test unless `private.project_fulfillment_status` reports both as current.
+  - It then writes a **synthetic test emission** in WP-C's payload shape. It is labelled as such and is distinct from WP-C's `approve_preview`, which is unchanged.
+- **Setup-only changes:**
+  1. 120: `pg_temp.release_approved` calls the helper.
+  2. 120: `ev0`'s release is `30000000-0000-4000-8000-000000000000`.
+  3. 120: the pair's first event is a synthetic re-delivery of release …001's recorded approval …001, under key `release.approved:redelivery:40000000-0000-4000-8000-000000000001`. It is consumer-defense construction, not a WP-C emission.
+  4. 130, 150 and 160: `pg_temp.approve` calls the helper, with IDs and keys unchanged.
+  5. 150: the direct emission adds `release_id`, `release_number` and `commit_sha`.
+  6. `tests/integration/wpb-billing.test.ts`: one genuine release and its first approval, checked against the fulfillment interface, before the two emissions. Keys and assertions are unchanged.
+- **Compensating coverage:**
+  - **C-1** (120): a further event for the current release and approval returns `duplicate_obligation`, and both counts stay at one.
+  - **C-2** (120): detail `release_superseded`, a `release_approval.rejected` audit and a `payment.final_balance_blocked` notification exist, and no outbound request is added.
+  - **C-4** (190): a G4-listed quarantined event rejects with `balance_gate_anomaly` and creates nothing. After the authorized resolution, a valid approval proceeds.
+- **Amendment 1 cross-check acceptance** (new `supabase/tests/190_wpb_release_crosscheck.test.sql`, 47 assertions; positive cases consume WP-C's own `approve_preview` emission):
+  - positive: the current approved release;
+  - missing release;
+  - another project's release;
+  - another release's approval, and an unrecorded approval;
+  - mismatched number, mismatched SHA, and a missing version;
+  - superseded, withdrawn and archived;
+  - a G2 anomaly (N1(a) conflict);
+  - a G4-listed anomaly;
+  - the interface not implemented.
+
+  Every rejection is audited and notified, with no obligation and no outbound request.
+- **Concurrency** (`tests/integration/wph-hardening.test.ts`): two connections, both orders, with WP-C's real `release_preview`, `withdraw_preview` and `approve_preview`.
+  - The second transaction is shown to wait every time.
+  - A supersession or withdrawal committed first rejects; a consumption committed first initiates and keeps the obligation (OI-92(e)).
+  - A stale approval is never consumed.
+  - Exactly one obligation results, and there is no 40P01.
+  - The races' final-balance creates are settled afterwards through the executor's normal path, so no pending request leaks into another suite.
+- **Static guards:**
+  - `tests/unit/wpb-contracts.test.ts`:
+    - exactly the four `_wph_` migrations;
+    - the exact `create or replace` allow-list: `project_financial_status` plus `issue_order_summary`, `handle_refund`, `handle_dispute`, `handle_charge_refunded`, `process_stripe_event`, `project_financial_anomalies`, `resolve_quarantined_event` and `consume_release_approved`;
+    - the WP-B additive-only restrictions applied to the WP-H SQL;
+    - one new table and one grant.
+  - `tests/unit/wpb-static.test.ts`: the WP-B payment invariants on all four WP-H migrations.
+  - Every existing restriction is unchanged.
+
+**Local verification at `aec8ff3`.** Supabase CLI local stack; CI's environment (`APP_ENV=test`, `NEXT_PUBLIC_SITE_URL=http://localhost:3100`); per-run test webhook secret; synthetic data; no provider.
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 16 files, 286 passed |
+| `pnpm audit --audit-level=high` | No known vulnerabilities |
+| `gitleaks git` | 95 commits, no leaks |
+| `supabase db reset --local`; `supabase test db` | 30 files, 1,605 tests, PASS |
+| `pnpm test:integration` | 7 files, 96 passed |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 51 passed |
+| Lighthouse | Not run locally (CI) |
+
+**Reviews (pending):** an independent financial review by a session other than WP-B; the WP-C read-only review of the release lock key and interface contract; Main. Each review is recorded as a durable non-approval PR comment. The Owner merges, pinned to the exact head.

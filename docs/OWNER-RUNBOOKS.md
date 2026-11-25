@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | **[PROPOSED]** Operational procedures recorded from the WP-C and WP-B reviews (2026-11-24), for Owner review. They describe how existing, approved controls are used; they create no new permission, override, or payment path. Legal and contractual effects stay with counsel (DEP-03). |
 | Related | [CURRENT-STATE.md](CURRENT-STATE.md), 04, 05, 06 |
 
@@ -41,3 +41,17 @@ Immediately before authorizing a publication, run the project's reconciliation a
 - **Several projects of one client business:** an unrecorded refund on one project can appear in a sibling project's reconciliation and block it (fail closed, same tenant). Resolve by attributing it after review.
 - **Clock mixing:** observation ordering mixes Stripe event times and local detection times; in practice conservative, because reconciliation items block until reviewed.
 - **Reported but unrealized reversal:** a reversal Stripe reports as in effect blocks its gate until a later Stripe observation ends it (refund failed or canceled, dispute won). Confirm with Stripe before any action.
+
+## 7. Direct role and membership writes (OI-90; required before R1 release-candidate acceptance)
+
+**Use the authorized functions** wherever possible: `create_invitation`, `accept_invitation`, `revoke_invitation`, `set_staff_role`, and the membership revocation function. They authorize, audit, and serialize every role and membership change.
+
+**An authorized direct operator write** to `public.staff_roles` or `public.project_memberships` (database owner, a Tier 3 action in production) must, in one transaction:
+
+1. take the per-user lock first, before touching any affected row: `select pg_advisory_xact_lock(hashtextextended('wps-role-membership:' || <user_id>::text, 0));`
+2. then perform the insert or update;
+3. commit.
+
+**Limitations.** The OI-85 triggers refuse a Sales role together with an active membership for every writer, but they do not protect against a database owner who disables or replaces them, and an operator `UPDATE` that skips step 1 can deadlock with a concurrent invitation acceptance or role change for the same user.
+
+**Retry.** A deadlock (SQLSTATE `40P01`) aborts one transaction and leaves nothing behind. Re-read the user's current role and memberships, then retry the whole transaction from step 1. A refusal with SQLSTATE `42501` from the OI-85 triggers means the change would break the separation; do not retry, resolve the conflict through the authorized functions instead.

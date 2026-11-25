@@ -55,13 +55,21 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
+      // WP-S Sales Representative area; after WP-B's project so no two projects enroll MFA
+      // factors for the same seeded Owner at the same time.
+      name: "wps",
+      testMatch: /wps\.spec\.ts/,
+      dependencies: ["wpb"],
+      use: { ...devices["Desktop Chrome"], launchOptions },
+    },
+    {
       name: "desktop-chromium",
-      testIgnore: /production-gating|auth\.|wpc\.|wpb\./,
+      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\./,
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
       name: "mobile-chromium",
-      testIgnore: /production-gating|auth\.|wpc\.|wpb\./,
+      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\./,
       use: { ...devices["Pixel 7"], launchOptions },
     },
     {

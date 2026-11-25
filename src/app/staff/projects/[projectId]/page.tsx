@@ -13,6 +13,7 @@ import { createUserClient } from "@/server/supabase/clients";
 
 import {
   inviteClientAction,
+  resendInvitationAction,
   revokeInvitationAction,
   revokeMembershipAction,
   setUserStatusAction,
@@ -141,13 +142,23 @@ export default async function StaffProjectPage({ params, searchParams }: Props) 
                     )}
                   </p>
                 </div>
-                <form action={revokeInvitationAction}>
-                  <input type="hidden" name="id" value={invitation.id} />
-                  <input type="hidden" name="projectId" value={projectId} />
-                  <Button type="submit" variant="secondary" className="h-9 px-3">
-                    Revoke
-                  </Button>
-                </form>
+                <div className="flex flex-wrap gap-2">
+                  {/* Resend revokes this invitation and issues a new one (OI-84(d)). */}
+                  <form action={resendInvitationAction}>
+                    <input type="hidden" name="id" value={invitation.id} />
+                    <input type="hidden" name="projectId" value={projectId} />
+                    <Button type="submit" variant="secondary" className="h-9 px-3">
+                      Resend
+                    </Button>
+                  </form>
+                  <form action={revokeInvitationAction}>
+                    <input type="hidden" name="id" value={invitation.id} />
+                    <input type="hidden" name="projectId" value={projectId} />
+                    <Button type="submit" variant="secondary" className="h-9 px-3">
+                      Revoke
+                    </Button>
+                  </form>
+                </div>
               </Card>
             </li>
           ))}

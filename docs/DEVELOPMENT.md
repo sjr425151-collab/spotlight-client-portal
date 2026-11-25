@@ -63,7 +63,7 @@ cp .env.example .env.local   # then fill in the three Supabase values printed by
 pnpm dev                  # http://localhost:3000
 ```
 
-**Local sign-in.** Seeded synthetic users (`supabase/seed.sql`): `owner@example.test` (Owner), `admin@example.test` (Admin), `client.a@example.test` (Project A), `client.b@example.test` (Project B). Sign-in codes and invitation emails arrive in the local Mailpit at http://127.0.0.1:54324. Staff are asked to enroll an authenticator app (TOTP) at first sign-in. The local keys printed by `supabase status` are well-known development defaults. They are never committed: `.env.local` is gitignored.
+**Local sign-in.** Seeded synthetic users (`supabase/seed.sql`): `owner@example.test` (Owner), `admin@example.test` (Admin), `sales@example.test` (Sales Representative, WP-S; no assignment until it creates a customer at `/sales`), `client.a@example.test` (Project A), `client.b@example.test` (Project B). Sign-in codes and invitation emails arrive in the local Mailpit at http://127.0.0.1:54324. Staff, including Sales Representatives, are asked to enroll an authenticator app (TOTP) at first sign-in. The seed also loads test-only package scope fixtures (labeled "TEST FIXTURE — NOT A DELIVERABLE"), which the database accepts only because the seed classifies the database as `development`. The local keys printed by `supabase status` are well-known development defaults. They are never committed: `.env.local` is gitignored.
 
 Playwright needs a browser: run `pnpm exec playwright install chromium` once. If your machine already provides a compatible Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to its path.
 

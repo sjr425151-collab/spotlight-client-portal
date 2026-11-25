@@ -79,7 +79,10 @@ select is((
         'withdraw_service_termination',
         -- WP-B, OI-74 and OI-82 (payment authorization, recovery, revocation, holding reconciliation)
         'begin_payment_method_recovery', 'reconcile_holding_reversal', 'record_payment_authorization_revocation',
-        'review_authorization_revocation', 'revoke_payment_authorization'
+        'review_authorization_revocation', 'revoke_payment_authorization',
+        -- WP-S (AUTH-005; reviewed in 300_wps_sales_*.test.sql; each re-authorizes inside its definer function)
+        'assign_sales_representative', 'end_sales_assignment', 'sales_create_customer_project',
+        'sales_list_customers', 'sales_project_progress'
       ]) order by 1)::text[],
   'D1: the public RPC surface for signed-in users is exactly the reviewed list (no audit writers)');
 

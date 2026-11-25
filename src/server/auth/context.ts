@@ -8,6 +8,13 @@ import { createUserClient } from "@/server/supabase/clients";
 export type StaffRole = "owner" | "admin";
 
 /**
+ * Every staff role value the database can report (03 §3). `staffRole` stays Owner/Admin
+ * only, so `requireStaff` keeps its meaning; the Sales Representative is its own role
+ * (WP-S, 03 §4.1) and is never treated as staff or as a client.
+ */
+export type AnyStaffRole = StaffRole | "sales";
+
+/**
  * The caller's authorization context (spec 03 §10). Identity comes from verified JWT
  * claims (getClaims, never getSession: T-AUTH-13). Role, status, session liveness and MFA
  * freshness come from the database on every request, so revocation is immediate (§6.3).
@@ -17,6 +24,13 @@ export interface AuthContext {
   email: string | null;
   active: boolean;
   staffRole: StaffRole | null;
+  /** True for an active Sales Representative role (03 §4.1). */
+  sales: boolean;
+  /**
+   * True when the database reports ANY staff role, including values this app does not know.
+   * A user with any staff role is never a client (03 §4.1, requireClient).
+   */
+  anyStaffRole: boolean;
   aal: "aal1" | "aal2";
   mfaFresh: boolean;
   sessionActive: boolean;
@@ -45,6 +59,8 @@ export async function loadAuthContext(client: SupabaseClient): Promise<AuthConte
     email: row.email,
     active: row.active,
     staffRole: row.staff_role === "owner" || row.staff_role === "admin" ? row.staff_role : null,
+    sales: row.staff_role === "sales",
+    anyStaffRole: row.staff_role !== null && row.staff_role !== undefined,
     aal: row.aal === "aal2" ? "aal2" : "aal1",
     mfaFresh: row.mfa_fresh,
     sessionActive: row.session_active,

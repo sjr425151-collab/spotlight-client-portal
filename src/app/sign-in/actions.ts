@@ -46,16 +46,13 @@ export async function verifyCodeAction(formData: FormData) {
   redirect("/portal");
 }
 
-// public-action: ends the current session. Staff sign out of every device (spec 03 §6.3).
+// public-action: ends the current session. Staff, including Sales Representatives, sign out
+// of every device (spec 03 §6.3, §4.1).
 export async function signOutAction() {
   const ctx = await getAuthContext();
   const user = await createUserClient();
-  if (ctx)
-    await recordSecurityEvent(
-      "session.signed_out",
-      { scope: ctx.staffRole ? "global" : "local" },
-      ctx.userId,
-    );
-  await user.auth.signOut({ scope: ctx?.staffRole ? "global" : "local" });
+  const scope = ctx?.anyStaffRole ? "global" : "local";
+  if (ctx) await recordSecurityEvent("session.signed_out", { scope }, ctx.userId);
+  await user.auth.signOut({ scope });
   redirect("/sign-in?notice=signed_out");
 }

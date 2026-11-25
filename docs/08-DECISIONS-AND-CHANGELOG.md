@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.35.0 |
+| Version | 0.36.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,17 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### OI-113 approval-ordering decision and AUTH-013 proposal (Owner, 2026-11-25)
+
+Owner decision "PR #35 B-1 Approval Ordering". Documentation only.
+
+- **OI-113 (open):** recorded (ID verified unused on `main` and on all 20 remote branches) as a **mandatory R1 release-candidate blocker** for deterministic approval identification and automatic final-balance initiation. The finding preserves financial integrity but violates the automatic-initiation guarantee.
+- **Option (a) selected:** a separately authorized, narrowly scoped WP-C interface correction, proposed as AUTHORIZATIONS **AUTH-013** (authorizes nothing). Preferred candidate: derive the authoritative approval from the immutable `release.approved` event; the lock-serialized sequence is the alternative only if verification fails.
+- **Option (b) not selected:** WP-H's strict approval-matching requirement is preserved.
+- **Option (c):** an emergency recovery procedure only; not accepted as closure.
+- **WP-S F-1:** consolidated into AUTH-013's acceptance.
+- **No implementation or merge authorization** is granted; every earlier restriction and outstanding decision stays.
+
 ### AUTH-002 Stage A amendment and inventory corrections (Owner, 2026-11-25)
 
 Owner direction "Coordinated Review and Execution". Documentation only.
@@ -1501,6 +1512,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.33.0 | 2026-11-25 | **Consolidated authorization and execution cycle** (Owner): PWP-0 merge recorded (`c89bf56`, run 45575951029 (#101)); AUTH-006 Amendment 2, AUTH-007 Amendment 3, AUTH-008 Amendment 1 clarification and AUTH-012 (OI-95) recorded, activation pending; AUTH-007 Amendment 2 activation recorded; AUTH-009 and AUTH-010 design directions (not authorized); PR #32 review findings reconciled: 03 v0.6.1, 04 v0.10.1, 05 v0.5.1, 06 v0.5.4, 07 v0.4.2, OI-100 and OI-105 notes. AUTHORIZATIONS v1.19.0; OPEN-ISSUES v0.27.0; CURRENT-STATE v1.22.0; R1-HANDOFFS v0.6.0. | Main session | Owner |
 | 0.34.0 | 2026-11-25 | **PR #33 activation and design decisions** (Owner): AUTH-006 Amendment 2, AUTH-007 Amendment 3 and AUTH-012 active (`f37cf7e`, run 45583992649 (#103)); AUTH-009 and AUTH-010 recorded as proposed records (R1 token enforcement; S0; outcome classes; engineering defaults); AUTH-007 Amendment 3 correction (exact-name exemption of `20261125120200_wps_oi85_separation.sql`; activation pending). AUTHORIZATIONS v1.20.0; OPEN-ISSUES v0.28.0; R1-HANDOFFS v0.7.0. | Main session | Owner |
 | 0.35.0 | 2026-11-25 | **AUTH-002 Stage A amendment recorded** (Owner, OD-TV-09; granted, not active; no provider execution authorized); PR #35 review authorizations; PR #28 B-1 correction and sequencing approved (N-1 excluded); Stage A design approved (ceiling counts preflight, pagination and unsuccessful requests; current permission verification); OI-113 reserved (open); AUTH-009 inventory marked provisional; Amendment 3 correction wording covers WP-H's four migrations. AUTHORIZATIONS v1.21.0; OPEN-ISSUES v0.29.0. | Main session | Owner |
+| 0.36.0 | 2026-11-25 | **OI-113 decision** (Owner): mandatory R1 release-candidate blocker; option (a) selected, (b) not selected, (c) emergency only; AUTH-013 proposed (authorizes nothing); WP-S F-1 consolidated. AUTHORIZATIONS v1.22.0; OPEN-ISSUES v0.30.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

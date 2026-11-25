@@ -178,10 +178,19 @@ describe("WP-S repository checks", () => {
     for (const file of migrations) {
       const sql = readFileSync(join("supabase/migrations", file), "utf8");
       // The label may appear only inside the constraint that recognizes it, never in a row.
+      // Refined for WP-D18 (Owner, 2026-11-25; AUTH-007 requires the version constructor in a
+      // migration): an insert into the scope tables may only copy function parameters or existing
+      // rows, never a literal, so no migration can carry synthetic or fixture content.
       const inserts = [
-        ...sql.matchAll(/insert\s+into\s+private\.billing_package_scope[\s\S]*?;/gi),
-      ];
-      expect(inserts, file).toEqual([]);
+        ...sql.matchAll(
+          /insert\s+into\s+private\.billing_package_scope(?:_versions)?\b[\s\S]*?;/gi,
+        ),
+      ].map((m) => m[0]);
+      expect(
+        inserts.filter((statement) => /'/.test(statement)),
+        file,
+      ).toEqual([]);
+      if (!file.includes("wpd18_scope_version_sealing")) expect(inserts, file).toEqual([]);
       const labelUses = sql.split("TEST FIXTURE — NOT A DELIVERABLE").length - 1;
       expect(labelUses, file).toBe(file.includes("wps_sales_representative") ? 1 : 0);
     }
@@ -189,12 +198,16 @@ describe("WP-S repository checks", () => {
 
   it("T-SALES-36: the seed's fixture rows are all flagged and labeled", () => {
     const seed = readFileSync("supabase/seed.sql", "utf8");
-    const block = seed.slice(seed.indexOf("insert into private.billing_package_scope"));
+    // Refined for WP-D18 (Owner, 2026-11-25): AUTH-007 replaces the seed's direct insert with
+    // the version constructor, so the same properties are checked on the constructor calls,
+    // and the seed may not write the scope tables any other way.
+    expect(seed).not.toMatch(/insert\s+into\s+private\.billing_package_scope/i);
+    const block = seed.slice(seed.indexOf("select private.create_package_scope_version("));
     expect(block).toMatch(/'TEST FIXTURE — NOT A DELIVERABLE \(/);
-    expect(block).toMatch(/, true\s*\nfrom private\.billing_packages/);
+    expect(block).toMatch(/\], true\)\s*\nfrom private\.billing_packages/);
     // The fixture rows come after the development classification, so the trigger admits them.
     expect(seed.indexOf("insert into private.environment_settings")).toBeLessThan(
-      seed.indexOf("insert into private.billing_package_scope"),
+      seed.indexOf("select private.create_package_scope_version("),
     );
   });
 

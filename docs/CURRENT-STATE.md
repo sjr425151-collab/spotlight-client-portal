@@ -457,3 +457,67 @@ Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Autho
 **Sequence:** I-1, WP-H, and WP-D18 run in parallel from the verified authorization merge commit (disjoint objects; no provider); merge I-1, then WP-H, then WP-D18, each later one rebased with the re-verification in AUTHORIZATIONS; then I-2 against the integrated `main`; then AUTH-002 sandbox verification (F7, F8, N1(c)) after WP-H; then WP-D under AUTH-003 (DEP-17, DEP-12, hosted staging, migrations-only deployment); then R1 release-candidate acceptance.
 
 **Owner actions:** grant AUTH-006, AUTH-007, AUTH-008 (I-1), and later the I-2 seams; supply the five package definitions (DEP-18); engage counsel for DEP-03 (agreement, payment authorization, F10 wording, package scope); choose the malware scanner (DEP-07) and monitoring (DEP-12) vendors; review OWNER-RUNBOOKS including §7 (OI-90); reassess the OI-88 invitation experience before the R1 release candidate.
+
+## 14. WP-D18 implementation record (AUTH-007; DEP-18 version sealing)
+
+Implemented by the WP-S session on `wp-d18/scope-sealing`, branched from exactly `58d0e98981befe32f8ddff11c89ce7952dad3a72`. **Verified** on a freshly reset local stack in the CI order; remote CI for the exact head is recorded in the PR.
+
+**Entry checks:**
+- AUTH-007 is active (activation record §13).
+- `git diff --name-only 58d0e98 origin/main` lists only `.md` files.
+- The authorization record's changes after the baseline only mark it active; its boundaries are unchanged.
+- The branch was new.
+- Migration slot `20261126140000` was unused.
+
+**Changed-object inventory (migration `20261126140000_wpd18_scope_version_sealing.sql` only):**
+
+| Object | Change |
+|---|---|
+| `private.billing_package_scope_versions` | New. Package key, scope version, item count (1–50), content SHA-256, `is_test_fixture`, sealed at; primary key (package, version). Append-only (`insert_only()`), no truncate (`audit_events_immutable()`), no API grant |
+| `private.billing_package_scope_construction_guard()` | New, the one insert-protection trigger function. Attached as BEFORE INSERT to the items and the headers. It accepts a row only while the constructor builds exactly that (package, version) in the current transaction, never into a sealed version, and applies the `development`/`test` allowlist to fixture headers |
+| `private.create_package_scope_version(text, text[], boolean)` | New. SECURITY DEFINER, `search_path = ''`, no API-role execute. It takes a per-package advisory lock, assigns the next version, inserts items 1..n, computes the canonical length-prefixed SHA-256, and seals, all in one call; any error rolls back the whole version |
+| `private.current_package_scope(text)` | Replaced, same signature. It resolves the newest **sealed** version only, and returns it only if the recomputed item count, positions 1..n, per-item fixture flag and canonical hash all match the seal, and the fixture allowlist admits it. Otherwise it returns nothing, with no fallback to an older version |
+| Existing items | Insert protection added. The existing fixture guard, label check and append-only triggers are unchanged |
+| `supabase/seed.sql` (WP-S section) | The same labeled fixture items are now created through the constructor (version 1 per package) |
+
+No WP-B (`issue_order_summary` unchanged), WP-C, Phase 2, or API-grant change. No production package content.
+
+**Migration cases (verified):**
+- **Fresh run:** nothing to seal; the seed then seals five fixture versions.
+- **Existing local database** (reset to `20261125120200` with the old seed, then `supabase migration up`): the fifteen fixture rows are sealed as version 1 per package and resolve, and their hashes are identical to the constructor's for the same content.
+- **Non-fixture row present:** the migration raises and changes nothing (row count unchanged, no new table).
+
+**Tests:**
+- **pgTAP 310** (173 → 204). The existing statements that wrote scope rows directly now go through the constructor; every expected outcome is unchanged. New assertions:
+  - direct item and header inserts are rejected, even for the migration owner
+  - no item can be added to a sealed version, even with a forged marker
+  - sealed headers cannot be modified, unsealed, deleted or truncated
+  - `service_role` and authenticated callers cannot execute the constructor or touch the headers
+  - an independent hash recomputation matches every intact seal, and fixture status is consistent between headers and items
+  - the historical version reproduces the issued snapshot exactly
+  - creations get consecutive versions, a failed construction rolls back the whole version, and an empty version is rejected
+  - a half-created (unsealed) version is never resolved
+  - a fixture header is rejected under `staging`
+  - tampering with an item or a count fails closed, so Sales issuance fails closed
+  - every protection trigger is enabled again at the end
+- **pgTAP 320** (32 → 37). A real concurrent creation through two `dblink` sessions: the second waits on the per-package lock, then assigns the next free version (no duplicate or gap). Both roll back, so nothing persists. It runs over TCP, as `supabase test db` and CI do.
+- **Unit:** two additive WP-D18 checks. Two existing assertions were refined, with Owner approval in session (2026-11-25), because AUTH-007's mandated design made their literal form false:
+  - "No migration contains a synthetic or fixture package-scope row": an insert into the scope tables may only copy parameters or existing rows, never a literal. A mutation check confirmed it still fails on an appended literal row.
+  - "The seed's fixture rows are all flagged and labeled": the same properties, now checked on the constructor calls, and the seed may write the scope tables no other way.
+
+| Suite (local, fresh reset, CI order) | Result |
+|---|---|
+| Migration immutability | Pass |
+| pgTAP | 27 files, **1520** assertions, all pass (existing 1484 unchanged) |
+| Unit | 16 files, **286** tests, all pass |
+| Integration | 6 files, **81** tests, all pass |
+| Build, bundle scan, production build | Pass |
+| E2E | **51** tests, all pass |
+| Lint, typecheck, format | Pass |
+
+**Findings and limitations:**
+- **`pnpm test:db` can't run the 320 concurrency case.** That runner connects over the container's socket, where `dblink` is refused (a trust-authenticated connection). `supabase test db` and CI connect over TCP and run it.
+- **Construction-marker forgery:** like the C2/C3 triggers, the insert protection does not stop a database owner who disables triggers or forges the transaction-local construction marker. API roles have no privilege on these objects. A forged marker still cannot add to a sealed version or make an unsealed version resolvable.
+- **DEP-18 remains a mandatory R1 release-candidate blocker:** no production content exists, so Sales issuance stays fail-closed outside the seed.
+
+**Effort (OI-67):** AI session about 0.6 h (2026-11-25, 04:35–05:15 UTC); administrative about 0.05 h (local stack restarts after container and worker recycles); Owner review: one in-session decision on the two assertions.

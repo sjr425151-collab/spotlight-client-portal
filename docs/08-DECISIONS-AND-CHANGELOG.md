@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.28.0 |
+| Version | 0.29.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -882,6 +882,14 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Decision (Owner, 2026-11-25):** strict `requireClient` is retained; the emailed invitation link (`/invite/accept`) is the supported path for such invitees; no new portal path in WP-S; the user experience is reassessed before R1 release-candidate acceptance.
 - **Status:** Approved.
 
+### OI-91, OI-92, OI-93 and AUTH-006 Amendment 1 (Owner, 2026-11-25)
+
+- **AUTH-006 Amendment 1 approved** (active after its merge and full post-merge CI): the candidate table, the `process_stripe_event`, `project_financial_anomalies`, and `resolve_quarantined_event` (body-only) changes, the cross-check with WP-C's release lock and the release-row `FOR SHARE`, and an exact static-guard allow-list; same four migrations; no new endpoint, privilege, allocation, or contract-version change. Candidate evidence is captured before the handler rollback and recorded atomically with the quarantine.
+- **OI-92 decided:** (a) holds do not defer; (b) archived is ineligible; (c) no redundant intake check; (d) anomaly-aware G2; (e) the obligation survives later withdrawal or supersession, Owner runbook and DEP-03; notification hook open with OI-91.
+- **OI-93 decided:** Option A only with substantive reconciliation; finding: not representable with existing mechanisms, so the candidate blocks persist in R1.
+- **OI-91 accepted:** outbound/revocation lock-order deadlock; mandatory R1 release-candidate blocker; separate authorization.
+- **Interface contract:** 04 §10.2.
+
 ### OI-90 — Direct-writer lock ordering against the OI-85 triggers
 
 - **Origin:** WP-B's corrected-head review of PR #23; assessed in Main's focused re-review of `1eda945` (2026-11-25). An `UPDATE` by a direct writer locks the row before its BEFORE trigger takes the per-user lock, while `accept_invitation` and `set_staff_role('sales')` take the lock first; the same user's `staff_roles` row can therefore deadlock (40P01). PostgreSQL aborts one side and the survivor's check runs under the lock, so the invariant holds. Inserts cannot deadlock this way (the trigger runs before the row exists), and `service_role` has no UPDATE privilege on either table; only database-owner updates can meet it.
@@ -1124,6 +1132,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.26.0 | 2026-11-25 | **R1 development direction** (Owner): OI-86 `FOR NO KEY UPDATE`; OI-87 column privileges (audit trail sufficient, no staff function); N1(a) deterministic attribution, conflicting projects all blocked and preserved, unattributable events kept for reconciliation; authoritative release-approval cross-check before final charging; DEP-18 atomic version creation and sealing; integration infrastructure and test seams under strict isolation; merge order I-1, H, D with re-verification after rebase. AUTH-006 to AUTH-008 **proposed** (AUTHORIZATIONS v1.12.0); execution plan CURRENT-STATE §13 (v1.16.0). Nothing granted or started. | Main session | Owner (direction) |
 | 0.27.0 | 2026-11-25 | **R1 conditional grants** (Owner): AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (I-1 only) granted with binding clarifications (OI-86 concurrency; OI-87 audit trail only; N1(a) conflict handling; cross-check concurrency safety; D18 sealing rules and migration cases; F2 evidence criteria); active only after this record merges and post-merge CI succeeds; branches from that merge commit; merge order I-1, WP-H, WP-D18 with re-verification. Handoffs in R1-HANDOFFS.md. AUTHORIZATIONS v1.13.0; CURRENT-STATE v1.17.0. | Main session | Owner |
 | 0.28.0 | 2026-11-25 | **R1 activation record:** PR #25 merged at `58d0e98` (CI run 45543204966, 7/7, full suite); AUTH-006, AUTH-007, AUTH-008 (I-1 only) active; common baseline `58d0e98`. AUTHORIZATIONS v1.14.0; CURRENT-STATE v1.18.0; R1-HANDOFFS v0.2.0. | Main session | Owner |
+| 0.29.0 | 2026-11-25 | **AUTH-006 Amendment 1** approved (activation pending); OI-91 (open, R1 blocker), OI-92 and OI-93 decided; 04 v0.9.9 §10.2 interface contract; OWNER-RUNBOOKS v0.3.0 §8, §9; AUTHORIZATIONS v1.15.0; OPEN-ISSUES v0.24.0; CURRENT-STATE v1.19.0; R1-HANDOFFS v0.3.0 (WP-H continuation). | Main session | Owner |
 
 ## 6. Change-control rules
 

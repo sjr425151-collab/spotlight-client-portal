@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.23.0 |
+| Version | 0.24.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-91** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-94** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-19** |
 | ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
@@ -16,7 +16,7 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-90)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-90, OI-92, OI-93)
 
 All 76 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-83).
 
@@ -105,6 +105,8 @@ All 76 issues listed here are decided at the architectural level. The authoritat
 | OI-88 | Strict `requireClient` and invitees without an active membership | Decided (2026-11-25): strict kept; the emailed link is the supported path; UX reassessed before R1 release candidate | — |
 | OI-89 | WP-S confirmations (T-SALES-23 reading, rate limits, audit names, progress-view limits, agreed pricing fields, shared files) | Decided (2026-11-25) | — |
 | OI-90 | Direct-writer lock ordering against the OI-85 triggers (a database-owner `UPDATE` holds the row lock before its trigger takes the per-user lock; can deadlock with `accept_invitation` or `set_staff_role` for the same user; integrity preserved) | Decided (2026-11-25): low, nonblocking for merge; OWNER-RUNBOOKS §7 required before R1 release-candidate acceptance; no code change | — |
+| OI-92 | Final-balance initiation eligibility (approval hold, archived project, intake, anomaly-aware G2, withdrawal after initiation) | Decided (2026-11-25); (e) notification hook open (see OI-91) | DEP-03 |
+| OI-93 | Conflicting reversal after Owner review | Decided (2026-11-25): Option A only with substantive reconciliation; **feasibility: not representable with existing mechanisms, so the candidate blocks persist in R1**; a representation mechanism needs separate authorization | — |
 
 ---
 
@@ -124,7 +126,9 @@ OI-79 (item by item) and OI-82 (allocation architecture, subject to DEP-03 and D
 
 OI-84 was decided on 2026-11-24; its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The discrepancies and options considered remain in this file's Git history.
 
-**None open with an ID.**
+**Open: OI-91 (mandatory R1 release-candidate blocker; separate authorization).** `private.outbound_request_for_execution` locks the final-balance invoice, then the payment authorization; revocation (`halt_automatic_collection`) locks the authorization, then the invoice; the two can deadlock. Remediation inventory: one consistent lock order (authorization, then invoice) in `outbound_request_for_execution`, body only, plus an Owner notification when the obligation's release was withdrawn after initiation (OI-92(e)). Acceptance: two-connection tests of outbound execution against revocation in both orders; no deadlock; no automatic charge after revocation (the hosted-only downgrade is honored); idempotency and single flight preserved. Not part of AUTH-006.
+
+OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
 
 OI-85 to OI-89 were decided on 2026-11-25 (Owner disposition of Main's independent review of PR #23 at `72da723`); their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). They allocate the WP-S proposals WPS-P1 to WPS-P7 and WP-B's review notes N1 to N5 without duplicate IDs: OI-85 = WPS-P1 + WP-B N4; OI-86 = WPS-P4 + WP-B N1; OI-87 = WP-B N5; OI-88 = WPS-P3; OI-89 = WPS-P2, P5, P6, P7, WP-B N3, and three shared files; WP-B N2 amends DEP-18. The WP-S proposal table remains in this file's Git history.
 
@@ -199,6 +203,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 - Refund terms (OI-35), domain ownership and transfer, IP ownership (OI-32; draft §5, §8), and dispute terms (OI-37).
 - **R1 final-payment wording (OI-68, revised by OI-74):** the hosted-only R1 question is superseded; R1 now charges automatically under the §3.1 clause. Counsel confirms the R1 approval screen wording (**Approve Website & Authorize Final Payment**), the card-retention disclosure, and the contractual effect of revoking the authorization and of re-authorizing after revocation (04 §8.1).
 - Unused-upload deletion terms (OI-42), coordinated with DEP-05.
+- **Withdrawal or supersession of an approved release after the final-balance charge was durably initiated (OI-92(e)):** the obligation stands; counsel confirms the contractual position and client wording.
 - **Contractual package-scope language (OI-84(b), DEP-18; Owner, 2026-11-24, A4):** the standard deliverables of each package as they appear in order summaries, together with the agreement and payment-authorization wording. Unreviewed scope language is never represented as legally approved.
 
 ### DEP-06 detail — provider verification items added by OI-43 to OI-46

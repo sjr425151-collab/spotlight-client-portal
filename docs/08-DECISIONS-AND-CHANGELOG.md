@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.38.0 |
+| Version | 0.39.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,15 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### PR #37 merge, OI-95 closure and AUTH-012 completion (Owner, 2026-11-25)
+
+Owner decision "PR #37 pinned merge approved". Documentation only.
+
+- **PR #37 (final):** merged by Main under the Owner's pinned authorization at head `39a8fdf6394121e9b9a58429bd2f09cc60cf1069`, base `b027e41`, exact-head CI 45678633347 (#119) 7/7, Main review 7171553267. Merge commit `e3a750883a90e52c7138dc72be11fcff3f1290d9` (parents `b027e41`, `39a8fdf`; tree identical). Post-merge CI run 45682383873 (#120), all seven jobs passed with the full suite.
+- **OI-95 closed; AUTH-012 completed** (expired on merge).
+- **Carried forward:** O-1 for I-2. **O-2:** the CURRENT-STATE header version is allocated sequentially by the next record to merge; every existing record is preserved.
+- **Next:** documentation-only synchronization of PR #35 and PR #36 onto `e3a7508`, preserving implementation equivalence, with exact-head CI and reviewer reconfirmations. No other merge is authorized.
+
 ### PR #28 merge and the F2 closure (Owner, 2026-11-25)
 
 Owner decision "PR #28 pinned merge and conditional F2 closure approved". Documentation only.
@@ -1539,6 +1548,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.36.0 | 2026-11-25 | **OI-113 decision** (Owner): mandatory R1 release-candidate blocker; option (a) selected, (b) not selected, (c) emergency only; AUTH-013 proposed (authorizes nothing); WP-S F-1 consolidated. AUTHORIZATIONS v1.22.0; OPEN-ISSUES v0.30.0. | Main session | Owner |
 | 0.37.0 | 2026-11-25 | **PR #34 merged** (`a5dfad0`, CI 45665855580 7/7; the Amendment 3 correction active); PR #35 sequencing; the baseline-integrity correction; AUTH-013 design and fixture moves approved; AUTH-009 site rulings and stop-reconciliation direction; deadline defaults; Stage A Gate A and Gate B. AUTHORIZATIONS v1.23.0; OPEN-ISSUES v0.31.0. | Main session | Owner |
 | 0.38.0 | 2026-11-25 | **PR #28 merged** (`b027e41`, CI 45675171938 (#116) 7/7); F2 closed with residual items carried forward; PR #33 and PR #34 activation records reconciled in CURRENT-STATE (v1.24.0); AUTH-012 released. | Main session | Owner |
+| 0.39.0 | 2026-11-25 | **PR #37 merged** (`e3a7508`, CI 45682383873 (#120) 7/7); OI-95 closed; AUTH-012 completed; O-1 carried forward to I-2. OPEN-ISSUES v0.32.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

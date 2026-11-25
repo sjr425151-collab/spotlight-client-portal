@@ -251,7 +251,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Expiry | PWP-0 merge or 2027-01-31, whichever comes first |
 | Granted | Owner, 2026-11-25 (conditional; amended 2026-11-25; **active 2026-11-25** at `d9cf32a`, CI run 45567129662) |
 
-### AUTH-012 — Tier 1: OI-95 `/sales` empty-state accessibility correction — GRANTED, ACTIVE (implementation released; WP-I-1 merged)
+### AUTH-012 — Tier 1: OI-95 `/sales` empty-state accessibility correction — COMPLETED (expired on the PR #37 merge)
 
 | Field | Value |
 |---|---|
@@ -266,6 +266,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Stop conditions | A deterministic empty or populated state cannot be produced within these files; any other file or any assertion would change |
 | Merge | After WP-I-1; it may be interleaved before WP-H without changing the relative order WP-I-1, WP-H, WP-D18. Owner pinned merge only |
 | Expiry | Merge, R1 release-candidate acceptance, or 2027-01-31 |
+| Completion | PR #37 merged at `e3a750883a90e52c7138dc72be11fcff3f1290d9` (head `39a8fdf`, base `b027e41`); post-merge CI run 45682383873 (#120) 7/7 with the full suite; Main review 7171553267. OI-95 closed. AUTH-012 expired on this merge |
 | Granted | Owner, 2026-11-25 (**active 2026-11-25**, merge `f37cf7e`, CI run 45583992649) |
 
 ### AUTH-009 — Tier 2: OI-91 dispatch ownership, confirmation and lock order (WP-B) — PROPOSED

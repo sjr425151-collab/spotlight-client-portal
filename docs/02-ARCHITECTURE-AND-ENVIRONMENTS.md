@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.0 |
-| Status | **Approved (final): v0.4.0.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.4.0 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). |
+| Version | 0.4.1 |
+| Status | **Approved (final): v0.4.0.** Conditional [sign-off](OWNER-SIGNOFF-FOUNDATION-2026-11-22.md) on 2026-11-22; final approval of v0.4.0 in the Owner's written Phase 1 authorization, 2026-11-23 (recorded in 08 §4). v0.4.1 (PWP-0, AUTH-011; OI-108, 2026-11-25): §8 distinguishes internal monitoring signals from approved contractual maintenance obligations and provisional operating frequencies; §10 adds the TV-03 verification items. No architecture changes. |
 | Decisions | OI-07, OI-10, OI-11, OI-22, OI-23, OI-29, OI-32, OI-39, OI-41, OI-43 |
 | Dependencies | DEP-06, DEP-09, DEP-11, DEP-12 (DEP-10 complete) |
 
@@ -136,6 +136,8 @@ Release policy **[APPROVED OI-23]**:
 - Core Web Vitals.
 - Cost alerts on Vercel, Supabase, and Resend usage (OI-10 cost controls).
 
+**Maintenance commitments [APPROVED OI-108, 2026-11-25]:** the signals above are internal. Client-facing maintenance obligations are only those in the approved, published maintenance instrument; provisional operating frequencies (for example five-minute availability monitoring, daily recoverable backups, a 30-day backup retention target, weekly vulnerability checks) stay provisional until validated (TV-03) and approved; no unconditional service level is approved.
+
 The monitoring vendor is not selected; it is chosen in Phase 1 or Phase 5.
 
 ## 9. Secrets and configuration management
@@ -168,6 +170,7 @@ This applies to Stripe, Supabase, Vercel, Resend, and any future Google integrat
 | Resend | Domain verification per environment; idempotency keys; bounce and complaint webhooks |
 | Domain registrar (to be selected) | Registration date and expiry data; auto-renew settings; transfer (auth code) process; ensuring hosting deactivation cannot affect the registration (04 §15.1) |
 | Vercel / infrastructure providers | Discontinuing designated per-client resources independently of the remaining hosting (M1) |
+| Client hosting and maintenance (TV-03; OI-108, CD-13, CD-22, INT-02) | Provisional: 5 GB website asset storage; 100 GB monthly transfer; 2,000 monthly form submissions and the counting method; the documented usage-metering methodology; five-minute availability monitoring (DEP-12 vendor); daily recoverable backups and a 30-day retention target, with a restore test; weekly vulnerability checks. Not verified; no hosted access is authorized for it |
 
 ## 11. Production infrastructure **[APPROVED OI-41]**
 

@@ -24,3 +24,6 @@ Update the affected specs, tests, and cross-references to reflect these distinct
 
 ## Approved baseline
 Spec 01 v0.3.1, Spec 02 v0.3.1, and CLAUDE.md as reviewed, with the mandatory correction above and no unapproved substantive scope changes.
+
+## Annotation (2026-11-25, PWP-0, AUTH-011)
+Appended; the record above is unchanged. The Owner's formal legal representation is **Christopher Pribyl** (Owner, 2026-11-25). This historical record keeps its original wording; the correction applies prospectively to every formal legal representation, including the governing agreement and the counsel evidence (OI-107). It changes no commercial term, contractual scope or fulfillment obligation.

@@ -1264,3 +1264,34 @@ Selected entries:
 One earlier local run was invalid because the local Docker daemon stopped. It was repeated in full.
 
 **D-1** remains unratified; ratification is requested separately with this evidence. **Effort:** AI session about 0.4 h; administrative about 0.1 h (a Docker recovery).
+
+### 17E. D-1 ratification (Owner, 2026-11-25)
+
+**Decision (Owner, 2026-11-25, relayed by Main; quoted):**
+
+> **D-1 is RATIFIED by the Owner** as implemented and reviewed: the exact-filename exemptions, the stricter lexical detection, the mutation evidence and the disclosed residual limitations. The static guard is accepted as defense in depth, not as an exhaustive SQL security boundary. The database construction guard remains the authoritative runtime enforcement. The ratification is recorded separately from the merge authorization, and the residual limitations must stay in the durable record. No further D-1 implementation or review is needed.
+
+> **PR #27 is approved in principle.** The final pinned merge authorization waits for the exact new coordinates.
+
+This supersedes the "D-1 remains unratified" statements in §17A to §17D, which are kept as the record at the time. The Owner's decision record is in 08, which Main maintains. This section grants no merge authority.
+
+**Evidence:**
+
+| Item | Reference |
+|---|---|
+| Corrected D-1 check: exact-filename exemption, compensating controls, mutation tests | `d2077d2` |
+| Stricter lexical rule (option (a), PR #34): three exact-name exemptions, quote-aware comment stripping, mutation tests | `1508ede` |
+| Main's independent implementation review at `41c5978` | PR #27 comment 7173468443 |
+| WP-B review at `41c5978` | PR #27 comment 7173416670 |
+| Exact-head CI at `41c5978` | Run 45691819713 (#125), 7/7, F1 25/25 |
+
+**Residual limitations (kept in the durable record, as the decision requires).** The static check is lexical. It does not recognize:
+- table names assembled from fragments, for example by string concatenation in dynamic SQL;
+- names built with `chr()` or `format()`;
+- Unicode-escape identifiers (`U&"…"` with `\XXXX` escapes; Main's observation in 7173468443).
+
+The runtime construction guard on `private.billing_package_scope` rejects every such insert outside the constructor. It remains the authoritative control.
+
+**Synchronization.** This section was added with the documentation-only merge of `main` at `19f6103` (PR #36). No implementation or test file changed: the non-documentation diff against `main` is patch-identical to `41c5978` against `30414c7` (`git patch-id --stable`).
+
+**Effort (OI-67):** AI session about 0.2 h; Owner: none.

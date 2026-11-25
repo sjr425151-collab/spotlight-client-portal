@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.22.0 |
+| Version | 0.23.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-90** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-91** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-19** |
 | ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
@@ -16,7 +16,7 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-89)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-90)
 
 All 76 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-83).
 
@@ -99,11 +99,12 @@ All 76 issues listed here are decided at the architectural level. The authoritat
 | OI-82 | Refund and dispute allocation architecture | Decided (2026-11-24) | DEP-03, DEP-06 |
 | OI-83 | Agreed order-summary pricing visible to Owner, Admin, assigned Sales Representatives | Decided (2026-11-24) | — |
 | OI-84 | WP-S commercial capabilities: Sales order inputs and derived scope, no replacement after acceptance, resend as revoke and reissue, invitations in the progress view, order summaries at assignment end | Decided (2026-11-24) | DEP-18 |
-| OI-85 | Staff/client separation enforced in the database (`is_project_member` with no staff role; membership and role invariant triggers); T-SALES-24 in full | Decided (2026-11-25); correction in PR #23 under the AUTH-005 OI-85 amendment | — |
+| OI-85 | Staff/client separation enforced in the database (`is_project_member` with no staff role; membership and role invariant triggers); T-SALES-24 in full | Decided (2026-11-25); **closed** 2026-11-25 (corrected in PR #23 at `1eda945`; Main's focused re-review) | — |
 | OI-86 | Lock-order deadlock between `issue_order_summary` and `accept_agreement` | Decided (2026-11-25): mandatory R1 release-candidate blocker; separate WP-B authorization | WP-B |
 | OI-87 | Noncontractual `order_summaries.change_reason` readable by the project's clients | Decided (2026-11-25): staff-only; mandatory before R1 release candidate; separate WP-B authorization | WP-B |
 | OI-88 | Strict `requireClient` and invitees without an active membership | Decided (2026-11-25): strict kept; the emailed link is the supported path; UX reassessed before R1 release candidate | — |
 | OI-89 | WP-S confirmations (T-SALES-23 reading, rate limits, audit names, progress-view limits, agreed pricing fields, shared files) | Decided (2026-11-25) | — |
+| OI-90 | Direct-writer lock ordering against the OI-85 triggers (a database-owner `UPDATE` holds the row lock before its trigger takes the per-user lock; can deadlock with `accept_invitation` or `set_staff_role` for the same user; integrity preserved) | Decided (2026-11-25): low, nonblocking for merge; OWNER-RUNBOOKS §7 required before R1 release-candidate acceptance; no code change | — |
 
 ---
 
@@ -152,7 +153,7 @@ Earliest phase = the first original OI-02 phase whose **implementation** cannot 
 | DEP-15 | **Stripe test-mode webhook verification** (OI-63): a test-mode webhook signing secret, a way to deliver real test-mode events to a local server (for example the Stripe CLI), and a recorded verification run of the webhook handlers | Owner (credential and access authorization); implementer executes | WP-B | Not started. Runs under AUTH-002 once its activation conditions are met. |
 | DEP-16 | Switch the required status checks to the aggregate `CI result` (OI-70): require `CI result`, `Lint, types, format, unit tests`, `Dependency audit`, and `Secret scan (gitleaks, full history)`; remove the e2e and Lighthouse jobs from the required list, because GitHub reports a skipped job as passing | Owner (GitHub settings, Tier 3) | Immediately after the governance correction PR merges | **Complete** (Owner-reported, 2026-11-24). `main` reports `protected: true` via the GitHub API; the ruleset check list is not readable from the agent session. |
 | DEP-17 | **Hosted scheduler** (04 §13, 05 §5.4, §5.5): bind to a scheduler, with recorded runs and alerting (DEP-12): WP-B's billing job entry points (daily reconciliation, maintenance-recovery evaluation, webhook backfill, release approvals, outbound requests); WP-C's scan retries and revoked-object deletion retries | WP-D (staging, AUTH-003); Owner (production, Tier 3) | Before the R1 release candidate (staging); production launch | Not started. In R1 until then: staff trigger scan retries, the server retries due deletions opportunistically, the Owner retries deletions and runs reconciliation before authorizing publication |
-| DEP-18 | **Standard package scope definitions** (OI-84(b); 03 §4.1, 04 §4): the Owner supplies, for each package key (Essential, Professional, Advanced, Signature, Prestige), the standard contractual deliverables that Sales-issued order summaries copy into the snapshot; loaded into `private.billing_package_scope` by a reviewed migration and recorded under 08 §6. No authoritative definition exists today (`private.billing_packages` holds key, name, and cents only). The scope language is in counsel review (DEP-03, A4). **Owner-confirmed (2026-11-24, A5):** mandatory before R1 release-candidate acceptance; **versions are append-only (Owner, 2026-11-25; WP-B review N2): an existing version is never updated, deleted, or replaced in place, every new contractual definition is a new version, and historical versions stay reproducible (implemented in PR #23)**; issuance fails closed when no approved scope exists; definitions are server-controlled and versioned; order-summary snapshots are immutable; issued summaries are never altered retroactively | Owner (content); WP-S (table and loader, AUTH-005) | Before Sales-issued order summaries are used outside local and CI tests, and before R1 release-candidate acceptance (mandatory) | Not started. Until then, Sales issuance fails closed outside the test-only seed |
+| DEP-18 | **Standard package scope definitions** (OI-84(b); 03 §4.1, 04 §4): the Owner supplies, for each package key (Essential, Professional, Advanced, Signature, Prestige), the standard contractual deliverables that Sales-issued order summaries copy into the snapshot; loaded into `private.billing_package_scope` by a reviewed migration and recorded under 08 §6. No authoritative definition exists today (`private.billing_packages` holds key, name, and cents only). The scope language is in counsel review (DEP-03, A4). **Owner-confirmed (2026-11-24, A5):** mandatory before R1 release-candidate acceptance; **rows are append-only (Owner, 2026-11-25; WP-B review N2; implemented in PR #23): an existing row is never updated, deleted, or truncated, and every new contractual definition is a new version**; **Version completeness (Owner, 2026-11-25; WP-B corrected-head review):** existing scope rows cannot be updated, deleted, or truncated (append-only row protection), and issued contractual snapshots stay immutable; but a privileged migration can still **insert an additional position into an existing version**, so complete version reproducibility is **not yet enforced**. Before any non-fixture package-scope content is introduced, DEP-18 requires **atomic version creation and sealing**: a sealed version rejects every later addition, update, deletion, and truncation.; issuance fails closed when no approved scope exists; definitions are server-controlled and versioned; order-summary snapshots are immutable; issued summaries are never altered retroactively | Owner (content); WP-S (table and loader, AUTH-005) | Before Sales-issued order summaries are used outside local and CI tests, and before R1 release-candidate acceptance (mandatory) | Not started. Until then, Sales issuance fails closed outside the test-only seed |
 
 ### DEP-01 detail — Stripe test-mode catalog
 

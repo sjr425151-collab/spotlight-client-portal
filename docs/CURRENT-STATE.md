@@ -1210,3 +1210,47 @@ Selected entries:
 - **Docker during this run:** the local Docker daemon stopped once. With the database unreachable, F1 reported the disposable database's absence as unverified and failed. That is the intended fail-closed behavior. After the restart, no `wpd18_iso_*` database existed.
 - **D-1 remains unratified.** Ratification is a separate Owner disposition after independent review.
 - **Still sequenced:** F5 and its F6 presence check, at the rebase after WP-I-1 and WP-H.
+
+### 17D. Synchronization after the WP-H merge, F5, and the F6 presence check
+
+**Baseline:**
+- WP-H merged as PR #35 at `30414c78b80594a735c8031a3a285a3e88d8f6cb` (parents `e3a7508` and `85ec6ce`). Post-merge CI run 45689577718 (#123) on that exact commit completed `success`.
+- Both conditions for the synchronization and for F5 are met: WP-I-1 merged at `b027e41`, and WP-H merged at `30414c7`.
+
+**Synchronization:**
+- `main` was merged into `wp-d18/scope-sealing` as merge `73efddd` (parents `3226771` and `30414c7`). There was no rebase, and every reviewed commit is kept.
+- One conflict, in `docs/CURRENT-STATE.md`. It was resolved by taking `main`'s file as it is, which keeps §10.2 (WP-H), §14 (WP-I-1), §15 and §16 (OI-95), and by moving the WP-D18 record from §14 to the next free section, §17 (§17A to §17C). Only the numbering changed; this was checked with a line diff.
+- The header version is allocated from the baseline: `main` is 1.24.0, so this is 1.25.0.
+- **Net diff against `30414c7`:** exactly the WP-D18 files (the migration, seed, pgTAP 310 and 320, F1 to F4, the unit file and CURRENT-STATE) plus the F5 workflow step. Nothing else.
+
+**F5 (commit `da4ca60`):**
+- Exactly one new step in "Database, integration, and e2e tests (local Supabase)": `WP-D18 isolated concurrent-commit verification`, `run: ./scripts/wpd18-isolated-commit-test.sh`, `timeout-minutes: 5`.
+- It sits after "Database tests (pgTAP)" and before "Integration tests", with no `continue-on-error` and no `if:`. There is no other workflow change.
+
+**F6 presence check (same commit):**
+- `f5Violations` parses the steps of the workflow text without a new dependency. It requires:
+  - exactly one step that runs the script, with exactly the recorded three lines
+  - no `continue-on-error` and no `if:`
+  - immediate adjacency to the pgTAP step before it and the integration step after it
+  - the same job as the pgTAP step
+  - an executable script
+- **Synthetic mutations that each fail it:** step removed, `continue-on-error` added, `if:` added, a different command, moved after integration, duplicated.
+- **Real-file mutation:** a temporary `continue-on-error: true` in `ci.yml` failed the check ("1 failed | 20 passed"). After restoring the file, 21/21 pass.
+
+**Local results at `da4ca60` (fresh reset, CI order, with F1 at its CI position):**
+
+| Check | Result |
+|---|---|
+| Lint, typecheck, format | Pass |
+| Unit | 17 files, **312** (303 on `main` plus 9 WP-D18 tests) |
+| `pnpm audit` | Clean |
+| Migration immutability | Pass |
+| pgTAP | 30 files, **1654** (1605 plus 49 WP-D18 assertions) |
+| F1 | **PASS 25/25**: 37 of 693 dump entries, 67 fingerprint lines and 26 state lines identical, source unchanged, cleanup verified |
+| Integration | 7 files, **96** |
+| Build, bundle scan, production build | Pass |
+| E2E | **52** |
+
+One earlier local run was invalid because the local Docker daemon stopped. It was repeated in full.
+
+**D-1** remains unratified; ratification is requested separately with this evidence. **Effort:** AI session about 0.4 h; administrative about 0.1 h (a Docker recovery).

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.34.0 |
+| Version | 0.35.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,17 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-002 Stage A amendment and inventory corrections (Owner, 2026-11-25)
+
+Owner direction "Coordinated Review and Execution". Documentation only.
+
+- **AUTH-002 Stage A (granted, not active):** the catalog read-only amendment (OD-TV-09) is recorded in AUTHORIZATIONS AUTH-002 with separate activation, credential attestation, the test-mode preflight, the execution baseline and termination. It adds the Owner's explicit execution go-ahead as a prerequisite; **no provider execution is authorized.** The rest of AUTH-002 stays inactive.
+- **PR #35 reviews:** the Owner authorizes WP-S's independent financial review of PR #35 under AUTH-006 (isolated read-only copy) and WP-C's independent read-only review of the release lock, the fulfillment interface contract and the approval-event integration.
+- **PR #28:** not merge-ready until WP-C's finding B-1 is resolved and the applicable independent reviews are reconfirmed.
+- **AUTH-009 inventory (provisional):** the nine-site list is incomplete (`110:232`, `110:263`) and is re-derived against `main` after WP-H merges; the gateway request timeout that the late-result rule depends on is not yet defined. AUTH-009 and AUTH-010 remain proposed records.
+- **AUTH-007 Amendment 3 correction:** the verification wording now covers all four WP-H migrations (none names the table).
+- **Unchanged:** D-1 unratified; merge order WP-I-1, WP-H, WP-D18; no provider, production, contractual-content or dependency-closure work.
+
 ### PR #33 activation, AUTH-009/010 proposals and the Amendment 3 correction (Owner, 2026-11-25)
 
 - **PR #33 (final):** merged by the Owner, pinned at `b4b6b9836b912f6ae5172ca465cd4b3b3bbcd38b`; merge commit `f37cf7ecf13c7f25e37477684731a2e7d11e0943` (parents `c89bf56`, `b4b6b98`; tree identical); post-merge CI run 45583992649 (#103), all seven jobs executed and passed. **Active:** AUTH-006 Amendment 2, AUTH-007 Amendment 3 and AUTH-012, each under its own sequencing (AUTH-012 implementation after WP-I-1 merges). Headings corrected in AUTHORIZATIONS; the CURRENT-STATE activation record follows the WP-I-1 merge, to avoid a conflict with the open implementation PRs.
@@ -1486,6 +1497,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.32.0 | 2026-11-25 | **PWP-0 contractual governance reconciliation (AUTH-011):** OI-98 to OI-112 (Owner direction OD-01 to OD-13, FD-01 to FD-17 as amended, PDR-01 to PDR-19, R-01 to R-06), DEP-19 and DEP-20; revision notes on OI-13, OI-25, OI-34, OI-45, OI-84; CD, INT, OD and FD cross-reference; reconstruction status preserved (no instrument, provision, counsel approval or publication artifact asserted). Specs: 01 v0.4.3, 02 v0.4.1, 03 v0.6.0, 04 v0.10.0, 05 v0.5.0, 06 v0.5.3, 07 v0.4.1; AUTHORIZATIONS v1.18.0 (AUTH-011); OPEN-ISSUES v0.26.0; OWNER-RUNBOOKS v0.4.0; CLAUDE.md §5 bullet; Owner sign-off annotation. Nothing implemented; DEP-03 and DEP-18 open. | PWP-0 session | Owner |
 | 0.33.0 | 2026-11-25 | **Consolidated authorization and execution cycle** (Owner): PWP-0 merge recorded (`c89bf56`, run 45575951029 (#101)); AUTH-006 Amendment 2, AUTH-007 Amendment 3, AUTH-008 Amendment 1 clarification and AUTH-012 (OI-95) recorded, activation pending; AUTH-007 Amendment 2 activation recorded; AUTH-009 and AUTH-010 design directions (not authorized); PR #32 review findings reconciled: 03 v0.6.1, 04 v0.10.1, 05 v0.5.1, 06 v0.5.4, 07 v0.4.2, OI-100 and OI-105 notes. AUTHORIZATIONS v1.19.0; OPEN-ISSUES v0.27.0; CURRENT-STATE v1.22.0; R1-HANDOFFS v0.6.0. | Main session | Owner |
 | 0.34.0 | 2026-11-25 | **PR #33 activation and design decisions** (Owner): AUTH-006 Amendment 2, AUTH-007 Amendment 3 and AUTH-012 active (`f37cf7e`, run 45583992649 (#103)); AUTH-009 and AUTH-010 recorded as proposed records (R1 token enforcement; S0; outcome classes; engineering defaults); AUTH-007 Amendment 3 correction (exact-name exemption of `20261125120200_wps_oi85_separation.sql`; activation pending). AUTHORIZATIONS v1.20.0; OPEN-ISSUES v0.28.0; R1-HANDOFFS v0.7.0. | Main session | Owner |
+| 0.35.0 | 2026-11-25 | **AUTH-002 Stage A amendment recorded** (Owner, OD-TV-09; granted, not active; no provider execution authorized); PR #35 review authorizations; PR #28 B-1 hold; AUTH-009 inventory marked provisional; Amendment 3 correction wording covers WP-H's four migrations. AUTHORIZATIONS v1.21.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

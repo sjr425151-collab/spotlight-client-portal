@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.2.0 |
+| Version | 0.2.1 |
 | Status | **Active handoffs.** AUTH-006, AUTH-007, and AUTH-008 (I-1 only) are active since 2026-11-25 (PR #25 merge `58d0e98981befe32f8ddff11c89ce7952dad3a72`, CI run 45543204966). The common baseline is filled in below. |
 | Prepared by | Main (architecture, security, and integration review authority), 2026-11-25 |
 
@@ -30,7 +30,16 @@ You are the WP-B implementation session. Implement WP-H under AUTH-006 on `wp-h/
 4. **Release-approval cross-check** — migration `20261126120300`: in `private.consume_release_approved`, before any obligation or outbound request, read `private.project_fulfillment_status(project)` and the immutable `preview_releases` row and require: same project; `current_release_id` = the event's release; `current_release_approved`; `current_release_approval_id` = the event's `approval_id`; the event's `release_number` and `commit_sha` equal the release row; lifecycle eligibility. Otherwise `rejected` with a detail, audited, Owner notified, no charge. First analyse WP-C's supersession write path and show there is no unsafe gap between the check and charge initiation; if a lock is needed, lock only the specific release row; no broad cross-package lock or privilege, no WP-C change. If the interface cannot establish a condition safely, stop and report the exact gap.
 5. Extend `tests/unit/wpb-contracts.test.ts` and `tests/unit/wpb-static.test.ts` to all four new migrations, restrictions unchanged.
 
-**Acceptance:** the AUTH-006 acceptance row in full; new pgTAP for N1(a) (valid, forged, mismatched, link, invoice, conflicting, unattributable) and the cross-check (positive; missing, other project, other approval, superseded, mismatched number or SHA, ineligible; concurrency); T-PAY-32 and the 160 B1 assertions unchanged; full existing suites unchanged; 7/7 CI with the full suite on the exact head.
+**Migration ownership:** `20261126120000`, `20261126120100`, `20261126120200`, `20261126120300`, reserved exclusively for WP-H. **Shared files:** the WP-B static guard tests (you own them during WP-H).
+
+**Prohibited:** any other WP-B, WP-C, WP-S, or Phase 2 object; any new table, role, grant, staff-only function, or UI; any WP-C change or broad cross-package lock or privilege; `supabase/seed.sql`, `playwright.config.ts`, and `tests/support/*` (owned by other packages); Stripe or any provider request; hosted or production environments; WP-D; commission features; PR #6; editing a merged migration; new dependencies; weakening, skipping, removing, or replacing an existing assertion.
+
+**Acceptance:**
+- **OI-86:** the T-SALES-32 true-race test accepts no `aborted:` outcome for the Sales and Owner paths (exactly one success, no 40P01) over repeated iterations; serialization with the six callers above proven by concurrent tests; financial and assignment integrity hold.
+- **OI-87:** `not has_column_privilege('authenticated', 'public.order_summaries', 'change_reason', 'select')`; every other column still readable under the existing policies; client billing page, staff billing section, Sales progress, generated types, and all existing queries unaffected; the reason stays in `audit_events.reason` under the existing staff policy.
+- **N1(a):** new pgTAP for refund-decision attribution (valid; forged decision; mismatched charge), link and invoice attribution, conflicting projects (every project blocked, evidence kept, no allocation, not cleared by a later link), and unattributable events (kept for reconciliation); T-PAY-32 and the 160 B1 assertions unchanged.
+- **Cross-check:** positive (current approved release) and negative (missing release, other project, other approval, superseded release, mismatched number or SHA, ineligible) tests, with no obligation or outbound request on rejection, plus concurrency coverage of supersession against consumption.
+- Full existing Phase 2, WP-0, WP-B, WP-C, and WP-S suites unchanged; 7/7 CI with the full suite on the exact head.
 
 **Review:** independent financial review by a session other than WP-B, and Main.
 
@@ -53,7 +62,11 @@ You are the WP-S implementation session. Implement WP-D18 under AUTH-007 on `wp-
 
 **Migration cases:** a fresh run before seed data exists (nothing to seal; the seed then creates fixtures through the function), and an authorized local database already holding synthetic fixture rows (seal them as version 1 per package where the classification allows). Unexpected non-fixture content raises and changes nothing.
 
-**Acceptance:** extended T-SALES-31 and T-SALES-36 per the AUTH-007 acceptance row, including: sealed rejection for every writer, invisible partial versions, concurrent creation, hash and count tampering failing closed, rollback on failure, fixture consistency, migration raising on non-fixture content, no API execute; full existing suites unchanged; 7/7 CI on the exact head.
+**Migration ownership:** `20261126140000`, reserved exclusively for WP-D18. **Shared files:** `supabase/seed.sql` (WP-S section; you are its sole owner during WP-D18).
+
+**Prohibited:** production package content; any change to `issue_order_summary` or any other WP-B object; any WP-C or Phase 2 object; `playwright.config.ts` and `tests/support/*`; any API-role grant or execute on the new objects; Stripe or any provider request; hosted or production environments; WP-D; commission features; PR #6; editing a merged migration; new dependencies; weakening, skipping, removing, or replacing an existing assertion.
+
+**Acceptance:** extended T-SALES-31 and T-SALES-36, including: sealed rejection for every writer, invisible partial versions, concurrent creation, hash and count tampering failing closed, rollback on failure, fixture consistency, migration raising on non-fixture content, no API execute; full existing suites unchanged; 7/7 CI on the exact head.
 
 **Review:** WP-B (contractual snapshot and `issue_order_summary` interaction) and Main.
 
@@ -71,7 +84,9 @@ You are the dedicated integration implementation session (not Main). Implement I
 
 **F2:** keep it open until the suspected cause is supported by evidence, ten consecutive cold-reset runs pass, failures, timing, and diagnostics are recorded, and repeatability is shown. A failure that stops reproducing never confirms the cause by itself.
 
-**Not authorized:** I-2 (the R1 suite, the billing-job runner, the mock live verifier, the authenticated Lighthouse CI change), any production-code seam, and any change to existing acceptance assertions.
+**Migration ownership:** none (no migration in I-1). **Shared files:** `playwright.config.ts` and `tests/support/*` (you own them during I-1).
+
+**Prohibited:** I-2 (the R1 suite, the billing-job runner, the mock live verifier, the authenticated Lighthouse CI change); any production-code change or test seam; any migration; `supabase/seed.sql`; `.github/workflows/*` and `lighthouserc.json`; the WP-B static guard tests; weakening, removing, or replacing any existing acceptance assertion; Stripe or any provider request; hosted or production environments; WP-D; commission features; PR #6; new dependencies.
 
 **Acceptance:** existing assertions and coverage preserved; the F2 evidence above recorded; full existing suites unchanged; 7/7 CI on the exact head.
 

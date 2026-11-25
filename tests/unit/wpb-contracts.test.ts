@@ -37,6 +37,14 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 const agreements = read("supabase/migrations/20261124160000_wpb_agreements.sql");
 const payments = read("supabase/migrations/20261124160100_wpb_payments_ledger.sql");
 const wpbSql = `${agreements}\n${payments}`;
+// WP-H (AUTH-006): the four reserved migrations, all covered by the static guards below.
+const WPH_MIGRATIONS = [
+  "supabase/migrations/20261126120000_wph_oi86_issue_order_summary_lock.sql",
+  "supabase/migrations/20261126120100_wph_oi87_order_summary_column_privileges.sql",
+  "supabase/migrations/20261126120200_wph_n1a_attribution.sql",
+  "supabase/migrations/20261126120300_wph_release_approval_crosscheck.sql",
+];
+const wphSql = WPH_MIGRATIONS.map(read).join("\n");
 
 describe("WP-B domain events", () => {
   const registered = [...agreements.matchAll(/\('([a-z_.]+)', '([a-z]+)', 'WP-B', '[^']+'\)/g)].map(
@@ -232,6 +240,48 @@ describe("WP-B migrations stay within AUTH-001", () => {
       /create or replace function private\.(?!project_financial_status\b)/,
     );
     expect(wpbSql).not.toMatch(/on storage\.objects/);
+  });
+
+  it("WP-H (AUTH-006 and Amendment 1): the migrations stay within the authorized objects", () => {
+    // Exactly the four reserved migrations.
+    expect(
+      readdirSync(join(root, "supabase/migrations"))
+        .filter((f) => f.includes("_wph_"))
+        .sort(),
+    ).toEqual(WPH_MIGRATIONS.map((p) => p.replace("supabase/migrations/", "")));
+    // The exact create-or-replace allow-list: project_financial_status (B1) and the existing
+    // functions AUTH-006 and its Amendment 1 name. Nothing else is replaced, public or private.
+    const replaced = [
+      ...`${wpbSql}\n${wphSql}`.matchAll(/create or replace function ([a-z_]+\.[a-z_]+)/g),
+    ]
+      .map((m) => m[1])
+      .sort();
+    expect(replaced).toEqual(
+      [
+        "private.consume_release_approved",
+        "private.handle_charge_refunded",
+        "private.handle_dispute",
+        "private.handle_refund",
+        "private.issue_order_summary",
+        "private.process_stripe_event",
+        "private.project_financial_anomalies",
+        "private.project_financial_status",
+        "private.resolve_quarantined_event",
+      ].sort(),
+    );
+    // The same additive-only restrictions as WP-B.
+    expect(wphSql).not.toMatch(
+      /\b(drop|alter)\s+(table|policy|function)\s+public\.(profiles|staff_roles|client_businesses|projects|invitations|project_memberships|audit_events|domain_events|notification_outbox)\b/i,
+    );
+    expect(wphSql).not.toMatch(/on storage\.objects/);
+    expect(wphSql).not.toMatch(/\bdrop\s+(table|function|policy|trigger)\b/i);
+    // The only new table is the N1(a) candidate table; the only grant is OI-87's column grant.
+    expect([...wphSql.matchAll(/create table ([a-z_.]+)/g)].map((m) => m[1])).toEqual([
+      "private.financial_event_project_candidates",
+    ]);
+    expect(
+      [...wphSql.matchAll(/^\s*grant\s+([^;]+?)\s+on\s+([a-z_.]+)/gim)].map((m) => m[2]),
+    ).toEqual(["public.order_summaries"]);
   });
 
   it("number WP-B pgTAP files 1xx", () => {

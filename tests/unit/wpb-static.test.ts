@@ -67,6 +67,25 @@ describe("WP-B static security checks", () => {
     expect(offenders(/\bfetch\(/).filter((p) => p.startsWith("src/server/stripe/"))).toEqual([]);
   });
 
+  it("WP-H (AUTH-006): the four WP-H migrations keep the WP-B payment invariants", () => {
+    const wph = [
+      "20261126120000_wph_oi86_issue_order_summary_lock.sql",
+      "20261126120100_wph_oi87_order_summary_column_privileges.sql",
+      "20261126120200_wph_n1a_attribution.sql",
+      "20261126120300_wph_release_approval_crosscheck.sql",
+    ].map((f) => readFileSync(join(root, "supabase/migrations", f), "utf8"));
+    expect(wph).toHaveLength(4);
+    for (const sql of wph) {
+      // No new outbound purpose, no non-card payment method, no subscription or default-card
+      // write, no "mark as paid" or "force publish" path, no provider call (CLAUDE.md §3-§4).
+      expect(sql).not.toMatch(/alter type public\.outbound_request_purpose/i);
+      expect(sql).not.toMatch(/payment_method_types', jsonb_build_array\('(?!card')/);
+      expect(sql).not.toMatch(/'invoice_settings'/);
+      expect(sql).not.toMatch(/mark_?as_?paid|force_?publish/i);
+      expect(sql).not.toMatch(/api\.stripe\.com|\bhttp_(?:get|post)\(|net\.http_/);
+    }
+  });
+
   it("T-ARC-08: no portal path issues a refund or responds to a dispute", () => {
     expect(offenders(/refunds\.create|disputes\.(?:update|close)|createRefund/)).toEqual([]);
   });

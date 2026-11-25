@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.16.0 |
+| Version | 1.17.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the R1 execution plan (§13; AUTH-006 to AUTH-008 proposed), based on `main` at `a8c6ddc` |
+| Last updated | 2026-11-25, by the R1 authorization reconciliation (AUTH-006, AUTH-007, AUTH-008 I-1 granted, activation pending), based on `main` at `a8c6ddc` |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -95,7 +95,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 ## 6. Pending Owner actions
 
 1. (Done 2026-11-25) WP-S merged (PR #23); WPS-P1 to WPS-P7 decided as OI-85 to OI-89.
-2. Grant the proposed AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (WP-I; I-2 seams separately) after reviewing §13 and AUTHORIZATIONS §3.
+2. (Granted 2026-11-25; activation pending the authorization merge) AUTH-006, AUTH-007, AUTH-008 (I-1). Later: the separate I-2 grant.
 2a. Supply the standard scope for each package (DEP-18) and include it in counsel review (DEP-03).
 3. Review OWNER-RUNBOOKS (proposed), **including §7** (direct role and membership writes, OI-90; required before R1 release-candidate acceptance).
 4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10), and the contractual package-scope language (A4).
@@ -445,7 +445,7 @@ Rules: one new forward-only migration after `20261125120100`; the two reviewed W
 
 ## 13. R1 development execution plan (Main, 2026-11-25; proposed, nothing started)
 
-Baseline: `main` at `a8c6ddc` (PR #24). Authorizations: AUTH-006 (WP-H), AUTH-007 (WP-D18), AUTH-008 (WP-I), all **proposed** (AUTHORIZATIONS §3). No implementation begins before the Owner grants the record.
+Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Authorizations: **AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (I-1 only) granted by the Owner on 2026-11-25; not active** until this authorization record is merged and the post-merge CI on its merge commit succeeds. **Activation record:** _(pending: merge commit, CI run)_. Implementation branches start from that verified merge commit. I-2 needs a separate grant. Handoff prompts: [R1-HANDOFFS.md](R1-HANDOFFS.md).
 
 | Package | Implementer | Independent review | Branch | Migrations | Shared files |
 |---|---|---|---|---|---|
@@ -454,6 +454,6 @@ Baseline: `main` at `a8c6ddc` (PR #24). Authorizations: AUTH-006 (WP-H), AUTH-00
 | WP-D18 | WP-S session | WP-B, Main | `wp-d18/scope-sealing` | `20261126140000` | `supabase/seed.sql` (WP-S section; sole owner) |
 | WP-I, I-2 | Integration session | WP-C, WP-B, Main | `wp-i/r1-e2e` | none (pgTAP only) | `playwright.config.ts`, `lighthouserc.json`, `.github/workflows/ci.yml` (Lighthouse job) |
 
-**Sequence:** I-1, WP-H, and WP-D18 run in parallel from `a8c6ddc` (disjoint objects; no provider); merge I-1, then WP-H, then WP-D18, each later one rebased with the re-verification in AUTHORIZATIONS; then I-2 against the integrated `main`; then AUTH-002 sandbox verification (F7, F8, N1(c)) after WP-H; then WP-D under AUTH-003 (DEP-17, DEP-12, hosted staging, migrations-only deployment); then R1 release-candidate acceptance.
+**Sequence:** I-1, WP-H, and WP-D18 run in parallel from the verified authorization merge commit (disjoint objects; no provider); merge I-1, then WP-H, then WP-D18, each later one rebased with the re-verification in AUTHORIZATIONS; then I-2 against the integrated `main`; then AUTH-002 sandbox verification (F7, F8, N1(c)) after WP-H; then WP-D under AUTH-003 (DEP-17, DEP-12, hosted staging, migrations-only deployment); then R1 release-candidate acceptance.
 
 **Owner actions:** grant AUTH-006, AUTH-007, AUTH-008 (I-1), and later the I-2 seams; supply the five package definitions (DEP-18); engage counsel for DEP-03 (agreement, payment authorization, F10 wording, package scope); choose the malware scanner (DEP-07) and monitoring (DEP-12) vendors; review OWNER-RUNBOOKS including §7 (OI-90); reassess the OI-88 invitation experience before the R1 release candidate.

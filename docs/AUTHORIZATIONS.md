@@ -276,7 +276,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 
 | Field | Value |
 |---|---|
-| Status | **Proposed (Owner, 2026-11-25): records the final design for review; authorizes nothing.** Formal implementation authorization is a separate Owner decision. |
+| Status | **Proposed (Owner, 2026-11-25): records the final design for review; authorizes nothing.** Formal implementation authorization is a separate Owner decision after review of the final refinements and the exact inventory. |
 | Decision | OI-93; Owner design decisions of 2026-11-25 (S1, S2, S0 in principle; one decision per event; no webhook guard transition; outcome classes; per-decision rate limit; at most 10 durable attempts) |
 | Work package | WP-B session, after WP-H and AUTH-009; reserved migrations `20261127130000` and `20261127130100` (provisional) |
 | Categories | S1 refunds and S2 disputes where exactly one candidate holds the posted obligations; S0: an effect already recognized under the chosen project, proved by exact match (project, provider object, effect type, amount, currency, obligation or holding target, exact ledger entry IDs). Unsupported (blocked): obligations under several projects or none, a refund decision whose project differs, other quarantine reasons, unresolvable references, livemode or validity failures, an effect recognized under another project, other event types |

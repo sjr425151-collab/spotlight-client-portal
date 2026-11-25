@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.17.0 |
+| Version | 1.18.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the R1 authorization reconciliation (AUTH-006, AUTH-007, AUTH-008 I-1 granted, activation pending), based on `main` at `a8c6ddc` |
+| Last updated | 2026-11-25, by the R1 activation record (AUTH-006, AUTH-007, AUTH-008 I-1 active; baseline `58d0e98`) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -16,7 +16,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
-| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI). **AUTH-005** (WP-S) **expired 2026-11-25** on the WP-S merge |
+| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-006** (WP-H), **AUTH-007** (WP-D18), **AUTH-008** (WP-I, I-1 only), active 2026-11-25. **AUTH-005** (WP-S) **expired 2026-11-25** on the WP-S merge |
 | Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
@@ -95,7 +95,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 ## 6. Pending Owner actions
 
 1. (Done 2026-11-25) WP-S merged (PR #23); WPS-P1 to WPS-P7 decided as OI-85 to OI-89.
-2. (Granted 2026-11-25; activation pending the authorization merge) AUTH-006, AUTH-007, AUTH-008 (I-1). Later: the separate I-2 grant.
+2. (Active 2026-11-25) AUTH-006, AUTH-007, AUTH-008 (I-1 only), baseline `58d0e98`. Later: the separate I-2 grant.
 2a. Supply the standard scope for each package (DEP-18) and include it in counsel review (DEP-03).
 3. Review OWNER-RUNBOOKS (proposed), **including §7** (direct role and membership writes, OI-90; required before R1 release-candidate acceptance).
 4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10), and the contractual package-scope language (A4).
@@ -445,7 +445,7 @@ Rules: one new forward-only migration after `20261125120100`; the two reviewed W
 
 ## 13. R1 development execution plan (Main, 2026-11-25; proposed, nothing started)
 
-Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Authorizations: **AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (I-1 only) granted by the Owner on 2026-11-25; not active** until this authorization record is merged and the post-merge CI on its merge commit succeeds. **Activation record:** _(pending: merge commit, CI run)_. Implementation branches start from that verified merge commit. I-2 needs a separate grant. Handoff prompts: [R1-HANDOFFS.md](R1-HANDOFFS.md).
+Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Authorizations: **AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (I-1 only) granted by the Owner on 2026-11-25; **active since 2026-11-25**. **Activation record:** PR #25 merged at `58d0e98981befe32f8ddff11c89ce7952dad3a72` (parents `a8c6ddc`, `1386465`; tree identical to the authorized head; documentation only); post-merge CI run 45543204966 (#82) 7/7 `success` with the full suite executed. **Common implementation baseline: `58d0e98981befe32f8ddff11c89ce7952dad3a72`**; WP-I-1, WP-H, and WP-D18 branch from exactly this commit (not from later documentation merges). I-2 needs a separate grant. Handoff prompts: [R1-HANDOFFS.md](R1-HANDOFFS.md).
 
 | Package | Implementer | Independent review | Branch | Migrations | Shared files |
 |---|---|---|---|---|---|

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.13.0 |
+| Version | 1.14.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
 | Next unused ID | **AUTH-009** |
@@ -134,12 +134,12 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Expiry (if granted) | WP-S merge, R1 release-candidate acceptance, or 2027-01-31, whichever comes first |
 | Granted | Owner, 2026-11-25 (conditional grant, including the environment-isolation amendment); conditions met and activation recorded 2026-11-25 on `wp-s/sales-representative` |
 
-### AUTH-006 — Tier 2: R1 financial hardening (WP-H) — GRANTED (activation pending)
+### AUTH-006 — Tier 2: R1 financial hardening (WP-H) — GRANTED, ACTIVE
 
 | Field | Value |
 |---|---|
 | Tier | 2 |
-| Status | **Granted by the Owner on 2026-11-25** ("R1 — Conditional Authorization Grant and Parallel Execution Handoff"), with the binding clarifications below. **Not active yet:** it becomes active only once this authorization record is merged into `main` and the post-merge CI on that merge commit succeeds (activation recorded in CURRENT-STATE §13). Implementation branches start from that verified merge commit, not from `a8c6ddc`. |
+| Status | **Granted by the Owner on 2026-11-25** ("R1 — Conditional Authorization Grant and Parallel Execution Handoff"), with the binding clarifications below. **Active since 2026-11-25:** the record merged in PR #25 at `58d0e98981befe32f8ddff11c89ce7952dad3a72` and post-merge CI run 45543204966 (#82) passed 7/7 with the full suite (activation record: CURRENT-STATE §13). Implementation branches start from `58d0e98981befe32f8ddff11c89ce7952dad3a72`. |
 | Decision | OI-86, OI-87, N1(a) (04 §15.2.1 rules 8–9), the release-approval cross-check (Owner, 2026-11-25) |
 | Work package | **WP-H**, one PR on `wp-h/financial-hardening` from the verified authorization merge commit, implemented by the WP-B session |
 | Existing objects that may change (exhaustive) | (1) `private.issue_order_summary`: only the project lock `for update` → `for no key update` (current body: `20261125120100` §10; everything else byte-identical). (2) `public.order_summaries` privileges: revoke the table-level `select` from `authenticated`; grant `select` on every column except `change_reason` (pattern: `agreement_acceptances`); policies unchanged. (3) `private.handle_refund`, `private.handle_dispute`, `private.handle_charge_refunded`: attribution at receipt per the rules below. (4) `private.consume_release_approved`: the authoritative cross-check below. (5) WP-B static guard tests (`tests/unit/wpb-contracts.test.ts`, `tests/unit/wpb-static.test.ts`) extended to the new migrations, restrictions unchanged |
@@ -156,14 +156,14 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Stop conditions | An object outside this list must change; any existing assertion would change; a safe attribution or cross-check rule cannot be implemented as written; any permission would widen |
 | Merge | Merge order I-1, H, D (CURRENT-STATE §13). Before merge, a later package rebases onto the latest verified `main`; a clean rebase does not carry an approval forward: the rebased diff is verified, reviewed implementation changes are confirmed equivalent, newly integrated dependencies are assessed, full CI runs on the exact rebased head, each reviewer confirms in a new record that its review still applies, and a focused re-review covers anything whose behavior or dependencies changed; Owner merge only |
 | Expiry | WP-H merge, R1 release-candidate acceptance, or 2027-01-31, whichever comes first |
-| Granted | Owner, 2026-11-25 (conditional; active after the authorization merge and post-merge CI) |
+| Granted | Owner, 2026-11-25 (conditional; **active 2026-11-25**, merge `58d0e98`, CI run 45543204966) |
 
-### AUTH-007 — Tier 2: DEP-18 package-scope version sealing (WP-D18) — GRANTED (activation pending)
+### AUTH-007 — Tier 2: DEP-18 package-scope version sealing (WP-D18) — GRANTED, ACTIVE
 
 | Field | Value |
 |---|---|
 | Tier | 2 |
-| Status | **Granted by the Owner on 2026-11-25** ("R1 — Conditional Authorization Grant and Parallel Execution Handoff"), with the binding clarifications below. **Not active yet:** it becomes active only once this authorization record is merged into `main` and the post-merge CI on that merge commit succeeds (activation recorded in CURRENT-STATE §13). Implementation branches start from that verified merge commit, not from `a8c6ddc`. |
+| Status | **Granted by the Owner on 2026-11-25** ("R1 — Conditional Authorization Grant and Parallel Execution Handoff"), with the binding clarifications below. **Active since 2026-11-25:** the record merged in PR #25 at `58d0e98981befe32f8ddff11c89ce7952dad3a72` and post-merge CI run 45543204966 (#82) passed 7/7 with the full suite (activation record: CURRENT-STATE §13). Implementation branches start from `58d0e98981befe32f8ddff11c89ce7952dad3a72`. |
 | Decision | DEP-18 (sealing amendment), OI-84(b), A2, A5, the environment-isolation amendment |
 | Work package | **WP-D18**, one PR on `wp-d18/scope-sealing` from the verified authorization merge commit, implemented by the WP-S session |
 | Existing objects that may change (exhaustive) | `private.billing_package_scope` (new insert protection; existing triggers kept), `private.current_package_scope(text)` (resolves sealed versions only; same signature), `supabase/seed.sql` (WP-S section: fixtures created through the new function), WP-S tests 300, 310, 320 and `tests/unit/wps-sales.test.ts` (additive) |
@@ -179,14 +179,14 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Stop conditions | `issue_order_summary` or any WP-B object must change; unexpected non-fixture data; any permission would widen |
 | Merge | Merge order I-1, H, D (CURRENT-STATE §13). Before merge, a later package rebases onto the latest verified `main`; a clean rebase does not carry an approval forward: the rebased diff is verified, reviewed implementation changes are confirmed equivalent, newly integrated dependencies are assessed, full CI runs on the exact rebased head, each reviewer confirms in a new record that its review still applies, and a focused re-review covers anything whose behavior or dependencies changed; Owner merge only |
 | Expiry | WP-D18 merge, R1 release-candidate acceptance, or 2027-01-31 |
-| Granted | Owner, 2026-11-25 (conditional; active after the authorization merge and post-merge CI) |
+| Granted | Owner, 2026-11-25 (conditional; **active 2026-11-25**, merge `58d0e98`, CI run 45543204966) |
 
-### AUTH-008 — Tier 2: R1 integration infrastructure and verification (WP-I) — GRANTED FOR I-1 ONLY (activation pending)
+### AUTH-008 — Tier 2: R1 integration infrastructure and verification (WP-I) — GRANTED FOR I-1 ONLY, ACTIVE
 
 | Field | Value |
 |---|---|
 | Tier | 2 |
-| Status | **Granted by the Owner on 2026-11-25** ("R1 — Conditional Authorization Grant and Parallel Execution Handoff"), with the binding clarifications below. **Not active yet:** it becomes active only once this authorization record is merged into `main` and the post-merge CI on that merge commit succeeds (activation recorded in CURRENT-STATE §13). Implementation branches start from that verified merge commit, not from `a8c6ddc`. **Granted for I-1 only.** I-2 (the R1 suite, the billing-job runner, the mock live verifier, and the authenticated Lighthouse CI change) needs a separate implementation grant; no production-code test seam is authorized under I-1. |
+| Status | **Granted by the Owner on 2026-11-25** ("R1 — Conditional Authorization Grant and Parallel Execution Handoff"), with the binding clarifications below. **Active since 2026-11-25:** the record merged in PR #25 at `58d0e98981befe32f8ddff11c89ce7952dad3a72` and post-merge CI run 45543204966 (#82) passed 7/7 with the full suite (activation record: CURRENT-STATE §13). Implementation branches start from `58d0e98981befe32f8ddff11c89ce7952dad3a72`. **Granted for I-1 only.** I-2 (the R1 suite, the billing-job runner, the mock live verifier, and the authenticated Lighthouse CI change) needs a separate implementation grant; no production-code test seam is authorized under I-1. |
 | Work package | **WP-I**, implemented by a dedicated integration session (not Main). I-1: `wp-i/integration-infra` from the verified authorization merge commit; I-2: `wp-i/r1-e2e` from `main` after H and D are merged |
 | I-1 files (tests and test infrastructure only) | `tests/support/wpc-fixtures.ts` (replace `installDepositFixture` with real WP-B records on fresh isolated projects; no global function replacement), `tests/integration/wpc-delivery.test.ts`, `tests/integration/wpc-uploads.test.ts` (fresh projects; every RPC helper checks and reports PostgREST `error`), `tests/integration/wps-sales.test.ts` and `tests/e2e/wps.spec.ts` (schema-cache synchronization around the authorized trigger toggles, assertions unchanged), new `tests/support/*` shared e2e helpers, `playwright.config.ts` (an `r1` project after `wps`, in the `testIgnore` lists). **No `seed.sql` change; no production code; no migration** |
 | I-1 acceptance | Existing assertions and coverage preserved; **F2 stays open until evidence supports the cause** and at least 10 consecutive cold-reset runs of the integration suite (local or CI) pass with no transient PostgREST error |
@@ -199,7 +199,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Stop conditions | A production-code change beyond seam (b); a needed `seed.sql` change in I-1; any assertion change; a seam that cannot be isolated as specified |
 | Merge | I-1 first; I-2 after H and D are integrated and verified. Merge order I-1, H, D (CURRENT-STATE §13). Before merge, a later package rebases onto the latest verified `main`; a clean rebase does not carry an approval forward: the rebased diff is verified, reviewed implementation changes are confirmed equivalent, newly integrated dependencies are assessed, full CI runs on the exact rebased head, each reviewer confirms in a new record that its review still applies, and a focused re-review covers anything whose behavior or dependencies changed; Owner merge only |
 | Expiry | I-2 merge, R1 release-candidate acceptance, or 2027-01-31 |
-| Granted | Owner, 2026-11-25, **I-1 only** (conditional; active after the authorization merge and post-merge CI); I-2 pending a separate grant |
+| Granted | Owner, 2026-11-25, **I-1 only** (conditional; **active 2026-11-25**, merge `58d0e98`, CI run 45543204966); I-2 pending a separate grant |
 
 ## 4. Dependency security patch exception (standing, Tier 1)
 

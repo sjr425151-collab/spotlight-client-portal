@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.32.0 |
+| Version | 0.33.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -939,6 +939,7 @@ PWP-0 to PWP-6 remain work-package labels (CURRENT-STATE PWP-0 record); they are
 - **Revises:** OI-84(b) "Owner and Admin keep their scope-management capabilities" — **Revised (2026-11-25):** that capability ends for standardized orders once PWP-2 is implemented; until then the implemented Owner/Admin free-text path stays as it is.
 - **Status:** Approved (direction). Not implemented: PWP-2 (issuance, UI), PWP-5 (operational notes). Existing Owner/Admin free-text tests change only under a recorded disposition (OI-105).
 - **Affected sections:** 03 §4, §4.1; 04 §4.
+- **Wording note (2026-11-25, Main; PR #32 review):** "no role supplies scope items at runtime" means at issuance. It implies no contractual-content loading architecture (FD-05 terminology, OI-106).
 
 #### OI-101 — Amendments, additional work and custom engagements
 
@@ -973,6 +974,7 @@ PWP-0 to PWP-6 remain work-package labels (CURRENT-STATE PWP-0 record); they are
 - **Decision (Owner, 2026-11-25; FD-14, OD-10):** a replaced or rewritten existing assertion needs an individual, durable Owner disposition before the PR that changes it merges, recording: original assertion, replacement, original guarantee, replacement guarantee, weakness or remaining exposure, compensating coverage, required authorization and verification evidence. No blanket ratification. For PR #27 the dispositions are governed by AUTH-007 Amendment 1 (Change 1 ratification withheld as currently written; seed-constructor refinement and pgTAP 310 rewrites approved in principle; D-1 to D-10). Legitimate contractual materialization is distinguished from unauthorized migration content: no migration is an authorized contractual-content path (OI-106), so migration checks may reject constructor calls, the construction marker and the fixture label outside the exact defining migration; any database-state or manifest-based check belongs to the separately authorized materialization package.
 - **Status:** Approved. Does not modify PR #27, its tests or AUTH-007.
 - **Affected sections:** AUTH-007 (reference only); 03 §13 (reference only).
+- **Precision note (2026-11-25, Main; PR #32 review):** "outside the exact defining migration" means outside the defining migration and the label constraint text itself: the merged `20261125120100` contains the fixture label once, inside the `billing_package_scope_fixture_label` constraint, and is never edited.
 
 #### OI-106 — Contractual records, confidentiality and content loading
 
@@ -1081,6 +1083,18 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-01, R-06 | AUTH-011 |
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
+
+### Consolidated authorization and execution cycle (Owner, 2026-11-25)
+
+Owner direction "Consolidated Authorization and Execution Cycle", after the six session reports. Documentation only. Each item is marked as a final Owner decision, an approved design direction, an outstanding refinement, or an active grant.
+
+- **PWP-0 (final):** PR #32 merged by the Owner, pinned at `02761b59948a242c910f8686fd1f13dbfb2efc5c`; merge commit `c89bf56740f01e8cf646cf6d4d1838233e606d81` (parents `d9cf32a`, `02761b5`; tree identical); post-merge CI run 45575951029 (#101), all seven jobs executed and passed. AUTH-011 expired on that merge. The non-blocking review findings are addressed in this record (04 v0.10.1, 03 v0.6.1, 05 v0.5.1, 06 v0.5.4, 07 v0.4.2, and the OI-100 and OI-105 notes) or deferred: WP-S S1 (the 03 T-SALES-36 row) and S2 (the DEP-18 reproducibility wording) until PR #27 merges; WP-C O-1 (day-14 reconciliation) and O-2 (the domain allowance's form) to PWP-5. No commercial term is resolved, no provisional figure is ratified, and no contractual content is approved.
+- **AUTH-006 Amendment 2 (final decisions; grant recorded, activation pending):** Option 1 for the release-approval cross-check, with the complete cross-check including superseded-release rejection; Disposition A (the pgTAP 120 expected-result correction); Disposition B1 (T-PAY-22 kept, after a legitimate Owner reconciliation of the earlier quarantined event through the existing resolution path, anomaly protections preserved); revision-2 WP-C-valid fixtures; both test-120 setup-only changes; synthetic test re-delivery distinguished from WP-C's legitimate emission; no other assertion change. Exact text in AUTHORIZATIONS.
+- **AUTH-007 Amendment 3 (final decisions; grant recorded, activation pending):** D-2 to D-10 individually approved; D-1 and Change 1 as written not ratified, with the exact-filename correction and the stricter lexical rule approved in principle and final ratification after correction, mutation evidence and independent review; Option A for the concurrent-commit verification, with exact file-level authorization (F1 to F7, including the single mandatory CI step F5), error-free scoped restoration, no privilege or immutability change, and mandatory aggregate CI enforcement.
+- **AUTH-008 Amendment 1 clarification (final decisions; no new authority):** the W-1 correction within the Amendment 1 files (local bounded `pg` client, absolute deadline, client-side connection and query limits, server `statement_timeout` as defence in depth, bounded cleanup, deterministic socket destruction, narrow use of `connection.stream` subject to pinned-version verification); `ddl()` outside the helper-owned deadline; Option A baseline synchronization (merge `main` into the WP-I branch, no rebase or force push, at one coordinated point); WP-B and WP-C final-head reconfirmations after full CI; F2 open until Main's independent verification.
+- **AUTH-012 (final decision; grant recorded, activation pending):** the OI-95 minimal accessibility correction with exact file boundaries and deterministic empty and populated states, after WP-I-1 merges; no unrelated UI or test change.
+- **AUTH-009 and AUTH-010 (approved design directions; not authorized):** the directions in OPEN-ISSUES (OI-91, OI-93) stand. Outstanding refinements before formal authorization: final implementation inventories; for AUTH-009, the confirmation scope (every outbound purpose or automatic final-balance creates only) and the claim-token mechanism; for AUTH-010, the treatment of an already-represented effect under the chosen project, the outcome classes and the retry-counting rules. Design approval is not an active grant.
+- **Sequencing (final):** implementation merge order WP-I-1, WP-H, WP-D18; OI-95 may follow WP-I-1 without changing that order; AUTH-009 follows WP-H; AUTH-010 follows its verified dependencies and its own authorization. Each recorded amendment and grant activates only after this record merges and its post-merge CI succeeds. No provider or production access, dependency closure, contractual-content loading or sealing.
 
 ### PR #30 merge and coordinated activation (Owner, 2026-11-25)
 
@@ -1460,6 +1474,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.30.0 | 2026-11-25 | Consolidated direction: AUTH-006 Amendment 1 active (`7469b2d`, run 45558153619); AUTH-007 and AUTH-008 Amendment 1; OI-94 to OI-97; OI-91 and OI-93 proposed architectures; T-SALES-36 governance and contractual content-loading wording reconciled with the DEP-18 Phase 4 Owner decisions (FD-05, FD-14, H-0); day-3 reminder and scope-confirmation decisions recorded; PWP-0 conditionally granted, not active, with refinements R-01 to R-06 recorded; controlled contractual reconstruction direction: FD-04, FD-12 and FD-13 amended traceably, 04 §3.1 clause approval preserved, PWP-0 objective amended (reconstruction status, historical provision counts not verified); next unused AUTH ID AUTH-011. AUTHORIZATIONS v1.16.0; OPEN-ISSUES v0.25.0; CURRENT-STATE v1.20.0; R1-HANDOFFS v0.4.0. | Main session | Owner |
 | 0.31.0 | 2026-11-25 | **PR #30 merged** (`393e3c8`, post-merge CI run 45565499637 (#95) 7/7): AUTH-007 and AUTH-008 Amendment 1 active; historical counsel-approval distinction and 04 §3.1 exclusion; FD-05 terminology (runtime is not a requirement); FD-14 reaffirmed; additive security tests approved; AUTH-007 Amendment 2 (seed comment-only exception; activation pending); PWP-0 inventory 13 to 14 files (07, day-3 reminder only). AUTHORIZATIONS v1.17.0; CURRENT-STATE v1.21.0; R1-HANDOFFS v0.5.0. | Main session | Owner |
 | 0.32.0 | 2026-11-25 | **PWP-0 contractual governance reconciliation (AUTH-011):** OI-98 to OI-112 (Owner direction OD-01 to OD-13, FD-01 to FD-17 as amended, PDR-01 to PDR-19, R-01 to R-06), DEP-19 and DEP-20; revision notes on OI-13, OI-25, OI-34, OI-45, OI-84; CD, INT, OD and FD cross-reference; reconstruction status preserved (no instrument, provision, counsel approval or publication artifact asserted). Specs: 01 v0.4.3, 02 v0.4.1, 03 v0.6.0, 04 v0.10.0, 05 v0.5.0, 06 v0.5.3, 07 v0.4.1; AUTHORIZATIONS v1.18.0 (AUTH-011); OPEN-ISSUES v0.26.0; OWNER-RUNBOOKS v0.4.0; CLAUDE.md §5 bullet; Owner sign-off annotation. Nothing implemented; DEP-03 and DEP-18 open. | PWP-0 session | Owner |
+| 0.33.0 | 2026-11-25 | **Consolidated authorization and execution cycle** (Owner): PWP-0 merge recorded (`c89bf56`, run 45575951029 (#101)); AUTH-006 Amendment 2, AUTH-007 Amendment 3, AUTH-008 Amendment 1 clarification and AUTH-012 (OI-95) recorded, activation pending; AUTH-007 Amendment 2 activation recorded; AUTH-009 and AUTH-010 design directions (not authorized); PR #32 review findings reconciled: 03 v0.6.1, 04 v0.10.1, 05 v0.5.1, 06 v0.5.4, 07 v0.4.2, OI-100 and OI-105 notes. AUTHORIZATIONS v1.19.0; OPEN-ISSUES v0.27.0; CURRENT-STATE v1.22.0; R1-HANDOFFS v0.6.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

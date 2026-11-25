@@ -376,3 +376,62 @@ test("T-SALES-14 / T-SALES-26 / T-SALES-28: ending the assignment removes access
   );
   expect(pending.rows[0].n).toBe(1);
 });
+
+// OI-95 (AUTH-012): the /sales customer list is accessible when empty and when populated. A fresh,
+// isolated Sales Representative is created for this test only, so neither state depends on what
+// earlier tests or suites did with the seeded representative. Each state runs the same WCAG scan
+// as expectAccessible and checks that axe's `list` rule was evaluated (not skipped).
+async function expectAccessibleWithListRule(page: Page) {
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map(({ id, nodes }) => ({ id, count: nodes.length }))).toEqual([]);
+  // The `list` rule ran on this page (it passed, or nothing on the page is a list); it was not skipped.
+  expect([...results.passes, ...results.inapplicable].map((r) => r.id)).toContain("list");
+}
+
+test("OI-95: the customer list is accessible when empty and when populated", async ({
+  browser,
+}) => {
+  const id = randomUUID();
+  const email = `wps.oi95.${RUN}@example.test`;
+  await withDb(async (db) => {
+    await db.query(
+      `insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+         raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token,
+         email_change_token_new, email_change, email_change_token_current, reauthentication_token,
+         phone_change, phone_change_token)
+       values ('00000000-0000-0000-0000-000000000000', $1, 'authenticated', 'authenticated', $2, '', now(),
+         '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', '')`,
+      [id, email],
+    );
+    await db.query(
+      "insert into public.profiles (id, email, full_name) values ($1, $2, 'OI-95 Sales')",
+      [id, email],
+    );
+    await db.query("insert into public.staff_roles (user_id, role) values ($1, 'sales')", [id]);
+  });
+  const page = await (await browser.newContext()).newPage();
+  await signIn(page, email);
+  await enrollTotp(page, /\/sales$/);
+
+  // Empty: the message is shown outside any list, and no list is rendered.
+  const customers = page.getByTestId("sales-customers");
+  await expect(customers).toContainText("No assigned customers yet.");
+  await expect(customers.getByRole("list")).toHaveCount(0);
+  await expectAccessibleWithListRule(page);
+
+  // Populated: one customer of this representative, rendered as a list with one item.
+  const projectName = `E2E OI-95 ${RUN} website`;
+  await page.getByLabel("Business legal name").fill(`E2E OI-95 ${RUN} LLC`);
+  await page.getByLabel("Project name").fill(projectName);
+  await page.getByRole("button", { name: "Create customer" }).click();
+  // As in T-SALES-04: the action finishes on the new project's page; then back to the list.
+  await expect(page).toHaveURL(/\/sales\/projects\/[0-9a-f-]{36}\?notice=customer_created/);
+  await page.goto("/sales");
+  await expect(customers.getByRole("list")).toHaveCount(1);
+  await expect(customers.getByRole("listitem")).toHaveCount(1);
+  await expect(customers).toContainText(projectName);
+  await expect(customers).not.toContainText("No assigned customers yet.");
+  await expectAccessibleWithListRule(page);
+});

@@ -465,3 +465,29 @@ Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Autho
 **DEP-18 Phase 4 reconciliation (Owner, 2026-11-25; 08):** FD-05 (Owner-controlled, audited and hash-verified contractual content loading; no loading authorized; mechanism not chosen), FD-14 (individual T-SALES-36 assertion dispositions before PR #27 merges; Change 1 ratification withheld as written; no blanket ratification; R1-HANDOFFS §2A lists D-1 to D-10) and H-0 (PR #30 corrected before merge) are reflected in AUTH-007 Amendment 1. The day-3 reminder (non-contractual courtesy only) and the scope-confirmation prerequisite (mandatory acknowledgment before preview release, no bypass) are recorded, not implemented. **PWP-0** is conditionally granted and **not active**; its branch does not exist; it activates only when its seven Owner prerequisites hold, including PR #30 merged by the Owner and post-merge CI on the exact baseline. DEP-03 and DEP-18 stay open. **Contractual reconstruction (Owner, 2026-11-25; 08):** the original contractual specification suite is unavailable; SLM-CPS-001 to SLM-CPS-007 exist outside Git as v0.1.0 reconstruction drafts (not approved, not publishable, not eligible content); FD-04, FD-12 and FD-13 amended; the 04 §3.1 clause approval is unchanged; the PWP-0 objective is amended to preserve the approved architecture, recoverable decisions and gates during reconstruction. No content loading, sealing, issuance, production activation or new work package is authorized.
 
 **AUTH-007 and AUTH-008 Amendment 1 activation record (2026-11-25):** PR #30 merged at `393e3c875c2db46efb45811ac4ef2a522a09ed26` (parents `7469b2d`, `a4db32a`; tree identical; documentation only); post-merge CI run 45565499637 (#95) 7/7 `success` with the full suite. **WP-I-1 may continue** from `a01b84e` (R1-HANDOFFS §3A) and **WP-D18 may continue** from `6173ffa` (R1-HANDOFFS §2A), except the seed comment correction, which waits for **AUTH-007 Amendment 2** (recorded, activation pending its merge and post-merge CI). PWP-0 stays conditional (14-file inventory; 08). Merge order unchanged: WP-I-1, WP-H, WP-D18.
+
+## 15. PWP-0 contractual governance reconciliation record (AUTH-011)
+
+**Authorization:** AUTH-011, the Owner's conditional PWP-0 grant as amended on 2026-11-25 (reconstruction objective; 14-file inventory). **Activated 2026-11-25** after independent verification of all seven prerequisites at baseline `d9cf32aec6db3e3ffbc2aa810604ddc094093834` (PR #30 merged at `393e3c8`; PR #31 merged at `d9cf32a`; post-merge CI run 45567129662 (#97): seven jobs executed and passed, full suite). Branch `docs/pwp-0-contractual-reconciliation`; the grant record is its first commit. Documentation only.
+
+**Recorded:** OI-98 to OI-112, DEP-19 (contractual architecture implemented; R1 release-candidate blocker) and DEP-20 (production contractual activation; production gate), with the temporary-to-permanent mapping and the CD, INT, OD and FD cross-reference in 08; revision notes on OI-13, OI-25, OI-34, OI-45 and OI-84; specification amendments in 01, 02, 03, 04, 05, 06 and 07; OWNER-RUNBOOKS §10 and §11; one CLAUDE.md §5 bullet; an appended annotation to the 2026-11-22 sign-off record. Next unused IDs: OI-113, DEP-21, AUTH-012.
+
+**Status, unchanged by PWP-0:**
+- **Nothing is implemented.** Every OI-98 to OI-112 requirement is approved direction; the implemented behavior (Owner and Admin free-text scope, snapshot v1, the day 3/7/14/21 schedule and day-21 hold, release preconditions) is unchanged until the separately authorized work packages land.
+- **Contractual content:** the original suite is unavailable; SLM-CPS-001 to SLM-CPS-007 are v0.1.0 reconstruction drafts outside Git with no contractual issuance authority; no instrument, provision, entitlement, counsel approval or publication artifact is recorded as existing or verified. The 04 §3.1 clause, its clause-specific approval, canonicalization and equality tests are unchanged.
+- **Dependencies:** DEP-03 and DEP-18 stay open; DEP-19 and DEP-20 are not started; TV-01 is incomplete and TV-02 and TV-03 are outstanding (OPEN-ISSUES DEP-06 detail).
+- **Authorizations:** AUTH-007 is unchanged; no PWP-1 to PWP-6 authorization exists.
+
+| Work package | R1 | State |
+|---|---|---|
+| PWP-0 Decision and documentation reconciliation | Required | This PR (AUTH-011) |
+| PWP-1 Contractual instruments, bundles, governance events | Required | Not authorized; after WP-D18 merges |
+| PWP-2 Standardized issuance and snapshot v2 | Required | Not authorized; after PWP-1 and WP-H |
+| PWP-3 Counsel and publication evidence | Required | Not authorized; needs final publication artifacts |
+| PWP-4 Non-production materialization and verification | Required | Not authorized; needs PWP-2, PWP-3, AUTH-003 |
+| PWP-5 Scope confirmation, operational notes, inactivity reconciliation | Required | Not authorized; after PWP-2 |
+| PWP-6 Automated additional-work billing | Post-R1 | Deferred |
+
+**Sequencing:** existing implementation merge order is unchanged (WP-I-1, WP-H, WP-D18). Main's next documentation record follows the PWP-0 merge.
+
+**Owner actions:** review and merge this PR (pinned to its exact head); the repository visibility change (OWNER-RUNBOOKS §11); continue the external contractual reconstruction; separate authorizations for PWP-1 to PWP-5 when ready.

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.36.0 |
+| Version | 0.37.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,19 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### PR #34 merge, AUTH-013 design, AUTH-009 rulings, deadlines and the Stage A gates (Owner, 2026-11-25)
+
+Owner direction "Consolidated Owner Decisions — AUTH-013, AUTH-009, AUTH-010 and AUTH-002 Stage A", following "Owner Authorization — PR #34 Pinned Merge". Documentation only.
+
+- **PR #34 (final):** merged by Main under the Owner's pinned authorization, at head `951d7dd49e3711b53520cc61372c3ec29a1e09ec` (base `f37cf7e`; reviewed CI 45664629257 (#111)). Merge commit `a5dfad0ccdef3aa669588c49976fb784d43bfbbc` (parents `f37cf7e`, `951d7dd`; tree identical, `e6e0b09`). Post-merge CI run 45665855580 (#112), all seven jobs passed: Classify changes, Lint/types/format/unit tests, Dependency audit, Secret scan, Lighthouse budgets, Database/integration/e2e (migrations from scratch, pgTAP, integration, builds, bundle check, e2e), CI result. **Active:** the AUTH-007 Amendment 3 correction. WP-I was notified that its approved B-1 correction and one history-preserving synchronization may proceed; WP-D18 that its held D-1 patch may proceed within Amendment 3 (D-1 unratified). AUTH-012 still waits for WP-I-1.
+- **PR #35 sequencing (final):** PR #35 may merge before the OI-113 correction, subject to PR #28 merging first, full baseline synchronization, complete verification, fresh independent reviews, OI-113 recorded as a mandatory R1 blocker (done) and a separate pinned merge authorization. Option (c) is accepted only as emergency recovery.
+- **Correction (Main):** "no incorrect obligation or charge is possible either way" was wrong for the pre-WP-H baseline. On `main`, `consume_release_approved` does not check release eligibility, so an approval of a superseded or withdrawn release can initiate collection; obligation uniqueness still holds, but release authorization integrity does not. WP-H's cross-check closes this. The statement holds only for the OI-113 defect on the WP-H baseline, which fails closed.
+- **AUTH-013 (design approved; proposed, no implementation authority):** the reconciled canonical-event rule with six validation conditions, no timestamp fallback, fail-closed missing or inconsistent evidence, unchanged interface contract; fixture moves 1 to 6 individually approved; acceptance refinements A (F-1 ordering), B (per-condition mutations, invariants documented where constraints prevent the state), C (no obligation, outbound request or collection authorization on missing or inconsistent evidence) and D (no retroactive collection, replay or re-emission).
+- **AUTH-009 (proposed):** sites 1 to 11 individually approved; the eight WP-H call sites, five unit-test sites and remaining setup operations need a final inventory after PR #35 merges; claim tokens never leak into diagnostics, failure output, CI reports or logs; obsolete signatures dropped and ACLs verified. Automatic-stop reconciliation direction approved (ambiguous unconfirmed results block G4 and notify; reconciled-absent stops keep G4 blocked; an Owner-only serialized stop retry; only the stop-specific anomaly clears).
+- **Deadlines (engineering defaults approved):** confirmation window 5 minutes; confirmation-to-send 30 seconds with corrected start semantics (bounded from the confirmation operation and `dispatch_confirmed_at`; a delayed response grants no fresh window); gateway request timeout 30 seconds with no hidden retries; stale threshold 10 minutes; late-result 6 minutes as an outer boundary only; AUTH-010 server action 45 seconds; lock 5 seconds and statement 30 seconds as targets subject to environment verification. A status read after the deadline is not necessarily conclusive; a missing record alone does not establish a rollback.
+- **AUTH-002 Stage A:** activation corrected into Gate A (permits only the balance preflight) and Gate B (a passing fail-closed preflight permits the remaining catalog reads); the 30-request ceiling spans both gates. Gate A prerequisites (1) and (2) satisfied at `a5dfad0` with CI 45665855580; the rest unmet. Stage A stays inactive; no provider execution is authorized.
+- **Unchanged:** D-1 unratified; F2 open; no provider, production, merge or R1 release-candidate authority; merge order WP-I-1, WP-H, WP-D18.
+
 ### OI-113 approval-ordering decision and AUTH-013 proposal (Owner, 2026-11-25)
 
 Owner decision "PR #35 B-1 Approval Ordering". Documentation only.
@@ -1513,6 +1526,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.34.0 | 2026-11-25 | **PR #33 activation and design decisions** (Owner): AUTH-006 Amendment 2, AUTH-007 Amendment 3 and AUTH-012 active (`f37cf7e`, run 45583992649 (#103)); AUTH-009 and AUTH-010 recorded as proposed records (R1 token enforcement; S0; outcome classes; engineering defaults); AUTH-007 Amendment 3 correction (exact-name exemption of `20261125120200_wps_oi85_separation.sql`; activation pending). AUTHORIZATIONS v1.20.0; OPEN-ISSUES v0.28.0; R1-HANDOFFS v0.7.0. | Main session | Owner |
 | 0.35.0 | 2026-11-25 | **AUTH-002 Stage A amendment recorded** (Owner, OD-TV-09; granted, not active; no provider execution authorized); PR #35 review authorizations; PR #28 B-1 correction and sequencing approved (N-1 excluded); Stage A design approved (ceiling counts preflight, pagination and unsuccessful requests; current permission verification); OI-113 reserved (open); AUTH-009 inventory marked provisional; Amendment 3 correction wording covers WP-H's four migrations. AUTHORIZATIONS v1.21.0; OPEN-ISSUES v0.29.0. | Main session | Owner |
 | 0.36.0 | 2026-11-25 | **OI-113 decision** (Owner): mandatory R1 release-candidate blocker; option (a) selected, (b) not selected, (c) emergency only; AUTH-013 proposed (authorizes nothing); WP-S F-1 consolidated. AUTHORIZATIONS v1.22.0; OPEN-ISSUES v0.30.0. | Main session | Owner |
+| 0.37.0 | 2026-11-25 | **PR #34 merged** (`a5dfad0`, CI 45665855580 7/7; the Amendment 3 correction active); PR #35 sequencing; the baseline-integrity correction; AUTH-013 design and fixture moves approved; AUTH-009 site rulings and stop-reconciliation direction; deadline defaults; Stage A Gate A and Gate B. AUTHORIZATIONS v1.23.0; OPEN-ISSUES v0.31.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

@@ -2,16 +2,16 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.1.0 |
-| Status | **Handoff prompts for granted authorizations; not active until activation is recorded** (CURRENT-STATE §13). Each prompt is used only after AUTH-006, AUTH-007, or AUTH-008 is active. |
+| Version | 0.2.0 |
+| Status | **Active handoffs.** AUTH-006, AUTH-007, and AUTH-008 (I-1 only) are active since 2026-11-25 (PR #25 merge `58d0e98981befe32f8ddff11c89ce7952dad3a72`, CI run 45543204966). The common baseline is filled in below. |
 | Prepared by | Main (architecture, security, and integration review authority), 2026-11-25 |
 
-Each prompt below is self-contained. Give it to its implementation session unchanged, with the verified authorization merge commit filled in where it says `<AUTH_MERGE_SHA>`.
+Each prompt below is self-contained. Give it to its implementation session unchanged.
 
 ## Common rules (part of every prompt)
 
 - Read CLAUDE.md, docs/CURRENT-STATE.md (§7, §13), docs/AUTHORIZATIONS.md (your record), and the decisions your record names, before any change.
-- Verify that your authorization is **active** (CURRENT-STATE §13 activation record) and that `main` is at `<AUTH_MERGE_SHA>`; branch from that commit. Stop if either differs.
+- Verify that your authorization is **active** (CURRENT-STATE §13 activation record) and branch from exactly `58d0e98981befe32f8ddff11c89ce7952dad3a72` (`git checkout -b <your branch> 58d0e98981befe32f8ddff11c89ce7952dad3a72`). Later commits on `main` may only be documentation: `git diff --name-only 58d0e98981befe32f8ddff11c89ce7952dad3a72 origin/main` must list only `.md` files and must not change your authorization record's boundaries. Stop if the authorization is not active, the commit is missing, or `main` gained any non-documentation change or authorization change.
 - Work only within your record's object and file inventory. Anything else is a stop condition: stop and report, do not work around it.
 - Never edit a merged migration; never add a dependency; never weaken, skip, remove, or replace an existing assertion; never access Stripe, any hosted provider, or production; never touch PR #6, WP-D, or commission features.
 - Use only your reserved migration timestamps.
@@ -21,7 +21,7 @@ Each prompt below is self-contained. Give it to its implementation session uncha
 
 ## 1. WP-B session — AUTH-006 / WP-H (R1 financial hardening)
 
-You are the WP-B implementation session. Implement WP-H under AUTH-006 on `wp-h/financial-hardening` from `<AUTH_MERGE_SHA>`, as one PR.
+You are the WP-B implementation session. Implement WP-H under AUTH-006 on `wp-h/financial-hardening` from `58d0e98981befe32f8ddff11c89ce7952dad3a72`, as one PR.
 
 **Scope (exhaustive):**
 1. **OI-86** — migration `20261126120000`: replace `private.issue_order_summary` with the current body from `20261125120100` §10, byte-identical except the project lock `for update` → `for no key update`. Prove by genuine concurrent tests that it still serializes with `end_sales_assignment`, `assign_sales_representative`, `begin_initial_checkout`, `begin_payment_method_recovery`, `create_invitation`, and `revoke_invitation`, and that financial and assignment integrity hold. Change the T-SALES-32 true-race test so an `aborted:` (40P01) outcome is a failure, for both the Sales and Owner paths, over repeated iterations.
@@ -38,7 +38,7 @@ You are the WP-B implementation session. Implement WP-H under AUTH-006 on `wp-h/
 
 ## 2. WP-S session — AUTH-007 / WP-D18 (package-scope version sealing)
 
-You are the WP-S implementation session. Implement WP-D18 under AUTH-007 on `wp-d18/scope-sealing` from `<AUTH_MERGE_SHA>`, as one PR, in migration `20261126140000` only.
+You are the WP-S implementation session. Implement WP-D18 under AUTH-007 on `wp-d18/scope-sealing` from `58d0e98981befe32f8ddff11c89ce7952dad3a72`, as one PR, in migration `20261126140000` only.
 
 **Scope (exhaustive):** new `private.billing_package_scope_versions` (package key, scope version, item count, content hash, `is_test_fixture`, sealed at; primary key package and version; no API grant); new `private.create_package_scope_version(p_package_key text, p_items text[], p_is_test_fixture boolean)` (SECURITY DEFINER, `search_path = ''`, no execute for any API role); one insert-protection trigger function on `private.billing_package_scope`; `private.current_package_scope(text)` changed to resolve sealed versions only (same signature); `supabase/seed.sql` WP-S section switched to the function (you are its sole owner during WP-D18); additive tests in WP-S pgTAP 300, 310, 320 and `tests/unit/wps-sales.test.ts`.
 
@@ -61,7 +61,7 @@ You are the WP-S implementation session. Implement WP-D18 under AUTH-007 on `wp-
 
 ## 3. Dedicated integration session — AUTH-008 / WP-I-1 (integration infrastructure)
 
-You are the dedicated integration implementation session (not Main). Implement I-1 under AUTH-008 (**I-1 only**) on `wp-i/integration-infra` from `<AUTH_MERGE_SHA>`, as one PR. Tests and test infrastructure only: no production code, no migration, **no `seed.sql` change**.
+You are the dedicated integration implementation session (not Main). Implement I-1 under AUTH-008 (**I-1 only**) on `wp-i/integration-infra` from `58d0e98981befe32f8ddff11c89ce7952dad3a72`, as one PR. Tests and test infrastructure only: no production code, no migration, **no `seed.sql` change**.
 
 **Scope (exhaustive):**
 1. Replace `installDepositFixture` in `tests/support/wpc-fixtures.ts` with a helper that creates real WP-B records on fresh, isolated projects (the `tests/integration/wpb-billing.test.ts` pattern: business, project, membership, order summary, acceptance, mock-gateway checkout, synthetic signed webhook, payment-method lookup). Remove every global replacement of a financial function from test setup.

@@ -68,12 +68,17 @@ insert into public.profiles (id, email, full_name) values
   ('00000000-0000-4000-8000-000000000005', 'sales@example.test', 'Synthetic Sales Representative');
 insert into public.staff_roles (user_id, role) values ('00000000-0000-4000-8000-000000000005', 'sales');
 
--- WP-S (OI-84(b); A2 as amended 2026-11-25): test-only package scope definitions for local
--- and CI only. Every row is a labeled fixture; the database accepts and resolves fixture rows
--- only because this database is classified `development` above. These are NOT deliverables:
--- the production scope content is supplied by the Owner (DEP-18) through a reviewed migration.
-insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
-select p.package_key, 1, n.position,
-       'TEST FIXTURE — NOT A DELIVERABLE (' || p.package_key || ' item ' || n.position || ')', true
+-- WP-S (OI-84(b); A2 as amended 2026-11-25; WP-D18 sealing): test-only package scope
+-- definitions for local and CI only. Each is created and sealed as version 1 through
+-- private.create_package_scope_version, the only way to create a version. Every item is a
+-- labeled fixture; the database accepts and resolves fixtures only because this database is
+-- classified `development` above. These are NOT deliverables. Non-fixture contractual content
+-- is loaded only through an Owner-controlled, audited and hash-verified contractual content
+-- loading mechanism (FD-05). No migration is an authorized content path. Legal text and
+-- counsel evidence remain outside Git. No loading is authorized.
+select private.create_package_scope_version(p.package_key, array[
+         'TEST FIXTURE — NOT A DELIVERABLE (' || p.package_key || ' item 1)',
+         'TEST FIXTURE — NOT A DELIVERABLE (' || p.package_key || ' item 2)',
+         'TEST FIXTURE — NOT A DELIVERABLE (' || p.package_key || ' item 3)'], true)
 from private.billing_packages p
-cross join (values (1::smallint), (2::smallint), (3::smallint)) as n (position);
+order by p.package_key;

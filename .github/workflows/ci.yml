@@ -133,6 +133,9 @@ jobs:
         run: supabase db reset
       - name: Database tests (pgTAP)
         run: supabase test db
+      - name: WP-D18 isolated concurrent-commit verification
+        run: ./scripts/wpd18-isolated-commit-test.sh
+        timeout-minutes: 5
       - name: Integration tests
         run: pnpm test:integration
       - run: pnpm build

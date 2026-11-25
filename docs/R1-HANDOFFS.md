@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Status | **Active handoffs.** AUTH-006, AUTH-007, and AUTH-008 (I-1 only) are active since 2026-11-25 (PR #25 merge `58d0e98981befe32f8ddff11c89ce7952dad3a72`, CI run 45543204966). The common baseline is filled in below. |
 | Prepared by | Main (architecture, security, and integration review authority), 2026-11-25 |
 
@@ -47,7 +47,7 @@ You are the WP-B implementation session. Implement WP-H under AUTH-006 on `wp-h/
 
 ## 1A. WP-B session — WP-H continuation under AUTH-006 Amendment 1
 
-Use only after Amendment 1 is active (its record merged and full post-merge CI recorded in CURRENT-STATE). All common rules above apply.
+**Amendment 1 is active:** PR #29 merged at `7469b2d4f899ea7d25a43d86088ce92b5bfb3cb5`, post-merge CI run 45558153619 (#89) 7/7 with the full suite. All common rules above apply.
 
 You are the WP-B implementation session. Continue WP-H on `wp-h/financial-hardening` from its current head `33eb953` (OI-86 and OI-87 done; keep both commits unchanged). If `main` has moved, follow the rebase rule only when preparing the merge.
 
@@ -91,6 +91,16 @@ You are the WP-S implementation session. Implement WP-D18 under AUTH-007 on `wp-
 
 **Stop conditions:** `issue_order_summary` or any WP-B object must change; unexpected non-fixture data; any permission would widen; any production package content.
 
+## 2A. WP-S session — WP-D18 correction under AUTH-007 Amendment 1
+
+All common rules above apply. Continue on `wp-d18/scope-sealing` from `6173ffa` (PR #27); keep its commits. Scope (exhaustive, tests and records only, no migration or seed change):
+1. `tests/unit/wps-sales.test.ts`: keep the approved T-SALES-36 refinement and add failures for any `create_package_scope_version(` call, any `wpd18.scope_construction` use, and the fixture label in any form in every migration other than `20261126140000_wpd18_scope_version_sealing.sql`; prove each new check fails on a synthetic offending input (no vacuous pass).
+2. `supabase/tests/320_*`: a genuine two-session concurrent-commit test (A creates version 2 and holds; B waits, shown deterministically; A commits; B completes with version 3; both resolve where applicable; counts and hashes correct; no duplicate, partial version, or gap). Use isolated disposable state; never disable or weaken an immutability trigger to clean up. If no disposable mechanism exists without a workflow or migration change, **stop and report** the options (for example a dedicated package with proof that no later suite depends on its version) for the Owner's decision. Keep the rollback concurrency test.
+3. Under `pnpm test:db` (no TCP), skip the two-session blocks explicitly with a recorded reason so the other assertions run; replace the vacuous `ok(c is not null)` guard with a real connectivity check; record the runner limitation.
+4. Correct the record of the construction marker (an unprivileged transaction-local setting: API roles cannot use it; it cannot add items to a sealed version; the database owner can construct a new version, which is the authorized reviewed-migration content path).
+
+**Acceptance:** the AUTH-007 acceptance and Amendment 1 rows; full suites unchanged; 7/7 CI on the exact head; WP-B and Main reconfirmation records. Rebase only when preparing the merge (after WP-I-1 and WP-H); keep CURRENT-STATE edits inside the WP-D18 section. **Stop conditions:** any migration, seed, or immutability change; any API privilege; no disposable state for the commit test.
+
 ## 3. Dedicated integration session — AUTH-008 / WP-I-1 (integration infrastructure)
 
 You are the dedicated integration implementation session (not Main). Implement I-1 under AUTH-008 (**I-1 only**) on `wp-i/integration-infra` from `58d0e98981befe32f8ddff11c89ce7952dad3a72`, as one PR. Tests and test infrastructure only: no production code, no migration, **no `seed.sql` change**.
@@ -112,3 +122,13 @@ You are the dedicated integration implementation session (not Main). Implement I
 **Review:** WP-B (real WP-B record helpers), WP-C (WP-C fixtures and helpers), and Main.
 
 **Stop conditions:** a production-code or migration change; a needed `seed.sql` change; any assertion change.
+
+## 3A. Dedicated integration session — WP-I-1 correction under AUTH-008 Amendment 1
+
+All common rules above apply. Continue on `wp-i/integration-infra` from `a01b84e` (PR #28); keep its commits. Scope (exhaustive):
+1. `tests/support/postgrest-ready.ts` and `tests/support/postgrest-sync.ts`: a real overall deadline; each request bounded by `min(remaining deadline, individual timeout)` and aborted with an `AbortSignal` when stalled; diagnostics include each failure (status, PGRST code, timeout, network error) and elapsed time; three consecutive successes still required; throw at the deadline (fail closed); no retry around tests, financial operations, or application RPCs.
+2. New `tests/unit/postgrest-ready.test.ts`: deterministic local fake HTTP servers covering immediate readiness, startup recovery (503 then 200), persistent unavailability (fails at the deadline), a non-responding request (aborted and still fails by the deadline), and overall-deadline expiry with diagnostics.
+
+**Not authorized:** production code, dependencies, workflows, `seed.sql`, any other test infrastructure, or any change to existing assertions.
+
+**Acceptance:** renewed cold-reset verification (at least ten consecutive runs, recorded with timing and gate diagnostics); 7/7 CI on the exact head; WP-B, WP-C, and Main reconfirmation records against the new head. F2 closes only after Main's final verification. **Stop conditions:** any change outside the two helpers and the new unit test.

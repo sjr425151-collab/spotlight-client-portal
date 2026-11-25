@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.24.0 |
+| Version | 0.25.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-94** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-98** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-19** |
 | ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
@@ -16,7 +16,7 @@ Rules:
 
 ---
 
-## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-90, OI-92, OI-93)
+## Part 1 — Decided issues (OI-01 to OI-55, OI-63 to OI-90, OI-92 to OI-94, OI-96, OI-97)
 
 All 76 issues listed here are decided at the architectural level. The authoritative text is in [08 §3](docs/08-DECISIONS-AND-CHANGELOG.md#3-decision-register), and phase and dependency traceability is in [08 §3A](docs/08-DECISIONS-AND-CHANGELOG.md#3a-traceability-matrix-oi-01oi-55-oi-63oi-83).
 
@@ -107,6 +107,9 @@ All 76 issues listed here are decided at the architectural level. The authoritat
 | OI-90 | Direct-writer lock ordering against the OI-85 triggers (a database-owner `UPDATE` holds the row lock before its trigger takes the per-user lock; can deadlock with `accept_invitation` or `set_staff_role` for the same user; integrity preserved) | Decided (2026-11-25): low, nonblocking for merge; OWNER-RUNBOOKS §7 required before R1 release-candidate acceptance; no code change | — |
 | OI-92 | Final-balance initiation eligibility (approval hold, archived project, intake, anomaly-aware G2, withdrawal after initiation) | Decided (2026-11-25); (e) notification hook open (see OI-91) | DEP-03 |
 | OI-93 | Conflicting reversal after Owner review | Decided (2026-11-25): Option A only with substantive reconciliation; **feasibility: not representable with existing mechanisms, so the candidate blocks persist in R1**; a representation mechanism needs separate authorization | — |
+| OI-94 | WP-C tests ignore errors on some direct table reads (T-UP-04 usage, `deletionOf`) (PR #28 review O-1) | Decided (2026-11-25): track for I-2 | — |
+| OI-96 | `runPaymentMethodLookups` processes every due lookup, not only the test project's (PR #28 review) | Decided (2026-11-25): acceptable under sequential integration execution; must be scoped before any test parallelization | — |
+| OI-97 | WPI-P1: PostgREST startup-only `503 PGRST001` before tests (F2) | Decided (2026-11-25): accepted when bounded, observable, before any test, fail closed; F2 root cause and direction accepted subject to Main's final verification; F2 open until the AUTH-008 Amendment 1 timeout correction | — |
 
 ---
 
@@ -129,6 +132,12 @@ OI-84 was decided on 2026-11-24; its decision is in [08](docs/08-DECISIONS-AND-C
 **Open: OI-91 (mandatory R1 release-candidate blocker; separate authorization).** `private.outbound_request_for_execution` locks the final-balance invoice, then the payment authorization; revocation (`halt_automatic_collection`) locks the authorization, then the invoice; the two can deadlock. Remediation inventory: one consistent lock order (authorization, then invoice) in `outbound_request_for_execution`, body only, plus an Owner notification when the obligation's release was withdrawn after initiation (OI-92(e)). Acceptance: two-connection tests of outbound execution against revocation in both orders; no deadlock; no automatic charge after revocation (the hosted-only downgrade is honored); idempotency and single flight preserved. Not part of AUTH-006.
 
 OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
+
+**Open: OI-95 (mandatory R1 release-candidate blocker; separate minimal correction).** The `/sales` customer list renders a `<p>` inside its `<ul>` when empty (`src/app/sales/page.tsx`), failing axe rule `list` on a fresh reset (PR #28 review O-3; pre-existing). Correction: valid empty-state markup plus explicit empty-state accessibility coverage; not part of I-1.
+
+**OI-91 proposed architecture (separate work package; proposed AUTH-009):** `private.outbound_request_for_execution` body only: lock `payment_authorizations` before `final_balance_invoices`, matching revocation; detect an obligation whose release was withdrawn after initiation (read-only `preview_releases.withdrawn_at`) and notify the Owner once through `notify_owner` with the key `final_balance.release_withdrawn:<invoice id>` (the obligation stands, OI-92(e)); requests already claimed or in flight keep the existing `charged_after_halt` detection and Owner review, made explicit in tests and the runbook. Acceptance: two-connection outbound execution against revocation in both orders (no deadlock, no automatic charge after revocation, idempotency and single flight kept), one notification per withdrawn obligation under replay, in-flight behaviour documented. One reserved migration.
+
+**OI-93 proposed architecture (separate work package; proposed AUTH-010):** an Owner-only, fresh-MFA, live-session function that records an immutable conflict decision (event, chosen project from the recorded candidates, evidence references, reason; one per event) in a new private insert-only table, re-validates the chosen project against authoritative provider evidence, then lets the event take the normal attributed path once (a single permitted quarantined-to-processed transition in the `webhook_events` guard, recorded and audited) so `apply_reversal` posts it through the existing ledger rules; the other candidates' blocks clear only after that posting succeeds; replay of the decision or the event adds nothing; unsupported or undecided conflicts stay blocked. Needs a public Owner-only wrapper and an Owner screen; touches the `webhook_events` guard, so it is larger than OI-91 and stays a separate package.
 
 OI-85 to OI-89 were decided on 2026-11-25 (Owner disposition of Main's independent review of PR #23 at `72da723`); their decisions are in [08](docs/08-DECISIONS-AND-CHANGELOG.md). They allocate the WP-S proposals WPS-P1 to WPS-P7 and WP-B's review notes N1 to N5 without duplicate IDs: OI-85 = WPS-P1 + WP-B N4; OI-86 = WPS-P4 + WP-B N1; OI-87 = WP-B N5; OI-88 = WPS-P3; OI-89 = WPS-P2, P5, P6, P7, WP-B N3, and three shared files; WP-B N2 amends DEP-18. The WP-S proposal table remains in this file's Git history.
 

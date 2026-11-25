@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.29.0 |
+| Version | 0.30.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -882,6 +882,14 @@ Note: the entries for OI-01 to OI-24 are kept as originally transcribed. Where t
 - **Decision (Owner, 2026-11-25):** strict `requireClient` is retained; the emailed invitation link (`/invite/accept`) is the supported path for such invitees; no new portal path in WP-S; the user experience is reassessed before R1 release-candidate acceptance.
 - **Status:** Approved.
 
+### Consolidated direction: AUTH-006 activation, AUTH-007 and AUTH-008 amendments, OI-94 to OI-97 (Owner, 2026-11-25)
+
+- **AUTH-006 Amendment 1 active:** PR #29 merged at `7469b2d`; post-merge CI run 45558153619 (#89) 7/7, full suite.
+- **AUTH-007 Amendment 1:** T-SALES-36 refinement approved; header construction guard approved; required: migration check extended to constructor calls and the marker, accurate marker wording, a two-session concurrent-commit test, explicit runner limitation handling.
+- **AUTH-008 Amendment 1:** WPI-P1 accepted (OI-97); readiness timeout correction in `postgrest-ready.ts` and `postgrest-sync.ts`, one new unit test file; F2 open until done.
+- **OI-94** (O-1) for I-2; **OI-95** (O-3) mandatory R1 release-candidate blocker, separate correction; **OI-96** lookup scope before parallelization; O-2 (bounded sync) and O-4 (scan-authority rows on PROJECT_B, intake still locked) accepted.
+- **OI-91 and OI-93** stay mandatory R1 release-candidate blockers; proposed architectures recorded (separate packages, proposed AUTH-009 and AUTH-010); persistent candidate blocks accepted as the interim behaviour.
+
 ### OI-91, OI-92, OI-93 and AUTH-006 Amendment 1 (Owner, 2026-11-25)
 
 - **AUTH-006 Amendment 1 approved** (active after its merge and full post-merge CI): the candidate table, the `process_stripe_event`, `project_financial_anomalies`, and `resolve_quarantined_event` (body-only) changes, the cross-check with WP-C's release lock and the release-row `FOR SHARE`, and an exact static-guard allow-list; same four migrations; no new endpoint, privilege, allocation, or contract-version change. Candidate evidence is captured before the handler rollback and recorded atomically with the quarantine.
@@ -1133,6 +1141,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.27.0 | 2026-11-25 | **R1 conditional grants** (Owner): AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (I-1 only) granted with binding clarifications (OI-86 concurrency; OI-87 audit trail only; N1(a) conflict handling; cross-check concurrency safety; D18 sealing rules and migration cases; F2 evidence criteria); active only after this record merges and post-merge CI succeeds; branches from that merge commit; merge order I-1, WP-H, WP-D18 with re-verification. Handoffs in R1-HANDOFFS.md. AUTHORIZATIONS v1.13.0; CURRENT-STATE v1.17.0. | Main session | Owner |
 | 0.28.0 | 2026-11-25 | **R1 activation record:** PR #25 merged at `58d0e98` (CI run 45543204966, 7/7, full suite); AUTH-006, AUTH-007, AUTH-008 (I-1 only) active; common baseline `58d0e98`. AUTHORIZATIONS v1.14.0; CURRENT-STATE v1.18.0; R1-HANDOFFS v0.2.0. | Main session | Owner |
 | 0.29.0 | 2026-11-25 | **AUTH-006 Amendment 1** approved (activation pending); OI-91 (open, R1 blocker), OI-92 and OI-93 decided; 04 v0.9.9 §10.2 interface contract; OWNER-RUNBOOKS v0.3.0 §8, §9; AUTHORIZATIONS v1.15.0; OPEN-ISSUES v0.24.0; CURRENT-STATE v1.19.0; R1-HANDOFFS v0.3.0 (WP-H continuation). | Main session | Owner |
+| 0.30.0 | 2026-11-25 | Consolidated direction: AUTH-006 Amendment 1 active (`7469b2d`, run 45558153619); AUTH-007 and AUTH-008 Amendment 1; OI-94 to OI-97; OI-91 and OI-93 proposed architectures. AUTHORIZATIONS v1.16.0; OPEN-ISSUES v0.25.0; CURRENT-STATE v1.20.0; R1-HANDOFFS v0.4.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

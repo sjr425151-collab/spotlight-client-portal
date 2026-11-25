@@ -89,6 +89,9 @@ language plpgsql as $$
 declare
   v_rel public.preview_releases%rowtype;
   v_ful private.project_fulfillment_status;
+  v_first boolean;
+  v_event bigint;
+  v_canon public.domain_events%rowtype;
 begin
   select * into v_rel from public.preview_releases where id = p_release;
   if not found then
@@ -100,19 +103,40 @@ begin
       (select s.user_id from public.staff_roles s where s.role = 'admin' and s.status = 'active' order by s.user_id limit 1))
     returning * into v_rel;
   end if;
+  -- OI-113 (AUTH-013 fixture integrity): only a call that creates the release's first approval
+  -- emits WP-C's canonical event (as approve_preview does); later calls use the supplied
+  -- non-canonical key. A canonical event is never fabricated, replaced or repaired.
+  v_first := not exists (select 1 from public.preview_approvals where release_id = v_rel.id);
   if not exists (select 1 from public.preview_approvals where id = p_approval) then
     insert into public.preview_approvals (id, release_id, project_id, user_id)
     values (p_approval, v_rel.id, v_rel.project_id, (select m.user_id from public.project_memberships m
       where m.project_id = v_rel.project_id and private.staff_role_of(m.user_id) is null order by m.user_id limit 1));
   end if;
+  if not v_first and p_key = 'release.approved:' || p_release::text then
+    raise exception 'fixture: canonical key % is reserved for the first approval of release %', p_key, p_release;
+  end if;
+  v_event := private.emit_domain_event('release.approved', p_project, 'preview_release', p_release::text,
+    jsonb_build_object('release_id', v_rel.id, 'release_number', v_rel.release_number, 'approval_id', p_approval,
+      'commit_sha', v_rel.commit_sha),
+    case when v_first then 'release.approved:' || p_release::text else p_key end);
+  -- (a) Exactly one canonical event (dedupe_key is unique), of the right type, subject and
+  --     project, naming an approval of this release and project, and naming p_approval when
+  --     this call created the release's first approval.
+  select * into v_canon from public.domain_events where dedupe_key = 'release.approved:' || p_release::text;
+  if v_canon.id is null or v_canon.event_type <> 'release.approved' or v_canon.subject_type <> 'preview_release'
+     or v_canon.subject_id <> p_release::text or v_canon.project_id is distinct from p_project
+     or not exists (select 1 from public.preview_approvals a where a.id::text = v_canon.payload ->> 'approval_id'
+                     and a.release_id = p_release and a.project_id = p_project)
+     or (v_first and v_canon.payload ->> 'approval_id' is distinct from p_approval::text) then
+    raise exception 'fixture: release % has no consistent canonical release.approved event', p_release;
+  end if;
+  -- (b) The fulfillment interface reports this release and approval as current.
   v_ful := private.project_fulfillment_status(p_project);
   if v_ful.current_release_id is distinct from p_release or v_ful.current_release_approval_id is distinct from p_approval then
     raise exception 'fixture: release % / approval % is not WP-C current (current %, recorded %)',
       p_release, p_approval, v_ful.current_release_id, v_ful.current_release_approval_id;
   end if;
-  return private.emit_domain_event('release.approved', p_project, 'preview_release', p_release::text,
-    jsonb_build_object('release_id', v_rel.id, 'release_number', v_rel.release_number, 'approval_id', p_approval,
-      'commit_sha', v_rel.commit_sha), p_key);
+  return v_event;
 end;
 $$;
 create function pg_temp.approve(p_project uuid, p_n integer) returns bigint language sql as $$

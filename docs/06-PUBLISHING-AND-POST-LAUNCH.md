@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.3 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). v0.5.2 (documentation reconciliation, 2026-11-24): G7 clarification (failed medium and low findings do not fail G7, Owner-confirmed); B1 financial-integrity note for G2 and G4. v0.5.3 (PWP-0, AUTH-011; Owner direction 2026-11-25): §5 and §8.5 record Owner-reported post-launch commercial direction (CD-10, CD-12, CD-13, CD-22 to CD-24; INT-02) pending individual reconciliation and counsel-approved wording (OI-108, OI-110). No gate, check or implemented behavior changes. |
-| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68 |
+| Version | 0.5.4 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). v0.5.2 (documentation reconciliation, 2026-11-24): G7 clarification (failed medium and low findings do not fail G7, Owner-confirmed); B1 financial-integrity note for G2 and G4. v0.5.3 (PWP-0, AUTH-011; Owner direction 2026-11-25): §5 and §8.5 record Owner-reported post-launch commercial direction (CD-10, CD-12, CD-13, CD-22 to CD-24; INT-02) pending individual reconciliation and counsel-approved wording (OI-108, OI-110). No gate, check or implemented behavior changes. v0.5.4 (2026-11-25, Main, PR #32 review reconciliation): the Decisions header lists OI-108 and OI-110. No rule changed. |
+| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68, OI-108, OI-110 |
 | Open issues | None |
 | Dependencies | DEP-03, DEP-06, DEP-09 |
 

@@ -2,8 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.0 |
-| Status | **Active handoffs.** AUTH-006, AUTH-007, and AUTH-008 (I-1 only) are active since 2026-11-25 (PR #25 merge `58d0e98981befe32f8ddff11c89ce7952dad3a72`, CI run 45543204966). The common baseline is filled in below. **Amendment 1 of AUTH-007 and AUTH-008 active since 2026-11-25** (PR #30 merge `393e3c8`, CI run 45565499637 (#95)); AUTH-007 Amendment 2 pending. |
+| Version | 0.6.0 |
+| Status | **Active handoffs.** AUTH-006, AUTH-007, and AUTH-008 (I-1 only) are active since 2026-11-25 (PR #25 merge `58d0e98981befe32f8ddff11c89ce7952dad3a72`, CI run 45543204966). The common baseline is filled in below. **Amendment 1 of AUTH-007 and AUTH-008 active since 2026-11-25** (PR #30 merge `393e3c8`, CI run 45565499637 (#95)); AUTH-007 Amendment 2 pending. **2026-11-25:** AUTH-007 Amendment 2 active (PR #31 `d9cf32a`, run 45567129662); AUTH-006 Amendment 2, AUTH-007 Amendment 3 and AUTH-012 pending this record's merge and post-merge CI (§1B, §2B, §4); §3B clarifies AUTH-008 Amendment 1. |
 | Prepared by | Main (architecture, security, and integration review authority), 2026-11-25 |
 
 Each prompt below is self-contained. Give it to its implementation session unchanged.
@@ -64,6 +64,10 @@ You are the WP-B implementation session. Continue WP-H on `wp-h/financial-harden
 
 **Stop conditions:** the Amendment 1 stop conditions, and everything in §1.
 
+## 1B. WP-B session — WP-H test corrections under AUTH-006 Amendment 2
+
+**Not active yet:** begin only after this record merges and its post-merge CI succeeds (CURRENT-STATE §13 activation record). All common rules apply. Continue on `wp-h/financial-hardening` from `95d03a1`; keep its commits; add the held cross-check migration `20261126120300` (report its final SHA-256). Scope (exhaustive): exactly AUTHORIZATIONS AUTH-006 Amendment 2 — Disposition A in 120 lines 199–201; Disposition B1 in 130 (a legitimate Owner reconciliation through `public.resolve_quarantined_event` before T-PAY-22, whose assertion is unchanged); the revision-2 helper `pg_temp.genuine_release_approved` (Admin releaser, the project's client approver, WP-C `project_fulfillment_status` check before emitting) in 120, 130, 150 and 160; the six listed setup-only changes; C-1, C-2 and C-4; the static guard allow-list entries. Synthetic test emissions are labelled as such in comments and never stand in for WP-C's `approve_preview`. **Evidence:** for each changed assertion, the original and replacement text and guarantee; every command with its result or "not run" (`supabase db reset --local`, `supabase test db`, lint, typecheck, format, unit, `pnpm test:integration`, `pnpm test:e2e`, `pnpm audit`); 7/7 CI on the exact head; WP-C read-only and independent financial review records; Main's review. **Stop conditions:** any other assertion or expected result; any change to the cross-check's order or conditions or to an anomaly rule; a fixture WP-C would reject; any WP-C object, `seed.sql` or `tests/support/*` change.
+
 ## 2. WP-S session — AUTH-007 / WP-D18 (package-scope version sealing)
 
 You are the WP-S implementation session. Implement WP-D18 under AUTH-007 on `wp-d18/scope-sealing` from `58d0e98981befe32f8ddff11c89ce7952dad3a72`, as one PR, in migration `20261126140000` only.
@@ -121,6 +125,10 @@ The 320 additions and the other new WP-D18 assertions are additive, not rewrites
 
 **Acceptance:** the AUTH-007 acceptance and Amendment 1 rows; full suites unchanged; 7/7 CI on the exact head; the item 6 records; WP-B and Main reconfirmation records. Rebase only when preparing the merge (after WP-I-1 and WP-H); keep CURRENT-STATE edits inside the WP-D18 section. **Stop conditions:** any migration or immutability change; any seed change other than item 7 under an active Amendment 2, or any item 7 change that is not comment-only; any API privilege; a change to an existing or rewritten assertion's expected result; no disposable state for the commit test.
 
+## 2B. WP-S session — WP-D18 under AUTH-007 Amendment 3
+
+**Not active yet:** begin only after this record merges and its post-merge CI succeeds. All common rules apply. Continue on `wp-d18/scope-sealing` from `9f9a5ca`; keep its commits. D-2 to D-10 are individually approved; record that in the WP-D18 section with each record's head. Scope (exhaustive, file-level): F1 `scripts/wpd18-isolated-commit-test.sh`, F2 `supabase/tests-isolated/wpd18-restore-allowlist.txt`, F3 `supabase/tests-isolated/wpd18_parity.sql`, F4 `supabase/tests-isolated/wpd18_commit_race.test.sql`, F5 the single `.github/workflows/ci.yml` step exactly as recorded, F6 `tests/unit/wps-sales.test.ts` (the D-1 exact-filename correction, the stricter lexical rule, the mutation cases, and the F5 presence check), F7 the WP-D18 section of CURRENT-STATE and the PR #27 description. Follow the AUTHORIZATIONS restore and isolation rules exactly (zero tolerated restore errors; no `--no-privileges` or `--no-owner`; no privilege, ownership or trigger change; the disposable database always dropped and its absence asserted). **Evidence:** every item in the Amendment 3 evidence list, with commands and outputs; the scratch evidence and its MANIFEST carried into the record; 7/7 CI on the exact head including the new step; WP-B and Main reconfirmation records. **D-1 ratification** is requested separately, with the corrected check and the mutation evidence, after independent review. **Stop conditions:** as recorded in Amendment 3. Rebase only when preparing the merge (after WP-I-1 and WP-H), with the full rebase verification.
+
 ## 3. Dedicated integration session — AUTH-008 / WP-I-1 (integration infrastructure)
 
 You are the dedicated integration implementation session (not Main). Implement I-1 under AUTH-008 (**I-1 only**) on `wp-i/integration-infra` from `58d0e98981befe32f8ddff11c89ce7952dad3a72`, as one PR. Tests and test infrastructure only: no production code, no migration, **no `seed.sql` change**.
@@ -152,3 +160,17 @@ You are the dedicated integration implementation session (not Main). Implement I
 **Not authorized:** production code, dependencies, workflows, `seed.sql`, any other test infrastructure, or any change to existing assertions.
 
 **Acceptance:** renewed cold-reset verification (at least ten consecutive runs, recorded with timing and gate diagnostics); 7/7 CI on the exact head; WP-B, WP-C, and Main reconfirmation records against the new head. F2 closes only after Main's final verification. **Stop conditions:** any change outside the two helpers and the new unit test.
+
+## 3B. Dedicated integration session — W-1 and baseline synchronization (AUTH-008 Amendment 1 clarification)
+
+**Within the active Amendment 1 files; no new authority.** All common rules apply. On `wp-i/integration-infra` from `99615e2`:
+1. W-1 in `tests/support/postgrest-sync.ts`: a local bounded `pg` client for the database polls (absolute deadline; client-side `connectionTimeoutMillis` and `query_timeout` bounded by the remaining deadline; server `statement_timeout` as defence in depth only; bounded cleanup; deterministic socket destruction on timeout, using `pg`'s internal `connection.stream` only as narrowly as needed, verified against pinned `pg` 8.16.3 and documented in a comment). `ddl()` stays outside the helper-owned deadline, stated in code and comments. `tests/support/db.ts` is unchanged.
+2. Deterministic stalled-database coverage (for example a local TCP server that accepts and never answers) in `tests/unit/postgrest-ready.test.ts`, failing at the deadline with diagnostics.
+3. One coordinated synchronization: after the W-1 commit, merge `main` into the branch (no rebase, no force push); keep every `main` documentation change; allocate WP-I CURRENT-STATE section and version numbers from the actual baseline.
+4. Renewed cold-reset evidence (at least ten consecutive runs with timing and gate diagnostics); full CI on the exact final head; WP-B and WP-C final-head reconfirmations; Main's review. F2 stays open until Main's independent verification.
+
+**Stop conditions:** any change outside the two helpers and the new unit test (besides the merge itself and the WP-I CURRENT-STATE record); a needed `db.ts` change.
+
+## 4. WP-S session — OI-95 empty-state accessibility correction (AUTH-012)
+
+**Not active yet:** begin only after this record merges, its post-merge CI succeeds, **and** WP-I-1 has merged. Branch `wp-s/oi-95-empty-state` from that verified `main`. Files (exhaustive): `src/app/sales/page.tsx` (empty-state message outside the `<ul>`; the list only with items; a container with `data-testid="sales-customers"` in both states); `tests/e2e/wps.spec.ts` (additive: deterministic empty and populated customer states independent of earlier suite side effects, each with a full axe scan including rule `list`); your CURRENT-STATE section and the PR description. Keep every existing test ID, assertion, privilege and Sales behaviour. **Acceptance:** axe passes in both states; existing WP-S e2e assertions unchanged; full suites; 7/7 CI on the exact head; Main's independent review. **Stop conditions:** a deterministic state needs any other file; any assertion would change.

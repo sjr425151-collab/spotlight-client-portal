@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.1 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). Retention periods remain provisional (DEP-05). v0.4.0: notification delivery sequenced by release (OI-04 revised by OI-68); Resend SMTP for Supabase Auth email (OI-51). Earlier: v0.3.4 final-payment notifications for the automatic charge (OI-17 revised). v0.4.1 (PWP-0, AUTH-011; OI-110, 2026-11-25): the day-3 approval reminder is a non-contractual courtesy only (§4). No other notification, privacy or design change. |
-| Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46, OI-51, OI-68 |
+| Version | 0.4.2 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). Retention periods remain provisional (DEP-05). v0.4.0: notification delivery sequenced by release (OI-04 revised by OI-68); Resend SMTP for Supabase Auth email (OI-51). Earlier: v0.3.4 final-payment notifications for the automatic charge (OI-17 revised). v0.4.1 (PWP-0, AUTH-011; OI-110, 2026-11-25): the day-3 approval reminder is a non-contractual courtesy only (§4). No other notification, privacy or design change. v0.4.2 (2026-11-25, Main, PR #32 review reconciliation): the Decisions header lists OI-110. No rule changed. |
+| Decisions | OI-04, OI-12, OI-21, OI-23, OI-25, OI-26, OI-31, OI-35, OI-37, OI-38, OI-40, OI-42, OI-43, OI-45, OI-46, OI-51, OI-68, OI-110 |
 | Open issues | None |
 | Dependencies | DEP-05, DEP-07, DEP-08 |
 

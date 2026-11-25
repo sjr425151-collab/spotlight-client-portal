@@ -1,16 +1,43 @@
+import { randomBytes } from "node:crypto";
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import {
+  acceptAgreement,
+  handleStripeWebhook,
+  issueOrderSummary,
+  runPaymentMethodLookups,
+  startInitialCheckout,
+} from "@/server/services/billing";
+import { MockStripeGateway } from "@/server/stripe/mock-gateway";
+
 import { withDb } from "./db";
+import { adminClient } from "./local-supabase";
+import { signedEvent, testWebhookSecret } from "./stripe-events";
 
 /**
  * Shared WP-C integration fixtures (local stack, synthetic data only).
  *
- * The deposit comes from a test-only fixture of the approved WP-B interface (04 §8.1): the
- * original function definition is saved first and restored exactly afterwards, and the
- * `payment_authorization_ready` attribute is added only if WP-B has not added it yet.
+ * AUTH-008 I-1 item 1 (F2, CURRENT-STATE §7): a paid project is created from real WP-B
+ * records on a fresh, isolated project, through the same path as
+ * tests/integration/wpb-billing.test.ts: business, project, membership, Owner-issued order
+ * summary, the client's own acceptance, the mocked Checkout gateway (no network request), a
+ * synthetic signed `checkout.session.completed` webhook (OI-63), and the payment-method
+ * lookup. No financial function is replaced: the deposit and the payment authorization are
+ * whatever the real `private.project_financial_status` derives from those records.
+ *
+ * A test file that uses `createPaidProject` mocks `@/server/supabase/admin` exactly as
+ * wpb-billing.test.ts does, because the billing service module imports it.
+ *
+ * The seeded projects are never changed here: PROJECT_A stays unpaid (tests/e2e/wpc.spec.ts
+ * T-LC-01) and PROJECT_B stays `intake_locked`.
  */
 
 export const PROJECT_A = "20000000-0000-4000-8000-0000000000a0";
 export const PROJECT_B = "20000000-0000-4000-8000-0000000000b0";
 export const BUCKET = "project-assets";
+const OWNER_ID = "00000000-0000-4000-8000-000000000001";
+const URLS = { successUrl: "http://localhost:3000/ok", cancelUrl: "http://localhost:3000/cancel" };
 
 /**
  * A minimal PNG with a unique tEXt chunk per call. Unique bytes matter: a malicious verdict
@@ -46,62 +73,168 @@ export const png = () => {
   ]);
 };
 
-export type DepositFixture = { restore: () => Promise<void> };
+export type FreshProject = { projectId: string; businessId: string; legalName: string };
 
-/** Project A's deposit and payment authorization read as verified; every other project keeps the real answer. */
-export async function installDepositFixture(): Promise<DepositFixture> {
-  let original = "";
-  let addedAttribute = false;
-  await withDb(async (db) => {
-    const { rows } = await db.query(
-      "select pg_get_functiondef('private.project_financial_status(uuid)'::regprocedure) as def",
-    );
-    original = rows[0].def;
-    const { rows: attr } = await db.query(
-      `select 1 from pg_attribute where attrelid = 'private.project_financial_status'::regclass
-         and attname = 'payment_authorization_ready' and not attisdropped`,
-    );
-    addedAttribute = attr.length === 0;
-    if (addedAttribute) {
-      await db.query(
-        "alter type private.project_financial_status add attribute payment_authorization_ready boolean",
+/** A fresh synthetic business and project with one client member, created as the Owner. */
+export async function createProject(label: string, memberUserId: string): Promise<FreshProject> {
+  const legalName = `Synthetic ${label} ${RUN} LLC`;
+  return withDb(async (db) => {
+    await db.query("begin");
+    try {
+      await db.query("select set_config('request.jwt.claims', $1, true)", [
+        JSON.stringify({ sub: OWNER_ID, role: "authenticated", aal: "aal2" }),
+      ]);
+      const business = await db.query(
+        "insert into public.client_businesses (legal_name, display_name) values ($1, $1) returning id",
+        [legalName],
       );
+      const businessId = business.rows[0].id as string;
+      const project = await db.query(
+        "insert into public.projects (client_business_id, name) values ($1, $2) returning id",
+        [businessId, `${label} ${RUN}`],
+      );
+      const projectId = project.rows[0].id as string;
+      await db.query(
+        "insert into public.project_memberships (project_id, user_id) values ($1, $2)",
+        [projectId, memberUserId],
+      );
+      await db.query("commit");
+      return { projectId, businessId, legalName };
+    } catch (error) {
+      await db.query("rollback");
+      throw error;
     }
-    await db.query(`
-      create or replace function private.project_financial_status(p_project_id uuid)
-      returns private.project_financial_status
-      language sql stable security definer set search_path = '' as $fixture$
-        select jsonb_populate_record(null::private.project_financial_status, jsonb_build_object(
-          'project_id', p_project_id, 'contract_version', 1,
-          'implemented', p_project_id = '${PROJECT_A}', 'deposit_state', 'verified',
-          'deposit_verified', p_project_id = '${PROJECT_A}', 'final_balance_state', 'not_due',
-          'payment_authorization_ready', p_project_id = '${PROJECT_A}',
-          'balance_verified_or_settled', false, 'balance_settled_by_adjustment', false,
-          'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb));
-      $fixture$`);
-    await db.query("delete from private.rate_limits");
   });
-  return {
-    restore: () =>
-      withDb(async (db) => {
-        // Drop the test attribute first: the original stub must match the type it was written for.
-        if (addedAttribute) {
-          await db.query(
-            "alter type private.project_financial_status drop attribute payment_authorization_ready",
-          );
-        }
-        await db.query(original);
-      }),
-  };
 }
 
-/** Frees Project A's quota from abandoned reservations. */
-export async function freeQuota() {
+type Financial = { deposit_verified: boolean; ready: boolean; intake_unlocked: boolean };
+
+const financialOf = (projectId: string) =>
+  withDb(async (db) => {
+    const { rows } = await db.query(
+      `select f.deposit_verified, f.payment_authorization_ready as ready,
+              private.wpc_intake_unlocked($1) as intake_unlocked
+         from private.project_financial_status($1) f`,
+      [projectId],
+    );
+    return rows[0] as Financial;
+  });
+
+function expectOk<T extends { ok: boolean }>(step: string, result: T): T {
+  if (!result.ok) throw new Error(`createPaidProject: ${step} failed: ${JSON.stringify(result)}`);
+  return result;
+}
+
+/**
+ * A fresh project whose deposit is verified and whose payment authorization is ready,
+ * from real WP-B records only. `owner` is an Owner session at aal2; `client` is the signed-in
+ * session of `clientUserId`, who becomes the project's only client member and the signer.
+ */
+export async function createPaidProject(input: {
+  label: string;
+  owner: SupabaseClient;
+  client: SupabaseClient;
+  clientUserId: string;
+}): Promise<FreshProject> {
+  const { owner, client } = input;
+  const server = adminClient();
+  const gateway = new MockStripeGateway();
+  const secret = testWebhookSecret(input.label);
+  const fresh = await createProject(input.label, input.clientUserId);
+  const { projectId, businessId, legalName } = fresh;
+
+  expectOk(
+    "issueOrderSummary",
+    await issueOrderSummary(owner, { projectId, packageKey: "advanced", scopeItems: ["Website"] }),
+  );
+  const summary = await client
+    .from("order_summaries")
+    .select("id")
+    .eq("project_id", projectId)
+    .single();
+  if (summary.error) throw new Error(`createPaidProject: order summary: ${summary.error.message}`);
+  expectOk(
+    "acceptAgreement",
+    await acceptAgreement(client, {
+      orderSummaryId: summary.data.id,
+      accepted: true,
+      authorityConfirmed: true,
+      signerFullLegalName: "Alex Client",
+      businessLegalName: legalName,
+      signerTitle: "Owner",
+      checkboxUncheckedByDefault: true,
+    }),
+  );
+  expectOk(
+    "startInitialCheckout",
+    await startInitialCheckout(client, server, gateway, projectId, URLS),
+  );
+
+  const checkout = await client
+    .from("checkout_sessions")
+    .select("id, stripe_checkout_session_id, order_summary_id, acceptance_id")
+    .eq("project_id", projectId)
+    .single();
+  if (checkout.error) throw new Error(`createPaidProject: checkout: ${checkout.error.message}`);
+  const customer = await owner
+    .from("stripe_customers")
+    .select("stripe_customer_id")
+    .eq("client_business_id", businessId)
+    .single();
+  if (customer.error) throw new Error(`createPaidProject: customer: ${customer.error.message}`);
+
+  const tag = randomBytes(6).toString("hex");
+  const completed = signedEvent(secret, "checkout.session.completed", {
+    id: checkout.data.stripe_checkout_session_id,
+    object: "checkout.session",
+    mode: "subscription",
+    currency: "usd",
+    amount_total: 59800,
+    payment_status: "paid",
+    customer: customer.data.stripe_customer_id,
+    subscription: `sub_${tag}`,
+    invoice: `in_${tag}`,
+    total_details: { amount_discount: 0, amount_tax: 0 },
+    metadata: {
+      project_id: projectId,
+      order_summary_id: checkout.data.order_summary_id,
+      acceptance_id: checkout.data.acceptance_id,
+      checkout_record_id: checkout.data.id,
+    },
+  });
+  const delivered = await handleStripeWebhook({
+    rawBody: completed.rawBody,
+    signatureHeader: completed.header,
+    secret,
+    admin: server,
+  });
+  if (delivered.status !== 200 || delivered.body.duplicate !== false) {
+    throw new Error(`createPaidProject: webhook: ${JSON.stringify(delivered)}`);
+  }
+
+  const lookups = expectOk(
+    "runPaymentMethodLookups",
+    await runPaymentMethodLookups(server, gateway),
+  );
+  const financial = await financialOf(projectId);
+  if (!financial.deposit_verified || !financial.ready || !financial.intake_unlocked) {
+    throw new Error(
+      `createPaidProject: project not paid after the WP-B flow: ${JSON.stringify({
+        financial,
+        lookups,
+      })}`,
+    );
+  }
+  return fresh;
+}
+
+/** Frees a project's quota from abandoned reservations. */
+export async function freeQuota(projectId: string) {
   await withDb((db) =>
     db.query(
       `update public.asset_uploads set status = 'failed_upload'
         where project_id = $1 and status = 'uploading'`,
-      [PROJECT_A],
+      [projectId],
     ),
   );
 }

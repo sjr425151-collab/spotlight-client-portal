@@ -5,6 +5,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { withDb } from "../support/db";
 import { clearMailbox, codeFrom, waitForEmail } from "../support/mailpit";
+import { withSchemaCacheSync } from "../support/postgrest-sync";
 import { totp } from "../support/totp";
 
 /**
@@ -256,45 +257,49 @@ test("T-SALES-24 (OI-85): the portal asset route refuses a Sales session holding
   // membership, inserted with the C2 trigger disabled by name only inside that one transaction.
   const fixtureProject = randomUUID();
   const fixtureUpload = randomUUID();
-  await withDb(async (db) => {
-    await db.query("begin");
-    await db.query("select set_config('request.jwt.claims', $1, true)", [
-      JSON.stringify({ sub: OWNER_ID, role: "authenticated" }),
-    ]);
-    const business = await db.query(
-      "insert into public.client_businesses (legal_name, display_name) values ($1, 'OI-85') returning id",
-      [`OI-85 e2e ${RUN} LLC`],
-    );
-    await db.query(
-      "insert into public.projects (id, client_business_id, name) values ($1, $2, 'OI-85 e2e site')",
-      [fixtureProject, business.rows[0].id],
-    );
-    await db.query(
-      `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
+  // The committed trigger toggle makes PostgREST reload its schema cache (pgrst_ddl_watch);
+  // wait for that reload to finish before any request through PostgREST (AUTH-008 I-1).
+  await withSchemaCacheSync(() =>
+    withDb(async (db) => {
+      await db.query("begin");
+      await db.query("select set_config('request.jwt.claims', $1, true)", [
+        JSON.stringify({ sub: OWNER_ID, role: "authenticated" }),
+      ]);
+      const business = await db.query(
+        "insert into public.client_businesses (legal_name, display_name) values ($1, 'OI-85') returning id",
+        [`OI-85 e2e ${RUN} LLC`],
+      );
+      await db.query(
+        "insert into public.projects (id, client_business_id, name) values ($1, $2, 'OI-85 e2e site')",
+        [fixtureProject, business.rows[0].id],
+      );
+      await db.query(
+        `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
          original_name, status, quarantine_path, released_path, size_bytes, sha256, released_sha256, released_bytes,
          completed_at, uploaded_by)
        values ($1, $2, gen_random_uuid(), 1, 'logo', 'image/png', 100, 'f.png', 'available', $3, $4, 100,
          repeat('3', 64), repeat('3', 64), 100, now(), $5)`,
-      [
-        fixtureUpload,
-        fixtureProject,
-        `quarantine/${fixtureProject}/${fixtureUpload}`,
-        `${fixtureProject}/assets/${fixtureUpload}`,
-        OWNER_ID,
-      ],
-    );
-    await db.query(
-      "alter table public.project_memberships disable trigger project_memberships_sales_separation",
-    );
-    await db.query("insert into public.project_memberships (project_id, user_id) values ($1, $2)", [
-      fixtureProject,
-      SALES_ID,
-    ]);
-    await db.query(
-      "alter table public.project_memberships enable trigger project_memberships_sales_separation",
-    );
-    await db.query("commit");
-  });
+        [
+          fixtureUpload,
+          fixtureProject,
+          `quarantine/${fixtureProject}/${fixtureUpload}`,
+          `${fixtureProject}/assets/${fixtureUpload}`,
+          OWNER_ID,
+        ],
+      );
+      await db.query(
+        "alter table public.project_memberships disable trigger project_memberships_sales_separation",
+      );
+      await db.query(
+        "insert into public.project_memberships (project_id, user_id) values ($1, $2)",
+        [fixtureProject, SALES_ID],
+      );
+      await db.query(
+        "alter table public.project_memberships enable trigger project_memberships_sales_separation",
+      );
+      await db.query("commit");
+    }),
+  );
   try {
     // Requested with the signed-in browser context's own cookies (a download route, not a page).
     const response = await sales.request.get(
@@ -370,4 +375,63 @@ test("T-SALES-14 / T-SALES-26 / T-SALES-28: ending the assignment removes access
     ),
   );
   expect(pending.rows[0].n).toBe(1);
+});
+
+// OI-95 (AUTH-012): the /sales customer list is accessible when empty and when populated. A fresh,
+// isolated Sales Representative is created for this test only, so neither state depends on what
+// earlier tests or suites did with the seeded representative. Each state runs the same WCAG scan
+// as expectAccessible and checks that axe's `list` rule was evaluated (not skipped).
+async function expectAccessibleWithListRule(page: Page) {
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(results.violations.map(({ id, nodes }) => ({ id, count: nodes.length }))).toEqual([]);
+  // The `list` rule ran on this page (it passed, or nothing on the page is a list); it was not skipped.
+  expect([...results.passes, ...results.inapplicable].map((r) => r.id)).toContain("list");
+}
+
+test("OI-95: the customer list is accessible when empty and when populated", async ({
+  browser,
+}) => {
+  const id = randomUUID();
+  const email = `wps.oi95.${RUN}@example.test`;
+  await withDb(async (db) => {
+    await db.query(
+      `insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+         raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token,
+         email_change_token_new, email_change, email_change_token_current, reauthentication_token,
+         phone_change, phone_change_token)
+       values ('00000000-0000-0000-0000-000000000000', $1, 'authenticated', 'authenticated', $2, '', now(),
+         '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', '')`,
+      [id, email],
+    );
+    await db.query(
+      "insert into public.profiles (id, email, full_name) values ($1, $2, 'OI-95 Sales')",
+      [id, email],
+    );
+    await db.query("insert into public.staff_roles (user_id, role) values ($1, 'sales')", [id]);
+  });
+  const page = await (await browser.newContext()).newPage();
+  await signIn(page, email);
+  await enrollTotp(page, /\/sales$/);
+
+  // Empty: the message is shown outside any list, and no list is rendered.
+  const customers = page.getByTestId("sales-customers");
+  await expect(customers).toContainText("No assigned customers yet.");
+  await expect(customers.getByRole("list")).toHaveCount(0);
+  await expectAccessibleWithListRule(page);
+
+  // Populated: one customer of this representative, rendered as a list with one item.
+  const projectName = `E2E OI-95 ${RUN} website`;
+  await page.getByLabel("Business legal name").fill(`E2E OI-95 ${RUN} LLC`);
+  await page.getByLabel("Project name").fill(projectName);
+  await page.getByRole("button", { name: "Create customer" }).click();
+  // As in T-SALES-04: the action finishes on the new project's page; then back to the list.
+  await expect(page).toHaveURL(/\/sales\/projects\/[0-9a-f-]{36}\?notice=customer_created/);
+  await page.goto("/sales");
+  await expect(customers.getByRole("list")).toHaveCount(1);
+  await expect(customers.getByRole("listitem")).toHaveCount(1);
+  await expect(customers).toContainText(projectName);
+  await expect(customers).not.toContainText("No assigned customers yet.");
+  await expectAccessibleWithListRule(page);
 });

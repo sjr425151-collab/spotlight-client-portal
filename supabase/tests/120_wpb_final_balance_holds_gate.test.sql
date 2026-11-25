@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(101);
+select plan(106);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false)
 returns void language plpgsql as $$
@@ -80,12 +80,48 @@ begin
   return v;
 end;
 $$;
+-- AUTH-006 Amendment 2 (revision 2): WP-C-valid release and approval records for the
+-- release.approved consumer. The release is recorded by the active Admin (WP-C release_preview is
+-- staff-only) and the approval by the project's own non-staff client member (WP-C approve_preview);
+-- the test fails unless WP-C's project_fulfillment_status reports both as current. SYNTHETIC TEST
+-- EMISSION: the event is written through the WP-0 writer in WP-C's payload shape to exercise the
+-- consumer; it never stands in for WP-C's approve_preview, which is unchanged.
+create function pg_temp.genuine_release_approved(p_project uuid, p_release uuid, p_approval uuid, p_key text) returns bigint
+language plpgsql as $$
+declare
+  v_rel public.preview_releases%rowtype;
+  v_ful private.project_fulfillment_status;
+begin
+  select * into v_rel from public.preview_releases where id = p_release;
+  if not found then
+    insert into public.preview_releases (id, project_id, release_number, commit_sha, deployment_id, preview_url, released_by)
+    values (p_release, p_project,
+      coalesce((select max(r.release_number) from public.preview_releases r where r.project_id = p_project), 0) + 1,
+      substr(encode(sha256(convert_to(p_release::text, 'UTF8')), 'hex'), 1, 40),
+      'dpl_' || substr(replace(p_release::text, '-', ''), 1, 24), 'https://preview.example.test/' || p_release,
+      (select s.user_id from public.staff_roles s where s.role = 'admin' and s.status = 'active' order by s.user_id limit 1))
+    returning * into v_rel;
+  end if;
+  if not exists (select 1 from public.preview_approvals where id = p_approval) then
+    insert into public.preview_approvals (id, release_id, project_id, user_id)
+    values (p_approval, v_rel.id, v_rel.project_id, (select m.user_id from public.project_memberships m
+      where m.project_id = v_rel.project_id and private.staff_role_of(m.user_id) is null order by m.user_id limit 1));
+  end if;
+  v_ful := private.project_fulfillment_status(p_project);
+  if v_ful.current_release_id is distinct from p_release or v_ful.current_release_approval_id is distinct from p_approval then
+    raise exception 'fixture: release % / approval % is not WP-C current (current %, recorded %)',
+      p_release, p_approval, v_ful.current_release_id, v_ful.current_release_approval_id;
+  end if;
+  return private.emit_domain_event('release.approved', p_project, 'preview_release', p_release::text,
+    jsonb_build_object('release_id', v_rel.id, 'release_number', v_rel.release_number, 'approval_id', p_approval,
+      'commit_sha', v_rel.commit_sha), p_key);
+end;
+$$;
 -- WP-C's emission of release.approved, simulated through the WP-0 writer (consumer contract:
 -- subject_type preview_release, subject_id = release ID, payload.approval_id).
 create function pg_temp.release_approved(p_project uuid, p_release uuid, p_approval uuid) returns bigint
 language sql as $$
-  select private.emit_domain_event('release.approved', p_project, 'preview_release', p_release::text,
-    jsonb_build_object('approval_id', p_approval), 'release.approved:' || p_approval::text);
+  select pg_temp.genuine_release_approved(p_project, p_release, p_approval, 'release.approved:' || p_approval::text);
 $$;
 create temporary table ids (k text primary key, v text) on commit drop;
 grant all on ids to authenticated, service_role;
@@ -140,7 +176,7 @@ select ok(exists (select 1 from public.domain_events where event_type = 'agreeme
   and exists (select 1 from public.notification_outbox where notification_type = 'agreement.reacceptance_required'),
   'reacceptance_required is emitted and the client is notified');
 insert into ids select 'ev0', pg_temp.release_approved('20000000-0000-4000-8000-0000000000a0',
-  '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000000')::text;
+  '30000000-0000-4000-8000-000000000000', '40000000-0000-4000-8000-000000000000')::text;
 select is(pg_temp.consume() #>> '{results,0,outcome}', 'rejected',
   'T-AGR-04: an approval while reacceptance is required creates no final-balance invoice');
 select ok(not exists (select 1 from public.final_balance_invoices)
@@ -192,16 +228,46 @@ select ok(exists (select 1 from public.audit_events where action = 'balance.coll
 -- Replays, repeated approvals, later releases, a superseding summary: never a second obligation.
 select is(private.consume_release_approved((select v::bigint from ids where k = 'ev1')), 'already_consumed',
   'a replayed release.approved event is already consumed');
-select pg_temp.release_approved('20000000-0000-4000-8000-0000000000a0', '30000000-0000-4000-8000-000000000001',
-  '40000000-0000-4000-8000-000000000002');
+-- AUTH-006 Amendment 2: SYNTHETIC consumer-defense test construction, not a WP-C emission. A re-delivery of
+-- release ...001's recorded approval under a distinct deduplication key: WP-C's approve_preview emits
+-- release.approved once per release (on its first approval, key release.approved:<release_id>) and never this.
+-- Release ...001 is current when it is emitted and superseded (release ...002, below) when it is consumed.
+insert into ids select 'out_before', count(*)::text from public.outbound_stripe_requests;
+select pg_temp.genuine_release_approved('20000000-0000-4000-8000-0000000000a0', '30000000-0000-4000-8000-000000000001',
+  '40000000-0000-4000-8000-000000000001', 'release.approved:redelivery:40000000-0000-4000-8000-000000000001');
 select pg_temp.release_approved('20000000-0000-4000-8000-0000000000a0', '30000000-0000-4000-8000-000000000002',
   '40000000-0000-4000-8000-000000000003');
 select is((select array_agg(r ->> 'outcome') from jsonb_array_elements(pg_temp.consume() -> 'results') r),
-  array['duplicate_obligation', 'duplicate_obligation'],
-  'T-PAY-13: a repeated approval and a later release revision collapse onto the existing obligation');
+  array['rejected', 'duplicate_obligation'],
+  'T-PAY-13 / OI-92: an approval of a superseded release is rejected; the current release''s approval collapses onto the existing obligation');
 select ok((select count(*) from public.final_balance_invoices) = 1
   and (select count(*) from public.outbound_stripe_requests where purpose = 'final_balance_invoice_create') = 1,
   'T-PAY-13: exactly one obligation and one outbound create exist');
+-- AUTH-006 Amendment 2, C-2: the superseded approval took the 04 §10.2 rejection path (detail, audit,
+-- Owner notification) and added no outbound request.
+insert into ids select 'ev_sup', id::text from public.domain_events
+ where dedupe_key = 'release.approved:redelivery:40000000-0000-4000-8000-000000000001';
+select is((select detail from private.event_consumptions where consumer = 'wpb.final_balance_invoice'
+            and domain_event_id = (select v::bigint from ids where k = 'ev_sup')), 'release_superseded',
+  'C-2 / OI-92: the superseded release''s approval is rejected as release_superseded');
+select ok(exists (select 1 from public.audit_events where action = 'release_approval.rejected' and category = 'financial'
+                   and target_type = 'domain_event' and target_id = (select v from ids where k = 'ev_sup')
+                   and summary ->> 'detail' = 'release_superseded')
+  and exists (select 1 from public.notification_outbox where notification_type = 'payment.final_balance_blocked'
+               and idempotency_key = 'payment.final_balance_blocked:' || (select v from ids where k = 'ev_sup') || ':1'),
+  'C-2: the rejection is audited and the Owner is notified');
+select is((select count(*)::text from public.outbound_stripe_requests), (select v from ids where k = 'out_before'),
+  'C-2: no outbound request is added by the rejected or the duplicate approval');
+-- AUTH-006 Amendment 2, C-1: a further event for the current release and its recorded approval, under a
+-- distinct deduplication key (SYNTHETIC consumer-defense test construction; WP-C never emits it), creates
+-- no second obligation.
+select pg_temp.genuine_release_approved('20000000-0000-4000-8000-0000000000a0', '30000000-0000-4000-8000-000000000002',
+  '40000000-0000-4000-8000-000000000003', 'release.approved:redelivery:40000000-0000-4000-8000-000000000003');
+select is(pg_temp.consume() #>> '{results,0,outcome}', 'duplicate_obligation',
+  'C-1: a valid current-release approval cannot create a second obligation');
+select ok((select count(*) from public.final_balance_invoices) = 1
+  and (select count(*) from public.outbound_stripe_requests where purpose = 'final_balance_invoice_create') = 1,
+  'C-1: still exactly one obligation and one outbound create');
 select throws_ok($$ insert into public.final_balance_invoices (project_id, order_summary_id, acceptance_id, approval_id, release_id,
     source_domain_event_id, amount_cents, balance_price_id, stripe_customer_id, collection_mode)
   select project_id, (select v::uuid from ids where k = 'os1'), acceptance_id, gen_random_uuid(), gen_random_uuid(),

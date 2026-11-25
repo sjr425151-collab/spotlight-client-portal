@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { withDb } from "../support/db";
 import { accessToken, adminClient, signInWithCode, upgradeToAal2 } from "../support/local-supabase";
+import { withSchemaCacheSync } from "../support/postgrest-sync";
 
 /**
  * WP-S integration tests (03 §4.1, §13; AUTH-005) against the local stack. Real Auth sessions
@@ -395,15 +396,21 @@ describe("WP-S concurrency (two connections)", () => {
     }
   }
 
-  // A true race. The WP-B lock order (project row, then order-summary row, in
-  // issue_order_summary; order-summary row, then the project's key-share lock through the
-  // acceptance foreign key, in accept_agreement) can deadlock; PostgreSQL then aborts one side.
-  // Either way exactly one side succeeds and the aborted side leaves no partial state.
+  // A true race. OI-86 (WP-H, AUTH-006): issue_order_summary takes the project row FOR NO KEY
+  // UPDATE, which does not conflict with the FOR KEY SHARE lock accept_agreement's acceptance
+  // foreign key takes, so the two serialize on the order-summary row lock alone and never
+  // deadlock. A deadlock abort (40P01) is never a passing outcome.
   for (const caller of ["sales", "owner"] as const) {
     it(`T-SALES-32: a true race never lets both succeed (${caller} replacement)`, async () => {
       const ownerSid = await dbSession(OWNER_ID);
       const outcomes: string[] = [];
-      for (let i = 0; i < 4; i += 1) {
+      for (let i = 0; i < 12; i += 1) {
+        // Many iterations exceed the per-user Sales limits, which are tested above.
+        await withDb((db) =>
+          db.query("delete from private.rate_limits where bucket like 'sales-%' or bucket = $1", [
+            `invite:${SALES_ID}`,
+          ]),
+        );
         const p = await salesProjectWithClient(`Race${caller}${i}`);
         const [accept, replace] = await Promise.all([
           side(once(p.clientId, p.clientSid, acceptSql, [p.orderSummaryId, p.legalName])),
@@ -424,6 +431,8 @@ describe("WP-S concurrency (two connections)", () => {
           ),
         ]);
         outcomes.push(`${accept}|${replace}`);
+        // OI-86: no side is ever aborted by the database, on the Sales or the Owner path.
+        expect([accept, replace].filter((o) => o.startsWith("aborted:"))).toEqual([]);
         const state = await withDb((db) =>
           db.query(
             `select (select count(*)::int from public.agreement_acceptances where project_id = $1) as acceptances,
@@ -441,6 +450,9 @@ describe("WP-S concurrency (two connections)", () => {
         } else {
           // Owner path unchanged (04 §4): a replacement after acceptance is allowed (reacceptance).
           expect(accept === "ok" || replace === "ok").toBe(true);
+          // OI-86: the replacement always succeeds (it is never aborted), and the acceptance
+          // succeeds exactly when it locked the original summary first.
+          expect(replace).toBe("ok");
         }
         expect(row.acceptances).toBe(accept === "ok" ? 1 : 0);
       }
@@ -744,45 +756,49 @@ describe("OI-85 authorization without the triggers: released-file access (T-SALE
     // (DDL is transactional: no other session ever sees the trigger disabled). Removed after.
     const projectId = randomUUID();
     const uploadId = randomUUID();
-    await withDb(async (db) => {
-      await db.query("begin");
-      await db.query("select set_config('request.jwt.claims', $1, true)", [
-        JSON.stringify({ sub: OWNER_ID, role: "authenticated" }),
-      ]);
-      const business = await db.query(
-        "insert into public.client_businesses (legal_name, display_name) values ($1, 'OI-85') returning id",
-        [`OI-85 ${RUN} LLC`],
-      );
-      await db.query(
-        "insert into public.projects (id, client_business_id, name) values ($1, $2, 'OI-85 site')",
-        [projectId, business.rows[0].id],
-      );
-      await db.query(
-        `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
+    // The committed trigger toggle makes PostgREST reload its schema cache (pgrst_ddl_watch);
+    // wait for that reload to finish before any request through PostgREST (AUTH-008 I-1).
+    await withSchemaCacheSync(() =>
+      withDb(async (db) => {
+        await db.query("begin");
+        await db.query("select set_config('request.jwt.claims', $1, true)", [
+          JSON.stringify({ sub: OWNER_ID, role: "authenticated" }),
+        ]);
+        const business = await db.query(
+          "insert into public.client_businesses (legal_name, display_name) values ($1, 'OI-85') returning id",
+          [`OI-85 ${RUN} LLC`],
+        );
+        await db.query(
+          "insert into public.projects (id, client_business_id, name) values ($1, $2, 'OI-85 site')",
+          [projectId, business.rows[0].id],
+        );
+        await db.query(
+          `insert into public.asset_uploads (id, project_id, asset_id, version, category, declared_mime, declared_bytes,
            original_name, status, quarantine_path, released_path, size_bytes, sha256, released_sha256, released_bytes,
            completed_at, uploaded_by)
          values ($1, $2, gen_random_uuid(), 1, 'logo', 'image/png', 100, 'f.png', 'available', $3, $4, 100,
            repeat('4', 64), repeat('4', 64), 100, now(), $5)`,
-        [
-          uploadId,
-          projectId,
-          `quarantine/${projectId}/${uploadId}`,
-          `${projectId}/assets/${uploadId}`,
-          OWNER_ID,
-        ],
-      );
-      await db.query(
-        "alter table public.project_memberships disable trigger project_memberships_sales_separation",
-      );
-      await db.query(
-        "insert into public.project_memberships (project_id, user_id) values ($1, $2)",
-        [projectId, SALES_ID],
-      );
-      await db.query(
-        "alter table public.project_memberships enable trigger project_memberships_sales_separation",
-      );
-      await db.query("commit");
-    });
+          [
+            uploadId,
+            projectId,
+            `quarantine/${projectId}/${uploadId}`,
+            `${projectId}/assets/${uploadId}`,
+            OWNER_ID,
+          ],
+        );
+        await db.query(
+          "alter table public.project_memberships disable trigger project_memberships_sales_separation",
+        );
+        await db.query(
+          "insert into public.project_memberships (project_id, user_id) values ($1, $2)",
+          [projectId, SALES_ID],
+        );
+        await db.query(
+          "alter table public.project_memberships enable trigger project_memberships_sales_separation",
+        );
+        await db.query("commit");
+      }),
+    );
     try {
       const { deliverAsset } = await import("@/server/uploads/delivery");
       expect(await deliverAsset(sales, adminClient(), projectId, uploadId)).toEqual({

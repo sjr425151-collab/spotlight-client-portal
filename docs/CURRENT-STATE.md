@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.17.0 |
+| Version | 1.25.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the R1 authorization reconciliation (AUTH-006, AUTH-007, AUTH-008 I-1 granted, activation pending), based on `main` at `a8c6ddc` |
+| Last updated | 2026-11-25, by the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `30414c7` (after the WP-H merge) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -16,7 +16,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
-| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI). **AUTH-005** (WP-S) **expired 2026-11-25** on the WP-S merge |
+| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-006** (WP-H), **AUTH-007** (WP-D18), **AUTH-008** (WP-I, I-1 only), active 2026-11-25. **AUTH-005** (WP-S) **expired 2026-11-25** on the WP-S merge |
 | Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
@@ -95,7 +95,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 ## 6. Pending Owner actions
 
 1. (Done 2026-11-25) WP-S merged (PR #23); WPS-P1 to WPS-P7 decided as OI-85 to OI-89.
-2. (Granted 2026-11-25; activation pending the authorization merge) AUTH-006, AUTH-007, AUTH-008 (I-1). Later: the separate I-2 grant.
+2. (Active 2026-11-25) AUTH-006, AUTH-007, AUTH-008 (I-1 only), baseline `58d0e98`. Later: the separate I-2 grant.
 2a. Supply the standard scope for each package (DEP-18) and include it in counsel review (DEP-03).
 3. Review OWNER-RUNBOOKS (proposed), **including §7** (direct role and membership writes, OI-90; required before R1 release-candidate acceptance).
 4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10), and the contractual package-scope language (A4).
@@ -111,8 +111,8 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | DEP-07 and DEP-12 verified vendor shortlist | WP-A follow-up |
 | PR #6 (AI operations proposal): header corrected to the current next unused ID; remains a draft outside the release path (OI-67) | Done in PR #6 |
 | Time tracking: each implementation PR description records AI session hours, Owner review hours, and admin hours (OI-67) | From WP-0 onward |
-| **R1 release-candidate blockers (mandatory before R1 acceptance)** | **N1** (04 §15.2.1 rule 9): (a) safe project attribution of deferred refund and dispute events (WP-B follow-up); (b) Owner runs reconciliation before publication (OWNER-RUNBOOKS §5) until DEP-17; (c) the multi-payment linking criterion passes in test mode (AUTH-002). Also: F7 and F8 test-mode criteria (04 §8.2, DEP-06, DEP-15); the integrated R1 browser suite T-E2E-01 to T-E2E-10 (integration stream); DEP-07, DEP-12, DEP-17; DEP-18 package scope content (OI-84(b); append-only versions); **OI-86** (lock-order deadlock; WP-B, separate authorization); **OI-87** (change reason staff-only; WP-B, separate authorization); OI-88 user-experience reassessment; **OI-90** operator runbook (OWNER-RUNBOOKS §7); DEP-18 version sealing before non-fixture content; DEP-03 wording, never presented as legally approved until approved (F10) |
-| **F2** (integration stream; root cause unconfirmed) | Before the T-E2E work: replace the WP-C integration fixture that swaps `private.project_financial_status` by global DDL with real WP-B records; make WP-C assertions report PostgREST `error`; wait for the schema-cache reload after any test DDL |
+| **R1 release-candidate blockers (mandatory before R1 acceptance)** | **N1** (04 §15.2.1 rule 9): (a) safe project attribution of deferred refund and dispute events (WP-B follow-up); (b) Owner runs reconciliation before publication (OWNER-RUNBOOKS §5) until DEP-17; (c) the multi-payment linking criterion passes in test mode (AUTH-002). Also: F7 and F8 test-mode criteria (04 §8.2, DEP-06, DEP-15); the integrated R1 browser suite T-E2E-01 to T-E2E-10 (integration stream); DEP-07, DEP-12, DEP-17; DEP-18 package scope content (OI-84(b); append-only versions); **OI-86** (lock-order deadlock; WP-B, separate authorization); **OI-87** (change reason staff-only; WP-B, separate authorization); OI-88 user-experience reassessment; **OI-90** operator runbook (OWNER-RUNBOOKS §7); DEP-18 version sealing before non-fixture content; **OI-91** (outbound/revocation deadlock; separate authorization); **OI-95** (Sales empty-list accessibility; separate correction); OI-93 conflict-representation mechanism (if R1 needs conflicts cleared); DEP-03 wording, never presented as legally approved until approved (F10) |
+| **F2** (integration stream; **open**; WP-I I-1 implementation, §14) | Cause reproduced: after `supabase db reset`, PostgREST answers `503 PGRST001` while it reconnects from dead pooled connections to the restarted database (11 of 12 consecutive cold-reset runs failed before the readiness gate). Done in I-1 and Amendment 1: real WP-B records replace the global `private.project_financial_status` fixture; WP-C RPC helpers report the PostgREST `error`; a deadline-bounded PostgREST readiness gate per integration file (WPI-P1 accepted); a deterministic, deadline-bounded schema-cache sync after the trigger toggles, including the W-1 database bounds. Stays open until Main's independent verification |
 | Optional (nonblocking) | L1: atomic write of the OTP spacing file; L2: rate-limit refused upload requests |
 | Low notes (accepted) | N2–N4 (OWNER-RUNBOOKS §6) |
 | Code comments describing OI-71 as open | **Done** (corrected in PRs #19 and #20) |
@@ -270,6 +270,119 @@ Local evidence for the §9 WP-B directive, on branch `wp-b/billing-ledger` rebas
 - The OI-82 holding path cannot be reached on the final-balance charge (one obligation, rule a); its G4 wiring is proven with a fixture in pgTAP 140.
 
 **Remaining dependencies:** DEP-06 (Stripe items) and DEP-15 (T-PAY-16) under AUTH-002; DEP-17 scheduler binding (WP-D); DEP-03 final UI and legal wording; integrated R1 journey T-E2E-01 to T-E2E-10 (integration stream).
+
+### 10.2 WP-H implementation record (AUTH-006, Amendments 1 and 2)
+
+**Authorization:** AUTH-006, active since 2026-11-25 (merge `58d0e98`, CI run 45543204966). Amendment 1 is active (merge `7469b2d`, CI run 45558153619). Amendment 2 is active (merge `f37cf7e`, CI run 45583992649, 7/7 with the full suite, verified before implementation). Branch `wp-h/financial-hardening` from `58d0e98`. **Synchronized** after WP-I-1 merged (PR #28 at `b027e41`, post-merge CI run 45675171938, 7/7 with the full suite).
+
+- **Method:** `main` at `b027e41` was merged into the branch. There was no rebase and no force-push, so every reviewed commit is preserved. The merge was conflict-free.
+- **Equivalence:** the implementation diff against `main` is patch-identical (`git patch-id --stable`) to the reviewed `58d0e98..aec8ff3` diff, file by file. That includes `tests/integration/wps-sales.test.ts`, which PR #28 also changes; T-SALES-32 keeps its 12 iterations and its `aborted:`-free assertions.
+- **Readiness gate:** PR #28's gate runs through `tests/support/local-supabase.ts` in every file that uses PostgREST. `wph-hardening.test.ts` uses direct database connections only.
+- **Second synchronization:** `main` at `e3a7508` (PR #37, OI-95; post-merge CI run 45682383873, 7/7) was merged in, again conflict-free, with no rebase and no force-push. PR #37 changes `src/app/sales/page.tsx`, `tests/e2e/wps.spec.ts` and this file's §16, which is kept intact. None is a WP-H file, and all 17 WP-H files remain patch-identical to the reviewed diff.
+- **This file:** the header version is allocated from the baseline (v1.23.0 to v1.24.0; PR #37 did not change it).
+- **Merge order is unchanged** (WP-I-1, WP-H, WP-D18). AUTHORIZATIONS AUTH-006 "Merge" applies: full CI on the synchronized head, and a new record from every reviewer.
+
+| Commit | Content | Migration (SHA-256) |
+|---|---|---|
+| `fc7b236` | OI-86: `issue_order_summary` locks the project row `FOR NO KEY UPDATE` | `20261126120000` (`c57be580…5773b14`) |
+| `33eb953` | OI-87: `order_summaries.change_reason` is not readable by API users (column grants) | `20261126120100` (`f173ba41…e86fb`) |
+| `95d03a1` | N1(a): refund and dispute attribution at receipt; conflict candidates captured atomically; persistent G2 and G4 blocks | `20261126120200` (`a9d99d16…5d09b`) |
+| `aec8ff3` | The release-approval cross-check (04 §10.2) and the Amendment 2 test corrections | `20261126120300` (`20953c2e36d44f5a496e69ba0c0f84451f6577d7dbf4d018af706d6b953be18a`, identical to the held draft) |
+
+**Amendment 2 dispositions (exact inventory):**
+
+- **Disposition A** is the only assertion change.
+  - Where: `supabase/tests/120_wpb_final_balance_holds_gate.test.sql`, lines 199–201 at `95d03a1`; lines 240–242 at `aec8ff3`.
+  - Original: `array['duplicate_obligation', 'duplicate_obligation']`, "T-PAY-13: a repeated approval and a later release revision collapse onto the existing obligation".
+  - Replacement: `array['rejected', 'duplicate_obligation']`, "T-PAY-13 / OI-92: an approval of a superseded release is rejected; the current release's approval collapses onto the existing obligation".
+  - Guarantee: unchanged (no repeated or later approval creates a second obligation), plus the superseded release's approval is rejected with `release_superseded`. The "exactly one obligation and one outbound create" assertion is unchanged.
+- **Disposition B1:** T-PAY-22 (130 line 351 at `aec8ff3`) is unchanged.
+  - Immediately before it, the Owner reconciles the T-PAY-26 quarantined payment through the existing `public.resolve_quarantined_event` (`aal2`, fresh MFA, live session, a reason).
+  - That call records the review and re-derives the gates from all the evidence. No anomaly rule changes.
+- **Revision 2 helper:** `pg_temp.genuine_release_approved` in 120, 130, 150 and 160.
+  - It inserts the release (recorded by the active Admin) and the approval (by the project's non-staff client member).
+  - It fails the test unless `private.project_fulfillment_status` reports both as current.
+  - It then writes a **synthetic test emission** in WP-C's payload shape. It is labelled as such and is distinct from WP-C's `approve_preview`, which is unchanged.
+- **Setup-only changes:**
+  1. 120: `pg_temp.release_approved` calls the helper.
+  2. 120: `ev0`'s release is `30000000-0000-4000-8000-000000000000`.
+  3. 120: the pair's first event is a synthetic re-delivery of release …001's recorded approval …001, under key `release.approved:redelivery:40000000-0000-4000-8000-000000000001`. It is consumer-defense construction, not a WP-C emission.
+  4. 130, 150 and 160: `pg_temp.approve` calls the helper, with IDs and keys unchanged.
+  5. 150: the direct emission adds `release_id`, `release_number` and `commit_sha`.
+  6. `tests/integration/wpb-billing.test.ts`: one genuine release and its first approval, checked against the fulfillment interface, before the two emissions. Keys and assertions are unchanged.
+- **Compensating coverage:**
+  - **C-1** (120): a further event for the current release and approval returns `duplicate_obligation`, and both counts stay at one.
+  - **C-2** (120): detail `release_superseded`, a `release_approval.rejected` audit and a `payment.final_balance_blocked` notification exist, and no outbound request is added.
+  - **C-4** (190): a G4-listed quarantined event rejects with `balance_gate_anomaly` and creates nothing. After the authorized resolution, a valid approval proceeds.
+- **Amendment 1 cross-check acceptance** (new `supabase/tests/190_wpb_release_crosscheck.test.sql`, 47 assertions; positive cases consume WP-C's own `approve_preview` emission):
+  - positive: the current approved release;
+  - missing release;
+  - another project's release;
+  - another release's approval, and an unrecorded approval;
+  - mismatched number, mismatched SHA, and a missing version;
+  - superseded, withdrawn and archived;
+  - a G2 anomaly (N1(a) conflict);
+  - a G4-listed anomaly;
+  - the interface not implemented.
+
+  Every rejection is audited and notified, with no obligation and no outbound request.
+- **Concurrency** (`tests/integration/wph-hardening.test.ts`): two connections, both orders, with WP-C's real `release_preview`, `withdraw_preview` and `approve_preview`.
+  - The second transaction is shown to wait every time.
+  - A supersession or withdrawal committed first rejects; a consumption committed first initiates and keeps the obligation (OI-92(e)).
+  - A stale approval is never consumed.
+  - Exactly one obligation results, and there is no 40P01.
+  - The races' final-balance creates are settled afterwards through the executor's normal path, so no pending request leaks into another suite.
+- **Static guards:**
+  - `tests/unit/wpb-contracts.test.ts`:
+    - exactly the four `_wph_` migrations;
+    - the exact `create or replace` allow-list: `project_financial_status` plus `issue_order_summary`, `handle_refund`, `handle_dispute`, `handle_charge_refunded`, `process_stripe_event`, `project_financial_anomalies`, `resolve_quarantined_event` and `consume_release_approved`;
+    - the WP-B additive-only restrictions applied to the WP-H SQL;
+    - one new table and one grant.
+  - `tests/unit/wpb-static.test.ts`: the WP-B payment invariants on all four WP-H migrations.
+  - Every existing restriction is unchanged.
+
+**Local verification at `aec8ff3`.** Supabase CLI local stack; CI's environment (`APP_ENV=test`, `NEXT_PUBLIC_SITE_URL=http://localhost:3100`); per-run test webhook secret; synthetic data; no provider.
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 16 files, 286 passed |
+| `pnpm audit --audit-level=high` | No known vulnerabilities |
+| `gitleaks git` | 95 commits, no leaks |
+| `supabase db reset --local`; `supabase test db` | 30 files, 1,605 tests, PASS |
+| `pnpm test:integration` | 7 files, 96 passed |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 51 passed |
+| Lighthouse | Not run locally (CI) |
+
+**Local verification after synchronization** (merge of `b027e41`; same environment as above).
+
+| Command | Result |
+|---|---|
+| `sha256sum` of `20261126120300` | `20953c2e36d44f5a496e69ba0c0f84451f6577d7dbf4d018af706d6b953be18a` (unchanged) |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, 303 passed (adds PR #28's readiness-gate unit file) |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `supabase db reset --local`; `supabase test db` | 30 files, 1,605 tests, PASS |
+| `pnpm test:integration` | 7 files, 96 passed (PR #28's 81 plus WP-H's 15) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 51 passed |
+
+**Reviews at `0b1e542`** (durable non-approval PR comments). Each needs a new record for the synchronized head (AUTH-006 "Merge").
+
+| Reviewer | Comment | Result |
+|---|---|---|
+| Main | 7159127341 | No blocking findings. M-1 to M-4: M-1 is this synchronization; M-2 is AUTH-009's inventory; M-3 and M-4 need no change |
+| WP-S, independent financial | 7168757687 | No blocking findings. F-1 to F-3 need no change; F-1 is consolidated into AUTH-013 |
+| WP-C, read-only | 7168769499 | B-1, recorded as **OI-113** |
+
+**Known limitation until AUTH-013 lands: OI-113, a mandatory R1 release-candidate blocker that is open.**
+- **When it happens:** two client members of one project approve the same release concurrently, and the earlier-started transaction takes the release lock second.
+- **What goes wrong:** WP-C's emitting approval and `project_fulfillment_status.current_release_approval_id` disagree. The WP-H cross-check then rejects the initiation with **`approval_mismatch`**.
+- **Effect:** it fails closed, with no obligation, no outbound request and no charge. The automatic initiation does not happen, and the Owner receives `payment.final_balance_blocked`.
+- **Decision (Owner, 2026-11-25):** option (a), a separately authorized WP-C interface correction (AUTH-013, proposed). WP-H's strict approval matching is kept, and WP-H does not change for it. Option (c), re-release and re-approval, is an emergency recovery procedure only, never closure.
+
+The Owner merges, pinned to the exact head.
 
 ## 11. WP-S implementation record
 
@@ -445,7 +558,7 @@ Rules: one new forward-only migration after `20261125120100`; the two reviewed W
 
 ## 13. R1 development execution plan (Main, 2026-11-25; proposed, nothing started)
 
-Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Authorizations: **AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (I-1 only) granted by the Owner on 2026-11-25; not active** until this authorization record is merged and the post-merge CI on its merge commit succeeds. **Activation record:** _(pending: merge commit, CI run)_. Implementation branches start from that verified merge commit. I-2 needs a separate grant. Handoff prompts: [R1-HANDOFFS.md](R1-HANDOFFS.md).
+Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Authorizations: **AUTH-006 (WP-H), AUTH-007 (WP-D18), and AUTH-008 (I-1 only) granted by the Owner on 2026-11-25; **active since 2026-11-25**. **Activation record:** PR #25 merged at `58d0e98981befe32f8ddff11c89ce7952dad3a72` (parents `a8c6ddc`, `1386465`; tree identical to the authorized head; documentation only); post-merge CI run 45543204966 (#82) 7/7 `success` with the full suite executed. **Common implementation baseline: `58d0e98981befe32f8ddff11c89ce7952dad3a72`**; WP-I-1, WP-H, and WP-D18 branch from exactly this commit (not from later documentation merges). I-2 needs a separate grant. Handoff prompts: [R1-HANDOFFS.md](R1-HANDOFFS.md).
 
 | Package | Implementer | Independent review | Branch | Migrations | Shared files |
 |---|---|---|---|---|---|
@@ -458,7 +571,257 @@ Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Autho
 
 **Owner actions:** grant AUTH-006, AUTH-007, AUTH-008 (I-1), and later the I-2 seams; supply the five package definitions (DEP-18); engage counsel for DEP-03 (agreement, payment authorization, F10 wording, package scope); choose the malware scanner (DEP-07) and monitoring (DEP-12) vendors; review OWNER-RUNBOOKS including §7 (OI-90); reassess the OI-88 invitation experience before the R1 release candidate.
 
-## 14. WP-D18 implementation record (AUTH-007; DEP-18 version sealing)
+**WP-H status (2026-11-25):** stopped at an AUTH-006 boundary; OI-86 and OI-87 implemented at `33eb953` (Main preliminary verification: OI-86 changes only the lock clause; OI-87 grants every column except `change_reason`; six-caller concurrency and strengthened T-SALES-32 tests present; static guard extension and N1(a) and the cross-check not yet done). **AUTH-006 Amendment 1** approved; WP-H resumes only after its merge and full post-merge CI (continuation handoff: R1-HANDOFFS §1A).
+
+**AUTH-006 Amendment 1 activation record (2026-11-25):** PR #29 merged at `7469b2d4f899ea7d25a43d86088ce92b5bfb3cb5` (parents `b4a43bc`, `59e89e6`; tree identical; documentation only); post-merge CI run 45558153619 (#89) 7/7 `success` with the full suite. **WP-H may resume** from `33eb953` (R1-HANDOFFS §1A). **Corrections pending:** WP-I-1 readiness timeout (AUTH-008 Amendment 1; R1-HANDOFFS §3A) before PR #28 merges; WP-D18 (AUTH-007 Amendment 1; R1-HANDOFFS §2A) before PR #27 merges. Merge order unchanged: WP-I-1, WP-H, WP-D18. Implementation PRs keep their CURRENT-STATE edits inside their own implementation-record sections to avoid conflicts with these records.
+
+**DEP-18 Phase 4 reconciliation (Owner, 2026-11-25; 08):** FD-05 (Owner-controlled, audited and hash-verified contractual content loading; no loading authorized; mechanism not chosen), FD-14 (individual T-SALES-36 assertion dispositions before PR #27 merges; Change 1 ratification withheld as written; no blanket ratification; R1-HANDOFFS §2A lists D-1 to D-10) and H-0 (PR #30 corrected before merge) are reflected in AUTH-007 Amendment 1. The day-3 reminder (non-contractual courtesy only) and the scope-confirmation prerequisite (mandatory acknowledgment before preview release, no bypass) are recorded, not implemented. **PWP-0** is conditionally granted and **not active**; its branch does not exist; it activates only when its seven Owner prerequisites hold, including PR #30 merged by the Owner and post-merge CI on the exact baseline. DEP-03 and DEP-18 stay open. **Contractual reconstruction (Owner, 2026-11-25; 08):** the original contractual specification suite is unavailable; SLM-CPS-001 to SLM-CPS-007 exist outside Git as v0.1.0 reconstruction drafts (not approved, not publishable, not eligible content); FD-04, FD-12 and FD-13 amended; the 04 §3.1 clause approval is unchanged; the PWP-0 objective is amended to preserve the approved architecture, recoverable decisions and gates during reconstruction. No content loading, sealing, issuance, production activation or new work package is authorized.
+
+**AUTH-007 and AUTH-008 Amendment 1 activation record (2026-11-25):** PR #30 merged at `393e3c875c2db46efb45811ac4ef2a522a09ed26` (parents `7469b2d`, `a4db32a`; tree identical; documentation only); post-merge CI run 45565499637 (#95) 7/7 `success` with the full suite. **WP-I-1 may continue** from `a01b84e` (R1-HANDOFFS §3A) and **WP-D18 may continue** from `6173ffa` (R1-HANDOFFS §2A), except the seed comment correction, which waits for **AUTH-007 Amendment 2** (recorded, activation pending its merge and post-merge CI). PWP-0 stays conditional (14-file inventory; 08). Merge order unchanged: WP-I-1, WP-H, WP-D18.
+
+**AUTH-007 Amendment 2 activation record (2026-11-25):** PR #31 merged at `d9cf32aec6db3e3ffbc2aa810604ddc094093834` (parents `393e3c8`, `e32d6fb`; tree identical; documentation only); post-merge CI run 45567129662 (#97) 7/7 `success` with the full suite. The seed comment correction (R1-HANDOFFS §2A item 7) is implemented on PR #27 at `5ebd664`; Main verified it as comment-only (the non-comment text of `supabase/seed.sql` is identical; no migration changed).
+
+**PWP-0 merge record (2026-11-25):** PR #32 merged by the Owner at `c89bf56740f01e8cf646cf6d4d1838233e606d81` (parents `d9cf32a`, `02761b5`; tree identical; documentation only); post-merge CI run 45575951029 (#101) 7/7 `success` with the full suite. AUTH-011 expired on the merge. Independent records: Main 7156287899 and 7156307411, WP-S 7156346268, WP-C 7156570799, WP-B 7156577361 (none blocking). Next unused identifiers verified on `main` and every remote branch after the merge: OI-113, DEP-21, AUTH-012 (AUTH-012 is allocated by this record to the OI-95 correction; next AUTH-013).
+
+**Consolidated authorization cycle (2026-11-25; 08):** recorded, **activation pending this record's merge and post-merge CI:** AUTH-006 Amendment 2 (WP-H test corrections for the cross-check; R1-HANDOFFS §1B), AUTH-007 Amendment 3 (D-2 to D-10 approved, D-1 unratified, Option A; §2B), AUTH-012 (OI-95; §4, after WP-I-1 merges). Recorded without new authority: the AUTH-008 Amendment 1 clarification (W-1 and the baseline synchronization; §3B). **Not authorized:** AUTH-009 and AUTH-010 (design directions only, OPEN-ISSUES OI-91 and OI-93). Deferred PR #32 findings: S1 and S2 after PR #27 merges; WP-C O-1 and O-2 in PWP-5. Merge order unchanged: WP-I-1, WP-H, WP-D18; OI-95 may follow WP-I-1.
+
+## 14. WP-I I-1 implementation record (AUTH-008, I-1 only)
+
+Original I-1 record (14.1 to 14.3, as reviewed at `a01b84e`), followed by the AUTH-008 Amendment 1 correction (14.4), the Owner-approved W-1 correction (14.5), decisions (14.6), and final-candidate verification (14.7). Implemented by the dedicated integration session (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`; not Main) on `wp-i/integration-infra`. Branched from `58d0e98981befe32f8ddff11c89ce7952dad3a72`; before review, rebased onto `main` at `b4a43bc` (PR #26; `git diff --name-only 58d0e98 b4a43bc` lists only `.md` files and AUTH-008's boundaries are unchanged). `git range-diff` shows both implementation commits identical after the rebase. **Implementation commit: `c829fdb`** (rebased from `045470f`; the same non-documentation tree). Tests and test infrastructure only: no production code, migration, `seed.sql`, workflow, `lighthouserc.json`, WP-B static guard test, or dependency change.
+
+### 14.1 Scope delivered
+
+| Item | Change |
+|---|---|
+| 1. Real WP-B records | `installDepositFixture` is removed. `createPaidProject` in `tests/support/wpc-fixtures.ts` creates a fresh business, project, and client membership, then runs the WP-B path of `wpb-billing.test.ts`: the Owner issues the order summary, the client accepts, the mocked Checkout gateway starts the session, a synthetic signed `checkout.session.completed` webhook (per-run test secret, OI-63) posts the deposit, and the payment-method lookup records the card. It then checks that the real `private.project_financial_status` reports the deposit verified and the authorization ready and that `private.wpc_intake_unlocked` is true. No test setup replaces a financial function (`grep` of `tests/` finds no `create or replace function`, `alter type`, or `pg_get_functiondef` outside static tests that read migration text). |
+| 2. WP-C integration files | `wpc-delivery.test.ts`: project A is a fresh paid project and project B a fresh unpaid project for client B. `wpc-uploads.test.ts`: project A is a fresh paid project, and the seeded `PROJECT_B` is only read (`intake_locked`). `freeQuota(projectId)` is parameterized. The seeded `PROJECT_A` is never paid or written by integration tests (e2e T-LC-01 passes). Every RPC helper reports the PostgREST `error` (`tests/support/rpc.ts` `callRpc`, or an explicit throw before the unchanged `expect(error).toBeNull()`). The T-UP-04 quota setup sums usage for project A only, because client A is now a member of several projects; this is setup arithmetic, not an assertion. |
+| 3. Schema-cache sync | `tests/support/postgrest-sync.ts` `withSchemaCacheSync` wraps the committed trigger toggle in `wps-sales.test.ts` and `wps.spec.ts`. A primed PostgREST pool backend from before the DDL is released only when the reload triggered by `pgrst_ddl_watch` finishes, so the helper waits for that release (bounded at 15 s, with diagnostics) and then requires a successful PostgREST request. Measured reloads: 91–137 ms. |
+| 4. Shared e2e helpers, `r1` project | `tests/support/e2e.ts` (accessibility check, sign-in, staff at aal2, audit and row helpers) and `tests/support/stripe-events.ts` (signed synthetic events). `playwright.config.ts` has an `r1` project (`r1.spec.ts`, after `wps`), and `r1.` is added to the `testIgnore` lists of `desktop-chromium` and `mobile-chromium`. A temporary probe file was listed only under `[r1]` and then removed. `r1.spec.ts` itself is I-2. |
+| F2 gate | `tests/support/postgrest-ready.ts` `waitForPostgrestReady`, run once per integration file from `local-supabase.ts`, before any test (§14.3). |
+
+**Assertions preserved (mechanical check against `58d0e98`).** `expect(` count and test count are unchanged: `wpc-delivery` 70/16, `wpc-uploads` 42/8, `wps-sales` 71/18, `wps.spec` 50/7. In both WP-C files, the multiset of `expect(...)` lines is identical once `PROJECT_A`/`PROJECT_B` are renamed to the fresh `projectA`/`projectB`. In the WP-S files only the wrapping changed (`git diff -w`).
+
+### 14.2 F2 investigation
+
+| # | Suspected cause | Evidence | Finding |
+|---|---|---|---|
+| a | Schema-cache reload after test DDL | Supabase's `pgrst_ddl_watch` sends `NOTIFY pgrst` for `ALTER TABLE`, `CREATE FUNCTION`, and `ALTER TYPE`. PostgREST v16.5 logs a pool re-initialization and a config and schema-cache reload for each one. Baseline suite: 5 reloads (4 from the old fixture's install and restore, 1 from the WP-S trigger toggle); after I-1: 1. A probe with eight concurrent request streams through 40 committed reloads (10 trigger toggles, 10 identical-body function replacements, and 10 fixture install and restore cycles as an authenticated client) returned **0 errors in 22,435 requests**. Controls with no reload (idle, and rolled-back toggles, which send no `NOTIFY`) returned 0 errors in 15,835 requests | Mechanism real; **no transient error reproduced**. The sync now removes this timing dependence deterministically |
+| b | Global replacement of `private.project_financial_status` | The fixture made Project A "paid" for every session while installed and depended on an `afterAll` restore | Removed (item 1); no setup DDL remains in the WP-C files |
+| c | Unreported PostgREST errors | Some WP-C helpers discarded `error` and read `data` | Fixed (item 2) |
+| d | **PostgREST reconnect after `supabase db reset`** | First series (I-1 items 1 to 4 only), 12 consecutive cold resets, each immediately followed by the full integration suite: **run 1 passed** (after more than a minute without PostgREST traffic); **runs 2 to 12 failed**, 2 to 4 `auth-tenancy` tests each, all `503 PGRST001 "no connection to the server"` on the suite's first PostgREST requests, failing within 3–4 ms. Targeted reproduction with PostgREST's log captured from the start of the reset (05:12:44 to 05:12:59 UTC): the listener drops when Postgres restarts; on reconnect, PostgREST's version, settings, and schema-cache queries fail on dead pooled connections; it backs off for 1, 2, then 4 s; requests at 05:12:55 get 503; it recovers at 05:12:59. Synthetic probes from an idle pool did not reproduce it | **Cause supported by evidence:** a suite started within seconds of a reset that followed PostgREST traffic. CI does one reset right after `supabase start`, with no earlier PostgREST traffic, which matches CI never showing it |
+
+A failure that stopped reproducing was not used as evidence. Cause (d) was reproduced on demand, explained step by step from PostgREST's own log, and removed only by the gate below.
+
+### 14.3 Verification (local stack, Supabase CLI 3.2.0 checksum-verified as in CI, Node 24.22.3; synthetic data only)
+
+| Command | Result |
+|---|---|
+| `pnpm test:integration` at baseline `58d0e98` (warm stack) | 6 files, **81 passed** |
+| F2 series 1: 12 × (`supabase db reset`, then `pnpm test:integration`), before the gate | 1 of 12 passed; runs 2 to 12 failed with `PGRST001` (cause d) |
+| **F2 series 2:** 12 × (`supabase db reset`, then `pnpm test:integration --silent=false`), implementation as committed | **12 of 12 consecutive runs passed, 81/81 each; 0 PostgREST error codes in any test output.** Reset 9.3–9.8 s; suite 40.1–42.2 s. The gate waited in 10 of 12 runs (258–374 ms; 2–3 `503 PGRST001` each, all before the first test); in runs 1 and 9 it did not wait. Schema-cache sync 91–137 ms |
+| `supabase db reset`; `supabase test db` | 27 files, **1,484 tests, PASS** |
+| `pnpm test:integration` (same fresh reset) | 6 files, **81 passed** |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` (same stack, CI settings) | **51 passed** (auth-setup 1, auth 8, wpc 5, wpb 5, wps 7, desktop 11, mobile 11, production-gating 3; `r1` 0) |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, `pnpm test` | Pass; unit tests 16 files, **284 passed** |
+| CI on the PR head | Recorded in the PR (7/7 required) |
+
+Not run locally: the dependency audit, gitleaks, and Lighthouse (CI only).
+
+### 14.4 AUTH-008 Amendment 1 correction (`99615e2`)
+
+Files: exactly `tests/support/postgrest-ready.ts`, `tests/support/postgrest-sync.ts`, and the new `tests/unit/postgrest-ready.test.ts` (`git diff --name-only a01b84e 99615e2`).
+
+- **Readiness gate (`postgrest-ready.ts`):** a real overall deadline (60 s). Each request is bounded by min(remaining deadline, request timeout 5 s) and aborted with an `AbortSignal` that also covers reading the body; the pause after a failure is bounded by the remaining deadline. Every failed attempt is recorded (kind `http`, `timeout` or `network`; HTTP status; PGRST code; attempt; time). Three consecutive successes are required. At the deadline the gate throws `PostgrestNotReadyError` with the diagnostics (fail closed). It runs once per integration file before any test and never around a test, a financial operation, or an application RPC.
+- **Unit tests:** deterministic local fake HTTP servers for the five authorized scenarios (immediate readiness, startup recovery, persistent unavailability, a non-responding request, overall-deadline expiry), plus the three-consecutive-successes rule, a refused connection, and a non-local URL.
+- **Renewed cold-reset series at `99615e2`:** 12 of 12 consecutive runs passed (81/81 each); the gate waited in 11 runs (160–266 ms; 1–2 `503 PGRST001` each) and not in run 1. In every run the 503 count in PostgREST's access log equalled the gate's recorded failures: every startup 503 was a gate probe, none reached a test, and no PGRST code appears in any test output. Schema-cache sync 88–126 ms.
+- **Real-world fail-closed evidence:** while the local stack was down, the gate stopped after 60,001 ms (588 attempts, all `network ECONNREFUSED`) with those diagnostics, and no test ran.
+- **Finding W-1 (reported by this session, confirmed by Main):** the sync helper's database polls went through `tests/support/db.ts` `withDb`, whose connect, client-side response wait, and close are unbounded; `statement_timeout` bounds only server-side execution. Corrected in 14.5.
+
+### 14.5 W-1 correction and `ddl()` clarification (`b415327`; Owner direction and AUTH-008 Amendment 1 clarification, R1-HANDOFFS §3B)
+
+Files: exactly `tests/support/postgrest-sync.ts` and `tests/unit/postgrest-ready.test.ts`. `tests/support/db.ts` is unchanged.
+
+| Requirement | Implementation |
+|---|---|
+| One absolute deadline over helper-owned operations | `SyncBudget` (15 s): the priming probe, each database connect, `SET`, query, close, the pauses between polls, and the final probe all draw on it |
+| Remaining budget recalculated before every step | `budget.bound(step)` before each operation returns min(remaining, step timeout 5 s) and throws once the budget is exhausted |
+| Bounds independent of the server | A pg client local to the helper (the local-only host check is kept): `connectionTimeoutMillis` bounds connecting; a client-side `query_timeout` bounds each response wait; the close races `client.end()` against the bound |
+| `statement_timeout` | Kept, set before each poll, as defense in depth only |
+| No abandoned work | A timed-out query, a failed step, or an unfinished close destroys the socket. A client `error` listener prevents unhandled `error` events, every `end()` promise is settled, timers are cleared, and polling is sequential, so nothing continues after a failure |
+| pg internals | pg 8.16.3 (pinned) was verified: `connectionTimeoutMillis` destroys the stream on expiry; `query_timeout` rejects the query but leaves the connection open; `client.end()` waits for the socket's `end` event. The socket is destroyed through `client.connection.stream` (guarded; if absent, the step still fails closed and says so), documented in the file header |
+| Diagnostics | `SchemaCacheSyncError` names the step (`probe-before`, `connect`, `set-statement-timeout`, `query`, `close`, `poll-wait`, `reload-wait`, `probe-after`), helper-owned elapsed time, the bound, and the cause |
+| `ddl()` | The caller's own authorized local test operation, **not bounded by this helper**. The budget is paused while it runs, so its duration is excluded; code comments, behaviour, and this record say the same |
+| Existing fail-closed behaviour | Unchanged: three consecutive successes in the gate; failed probes, missing pooled backends, and an incomplete reload all throw |
+
+**New unit tests** (a minimal fake Postgres wire-protocol server; every test checks the client socket is closed): a stalled connection establishment; a stalled query response; a stalled close (the fake ignores Terminate and stays half-open; destruction is proven by a write being reset); a normal poll and close; cumulative deadline exhaustion, with `ddl()` excluded and no polling after the failure; successful completion with `ddl()` excluded from the helper's time; a failed probe before any DDL; a non-local database URL. File total: 16 tests.
+
+**Mutation sensitivity** (each mutation reverted afterwards): no `connectionTimeoutMillis` → the stalled-connect test fails; no `query_timeout` → the stalled-query test fails; an unbounded close → the stalled-close test fails; no socket destruction → the stalled-close test fails; `ddl()` counted in the budget → both `ddl()`-exclusion tests fail.
+
+**One assertion in the new unit file made deterministic.** It is not an existing acceptance assertion: it was added in this PR at `99615e2` and never merged. The persistent-unavailability test required every attempt to be a 503; 1 run in 20 failed because the final attempt, whose timeout is only the few milliseconds left before the deadline, was correctly aborted as `timeout`. The assertion now requires every attempt except the last to be `503 PGRST001`, and the last to be a 503 or that deadline-bounded timeout. The gate's code did not change. Determinism: each fake-server scenario scripts every answer, and every timing assertion has at least 1 s of slack except the deadline lower bounds (with 20 ms tolerance for timer granularity). Repeat evidence: 30 of 30 runs of the file passed after the change.
+
+### 14.6 Decisions
+
+- **WPI-P1: accepted by the Owner** (AUTH-008 Amendment 1). Bounded, observable PostgREST startup-only failures before any test runs are acceptable: no test before readiness, failures and timing visible, a timeout that fails the suite, no transient PostgREST error during test execution, no weakened assertion, and no general retry masking application failures.
+- **WPI-P2 (informational):** `tests/integration/wpc-scan-authority.test.ts` uses `pg` only and needs no gate; RPC calls outside items 1 and 2 already assert `error` and are unchanged.
+- **Baseline synchronization (Option A):** `main` was merged into `wp-i/integration-infra` once, after PR #33, with no rebase or force-push. Every `main` record is kept. This record takes §14 (free on `main`; `tests/support/postgrest-ready.ts` cites it), and WP-D18 renumbers its section when it rebases.
+- **F2 stays open** until Main's independent verification.
+
+### 14.7 Final-candidate verification
+
+Final candidate: the merge commit `d45e624` (implementation tree identical to `b415327`: `git diff --name-only b415327 d45e624` lists no non-documentation file), integrating `main` at `f37cf7e` (PR #33; post-merge CI run 45583992649 (#103) 7/7 with the full suite). This record is added in a documentation-only commit on top; the exact-head CI run is recorded in the PR.
+
+| Check (local stack; Supabase CLI 3.2.0; Node 24.22.3; synthetic data) | Result |
+|---|---|
+| **Cold-reset series:** 12 × (`supabase db reset`, then `pnpm test:integration --silent=false`) | **12 of 12 consecutive runs passed, 81/81 each; 0 PGRST codes in any test output.** Reset 11.3–16.3 s; suite 43.9–52.1 s. The gate waited in 8 runs (273–302 ms, 5 attempts, 2 `http 503 PGRST001` each) and not in runs 1, 2, 11, 12; in every run the 503 count in PostgREST's access log equalled the gate's recorded failures. Schema-cache sync 104–168 ms |
+| `supabase db reset`; `supabase test db` | 27 files, **1,484 tests, PASS** |
+| `pnpm test:integration` (same reset) | 6 files, **81 passed** |
+| `pnpm test:e2e --trace off` (CI settings) | **51 passed** |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm lhci` (the CI Lighthouse configuration) | Pass: 2 URLs, 6 runs, all assertions met |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, **300 passed** (16 in `tests/unit/postgrest-ready.test.ts`) |
+| `tests/unit/postgrest-ready.test.ts` repeated | 30 of 30 runs passed |
+
+No test was retried, skipped, or quarantined, and no assertion outside the one disclosed in 14.5 changed. Not run locally: the dependency audit and gitleaks (CI only).
+
+### 14.8 B-1 correction (WP-C final-head finding at `9e6aba1`; Owner-approved under AUTH-008 Amendment 1)
+
+WP-C's final-head reconfirmation (PR #28 comment 7159321922) found one blocking, test-only issue in the new Amendment 1 unit file. Main found a second race in the same test. Both are in the test "cumulative deadline exhaustion: repeated polls stop at the budget; the caller's ddl() is excluded" in `tests/unit/postgrest-ready.test.ts`. The file was added in this PR and never merged, so no existing acceptance assertion is affected. The helpers behave correctly in both cases: they fail closed and destroy the socket.
+
+| | B-1a (WP-C) | B-1b (Main) |
+|---|---|---|
+| Assertion | the message regex `/exhausted\|did not complete a reload\|timeout/` | `expect(pg.polls()).toBe(pollsAtFailure)` |
+| Cause | `close` was an accepted step, but the regex rejected the close-path message ("client.end() did not finish within the bound; socket destroyed") | the fake Postgres counts a poll when its server side reads the query, so a query sent just before the failure could be counted after the snapshot |
+| Observed | WP-C: 2 failures in 86 runs | Main: 1 failure in 45 runs (`expected 55 to be 54`) |
+| Reproduction (this session) | deterministic, 3 of 3, in a scratch copy where closes stall after `ddl()`: step `close` at 601 ms of a 600 ms budget, socket destroyed | not reproduced in 100 instrumented parallel runs; the cause is confirmed from the code |
+
+**Correction** (Owner-approved; `tests/unit/postgrest-ready.test.ts` only, +60/−12; no helper change; N-1 excluded):
+1. **Per-step message expectations** in place of the single regex. They are stricter, and the accepted step list is unchanged.
+2. **The no-background-polling check waits until every connection is closed.** Node delivers a socket's pending data before it closes, so the fake has by then read everything it was sent. The check then asserts that neither the poll count nor the connection count changes.
+3. **One new deterministic test** for the budget running out during a poll's close after `ddl()`: step `close`, the message, helper-owned elapsed time, and socket closure.
+
+**Sweep:** all 33 timing and count assertions in the file were reviewed. Only these two could race. The weakest remaining margin is about 1.3× (at least three aborted attempts in 700 ms with 150 ms per-request timeouts), and that assertion has never been observed to fail.
+
+**Verification of the corrected file:**
+- Repeated runs: 150 of 150 passed (50 sequential, 100 at four in parallel).
+- Mutations, each caught:
+  - a close failure reported as step `query`;
+  - a changed close message;
+  - the helper polling in the background after failure;
+  - the old regex restored in the new test;
+  - all five earlier W-1 mutations.
+- Full unit suite: 17 files, 301 passed.
+- Lint, typecheck and format pass.
+
+WP-C and Main agreed the correction resolves B-1 before it was committed. Final-head verification of the combined candidate is in 14.9.
+
+### 14.9 Combined-candidate verification
+
+The combined candidate is the merge commit `cb541df`. Its parents are the B-1 commit `977e1df` and `main` at `a5dfad0`: PR #34, whose post-merge CI run 45665855580 (#112) passed 7/7 with the full suite. This was the second and last single synchronization (Option A), with no rebase or force-push.
+
+Since `f37cf7e`, `main` changed only `OPEN-ISSUES.md`, `docs/08-DECISIONS-AND-CHANGELOG.md`, `docs/AUTHORIZATIONS.md` and `docs/R1-HANDOFFS.md`. The merge was conflict-free, and `git diff --name-only 977e1df cb541df` lists no non-documentation file. `main`'s CURRENT-STATE is unchanged at 1.22.0, so this file keeps 1.23.0. This record is added in a documentation-only commit on top; the exact-head CI run is recorded in the PR.
+
+| Check (local stack; Supabase CLI 3.2.0; Node 24.22.3; synthetic data) | Result |
+|---|---|
+| **Cold-reset series:** 12 × (`supabase db reset`, then `pnpm test:integration --silent=false`) | **12 of 12 consecutive runs passed, 81/81 each; 0 PGRST codes in any test output.** In every run, the 503 count in PostgREST's access log equalled the gate's recorded failures. Runs 2 to 12: the gate waited 247–277 ms (5 attempts, 2 `http 503 PGRST001` each). Run 1 directly followed a restart of the local stack: PostgREST was still loading its schema cache, and the gate waited **19,869 ms** (190 attempts, 187 `http 503 PGRST002`) before the first test, within the 60 s deadline. This is the bounded, observable startup-only case WPI-P1 accepts. Reset 8.3–22.7 s; suite 37.8–60.4 s; schema-cache sync 77–124 ms |
+| `supabase db reset`; `supabase test db` | 27 files, **1,484 tests, PASS** |
+| `pnpm test:integration` (same reset) | 6 files, **81 passed** |
+| `pnpm test:e2e --trace off` (CI settings) | **51 passed** |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm lhci` (the CI Lighthouse configuration) | Pass: 2 URLs, 6 runs, all assertions met |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, **301 passed** (17 in `tests/unit/postgrest-ready.test.ts`) |
+| `tests/unit/postgrest-ready.test.ts` repeated | **140 of 140 passed** (50 sequential, 90 at three in parallel) |
+
+No test was retried, skipped or quarantined. The only assertions changed are the two B-1 assertions in the new unit file (14.8). Not run locally: the dependency audit and gitleaks (CI only).
+
+**Effort (OI-67):** AI session about 4.5 h in total (I-1 about 1.5 h; Amendment 1 and W-1 about 2 h; B-1 about 1 h); Owner review and administrative time not recorded by this session.
+
+## 15. PWP-0 contractual governance reconciliation record (AUTH-011)
+
+**Authorization:** AUTH-011, the Owner's conditional PWP-0 grant as amended on 2026-11-25 (reconstruction objective; 14-file inventory). **Activated 2026-11-25** after independent verification of all seven prerequisites at baseline `d9cf32aec6db3e3ffbc2aa810604ddc094093834` (PR #30 merged at `393e3c8`; PR #31 merged at `d9cf32a`; post-merge CI run 45567129662 (#97): seven jobs executed and passed, full suite). Branch `docs/pwp-0-contractual-reconciliation`; the grant record is its first commit. Documentation only.
+
+**Recorded:** OI-98 to OI-112, DEP-19 (contractual architecture implemented; R1 release-candidate blocker) and DEP-20 (production contractual activation; production gate), with the temporary-to-permanent mapping and the CD, INT, OD and FD cross-reference in 08; revision notes on OI-13, OI-25, OI-34, OI-45 and OI-84; specification amendments in 01, 02, 03, 04, 05, 06 and 07; OWNER-RUNBOOKS §10 and §11; one CLAUDE.md §5 bullet; an appended annotation to the 2026-11-22 sign-off record. Next unused IDs: OI-113, DEP-21, AUTH-012.
+
+**Status, unchanged by PWP-0:**
+- **Nothing is implemented.** Every OI-98 to OI-112 requirement is approved direction; the implemented behavior (Owner and Admin free-text scope, snapshot v1, the day 3/7/14/21 schedule and day-21 hold, release preconditions) is unchanged until the separately authorized work packages land.
+- **Contractual content:** the original suite is unavailable; SLM-CPS-001 to SLM-CPS-007 are v0.1.0 reconstruction drafts outside Git with no contractual issuance authority; no instrument, provision, entitlement, counsel approval or publication artifact is recorded as existing or verified. The 04 §3.1 clause, its clause-specific approval, canonicalization and equality tests are unchanged.
+- **Dependencies:** DEP-03 and DEP-18 stay open; DEP-19 and DEP-20 are not started; TV-01 is incomplete and TV-02 and TV-03 are outstanding (OPEN-ISSUES DEP-06 detail).
+- **Authorizations:** AUTH-007 is unchanged; no PWP-1 to PWP-6 authorization exists.
+
+| Work package | R1 | State |
+|---|---|---|
+| PWP-0 Decision and documentation reconciliation | Required | This PR (AUTH-011) |
+| PWP-1 Contractual instruments, bundles, governance events | Required | Not authorized; after WP-D18 merges |
+| PWP-2 Standardized issuance and snapshot v2 | Required | Not authorized; after PWP-1 and WP-H |
+| PWP-3 Counsel and publication evidence | Required | Not authorized; needs final publication artifacts |
+| PWP-4 Non-production materialization and verification | Required | Not authorized; needs PWP-2, PWP-3, AUTH-003 |
+| PWP-5 Scope confirmation, operational notes, inactivity reconciliation | Required | Not authorized; after PWP-2 |
+| PWP-6 Automated additional-work billing | Post-R1 | Deferred |
+
+**Sequencing:** existing implementation merge order is unchanged (WP-I-1, WP-H, WP-D18). Main's next documentation record follows the PWP-0 merge.
+
+**Owner actions:** review and merge this PR (pinned to its exact head); the repository visibility change (OWNER-RUNBOOKS §11); continue the external contractual reconstruction; separate authorizations for PWP-1 to PWP-5 when ready.
+
+## 16. OI-95 `/sales` empty-state accessibility correction (AUTH-012)
+
+Implemented by the WP-S session on `wp-s/oi-95-empty-state`, from the verified `main` at `b027e4192fe3100d89dec106b7ae7686f82a974a`.
+
+**Entry (confirmed read-only):**
+- WP-I-1 merged as PR #28 at `b027e41`. Post-merge CI run 45675171938 (#116) on that exact commit completed `success`.
+- AUTH-012 is active: PR #33 at `f37cf7e`, run 45583992649. Its implementation condition, the WP-I-1 merge, is now met.
+
+**Defect, reproduced before the fix:**
+- On a freshly reset database, the seeded representative has no customers. The page rendered the empty-state `<p>` inside the `<ul data-testid="sales-customers">`.
+- axe reported `list` (1 node). The existing T-SALES-03 scan failed: `[{ id: "list", count: 1 }]`.
+- CI passed only because the integration suite runs before e2e and leaves customers behind. That is the order dependence OI-95 records.
+- The new test, run alone against the unfixed page, failed the same way.
+
+**Change (files exactly as authorized):**
+
+| File | Change |
+|---|---|
+| `src/app/sales/page.tsx` | A `<div data-testid="sales-customers">` container in both states. The empty-state message sits outside any list. The `<ul>` (same classes) and its items render only when there are customers. No data, privilege or Sales behavior change. |
+| `tests/e2e/wps.spec.ts` | Additive only: 0 lines removed. One new final test, `OI-95: the customer list is accessible when empty and when populated`. |
+| This section, and the PR description | The record. |
+
+**The new test:**
+- It creates a fresh, isolated Sales Representative for itself, using the same SQL pattern as the integration suite's fresh users (`auth.users`, `profiles`, `staff_roles 'sales'`). Neither state depends on earlier tests or suites.
+- It signs in and enrolls MFA.
+- **Empty state:** the message is shown, there is no list inside the container, and the WCAG scan has zero violations. The `list` rule was evaluated: it passes on the page because the shell's navigation is a list.
+- It then creates one customer through the form, waiting for the project page as T-SALES-04 does, and returns to `/sales`.
+- **Populated state:** exactly one list with one item and the project name, no empty-state message, zero violations, and the `list` rule evaluated.
+- Existing test IDs and assertions are unchanged. T-SALES-05 and T-SALES-14 still target `sales-customers`, which exists in both states.
+
+**Local results (branch tree, fresh reset, CI order):**
+
+| Check | Result |
+|---|---|
+| Lint, typecheck, format | Pass |
+| Unit | 17 files, **301** |
+| `pnpm audit --audit-level=high` | No known vulnerabilities |
+| Migration immutability | Pass |
+| pgTAP | 27 files, **1484** |
+| Integration | 6 files, **81** |
+| Build, bundle scan, production build | Pass |
+| E2E | **52** (51 plus the new test) |
+
+The WPS project alone, on a fresh reset, gives 27 passed.
+
+**Runs during development, kept for the record:**
+- Fresh reset with the new test before the fix: T-SALES-03 failed on `list`, so the new test was skipped under serial mode.
+- The new test alone before the fix: failed on `list`.
+- The first runs after the fix failed only in the new test itself:
+  - It wrongly expected `list` to be inapplicable in the empty state. The navigation list makes it applicable.
+  - It navigated before the create action had completed.
+  
+  Both were corrected in the new test; no existing assertion was touched.
+- One run was invalid because the local Docker daemon stopped. It was repeated.
+
+**Effort (OI-67):** AI session about 0.5 h; administrative about 0.1 h (a Docker recovery); Owner: none.
+
+## 17. WP-D18 implementation record (AUTH-007; DEP-18 version sealing)
 
 Implemented by the WP-S session on `wp-d18/scope-sealing`, branched from exactly `58d0e98981befe32f8ddff11c89ce7952dad3a72`. **Verified** on a freshly reset local stack in the CI order; remote CI for the exact head is recorded in the PR.
 
@@ -522,7 +885,7 @@ No WP-B (`issue_order_summary` unchanged), WP-C, Phase 2, or API-grant change. N
 
 **Effort (OI-67):** AI session about 0.6 h (2026-11-25, 04:35–05:15 UTC); administrative about 0.05 h (local stack restarts after container and worker recycles); Owner review: one in-session decision on the two assertions.
 
-### 14A. AUTH-007 Amendment 1 correction record (R1-HANDOFFS §2A)
+### 17A. AUTH-007 Amendment 1 correction record (R1-HANDOFFS §2A)
 
 Continued on `wp-d18/scope-sealing` from `6173ffa`, keeping its commits; not rebased. **Activation:** AUTH-007 Amendment 1 is on `main` at merge `393e3c875c2db46efb45811ac4ef2a522a09ed26` (PR #30). Post-merge CI run 45565499637 (#95) on that commit completed `success`. Both were confirmed read-only before starting. AUTH-007 Amendment 2 is **not active**, so item 7 was not executed and `supabase/seed.sql` was not touched. Implementation commit: `1eefdd96fb1edd093ad8fdec5c57ea7196c93e38`.
 
@@ -534,7 +897,7 @@ Continued on `wp-d18/scope-sealing` from `6173ffa`, keeping its commits; not reb
 | 2. FD-14 evidence (pgTAP 310, plan 204 → 217) | **Done**, additive. A forged marker on a new, unsealed version (`prestige:60`) is used. An unlabeled fixture item and a labeled unflagged item each fail with 23514, with the exact message naming `billing_package_scope_fixture_label`, and the constraint name is read from the error diagnostics. A fixture item fails with 42501 and the `billing_package_scope_fixture_guard` message under staging, preview, and a missing classification, with the raising function read from the error context. Catalog checks confirm the constraint definition is unchanged and the fixture-guard trigger is `BEFORE INSERT OR UPDATE … FOR EACH ROW` and enabled (`O`). Scratch checks (not committed) confirm the attribution helper is not vacuous: without the marker, or with a sealed version, it reports `billing_package_scope_construction_guard`, and with the forged marker under development a labeled fixture item inserts. They also confirm the rewritten constructor-path statements D-4 to D-8 each reach the intended constraint or guard function. |
 | 3. Two-session concurrent-commit test | **Stopped: no disposable state within the authorized inventory.** See the options below. The rollback concurrency test is kept unchanged in substance. |
 | 4. Runner handling (pgTAP 320, plan 37 unchanged) | **Done.** The two-session block is a `pg_temp` function. Over TCP (`supabase test db`, CI) it must run: the vacuous `ok(c is not null)` is replaced by a real round trip, in which a second backend answers with its own process id and that id must differ from this one. A connection failure fails all five assertions and is never a skip. This was verified on a scratch copy with a wrong password: `not ok 33` to `37`, "failed 5 tests of 37". Only over a Unix socket (`pnpm test:db`, where `inet_server_addr()` is null) are the five assertions skipped explicitly with the reason, so the other 32 assertions run (verified: `ok 33 # SKIP …` to `ok 37 # SKIP …`). **Limitation:** `pnpm test:db` does not exercise the two-session tests. `scripts/run-db-tests.sh` counts skips as passes and does not print them, and changing that script is outside AUTH-007. |
-| 5. Construction marker and contractual-content wording | **Done.** The §14 bullet is corrected, citing FD-05. The PR body is corrected to match. The known residual comments in `supabase/seed.sql` (WP-S section) and the merged `20261125120100` still describe a reviewed-migration content path. They are unchanged here, because no seed change is permitted and merged migrations are never edited. FD-05 prevails. |
+| 5. Construction marker and contractual-content wording | **Done.** The §17 bullet is corrected, citing FD-05. The PR body is corrected to match. The known residual comments in `supabase/seed.sql` (WP-S section) and the merged `20261125120100` still describe a reviewed-migration content path. They are unchanged here, because no seed change is permitted and merged migrations are never edited. FD-05 prevails. |
 | 6. Disposition records | **Done**, below, one record per row (D-1 to D-10). |
 
 **Item 3 options for the Owner's decision (nothing implemented).**
@@ -687,7 +1050,7 @@ A genuine commit leaves rows in the append-only scope tables. Removing them woul
 
 **Effort (OI-67), Amendment 1 continuation:** AI session about 0.5 h (2026-11-25, 07:10–07:40 UTC); administrative about 0.05 h (local stack restart); Owner review: the individual D-1 to D-10 dispositions and the item 3 decision are pending.
 
-### 14B. AUTH-007 Amendment 2: seed comment-only correction (item 7)
+### 17B. AUTH-007 Amendment 2: seed comment-only correction (item 7)
 
 **Activation evidence (confirmed read-only before the change):**
 - PR #31 merged into `main` at `d9cf32aec6db3e3ffbc2aa810604ddc094093834`.
@@ -712,7 +1075,7 @@ No executable SQL, seed data, constructor call, fixture content, or environment 
 
 **Effort (OI-67), Amendment 2:** AI session about 0.2 h (2026-11-25, 07:33–07:45 UTC); administrative: none; Owner: none.
 
-### 14C. AUTH-007 Amendment 3: isolated concurrent-commit verification and D-1 correction (R1-HANDOFFS §2B)
+### 17C. AUTH-007 Amendment 3: isolated concurrent-commit verification and D-1 correction (R1-HANDOFFS §2B)
 
 **Activation (confirmed read-only before starting):**
 - PR #33 merged into `main` at `f37cf7ecf13c7f25e37477684731a2e7d11e0943`.
@@ -721,7 +1084,7 @@ No executable SQL, seed data, constructor call, fixture content, or environment 
 - Implementation commit: `d2077d2`.
 
 **Owner dispositions (FD-14, OI-105; Amendment 3):**
-- **D-2 to D-10 are individually approved.** Their records are in §14A, written at `bbf9b05` with evidence at `1eefdd9`; the line numbers were taken at `6173ffa`. CI evidence for that state: `9f9a5ca`, run 45569788777, 7/7.
+- **D-2 to D-10 are individually approved.** Their records are in §17A, written at `bbf9b05` with evidence at `1eefdd9`; the line numbers were taken at `6173ffa`. CI evidence for that state: `9f9a5ca`, run 45569788777, 7/7.
 - **D-1 (Change 1) is not ratified as written.** The exact-filename correction is implemented below. Final ratification needs independent review of the corrected check, of the mutation evidence below, and of the stricter rule, which is held (see below).
 
 **Files:**

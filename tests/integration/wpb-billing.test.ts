@@ -381,11 +381,51 @@ describe("WP-B webhooks through the service (T-PAY-03, T-PAY-05, T-ARC-01)", () 
 describe("WP-B final-balance obligation under real concurrency (04 §10, OI-73, OI-74)", () => {
   it("two release.approved events consumed by two concurrent job runs create one obligation and one automatic invoice", async () => {
     await withDb(async (db) => {
+      // AUTH-006 Amendment 2 (6): one WP-C-valid release, recorded by the active Admin, and its
+      // first approval by the project's own client member. The test fails unless WP-C's
+      // fulfillment interface reports both as current.
+      const release = await db.query<{ id: string; release_number: number; commit_sha: string }>(
+        `insert into public.preview_releases (project_id, release_number, commit_sha, deployment_id, preview_url, released_by)
+         select $1::uuid,
+                coalesce((select max(x.release_number) from public.preview_releases x where x.project_id = $1::uuid), 0) + 1,
+                substr(encode(sha256(convert_to($2::text, 'UTF8')), 'hex'), 1, 40), 'dpl_wpb_' || $2::text,
+                'https://preview.example.test/wpb-' || $2::text,
+                (select s.user_id from public.staff_roles s where s.role = 'admin' and s.status = 'active'
+                  order by s.user_id limit 1)
+         returning id, release_number, commit_sha`,
+        [projectId, RUN],
+      );
+      const rel = release.rows[0]!;
+      const approval = await db.query<{ id: string }>(
+        `insert into public.preview_approvals (release_id, project_id, user_id)
+         select $1::uuid, $2::uuid, m.user_id from public.project_memberships m
+          where m.project_id = $2::uuid and private.staff_role_of(m.user_id) is null
+          order by m.user_id limit 1
+         returning id`,
+        [rel.id, projectId],
+      );
+      const approvalId = approval.rows[0]!.id;
+      const current = await db.query<{ release_id: string; approval_id: string }>(
+        `select (s).current_release_id as release_id, (s).current_release_approval_id as approval_id
+           from (select private.project_fulfillment_status($1::uuid) as s) f`,
+        [projectId],
+      );
+      expect(current.rows[0]).toEqual({ release_id: rel.id, approval_id: approvalId });
+      // SYNTHETIC test emissions in WP-C's payload shape (keys unchanged): two events for that one
+      // approval. WP-C's approve_preview emits once per release and is unchanged.
       for (const n of [1, 2]) {
         await db.query(
-          `select private.emit_domain_event('release.approved', $1, 'preview_release', gen_random_uuid()::text,
-             jsonb_build_object('approval_id', gen_random_uuid()), $2)`,
-          [projectId, `release.approved:${RUN}:${n}`],
+          `select private.emit_domain_event('release.approved', $1, 'preview_release', $3::text,
+             jsonb_build_object('release_id', $3::uuid, 'release_number', $4::integer, 'approval_id', $5::uuid,
+               'commit_sha', $6::text), $2)`,
+          [
+            projectId,
+            `release.approved:${RUN}:${n}`,
+            rel.id,
+            rel.release_number,
+            approvalId,
+            rel.commit_sha,
+          ],
         );
       }
     });

@@ -74,10 +74,46 @@ begin
   return v;
 end;
 $$;
+-- AUTH-006 Amendment 2 (revision 2): WP-C-valid release and approval records for the
+-- release.approved consumer. The release is recorded by the active Admin (WP-C release_preview is
+-- staff-only) and the approval by the project's own non-staff client member (WP-C approve_preview);
+-- the test fails unless WP-C's project_fulfillment_status reports both as current. SYNTHETIC TEST
+-- EMISSION: the event is written through the WP-0 writer in WP-C's payload shape to exercise the
+-- consumer; it never stands in for WP-C's approve_preview, which is unchanged.
+create function pg_temp.genuine_release_approved(p_project uuid, p_release uuid, p_approval uuid, p_key text) returns bigint
+language plpgsql as $$
+declare
+  v_rel public.preview_releases%rowtype;
+  v_ful private.project_fulfillment_status;
+begin
+  select * into v_rel from public.preview_releases where id = p_release;
+  if not found then
+    insert into public.preview_releases (id, project_id, release_number, commit_sha, deployment_id, preview_url, released_by)
+    values (p_release, p_project,
+      coalesce((select max(r.release_number) from public.preview_releases r where r.project_id = p_project), 0) + 1,
+      substr(encode(sha256(convert_to(p_release::text, 'UTF8')), 'hex'), 1, 40),
+      'dpl_' || substr(replace(p_release::text, '-', ''), 1, 24), 'https://preview.example.test/' || p_release,
+      (select s.user_id from public.staff_roles s where s.role = 'admin' and s.status = 'active' order by s.user_id limit 1))
+    returning * into v_rel;
+  end if;
+  if not exists (select 1 from public.preview_approvals where id = p_approval) then
+    insert into public.preview_approvals (id, release_id, project_id, user_id)
+    values (p_approval, v_rel.id, v_rel.project_id, (select m.user_id from public.project_memberships m
+      where m.project_id = v_rel.project_id and private.staff_role_of(m.user_id) is null order by m.user_id limit 1));
+  end if;
+  v_ful := private.project_fulfillment_status(p_project);
+  if v_ful.current_release_id is distinct from p_release or v_ful.current_release_approval_id is distinct from p_approval then
+    raise exception 'fixture: release % / approval % is not WP-C current (current %, recorded %)',
+      p_release, p_approval, v_ful.current_release_id, v_ful.current_release_approval_id;
+  end if;
+  return private.emit_domain_event('release.approved', p_project, 'preview_release', p_release::text,
+    jsonb_build_object('release_id', v_rel.id, 'release_number', v_rel.release_number, 'approval_id', p_approval,
+      'commit_sha', v_rel.commit_sha), p_key);
+end;
+$$;
 create function pg_temp.approve(p_project uuid, p_n integer) returns bigint language sql as $$
-  select private.emit_domain_event('release.approved', p_project, 'preview_release',
-    ('30000000-0000-4000-8000-' || lpad(p_n::text, 12, '0')), jsonb_build_object('approval_id',
-    ('40000000-0000-4000-8000-' || lpad(p_n::text, 12, '0'))), 'release.approved:t130:' || p_project || ':' || p_n);
+  select pg_temp.genuine_release_approved(p_project, ('30000000-0000-4000-8000-' || lpad(p_n::text, 12, '0'))::uuid,
+    ('40000000-0000-4000-8000-' || lpad(p_n::text, 12, '0'))::uuid, 'release.approved:t130:' || p_project || ':' || p_n);
 $$;
 create temporary table ids (k text primary key, v text) on commit drop;
 grant all on ids to authenticated, service_role;
@@ -191,8 +227,10 @@ insert into public.preview_approvals (release_id, project_id, user_id)
 values ((select v::uuid from ids where k = 'rel'), (select v::uuid from ids where k = 'p_ev'), '00000000-0000-4000-8000-0000000000a1')
 returning id \gset appr_
 insert into ids values ('appr', :'appr_id');
+-- Synthetic test emission in WP-C's payload shape (AUTH-006 Amendment 2); WP-C's approve_preview is unchanged.
 select private.emit_domain_event('release.approved', (select v::uuid from ids where k = 'p_ev'), 'preview_release',
-  (select v from ids where k = 'rel'), jsonb_build_object('approval_id', (select v from ids where k = 'appr')), 'release.approved:t150');
+  (select v from ids where k = 'rel'), jsonb_build_object('release_id', (select v from ids where k = 'rel'), 'release_number', 1,
+  'approval_id', (select v from ids where k = 'appr'), 'commit_sha', repeat('a', 40)), 'release.approved:t150');
 select pg_temp.consume();
 select pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select id from public.outbound_stripe_requests
   where project_id = (select v::uuid from ids where k = 'p_ev') and purpose = 'final_balance_invoice_create')));

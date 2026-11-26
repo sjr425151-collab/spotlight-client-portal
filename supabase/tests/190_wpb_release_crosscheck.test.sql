@@ -43,6 +43,13 @@ declare
 begin
   perform pg_temp.as_service();
   execute p_sql into v;
+  -- AUTH-009 (setup): a claim's one-time token is stored test-locally and confirmed as the
+  -- executor does, and is removed from the result.
+  if v ? 'claim_token' then
+    insert into claim_tokens values ((v ->> 'id')::uuid, (v ->> 'claim_token')::uuid);
+    perform public.confirm_outbound_dispatch((v ->> 'id')::uuid, (v ->> 'claim_token')::uuid);
+    v := v - 'claim_token';
+  end if;
   reset role;
   return v;
 end;
@@ -71,6 +78,13 @@ end;
 $$;
 create temporary table ids (k text primary key, v text) on commit drop;
 grant all on ids to authenticated, service_role;
+-- AUTH-009 (setup): the one-time claim tokens, kept test-locally; never printed or asserted.
+create temporary table claim_tokens (request_id uuid primary key, token uuid not null) on commit drop;
+grant all on claim_tokens to service_role;
+create function pg_temp.token(p_request_id uuid) returns uuid language sql as $$
+  select token from claim_tokens where request_id = p_request_id;
+$$;
+grant execute on function pg_temp.token(uuid) to service_role;
 create function pg_temp.id(p_k text) returns uuid language sql as $$ select v::uuid from ids where k = p_k; $$;
 grant execute on function pg_temp.id(text) to authenticated, service_role;
 
@@ -85,6 +99,7 @@ declare
   v_acc uuid;
   v_cs uuid;
   v_req record;
+  v_tok uuid;
 begin
   perform set_config('request.jwt.claims',
     '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}', true);
@@ -102,11 +117,13 @@ begin
   perform pg_temp.as_service();
   for v_req in select id, purpose from public.outbound_stripe_requests where project_id = v_project
                order by (purpose = 'customer_create') desc loop
-    perform public.outbound_request_for_execution(v_req.id);
+    -- AUTH-009 (setup): claim, confirm with the one-time token, then record with it.
+    v_tok := (public.outbound_request_for_execution(v_req.id) ->> 'claim_token')::uuid;
+    perform public.confirm_outbound_dispatch(v_req.id, v_tok);
     if v_req.purpose = 'customer_create' then
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
     else
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
         jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/cs_test_' || p_tag || '00000'));
     end if;
   end loop;
@@ -358,7 +375,7 @@ insert into ids select 'rec', public.begin_payment_method_recovery(pg_temp.id('p
 reset role;
 select pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select id from public.outbound_stripe_requests
   where domain_record_id = pg_temp.id('rec'))));
-select pg_temp.svc(format('select public.record_outbound_result(%L, ''succeeded'', ''cs_test_XGFORrec01'', false, 200, null, %L)',
+select pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), ''succeeded'', ''cs_test_XGFORrec01'', false, 200, null, %2$L)',
   (select id from public.outbound_stripe_requests where domain_record_id = pg_temp.id('rec')),
   '{"url": "https://checkout.stripe.com/c/pay/cs_test_XGFORrec01"}'));
 select is(pg_temp.deliver(pg_temp.evt('evt_XGFORcharged', 'checkout.session.completed', jsonb_build_object('id', 'cs_test_XGFORrec01',

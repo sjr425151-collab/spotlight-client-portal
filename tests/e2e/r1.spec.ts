@@ -487,13 +487,20 @@ test("T-E2E-02: a verified deposit without a reusable card leaves intake locked"
       [id],
     );
     for (const r of requests.rows) {
-      await db.query("select public.outbound_request_for_execution($1)", [r.id]);
+      // AUTH-009 (setup): claim, confirm with the one-time token, then record with it. The
+      // token stays in memory and is never logged or asserted.
+      const claim = await db.query(
+        "select public.outbound_request_for_execution($1) ->> 'claim_token' as token",
+        [r.id],
+      );
+      const token = (claim.rows[0] as { token: string | null }).token;
+      await db.query("select public.confirm_outbound_dispatch($1, $2)", [r.id, token]);
       await db.query(
         r.purpose === "customer_create"
-          ? `select public.record_outbound_result($1, 'succeeded', $2, false, 200, null, '{}')`
-          : `select public.record_outbound_result($1, 'succeeded', $2, false, 200, null,
-               jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/' || $2::text))`,
-        [r.id, r.purpose === "customer_create" ? `cus_r1${tag}` : `cs_test_r1${tag}`],
+          ? `select public.record_outbound_result($1, $2, 'succeeded', $3, false, 200, null, '{}')`
+          : `select public.record_outbound_result($1, $2, 'succeeded', $3, false, 200, null,
+               jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/' || $3::text))`,
+        [r.id, token, r.purpose === "customer_create" ? `cus_r1${tag}` : `cs_test_r1${tag}`],
       );
     }
     await db.query("commit");

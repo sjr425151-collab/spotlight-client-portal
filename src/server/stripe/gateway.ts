@@ -11,6 +11,13 @@ import "server-only";
  * object; `failed` for a definitive rejection (4xx) where Stripe created nothing; `ambiguous`
  * for a network error, timeout, 5xx, or any uncertain outcome. Ambiguous creates are never
  * retried automatically; they are reconciled first.
+ *
+ * AUTH-009 (OI-91): the executor calls a gateway method only after the claim (which returns a
+ * one-time claim token) and a successful `confirm_outbound_dispatch`, and only within 30
+ * seconds of starting that confirmation call. A real gateway must bound each provider request
+ * at 30 seconds and make no SDK or transport retries (for example `maxNetworkRetries: 0`):
+ * once a request may have started, a timeout or cancellation is `ambiguous`, never `failed`.
+ * The claim token never reaches the gateway, a log or an error message.
  */
 
 export type GatewayResult<T> =

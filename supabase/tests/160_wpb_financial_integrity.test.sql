@@ -42,6 +42,13 @@ declare
 begin
   perform pg_temp.as_service();
   execute p_sql into v;
+  -- AUTH-009 (setup): a claim's one-time token is stored test-locally and confirmed as the
+  -- executor does, and is removed from the result.
+  if v ? 'claim_token' then
+    insert into claim_tokens values ((v ->> 'id')::uuid, (v ->> 'claim_token')::uuid);
+    perform public.confirm_outbound_dispatch((v ->> 'id')::uuid, (v ->> 'claim_token')::uuid);
+    v := v - 'claim_token';
+  end if;
   reset role;
   return v;
 end;
@@ -145,6 +152,13 @@ create function pg_temp.approve(p_project uuid, p_n integer) returns bigint lang
 $$;
 create temporary table ids (k text primary key, v text) on commit drop;
 grant all on ids to authenticated, service_role;
+-- AUTH-009 (setup): the one-time claim tokens, kept test-locally; never printed or asserted.
+create temporary table claim_tokens (request_id uuid primary key, token uuid not null) on commit drop;
+grant all on claim_tokens to service_role;
+create function pg_temp.token(p_request_id uuid) returns uuid language sql as $$
+  select token from claim_tokens where request_id = p_request_id;
+$$;
+grant execute on function pg_temp.token(uuid) to service_role;
 
 -- A project paid through the real workflow: order summary (Owner), acceptance and Checkout
 -- (client A), recorded mock results, a verified checkout.session.completed, and, when
@@ -157,6 +171,7 @@ declare
   v_acc uuid;
   v_cs uuid;
   v_req record;
+  v_tok uuid;
 begin
   perform set_config('request.jwt.claims',
     '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}', true);
@@ -174,11 +189,13 @@ begin
   perform pg_temp.as_service();
   for v_req in select id, purpose from public.outbound_stripe_requests where project_id = v_project
                order by (purpose = 'customer_create') desc loop
-    perform public.outbound_request_for_execution(v_req.id);
+    -- AUTH-009 (setup): claim, confirm with the one-time token, then record with it.
+    v_tok := (public.outbound_request_for_execution(v_req.id) ->> 'claim_token')::uuid;
+    perform public.confirm_outbound_dispatch(v_req.id, v_tok);
     if v_req.purpose = 'customer_create' then
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
     else
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
         jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/cs_test_' || p_tag || '00000'));
     end if;
   end loop;
@@ -239,10 +256,10 @@ begin
    and status = 'pending';
   perform pg_temp.svc(format('select public.outbound_request_for_execution(%L)', v_req));
   if p_outcome = 'succeeded' then
-    perform pg_temp.svc(format('select public.record_outbound_result(%L, ''succeeded'', %L, false, 200, null, ''{}'')', v_req,
+    perform pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), ''succeeded'', %2$L, false, 200, null, ''{}'')', v_req,
       'in_' || p_tag || 'final01'));
   else
-    perform pg_temp.svc(format('select public.record_outbound_result(%L, %L, null, null, null, ''network_timeout'', ''{}'')', v_req, p_outcome));
+    perform pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), %2$L, null, null, null, ''network_timeout'', ''{}'')', v_req, p_outcome));
   end if;
   return v_req;
 end;
@@ -410,7 +427,7 @@ select pg_temp.deliver(pg_temp.evt('evt_STOPdetach01', 'payment_method.detached'
 insert into ids select 'rs', id::text from public.outbound_stripe_requests where project_id = (select v::uuid from ids where k = 'ps')
   and purpose = 'final_balance_invoice_disable_auto';
 select pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select v from ids where k = 'rs')));
-select is(pg_temp.svc(format('select public.record_outbound_result(%L, ''failed'', null, null, 400, ''invoice_not_editable'', ''{}'')',
+select is(pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), ''failed'', null, null, 400, ''invoice_not_editable'', ''{}'')',
   (select v from ids where k = 'rs'))) ->> 'status', 'failed', 'the request disabling automatic collection fails');
 select ok(pg_temp.g((select v::uuid from ids where k = 'ps')) = '(t,f)'
   and pg_temp.anomalies((select v::uuid from ids where k = 'ps')) -> 'G4' = '["automatic_stop_failed"]'::jsonb,

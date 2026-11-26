@@ -61,6 +61,26 @@ $$;
 grant execute on function pg_temp.evt(text, text, jsonb, integer, jsonb) to service_role, authenticated;
 create temporary table ids (k text primary key, v text) on commit drop;
 grant all on ids to authenticated, service_role;
+-- AUTH-009 (setup): the one-time claim tokens, kept test-locally; never printed or asserted.
+create temporary table claim_tokens (request_id uuid primary key, token uuid not null) on commit drop;
+grant all on claim_tokens to service_role;
+create function pg_temp.token(p_request_id uuid) returns uuid language sql as $$
+  select token from claim_tokens where request_id = p_request_id;
+$$;
+grant execute on function pg_temp.token(uuid) to service_role;
+-- AUTH-009 (setup): claim and confirm as the executor does; the token is stored, not returned.
+create function pg_temp.claim(p_request_id uuid) returns jsonb language plpgsql as $$
+declare
+  v jsonb := public.outbound_request_for_execution(p_request_id);
+begin
+  if v ? 'claim_token' then
+    insert into claim_tokens values (p_request_id, (v ->> 'claim_token')::uuid);
+    perform public.confirm_outbound_dispatch(p_request_id, (v ->> 'claim_token')::uuid);
+  end if;
+  return v - 'claim_token';
+end;
+$$;
+grant execute on function pg_temp.claim(uuid) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- 1. Agreement versions and the test-only fixture (04 §2; OI-69; T-AGR-08, T-PAY-15)
@@ -227,15 +247,18 @@ select throws_ok($$ insert into public.checkout_sessions (project_id, order_summ
 select pg_temp.as_service();
 select is(public.outbound_request_for_execution((select v::uuid from ids where k = 'req_cs1')) ->> 'error', 'customer_missing',
   'the Checkout create waits for the Customer');
-select is(public.record_outbound_result((select v::uuid from ids where k = 'req_customer'), 'succeeded', 'cus_TestA000001',
+select pg_temp.claim((select v::uuid from ids where k = 'req_customer')) ->> 'purpose';
+select is(public.record_outbound_result((select v::uuid from ids where k = 'req_customer'),
+  pg_temp.token((select v::uuid from ids where k = 'req_customer')), 'succeeded', 'cus_TestA000001',
   false, 200, null, '{}') ->> 'status', 'succeeded', 'the Customer create result is recorded');
-select is(public.outbound_request_for_execution((select v::uuid from ids where k = 'req_cs1')) ->> 'customer', 'cus_TestA000001',
+select is(pg_temp.claim((select v::uuid from ids where k = 'req_cs1')) ->> 'customer', 'cus_TestA000001',
   'the Checkout create resolves the Customer from the database, not from the client');
 select is(public.outbound_request_for_execution((select v::uuid from ids where k = 'req_cs1')) ->> 'error', 'already_claimed',
   'exactly one executor can claim a request; a concurrent worker never sends the same create twice');
 select is(public.run_billing_job('outbound_requests') #>> '{result,marked_ambiguous}', '0',
   'a request claimed moments ago is not marked ambiguous (only claims older than 10 minutes are)');
-select is(public.record_outbound_result((select v::uuid from ids where k = 'req_cs1'), 'succeeded', 'cs_test_A000001',
+select is(public.record_outbound_result((select v::uuid from ids where k = 'req_cs1'),
+  pg_temp.token((select v::uuid from ids where k = 'req_cs1')), 'succeeded', 'cs_test_A000001',
   true, 200, null, '{}') ->> 'error', 'livemode_mismatch', 'a live-mode Stripe result outside production aborts');
 reset role;
 select is((select status::text from public.outbound_stripe_requests where id = (select v::uuid from ids where k = 'req_cs1')),
@@ -260,7 +283,9 @@ insert into ids select 'req_cs2', id::text from public.outbound_stripe_requests
 select is((select idempotency_key from public.outbound_stripe_requests where id = (select v::uuid from ids where k = 'req_cs2')),
   'wpb-checkout-' || (select v from ids where k = 'os2') || '-c2-a1', 'a new attempt derives a new key from the attempt number');
 select pg_temp.as_service();
-select is(public.record_outbound_result((select v::uuid from ids where k = 'req_cs2'), 'succeeded', 'cs_test_A000002', false, 200,
+select pg_temp.claim((select v::uuid from ids where k = 'req_cs2')) ->> 'purpose';
+select is(public.record_outbound_result((select v::uuid from ids where k = 'req_cs2'),
+  pg_temp.token((select v::uuid from ids where k = 'req_cs2')), 'succeeded', 'cs_test_A000002', false, 200,
   null, jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/cs_test_A000002', 'expires_at', extract(epoch from now())::bigint + 86400))
   ->> 'status', 'succeeded', 'the Checkout Session create result is recorded');
 reset role;

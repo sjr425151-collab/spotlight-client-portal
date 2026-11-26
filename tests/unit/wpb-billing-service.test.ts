@@ -135,6 +135,7 @@ const checkoutRow = {
   idempotency_key: "wpb-checkout-22222222-2222-4222-8222-222222222222-c1-a1",
   customer: "cus_TestA000001",
   expected_livemode: false,
+  claim_token: "99999999-9999-4999-8999-999999999999",
   params: {
     mode: "subscription",
     allowed_payment_method_types: ["card"],
@@ -150,12 +151,15 @@ const checkoutRow = {
     metadata: { project_id: "p" },
   },
 };
+/** AUTH-009: the database confirms the dispatch (setup; the token is never asserted). */
+const confirmed = { ok: true, confirmed: true };
 const urls = { successUrl: "http://localhost:3000/ok", cancelUrl: "http://localhost:3000/cancel" };
 
 describe("executeOutboundRequest (04 §6.3-§6.4, §7, §17 #2)", () => {
   it("sends the database-built parameters with the derived key, and records the result", async () => {
     const gateway = new MockStripeGateway();
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: checkoutRow,
       record_outbound_result: { ok: true, status: "succeeded" },
     });
@@ -185,6 +189,7 @@ describe("executeOutboundRequest (04 §6.3-§6.4, §7, §17 #2)", () => {
     const gateway = new MockStripeGateway();
     gateway.priceOverrides.set("price_1Uf5HyK5j4r4WkVPOtk24lGw", 29901);
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: checkoutRow,
       record_outbound_result: { ok: true },
     });
@@ -203,6 +208,7 @@ describe("executeOutboundRequest (04 §6.3-§6.4, §7, §17 #2)", () => {
     const gateway = new MockStripeGateway();
     gateway.nextFault = "ambiguous";
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: checkoutRow,
       record_outbound_result: { ok: true },
     });
@@ -220,6 +226,7 @@ describe("executeOutboundRequest (04 §6.3-§6.4, §7, §17 #2)", () => {
     const gateway = new MockStripeGateway();
     gateway.nextFault = "livemode";
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: checkoutRow,
       record_outbound_result: { ok: false, error: "livemode_mismatch" },
     });
@@ -241,6 +248,7 @@ describe("executeOutboundRequest (04 §6.3-§6.4, §7, §17 #2)", () => {
 
   it("refuses to use the mock where the database expects live mode", async () => {
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: { ...checkoutRow, expected_livemode: true },
     });
     expect(
@@ -256,6 +264,7 @@ const finalRow = (auto: boolean) => ({
   idempotency_key: `wpb-final-balance-os-ap-a${auto ? 1 : 2}`,
   customer: "cus_TestA000001",
   expected_livemode: false,
+  claim_token: "99999999-9999-4999-8999-999999999999",
   params: {
     collection_method: "charge_automatically",
     auto_advance: auto,
@@ -272,6 +281,7 @@ describe("OI-74 executor behavior (04 §8.1, §10)", () => {
   it("refuses a Checkout that is not card-only before anything is sent", async () => {
     const gateway = new MockStripeGateway();
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: {
         ...checkoutRow,
         params: {
@@ -296,6 +306,7 @@ describe("OI-74 executor behavior (04 §8.1, §10)", () => {
     const gateway = new MockStripeGateway();
     const row = finalRow(true);
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: row,
       record_outbound_result: { ok: true, status: "succeeded" },
     });
@@ -317,6 +328,7 @@ describe("OI-74 executor behavior (04 §8.1, §10)", () => {
     const gateway = new MockStripeGateway();
     const hosted = finalRow(false);
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: [
         { ok: false, error: "superseded", next_request_id: hosted.id },
         hosted,
@@ -337,6 +349,7 @@ describe("OI-74 executor behavior (04 §8.1, §10)", () => {
   it("stops automatic collection on an existing invoice with auto_advance false only", async () => {
     const gateway = new MockStripeGateway();
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: {
         ok: true,
         id: "55555555-5555-4555-8555-555555555555",
@@ -344,6 +357,7 @@ describe("OI-74 executor behavior (04 §8.1, §10)", () => {
         idempotency_key: "wpb-final-balance-stop-f-a1",
         customer: null,
         expected_livemode: false,
+        claim_token: "99999999-9999-4999-8999-999999999999",
         params: { invoice: "in_TestInvoice01", auto_advance: false },
       },
       record_outbound_result: { ok: true, status: "succeeded" },
@@ -361,6 +375,7 @@ describe("OI-74 executor behavior (04 §8.1, §10)", () => {
   it("recovery opens a setup-mode, card-only session on the client's Customer", async () => {
     const gateway = new MockStripeGateway();
     const db = fakeDb({
+      confirm_outbound_dispatch: confirmed,
       outbound_request_for_execution: {
         ok: true,
         id: "66666666-6666-4666-8666-666666666666",
@@ -368,6 +383,7 @@ describe("OI-74 executor behavior (04 §8.1, §10)", () => {
         idempotency_key: "wpb-recovery-r-a1",
         customer: "cus_TestA000001",
         expected_livemode: false,
+        claim_token: "99999999-9999-4999-8999-999999999999",
         params: { mode: "setup", allowed_payment_method_types: ["card"], metadata: { p: 1 } },
       },
       record_outbound_result: { ok: true, status: "succeeded" },

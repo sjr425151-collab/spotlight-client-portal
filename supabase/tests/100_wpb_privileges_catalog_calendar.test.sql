@@ -62,7 +62,7 @@ select is_empty($$
   where n.nspname = 'public' and p.proname in ('ingest_stripe_event', 'process_stripe_event', 'record_outbound_result',
     'outbound_request_for_execution', 'run_billing_job', 'begin_billing_job', 'finish_billing_job',
     'payment_method_lookups_due', 'record_payment_method_lookup', 'start_reconciliation_run',
-    'record_project_reconciliation', 'complete_reconciliation_run')
+    'record_project_reconciliation', 'complete_reconciliation_run', 'confirm_outbound_dispatch')
     and has_function_privilege('authenticated', p.oid, 'execute')
 $$, 'server-only RPCs are not executable by authenticated');
 select is_empty($$
@@ -85,7 +85,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000a1","role":"authenticated"}', true);
 select throws_ok($$ select public.ingest_stripe_event('{}'::jsonb, repeat('0', 64)) $$, '42501', null,
   'an authenticated client cannot ingest a Stripe event');
-select throws_ok($$ select public.record_outbound_result(gen_random_uuid(), 'succeeded', 'cs_test_x0001', false, 200, null, '{}') $$,
+select throws_ok($$ select public.record_outbound_result(gen_random_uuid(), gen_random_uuid(), 'succeeded', 'cs_test_x0001', false, 200, null, '{}') $$,
   '42501', null, 'an authenticated client cannot record a Stripe result');
 select throws_ok($$ insert into public.ledger_entries (project_id, entry_type, amount_cents, service_category, source, dedupe_key)
   values ('20000000-0000-4000-8000-0000000000a0', 'deposit_charge', 1, 'development', 'webhook', 'x') $$,

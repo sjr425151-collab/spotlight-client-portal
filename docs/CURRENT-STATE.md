@@ -1459,3 +1459,135 @@ Implemented by the dedicated integration session (`https://claude.ai/code/sessio
 Not run locally: the dependency audit and gitleaks (CI only).
 
 **Effort (OI-67):** AI session about 3 h; Owner review: none yet; administrative about 0.4 h (P-1, P-2 and P-3 questions to Main; the OI-116 root cause).
+
+## 20. WP-B AUTH-009 implementation record (OI-91; S1 and S2 ruled by the Owner)
+
+Implemented by the WP-B session in PR #43 (branch `claude/wp-b-client-portal-xjftil`), from the verified `main` at `9e8569c` (after PR #41).
+
+**Entry (verified read-only):**
+- The grant record (PR #40) merged at `2d27d07`.
+- Post-merge CI run 45731539779 (#136) completed `success`, 7/7.
+- Migration `20261127120000` and pgTAP `191` were unused.
+
+**Owner rulings on S1 and S2 (2026-11-26, relayed by Main; recorded here under OM-3 and OM-5, with no separate grant PR).** S1 and S2 were stop conditions reported earlier the same day.
+
+- **S1 (quoted):** "Approve the recommended new Owner-only stop-retry function, subject to all previously approved AUTH-009 guarantees:
+  * Owner authorization, fresh MFA and mandatory reason.
+  * Fresh attempt-specific idempotency key.
+  * Deterministic concurrency and duplicate-request protection.
+  * Retry restricted to eligible unresolved collection-stop operations.
+  * No automatic retry or reactivation of automatic collection.
+  * Existing financial holds remain effective until authoritative resolution.
+  * Durable audit evidence.
+  Approve the fresh WP-S financial review, focused on this addition and its interaction with the previously reviewed financial behavior."
+- **S2 (quoted):** "Approve outbound.claim_token_rejected and the corresponding additions to audit-actions.ts and specification 04 §6.4. Preserve the previously approved audit and notification obligations. Never expose plaintext claim tokens or token hashes in audit records, notifications or logs."
+- **Implementation boundaries (approved with the recommendation):**
+  - `public.retry_final_balance_stop(uuid, text)`, `authenticated` only;
+  - the lock hierarchy and a fresh attempt key;
+  - only an unresolved stop is eligible; anything else is a typed refusal with no write;
+  - a duplicate or concurrent call returns the existing attempt;
+  - only the stop-specific item clears, and only on authoritative evidence; holds stay;
+  - no reactivation and nothing scheduled;
+  - an audit event with the reason;
+  - a pure addition to the `050` D1 list;
+  - a new migration file.
+- **M-1 (Main's review):** the notification type `outbound.claim_token_rejected`, at l.247 and l.345, is the registered audit name exactly.
+
+**S3, an OM-4 delegated addition (Main, 2026-11-26):** setup-only changes in `supabase/tests/235_wpc_oi113_approval_identity.test.sql` (helper loop) and `tests/integration/wpc-oi113-approval-race.test.ts` (settle loop). They follow the same claim, confirm and record template, and no assertion changes.
+
+**Delivered (grant items 1 to 7, with S1 and S2):**
+
+| Area | Change |
+|---|---|
+| Schema | `claim_token_sha256` and `dispatch_confirmed_at`, both set once. Format and confirmed-implies-claimed constraints. `outbound_guard`: two set-once columns added; the hash may be set only by the claim (no backfill); confirmation only on a pending, token-bearing request. |
+| Claim (A2) | `outbound_request_for_execution`:<br>- lock order changed to authorizations (the project's rows, in id order), then invoice, then the claim update;<br>- returns `claim_token` once, storing only its SHA-256;<br>- OI-92(e) detection after a final-balance claim;<br>- `lock_timeout` 5 s. |
+| Confirmation (A3) | New `confirm_outbound_dispatch(uuid, uuid)` and its wrapper (`service_role` only).<br>- Checks, in order: pending, claimed, legacy, token, already confirmed, 5-minute window.<br>- Re-checks eligibility under the same locks: an automatic create whose authorization changed after the claim is superseded by the hosted-only attempt; a stop for a paid invoice is dropped.<br>- Sets the confirmation once and returns `send_by` (30 s). |
+| Recording (A1, R1) | New `record_outbound_result(uuid, uuid, …)`. The old private and public 7-argument signatures are dropped.<br>- Check order: pending, token, livemode (the abort is unchanged), confirmation.<br>- An unconfirmed result is recorded `ambiguous` (`unconfirmed_dispatch`), as is a success after `claimed_at` + 6 min (`late_result`). Either way the evidence is stored, with no domain effect, the existing audit action and an Owner notification.<br>- An identical resubmission returns the stored outcome and applies nothing.<br>- A legacy claim is refused (`legacy_claim`) and goes through the stale rule. |
+| Lock order | The hierarchy (authorization → invoice → outbound) now holds in all six functions:<br>- `reconcile_outbound_request` and `record_outbound_result` no longer lock the outbound row first;<br>- `handle_invoice_failed` no longer locks the invoice before the authorization;<br>- `handle_final_balance_paid` takes the authorization lock first;<br>- the claim's order is reversed (above).<br>`reconcile_outbound_request` keeps its `authenticated` grant and its Owner, fresh-MFA and live-session check. |
+| Stop reconciliation | Item 8 in `project_financial_anomalies`, `automatic_stop_unresolved` (G4): a stop reconciled absent keeps G4 blocked unless its invoice is paid, or a **later attempt** for the same invoice was confirmed by Stripe (`succeeded`) or reconciled present. That later attempt is the authoritative evidence of cessation, and it answers WP-S F-1. Only that item clears. Unconfirmed stop results are ambiguous through the generic path. |
+| Stop retry (S1) | New migration `20261127120100`: `private.retry_final_balance_stop(uuid, text)` and its wrapper, `authenticated` only (re-authorized inside), never anon, PUBLIC or `service_role`. It is SECURITY DEFINER with `lock_timeout` 5 s.<br>- **Checks:** Owner, fresh MFA, a live session and a reason. Then the lock hierarchy (authorizations, invoice, stop rows).<br>- **Duplicate or concurrent call:** while an attempt is `pending`, it returns that attempt and creates nothing.<br>- **Typed refusals (no write):** `not_found`; `not_eligible` (no stop, or no invoice to stop); `not_needed` (the invoice is paid or void, or the latest stop succeeded); `reconciliation_required` (the latest stop is ambiguous or failed, so reconcile first); `attempts_exhausted`.<br>- **Eligible:** only a latest stop that the Owner reconciled as absent.<br>- **Effect:** one new stop request with a fresh attempt key, `wpb-final-balance-stop-<invoice>-a<n>`, and `auto_advance` false. It is audited as `outbound.request_retried` with the reason. Collection stays hosted-only, no charge is queued, and holds are untouched. |
+| Token rejection audit (S2) | Each rejection at confirmation or recording writes `outbound.claim_token_rejected` (financial; summary `{operation, purpose}`, never a token or a hash). The action is registered in `audit-actions.ts` (04 §6.4). The Owner notification is unchanged (deduplicated per request). Spec **04 v0.10.2** adds the §6.4 line; there is an 08 §5 row. |
+| OI-92(e) | New internal `note_final_balance_release_change(uuid)`, with no wrapper and no API role.<br>- Read-only, with no lock.<br>- Uses WP-C `current_release` semantics.<br>- Sends one deduplicated Owner notification (`final_balance.release_changed`, reason `withdrawn` or `superseded`). The obligation stands.<br>- Called at the claim and in `record_project_reconciliation`. |
+| Application | `src/server/services/billing.ts`:<br>- claim, then validations, then the monotonic 30 s deadline from the start of the confirmation call, confirm, send, record with the token;<br>- pre-send validation failures confirm, then record `failed`;<br>- a deadline overrun records `failed` / `dispatch_not_initiated`;<br>- a late or unconfirmed success reports `reconciliation_required`;<br>- one identical resubmission when a call returns an error and no result (the comment corrected per WP-S F-4);<br>- the token stays in memory.<br>`src/server/stripe/gateway.ts`: contract comment only. |
+
+**Migration hashes (SHA-256).** `20261127120000_wpb_oi91_dispatch.sql`: `b7a13d1e8f5081240c28185e8ad3aa9909af27e0fa4239e33c15cf562361ab31` (amended for S1 and S2 before merge; previously `faf0d73f…5ac4` at `43b4bee`). `20261127120100_wpb_oi91_stop_retry.sql`: `95fb62c2ae7728344c6f3ae9c4c3163824f3de852e7875c98512257e50e8c115`. Four bodies are generated from the merged definitions by asserted exact substitutions, so their diffs are only the stated change: `handle_final_balance_paid`, `handle_invoice_failed`, `record_project_reconciliation` and `project_financial_anomalies`.
+
+**Dispositions (byte-identity verified by statement comparison against `main`; plans unchanged):**
+- Exactly 13 assertion statements changed:
+  - the 11 approved sites;
+  - the additive `100:60` entry (`confirm_outbound_dispatch` joins the server-only list);
+  - the S1 addition to the `050` D1 list (`retry_final_balance_stop`), as the Owner ruled.
+- Every other assertion in 050, 100, 110, 120, 130, 140, 150, 160, 180, 190 and 235 is byte-identical.
+
+| Approved site (inventory at `85ec6ce`) | On `main` | On this branch |
+|---|---|---|
+| 100:88 | 88 | 88 |
+| 110:230, 232, 238, 263 | 230, 232, 238, 263 | 251, 254, 260, 287 |
+| 120:285 | 309 | 332 |
+| 130:259, 302, 448, 457 | 283, 326, 472, 481 | 300, 343, 489, 498 |
+| 160:389 | 413 | 430 |
+
+The 130 claim sites stay byte-identical: the `pg_temp.svc` helper stores and confirms the token and strips it from the result. Recording sites read the token through `pg_temp.token(%1$L)` inside the executed text, so no token ever appears in a statement, a diagnostic or a printed result. The unit and integration diffs add lines only; the one removed line is a comment in `wpb-static`.
+
+**New tests:**
+- `supabase/tests/191_wpb_dispatch_ownership.test.sql`, 105 assertions. This is the grant's `191_wpb_oi91_dispatch` renamed under OM-4 (Main, 2026-11-26) to satisfy the existing WP-B naming assertion:
+  - signatures and exact ACLs;
+  - the token; confirmation;
+  - recording order and outcomes; resubmission;
+  - legacy claims and the guard;
+  - the eligibility re-check;
+  - stop reconciliation; OI-92(e);
+  - **S2:** the audit event at each rejection (financial, on its request), the deduplicated notification, and no accepted or submitted token or token hash in any audit record or notification;
+  - **S1:** privileges; Owner-only refusals (the client, another tenant's client, Admin, stale MFA, no live session, a blank reason, an unknown invoice), each writing nothing; the duplicate call while pending or in flight; reconcile-first for failed and ambiguous stops; not eligible without a stop; the fresh attempt key; the deterministic duplicate; the audit with the reason; no reactivation; the hold and the stop item preserved while in flight; clearing on Stripe's confirmation only; a failed retry clearing nothing; not needed after success or payment.
+- `tests/integration/oi91-dispatch-revocation.test.ts`, 23 tests:
+  - each changed function raced against the Owner's recorded revocation in both commit orders (12);
+  - a direct hierarchy probe for each function: it must wait for a higher lock while holding no lower one, so out-of-order locking aborts with 40P01;
+  - the 5 s lock timeout;
+  - the 30 s send deadline with a fake clock;
+  - **S1:** simultaneous Owner retries (the second waits on the authorization row, then returns the first's attempt; one request; one audit) and the retry's hierarchy probe;
+  - **S2:** no claim token in any console output during a full execution (every method captured, and the capture is shown to work).
+- The `wpb-static` guard: payment invariants over both AUTH-009 migrations, hash-only storage, confirmation before the gateway on the send path, no token in logs, every audit action registered as financial, and no token identifier in any audit or notification call.
+
+**Routine technical decisions (OM-4, recorded):**
+- The project's authorization rows are locked in id order, so callers that lock one row cannot deadlock with callers that lock all of them.
+- The database allows any number of identical replays, each with no effect; the executor resubmits at most once.
+- `lock_timeout` 5 s is set on the four dispatch functions and the stop retry only. The webhook handlers keep the session setting, so their contention behavior is unchanged.
+- **Statement timeout (verified locally):** a function-level `statement_timeout` would not govern the running statement, so it is not set.
+  - The effective limit for these RPCs is the PostgREST login role's `statement_timeout` of 8 s (local Supabase defaults; `service_role` has no override). That is stricter than the 30 s target.
+  - No role or connection setting was changed. The hosted values are for WP-D to verify.
+- The token hash stays readable to the Owner through the existing select policy (table row only). The plaintext is never stored, and neither the token nor the hash is ever placed in an audit record, a notification or a log (S2).
+- **WP-S findings at `43b4bee`:** F-1 is handled by the item-8 rule above. F-4 is fixed (the comment now states the behavior). F-3 (hosted parameter and statement logging), F-6 (the real gateway's timeout and retries) and F-7 (statement timeout) are for WP-D or the real-gateway authorization. F-2 and F-5 are informational, with no change.
+
+**Mutation checks** (each mutated function installed locally, the targeted checks run, the original restored). All 51 were caught (47 SQL and 4 executor; rerun in full after S1 and S2):
+- **Lock order:** claim invoice-first; confirmation and recording outbound-first; recording invoice-first; reconciliation outbound-first; `invoice.payment_failed` with the merged order; `invoice.paid` without the authorization lock; no lock timeout.
+- **Token:** any token accepted at recording or confirmation; livemode before token; legacy recordable; no rejection notification; no hash stored.
+- **Confirmation:** unconfirmed effect applied; no late boundary; repeated confirmation; no window; no authorization re-check; paid-stop confirmation.
+- **Resubmission:** a replay without the token; a replay re-applying the effect. The second was first missed because the Customer insert is idempotent; the 191 replay test was moved to a Checkout create, whose effect is audited.
+- **Guard:** backfill; hash not set once; confirmation not set once.
+- **Stop:** absent clears; payment does not clear.
+- **OI-92(e):** no detection at the claim; no dedupe; no supersession detection; no detection in reconciliation.
+- **S1:** no fresh MFA; no live session; no reason; a duplicate creating a second attempt; an unreconciled stop retried blind; a succeeded stop retried; no authorization lock; collection re-enabled; no audit; a hold cleared; a later attempt never clearing; an in-flight retry already clearing.
+- **S2:** no audit at confirmation; no audit at recording; the submitted token in the audit summary; the stored hash in the notification.
+- **Executor:** no deadline check; the gateway without confirmation (the static guard was first too loose and was tightened to the send path); the record without the token; a refused confirmation still sending.
+
+**Suites after S1 and S2** (local, fresh `supabase db reset`, Supabase CLI 3.2.0, CI order):
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, 313 passed |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `./scripts/run-db-tests.sh` | 32 files, 1,826 assertions, 0 failed (main: 1,721; plus 191's 105) |
+| `pnpm test:integration` | 9 files, 122 passed (main: 99; plus 23) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 52 passed |
+| Lighthouse | Not run locally; runs in CI |
+
+Exact-head CI is recorded in the pull request. At `43b4bee`, run 45738752135 was 7/7.
+
+**Reviews required (grant):**
+- WP-S's independent financial review: recorded at `43b4bee` (7180423952). The Owner approved a fresh, focused WP-S review of S1.
+- WP-C's read-only review: recorded at `43b4bee` (7180305233), covering the S3 files.
+- Main: recorded at `43b4bee` (7180343349), with M-1 to be reconciled with S2 (done).
+
+Each is a durable non-approval record. OI-91 stays open until the merge and its post-merge CI.

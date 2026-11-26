@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { EnvValidationError, parseServerEnv } from "@/config/env-schema";
+import { AUDIT_ACTIONS } from "@/domain/contracts/audit-actions";
 
 /**
  * WP-B static and configuration checks (code-search halves of T-PAY-10, T-ARC-04, T-ARC-08,
@@ -50,7 +51,8 @@ describe("WP-B static security checks", () => {
     ).toEqual([]);
     const billing = sources.find((s) => s.path === "src/server/services/billing.ts")!.text;
     // The only create and update calls sit in call(), which runs after
-    // outbound_request_for_execution claimed the request (OI-74 adds recovery and the stop).
+    // outbound_request_for_execution claimed the request (OI-74 adds recovery and the stop)
+    // and, since AUTH-009, after confirm_outbound_dispatch confirmed it.
     const callFn = billing.slice(billing.indexOf("async function call("));
     const callBody = callFn.slice(0, callFn.indexOf("\n}\n"));
     expect(billing.match(/gateway\.(?:create\w+|disableAutomaticCollection)\(/g)).toHaveLength(5);
@@ -84,6 +86,58 @@ describe("WP-B static security checks", () => {
       expect(sql).not.toMatch(/mark_?as_?paid|force_?publish/i);
       expect(sql).not.toMatch(/api\.stripe\.com|\bhttp_(?:get|post)\(|net\.http_/);
     }
+  });
+
+  it("AUTH-009 (OI-91): the dispatch migration keeps the payment invariants and the token stays secret", () => {
+    const sql = ["20261127120000_wpb_oi91_dispatch.sql", "20261127120100_wpb_oi91_stop_retry.sql"]
+      .map((f) => readFileSync(join(root, "supabase/migrations", f), "utf8"))
+      .join("\n");
+    // The same invariants as WP-H: no new outbound purpose, card-only, no default-card write,
+    // no "mark as paid" or "force publish" path, no provider call (CLAUDE.md §3-§4).
+    expect(sql).not.toMatch(/alter type public\.outbound_request_purpose/i);
+    expect(sql).not.toMatch(/payment_method_types', jsonb_build_array\('(?!card')/);
+    expect(sql).not.toMatch(/'invoice_settings'/);
+    expect(sql).not.toMatch(/mark_?as_?paid|force_?publish/i);
+    expect(sql).not.toMatch(/api\.stripe\.com|\bhttp_(?:get|post)\(|net\.http_/);
+    // Only the SHA-256 of the claim token is stored (A2), and no idempotency key changes.
+    const tokenWrites = [...sql.matchAll(/claim_token_sha256 = ([^\n]+)/g)].map((m) => m[1]);
+    expect(tokenWrites).toEqual(["encode(sha256(convert_to(v_token::text, 'UTF8')), 'hex')"]);
+    expect(sql).not.toMatch(/set\s+idempotency_key|idempotency_key\s*=/);
+    // S2 (Owner, 2026-11-26): every audit action the AUTH-009 migrations write is registered as
+    // financial, and no audit or notification call passes a token or its hash.
+    const actions = [...sql.matchAll(/audit_financial\('([a-z_.]+)'/g)].map((m) => m[1]);
+    expect(actions).toContain("outbound.claim_token_rejected");
+    expect(actions).toContain("outbound.request_retried");
+    for (const action of actions) {
+      const entry = AUDIT_ACTIONS.find((a) => a.action === action);
+      expect(entry, action).toBeDefined();
+      expect(entry!.category, action).toBe("financial");
+    }
+    const calls = [...sql.matchAll(/(?:audit_financial|notify_owner)\([^;]*;/g)].map((m) => m[0]);
+    expect(calls.length).toBeGreaterThan(10);
+    // Quoted names (such as the action itself) are not values: only identifiers are checked.
+    for (const call of calls)
+      expect(call.replace(/'[^']*'/g, "''")).not.toMatch(/claim_token|v_token|token_sha256/);
+    // The executor confirms before the provider request and never logs or returns the token.
+    const billing = sources.find((s) => s.path === "src/server/services/billing.ts")!.text;
+    const execute = billing.slice(billing.indexOf("export async function executeOutboundRequest("));
+    const executeBody = execute.slice(0, execute.indexOf("\n}\n"));
+    // On the send path: the deadline clock starts, the dispatch is confirmed, then the gateway.
+    const sendPath = executeBody.slice(
+      executeBody.indexOf("const confirmationStarted = clock.now();"),
+    );
+    const confirmAt = sendPath.indexOf("= await confirmDispatch(admin, requestId, claimToken);");
+    expect(confirmAt).toBeGreaterThan(0);
+    expect(sendPath.indexOf("await call(gateway")).toBeGreaterThan(confirmAt);
+    expect(executeBody.match(/await call\(gateway/g)).toHaveLength(1);
+    expect(billing).toContain("export const SEND_DEADLINE_MS = 30_000;");
+    expect(offenders(/console\.\w+\([^)]*(?:claim_?token|claimToken)/i)).toEqual([]);
+    expect(
+      offenders(/claim_?token|claimToken/i, [
+        "src/server/services/billing.ts",
+        "src/domain/contracts/audit-actions.ts",
+      ]),
+    ).toEqual([]);
   });
 
   it("T-ARC-08: no portal path issues a refund or responds to a dispute", () => {

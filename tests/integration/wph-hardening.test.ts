@@ -431,7 +431,7 @@ $$;
 grant execute on function pg_temp.evt(text, text, jsonb) to service_role;
 create function pg_temp.ready(p_tag text, p_sha text) returns jsonb language plpgsql as $$
 declare
-  v_business uuid; v_project uuid; v_os uuid; v_acc uuid; v_cs uuid; v_req record; v jsonb;
+  v_business uuid; v_project uuid; v_os uuid; v_acc uuid; v_cs uuid; v_req record; v jsonb; v_tok uuid;
   v_draft uuid; v_sub uuid; v_release uuid; v_approval uuid;
 begin
   perform set_config('request.jwt.claims',
@@ -450,11 +450,13 @@ begin
   perform pg_temp.as_service();
   for v_req in select id, purpose from public.outbound_stripe_requests where project_id = v_project
                order by (purpose = 'customer_create') desc loop
-    perform public.outbound_request_for_execution(v_req.id);
+    -- AUTH-009 (setup): claim, confirm with the one-time token, then record with it.
+    v_tok := (public.outbound_request_for_execution(v_req.id) ->> 'claim_token')::uuid;
+    perform public.confirm_outbound_dispatch(v_req.id, v_tok);
     if v_req.purpose = 'customer_create' then
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cus_W' || p_tag, false, 200, null, '{}');
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cus_W' || p_tag, false, 200, null, '{}');
     else
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cs_test_W' || p_tag, false, 200, null,
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cs_test_W' || p_tag, false, 200, null,
         jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/cs_test_W' || p_tag));
     end if;
   end loop;
@@ -528,10 +530,17 @@ async function settleRaceRequests() {
       [raceProjects],
     );
     for (const { id } of rows as { id: string }[]) {
-      await db.query("select public.outbound_request_for_execution($1)", [id]);
+      // AUTH-009 (setup): claim, confirm with the one-time token, then record with it. The
+      // token stays in memory and is never logged or asserted.
+      const claim = await db.query(
+        "select public.outbound_request_for_execution($1) ->> 'claim_token' as token",
+        [id],
+      );
+      const token = (claim.rows[0] as { token: string | null }).token;
+      await db.query("select public.confirm_outbound_dispatch($1, $2)", [id, token]);
       await db.query(
-        "select public.record_outbound_result($1, 'succeeded', $2, false, 200, null, '{}')",
-        [id, `in_W${id.slice(0, 8)}`],
+        "select public.record_outbound_result($1, $2, 'succeeded', $3, false, 200, null, '{}')",
+        [id, token, `in_W${id.slice(0, 8)}`],
       );
     }
     await db.query("commit");

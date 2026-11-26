@@ -299,10 +299,17 @@ async function settleRequests() {
       [projects],
     );
     for (const { id } of rows as { id: string }[]) {
-      await db.query("select public.outbound_request_for_execution($1)", [id]);
+      // AUTH-009 (setup): claim, confirm with the one-time token, then record with it. The
+      // token stays in memory and is never logged or asserted.
+      const claim = await db.query(
+        "select public.outbound_request_for_execution($1) ->> 'claim_token' as token",
+        [id],
+      );
+      const token = (claim.rows[0] as { token: string | null }).token;
+      await db.query("select public.confirm_outbound_dispatch($1, $2)", [id, token]);
       await db.query(
-        "select public.record_outbound_result($1, 'succeeded', $2, false, 200, null, '{}')",
-        [id, `in_OI113${id.slice(0, 8)}`],
+        "select public.record_outbound_result($1, $2, 'succeeded', $3, false, 200, null, '{}')",
+        [id, token, `in_OI113${id.slice(0, 8)}`],
       );
     }
     await db.query("commit");

@@ -19,7 +19,7 @@
  * public pages keep their signed-out collection; their URLs and thresholds are unchanged.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -111,6 +111,24 @@ async function checkRenders(page, { path, selector, text }) {
   const content = (await page.locator(selector).first().textContent({ timeout: 10_000 })) ?? "";
   if (!content.includes(text)) {
     throw new Error(`lighthouse-auth: ${path} did not render ${selector} with "${text}"`);
+  }
+}
+
+/** Stops a child process and waits until it has exited (SIGTERM, then SIGKILL after 10 s). */
+async function stopProcess(child) {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return;
+  const exited = new Promise((resolve) => child.once("exit", resolve));
+  child.kill("SIGTERM");
+  const timer = setTimeout(() => child.kill("SIGKILL"), 10_000);
+  await exited;
+  clearTimeout(timer);
+}
+
+/** Removes the audit browser's profile and verifies it is gone (never left behind or uploaded). */
+function removeProfile(profile) {
+  rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  if (existsSync(profile)) {
+    throw new Error("lighthouse-auth: the audit browser's temporary profile could not be removed");
   }
 }
 
@@ -291,9 +309,10 @@ async function main() {
       throw new Error(`lighthouse-auth: lhci collect exited ${collect.status}`);
     }
   } finally {
-    auditBrowser?.kill();
-    server.kill();
-    rmSync(profile, { recursive: true, force: true });
+    // The browser must have exited before its profile is removed (it writes to it until then).
+    await stopProcess(auditBrowser);
+    await stopProcess(server);
+    removeProfile(profile);
   }
 
   // 4. The audit was read-only: PROJECT_A is still unpaid (WP-B N-2).

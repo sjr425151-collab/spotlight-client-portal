@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.41.0 |
+| Version | 0.42.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,18 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### PR #36, #27 and #38 merges; D-1 ratification; Stage A attestation; OI-113 closed (Owner, 2026-11-25 and 2026-11-26)
+
+Owner decisions "PR #36 — Approved", "Stage A attestation — Approved", "D-1 — Ratified", "PR #27 pinned merge approved" and "PR #38 pinned merge approved". Documentation only.
+
+- **PR #36:** merged at `19f6103385dd8778f449fdacae35add01ea0785a` (head `e83ad45`, base `30414c7`; CI 45690705575, documentation-only set). Post-merge CI run 45694804255 (#126) 7/7 with the full suite. **AUTH-013 activated.**
+- **Stage A (mechanism only):** option (a) for prerequisite 3. The restricted-key permission model was verified on 2026-11-25 from docs.stripe.com: `keys/restricted-api-keys` (SHA-256 `5da4c9e6dbfbbae14c3112b3c30bf266656a765e192204c9ddb02e2e30cf40e7`), `api/balance/balance_retrieve` (`9134a8c39a22aad342bb8fcf29d6fa886d49deb518252cbb60394a238da26cc8`), `api/prices/retrieve` (`d361509ffecf1cbc9247447afa541977aa76c302d30caf1917a64ca1017f389a`), `api/prices/list` (`1fc8456a7e1af6bee213bd03d6d0bb7276513edad4575d4d08939bba133387cd`), `api/products/retrieve` (`9cf8690ec3161f6df0e8d85d0c23b1950a342dad888948967855ef8a17474e9a`) and `api/products/list` (`13c8eb754904581ad3ea0712b837705f4626b0e14b167a3f499a9a656da22128`). The exact Dashboard labels are confirmed by the Owner's attestation. The eight-point attestation wording is approved (AUTHORIZATIONS AUTH-002), with the accepted limitation that the attestation is the only control against excess key permissions. No key creation, credential entry, provider access or Stage A execution is authorized.
+- **D-1 (ratified; separate from the merge):** ratified as implemented and reviewed: the exact-filename exemptions (`20261125120100`, `20261125120200`, `20261126140000`), the stricter lexical detection, the mutation evidence and the disclosed residual limitations (fragment-assembled names, `chr()` or `format()`, `U&"…"` identifiers). The static guard is defense in depth, not an exhaustive SQL security boundary; the database construction guard remains the authoritative runtime control. Evidence: `d2077d2`, `1508ede`, Main 7173468443, WP-B 7173416670, CI 45691819713.
+- **PR #27:** merged at `05b32e9f62d409c88015c40ccddd33a852818e07` (head `3ff957a`, base `19f6103`; CI 45696075220 7/7). Post-merge CI run 45706248054 (#129) 7/7 with the full suite. **AUTH-007 completed.** DEP-18 content remains a mandatory R1 blocker.
+- **PR #38:** merged at `7226d6f60dcbf014033b1eb24b1e0e630d945942` (head `ae6c474`, base `05b32e9`; CI 45707874799 7/7; patch ID unchanged). Post-merge CI run 45725850769 (#131) 7/7 with the full suite. **OI-113 closed; AUTH-013 completed.** The informational findings (WP-B N-1; WP-S N-2 to N-5) are accepted as non-blocking and kept in AUTH-013 "Completion". Option (c) is recorded as OWNER-RUNBOOKS §12, emergency recovery only.
+- **Reconciled:** OI-86 and OI-87 resolved by PR #35; DEP-18 version sealing delivered by PR #27; the R1 blocker list in CURRENT-STATE updated.
+- **Unchanged:** AUTH-009 and AUTH-010 proposed and non-executable (the AUTH-009 and I-2 grants await the Owner's decision); AUTH-002 Stage A inactive; no provider or production access.
+
 ### AUTH-013 activation and the OI-113 implementation (WP-C, 2026-11-25)
 
 Recorded by the WP-C session in its AUTH-013 implementation PR. No new decision: the activation follows the conditions recorded in AUTHORIZATIONS AUTH-013. The documentation scope follows Main's interpretation of the grant, which adds no authority.
@@ -1578,6 +1590,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.39.0 | 2026-11-25 | **PR #37 merged** (`e3a7508`, CI 45682383873 (#120) 7/7); OI-95 closed; AUTH-012 completed; O-1 carried forward to I-2. OPEN-ISSUES v0.32.0. | Main session | Owner |
 | 0.40.0 | 2026-11-25 | **PR #35 merged** (`30414c7`, CI 45689577718 (#123) 7/7); AUTH-006 completed; **AUTH-013 granted** (activation pending; fixture-integrity clarification). CURRENT-STATE v1.25.0; OPEN-ISSUES v0.33.0. | Main session | Owner |
 | 0.41.0 | 2026-11-25 | **AUTH-013 active** (PR #36 `19f6103`, post-merge CI 45694804255); **OI-113 correction implemented** (in review): migration `20261127110000`, pgTAP 235, the race test, fixture moves 1 to 6. **05 v0.5.2** (§7 "Gate rule", OI-113). CURRENT-STATE v1.27.0 (§18). Main's next record takes v0.42.0. | WP-C session | Owner (on merge) |
+| 0.42.0 | 2026-11-26 | **PRs #36, #27 and #38 merged** (`19f6103`, `05b32e9`, `7226d6f`; post-merge CI 45694804255 (#126), 45706248054 (#129), 45725850769 (#131)); AUTH-013 activated and completed; AUTH-007 completed; **OI-113 closed**; D-1 ratified; Stage A attestation wording approved; OI-86 and OI-87 reconciled. CURRENT-STATE v1.28.0; AUTHORIZATIONS v1.24.0; OPEN-ISSUES v0.34.0; OWNER-RUNBOOKS v0.5.0 (§12). | Main session | Owner |
 
 ## 6. Change-control rules
 

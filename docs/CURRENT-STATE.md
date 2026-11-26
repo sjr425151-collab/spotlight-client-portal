@@ -1438,8 +1438,10 @@ Implemented by the dedicated integration session (`https://claude.ai/code/sessio
 | Authenticated Lighthouse (P-2) | `lighthouserc.json` (one assertion entry; collect URLs unchanged), `.github/workflows/ci.yml` (Lighthouse job only), `tests/support/lighthouse-auth.mjs` (new) | Public pages keep their signed-out collection and thresholds. The script signs the seed client in with Playwright (email code from local Mailpit, never logged), checks each page (HTTP 200, own route, page-specific content; stop condition otherwise), hands the session in memory to a separate Chrome on 127.0.0.1 only (temporary profile, deleted), runs `lhci collect --additive` for the three pages, and verifies every report (runs per page, own route, HTTP 200, no token, cookie name or profile path). The Job runs four steps without `if:`: collect public, the auth script, `lhci assert`, `lhci upload`. The LHCI `puppeteerScript` first proposed needs a `puppeteer` dependency (not resolvable under pnpm), so Main approved this mechanism under OM-4 (same files, pages, thresholds and safeguards; no dependency change) |
 
 **Findings for the Owner (raised to Main):**
-- **P-3 (stop condition; open, with the Owner):** `src/app/staff/projects/[projectId]/fulfillment-panel.tsx:599` `pattern="[a-z0-9][a-z0-9_-]{2,99}"` is invalid under the `v` flag browsers use for `pattern`; Chromium logs an error on every Owner view and ignores the pattern. T-E2E-10 fails on it and is not weakened. Proposed one-line fix: `[a-z0-9][a-z0-9_\-]{2,99}`.
+- **P-3 (resolved; Owner ruling 2026-11-26, "Authorize the one-line pattern correction in fulfillment-panel.tsx:599. Preserve the intended validation semantics and server-side validation. Verify representative valid and invalid inputs and successful T-E2E-10 execution. Do not weaken validation or suppress the console error"):** `src/app/staff/projects/[projectId]/fulfillment-panel.tsx:599` `pattern="[a-z0-9][a-z0-9_-]{2,99}"` was invalid under the `v` flag browsers use for `pattern` (a console error on every Owner view; the pattern was ignored). Changed to `[a-z0-9][a-z0-9_\-]{2,99}` (exactly one line; the database check `^[a-z0-9][a-z0-9_-]{2,99}$` unchanged). A new `r1.spec.ts` test proves the real browser's `validity.patternMismatch` and the database's own check constraint accept `abc`, `my-site_1` and a 100-character value and reject `ab`, `-abc`, `_abc`, `Abc`, `a b c`, `abc.def` and a 101-character value; T-E2E-10 passes unchanged.
 - **O-3:** after a deployment its authorization stays active, so the staff page offers no new authorization for the same release (no UI path to redeploy after a failed live verification). T-E2E-08's second authorization is labelled test setup through the real `authorize_publication` under the Owner's real aal2 session.
+- **OI-116 (pre-existing; allocated by Main):** T-AUTH-11 in `auth-tenancy.test.ts` is clock-dependent: `private.consume_rate_limit` uses hour-aligned windows, so when its 7-send loop crosses a whole hour the count restarts (run 45739220187: 2 + 5 = 7 codes). Not caused by this PR; test and function unchanged.
+- **O-3 is OI-114; O-4 is OI-115** (allocated by Main).
 - **O-4:** the database does not enforce that the two environment classifications agree; the seed sets both, and `400` asserts agreement and fail-closed absence.
 
 **Verification (local stack, Supabase CLI 3.2.0, synthetic data only), at `16dada6` from a fresh `supabase db reset`:**
@@ -1450,10 +1452,10 @@ Implemented by the dedicated integration session (`https://claude.ai/code/sessio
 | `pnpm test:integration` | 8 files, 99 passed |
 | `pnpm test` | 21 files, 366 passed |
 | `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
-| `pnpm exec playwright test` | 63 passed, 1 failed: T-E2E-10 on P-3 only |
+| `pnpm exec playwright test` | 63 passed, 1 failed: T-E2E-10 on P-3 only (before the P-3 fix). After it: `--project r1`, 12 passed, including T-E2E-10 and the P-3 agreement test |
 | `lhci collect`, `lighthouse-auth.mjs`, `lhci assert` | 5 URLs × 3 runs; every assertion passes; report verification clean. Medians: performance 0.97–1.00, accessibility 1.00, best practices 1.00 |
 | `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
 
 Not run locally: the dependency audit and gitleaks (CI only).
 
-**Effort (OI-67):** AI session about 3 h; Owner review: none yet; administrative about 0.3 h (P-1, P-2 and P-3 questions to Main).
+**Effort (OI-67):** AI session about 3 h; Owner review: none yet; administrative about 0.4 h (P-1, P-2 and P-3 questions to Main; the OI-116 root cause).

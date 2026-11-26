@@ -949,6 +949,53 @@ test("T-E2E-07: QA, security and domain readiness are recorded; the admin queue 
 });
 
 // ---------------------------------------------------------------------------
+// P-3 (Owner ruling, 2026-11-26): the browser `pattern` and the server rule agree
+// ---------------------------------------------------------------------------
+test("P-3: the deployment-target field's browser pattern and the database rule accept and reject the same inputs", async () => {
+  const cases: [string, boolean][] = [
+    ["abc", true],
+    ["my-site_1", true],
+    ["a".repeat(100), true],
+    ["ab", false],
+    ["-abc", false],
+    ["_abc", false],
+    ["Abc", false],
+    ["a b c", false],
+    ["abc.def", false],
+    ["a".repeat(101), false],
+  ];
+  await owner.goto(`/staff/projects/${projectId}`);
+  const input = owner.getByLabel("Client deployment target (project reference)");
+  // The server rule is the database's own check constraint on client_site_targets.target_ref.
+  const serverRule = await withDb(async (db) => {
+    const { rows } = await db.query(
+      `select pg_get_constraintdef(c.oid) as def from pg_constraint c
+        where c.conrelid = 'public.client_site_targets'::regclass and c.contype = 'c'
+          and pg_get_constraintdef(c.oid) like '%target_ref%'`,
+    );
+    expect(rows).toHaveLength(1);
+    return /'(\^.*\$)'/.exec(rows[0].def as string)![1]!;
+  });
+  expect(serverRule).toBe("^[a-z0-9][a-z0-9_-]{2,99}$");
+  for (const [value, valid] of cases) {
+    await input.fill(value);
+    const browserAccepts = await input.evaluate(
+      (el) => !(el as HTMLInputElement).validity.patternMismatch,
+    );
+    const serverAccepts = await withDb(async (db) => {
+      const { rows } = await db.query("select $1::text ~ $2::text as ok", [value, serverRule]);
+      return rows[0].ok as boolean;
+    });
+    expect({ value, browserAccepts, serverAccepts }).toEqual({
+      value,
+      browserAccepts: valid,
+      serverAccepts: valid,
+    });
+  }
+  await input.fill("");
+});
+
+// ---------------------------------------------------------------------------
 // T-E2E-08 Publication
 // ---------------------------------------------------------------------------
 test("T-E2E-08: the Owner, freshly reauthenticated, authorizes exactly the approved release; the deployment is recorded and verified; a mismatched build fails", async () => {

@@ -41,6 +41,13 @@ declare
 begin
   perform pg_temp.as_service();
   execute p_sql into v;
+  -- AUTH-009 (setup): a claim's one-time token is stored test-locally and confirmed as the
+  -- executor does, and is removed from the result.
+  if v ? 'claim_token' then
+    insert into claim_tokens values ((v ->> 'id')::uuid, (v ->> 'claim_token')::uuid);
+    perform public.confirm_outbound_dispatch((v ->> 'id')::uuid, (v ->> 'claim_token')::uuid);
+    v := v - 'claim_token';
+  end if;
   reset role;
   return v;
 end;
@@ -144,6 +151,13 @@ create function pg_temp.approve(p_project uuid, p_n integer) returns bigint lang
 $$;
 create temporary table ids (k text primary key, v text) on commit drop;
 grant all on ids to authenticated, service_role;
+-- AUTH-009 (setup): the one-time claim tokens, kept test-locally; never printed or asserted.
+create temporary table claim_tokens (request_id uuid primary key, token uuid not null) on commit drop;
+grant all on claim_tokens to service_role;
+create function pg_temp.token(p_request_id uuid) returns uuid language sql as $$
+  select token from claim_tokens where request_id = p_request_id;
+$$;
+grant execute on function pg_temp.token(uuid) to service_role;
 
 -- A project paid through the real workflow: order summary (Owner), acceptance and Checkout
 -- (client A), recorded mock results, a verified checkout.session.completed, and, when
@@ -156,6 +170,7 @@ declare
   v_acc uuid;
   v_cs uuid;
   v_req record;
+  v_tok uuid;
 begin
   perform set_config('request.jwt.claims',
     '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}', true);
@@ -173,11 +188,13 @@ begin
   perform pg_temp.as_service();
   for v_req in select id, purpose from public.outbound_stripe_requests where project_id = v_project
                order by (purpose = 'customer_create') desc loop
-    perform public.outbound_request_for_execution(v_req.id);
+    -- AUTH-009 (setup): claim, confirm with the one-time token, then record with it.
+    v_tok := (public.outbound_request_for_execution(v_req.id) ->> 'claim_token')::uuid;
+    perform public.confirm_outbound_dispatch(v_req.id, v_tok);
     if v_req.purpose = 'customer_create' then
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
     else
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
         jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/cs_test_' || p_tag || '00000'));
     end if;
   end loop;
@@ -280,7 +297,7 @@ select ok((select request_params ->> 'mode' = 'setup' and request_params -> 'all
 select is(pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select id from public.outbound_stripe_requests
   where domain_record_id = (select v::uuid from ids where k = 'rec1')))) ->> 'customer', 'cus_TNONE00000',
   'recovery uses the client business''s existing Customer');
-select is(pg_temp.svc(format('select public.record_outbound_result(%L, ''succeeded'', ''cs_test_RECV00001'', false, 200, null, %L)',
+select is(pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), ''succeeded'', ''cs_test_RECV00001'', false, 200, null, %2$L)',
   (select id from public.outbound_stripe_requests where domain_record_id = (select v::uuid from ids where k = 'rec1')),
   '{"url": "https://checkout.stripe.com/c/pay/cs_test_RECV00001"}')) ->> 'status', 'succeeded', 'the recovery session opens');
 select is(pg_temp.deliver(pg_temp.evt('evt_RECVcharged1', 'checkout.session.completed', jsonb_build_object('id', 'cs_test_RECV00001',
@@ -323,7 +340,7 @@ select is(pg_temp.svc(format('select public.outbound_request_for_execution(%L)',
   'final_balance_invoice_create', 'the executor claims the automatic create');
 select is(pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select v from ids where k = 'req_ok'))) ->> 'error',
   'already_claimed', 'T-PAY-21: a concurrent executor cannot send it again');
-select is(pg_temp.svc(format('select public.record_outbound_result(%L, ''succeeded'', ''in_OKAYfinal01'', false, 200, null, %L)',
+select is(pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), ''succeeded'', ''in_OKAYfinal01'', false, 200, null, %2$L)',
   (select v from ids where k = 'req_ok'), '{"hosted_invoice_url": "https://invoice.stripe.com/i/acct_test/in_OKAYfinal01"}')) ->> 'status',
   'succeeded', 'the automatically collected invoice is created');
 create temporary table inv (k text primary key, body jsonb) on commit drop;
@@ -469,7 +486,7 @@ select ok(private.payment_authorization_state((select v::uuid from ids where k =
   and (select automatic_stop_required and collection_mode = 'hosted_only' from public.final_balance_invoices
        where project_id = (select v::uuid from ids where k = 'p_rb')),
   'T-PAY-20: detachment makes the authorization unavailable and halts automatic collection');
-select is(pg_temp.svc(format('select public.record_outbound_result(%L, ''succeeded'', ''in_RACBfinal01'', false, 200, null, ''{}'')',
+select is(pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), ''succeeded'', ''in_RACBfinal01'', false, 200, null, ''{}'')',
   (select v from ids where k = 'req_rb'))) ->> 'status', 'succeeded', 'race (b): the in-flight create completes');
 insert into ids select 'stop_rb', id::text from public.outbound_stripe_requests where project_id = (select v::uuid from ids where k = 'p_rb')
   and purpose = 'final_balance_invoice_disable_auto';
@@ -478,7 +495,7 @@ select ok((select status = 'pending' and request_params ->> 'invoice' = 'in_RACB
   'race (b): a request disabling automatic collection is queued for that invoice');
 select is(pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select v from ids where k = 'stop_rb'))) ->> 'purpose',
   'final_balance_invoice_disable_auto', 'the stop request is executed');
-select is(pg_temp.svc(format('select public.record_outbound_result(%L, ''succeeded'', ''in_RACBfinal01'', false, 200, null, ''{}'')',
+select is(pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), ''succeeded'', ''in_RACBfinal01'', false, 200, null, ''{}'')',
   (select v from ids where k = 'stop_rb'))) ->> 'status', 'succeeded', 'automatic collection is disabled');
 -- Stripe charged before the stop took effect: the payment is verified (Stripe is
 -- authoritative), and goes to Owner review.
@@ -501,7 +518,7 @@ select pg_temp.approve((select v::uuid from ids where k = 'p_rc'), 10);
 select pg_temp.consume();
 select pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select id from public.outbound_stripe_requests
   where project_id = (select v::uuid from ids where k = 'p_rc') and purpose = 'final_balance_invoice_create')));
-select pg_temp.svc(format('select public.record_outbound_result(%L, ''succeeded'', ''in_RACCfinal01'', false, 200, null, ''{}'')',
+select pg_temp.svc(format('select public.record_outbound_result(%1$L, pg_temp.token(%1$L), ''succeeded'', ''in_RACCfinal01'', false, 200, null, ''{}'')',
   (select id from public.outbound_stripe_requests where project_id = (select v::uuid from ids where k = 'p_rc') and purpose = 'final_balance_invoice_create')));
 select is(pg_temp.deliver(pg_temp.evt('evt_RACCdetach01', 'payment_method.detached', jsonb_build_object('id', 'pm_RACCcard01', 'object', 'payment_method'))) ->> 'status',
   'processed', 'race (c): detachment after the invoice exists is processed');

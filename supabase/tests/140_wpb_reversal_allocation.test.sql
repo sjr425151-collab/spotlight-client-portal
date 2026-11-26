@@ -94,6 +94,7 @@ declare
   v_acc uuid;
   v_cs uuid;
   v_req record;
+  v_tok uuid;
 begin
   perform set_config('request.jwt.claims',
     '{"sub":"00000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}', true);
@@ -111,11 +112,13 @@ begin
   perform pg_temp.as_service();
   for v_req in select id, purpose from public.outbound_stripe_requests where project_id = v_project
                order by (purpose = 'customer_create') desc loop
-    perform public.outbound_request_for_execution(v_req.id);
+    -- AUTH-009 (setup): claim, confirm with the one-time token, then record with it.
+    v_tok := (public.outbound_request_for_execution(v_req.id) ->> 'claim_token')::uuid;
+    perform public.confirm_outbound_dispatch(v_req.id, v_tok);
     if v_req.purpose = 'customer_create' then
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
     else
-      perform public.record_outbound_result(v_req.id, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
         jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/cs_test_' || p_tag || '00000'));
     end if;
   end loop;

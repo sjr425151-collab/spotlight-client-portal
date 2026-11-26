@@ -109,9 +109,30 @@ export interface ReturnUrls {
   cancelUrl: string;
 }
 
+/**
+ * AUTH-009: the provider request may start only within this bound, measured on the
+ * executor's monotonic clock from the start of its `confirm_outbound_dispatch` call. That
+ * start precedes the database's `dispatch_confirmed_at`, so the bound is never later than
+ * 30 seconds after it; a delayed confirmation response grants no fresh window.
+ */
+export const SEND_DEADLINE_MS = 30_000;
+
+/** A monotonic clock in milliseconds (a fake one in tests). */
+export interface DispatchClock {
+  now(): number;
+}
+const monotonicClock: DispatchClock = { now: () => performance.now() };
+
+/**
+ * Records a result with the claim token (A1). The token is held in memory only and never
+ * logged or returned. One identical resubmission is made only when the response was lost
+ * (a transport error, no result): the database returns the stored outcome, applies nothing
+ * again, and never authorizes another provider request.
+ */
 async function record(
   admin: SupabaseClient,
   requestId: string,
+  claimToken: string,
   outcome: "succeeded" | "failed" | "ambiguous",
   fields: {
     objectId?: string;
@@ -121,16 +142,56 @@ async function record(
     details?: object;
   },
 ): Promise<ServiceResult> {
-  const { data, error } = await admin.rpc("record_outbound_result", {
+  const args = {
     p_request_id: requestId,
+    p_claim_token: claimToken,
     p_outcome: outcome,
     p_stripe_object_id: fields.objectId ?? null,
     p_livemode: fields.livemode ?? null,
     p_http_status: fields.httpStatus ?? null,
     p_error_code: fields.code ?? null,
     p_details: fields.details ?? {},
-  });
+  };
+  let { data, error } = await admin.rpc("record_outbound_result", args);
+  if (error && !data) ({ data, error } = await admin.rpc("record_outbound_result", args));
   return rpcResult(data, error);
+}
+
+type Confirmation =
+  | { kind: "confirmed" }
+  | { kind: "superseded"; nextRequestId: string }
+  | { kind: "refused"; error: string };
+
+/**
+ * A3: the set-once dispatch confirmation, immediately before the provider request. Anything
+ * but an explicit confirmation fails closed: nothing is sent.
+ */
+async function confirmDispatch(
+  admin: SupabaseClient,
+  requestId: string,
+  claimToken: string,
+): Promise<Confirmation> {
+  const { data, error } = await admin.rpc("confirm_outbound_dispatch", {
+    p_request_id: requestId,
+    p_claim_token: claimToken,
+  });
+  const row = data as {
+    ok?: boolean;
+    confirmed?: boolean;
+    error?: string;
+    next_request_id?: unknown;
+  };
+  if (!error && row?.ok === true && row.confirmed === true) return { kind: "confirmed" };
+  if (
+    !error &&
+    row?.error === "superseded" &&
+    typeof row.next_request_id === "string" &&
+    row.next_request_id !== requestId
+  ) {
+    return { kind: "superseded", nextRequestId: row.next_request_id };
+  }
+  const result = rpcResult(data, error);
+  return { kind: "refused", error: result.ok ? "not_confirmed" : result.error };
 }
 
 /** Line prices the request will charge, with the total the snapshot expects. */
@@ -231,13 +292,21 @@ async function call(
  * An automatic final-balance create that no longer qualifies when it is claimed (the
  * authorization was revoked, the card detached or replaced) is never sent: the database
  * marks it failed and queues a hosted-only attempt on the same invoice record, which runs
- * here instead (OI-74, T-PAY-21).
+ * here instead (OI-74, T-PAY-21). The same replacement happens at confirmation when the
+ * authorization changed after the claim.
+ *
+ * AUTH-009: the claim returns a one-time token (kept in memory only); the request is
+ * confirmed immediately before the provider request, which starts only within
+ * SEND_DEADLINE_MS of the start of the confirmation call. A definitive `failed` is recorded
+ * only when the executor knows no provider request started; once one may have started, an
+ * unknown outcome is `ambiguous`. No automatic redispatch, and no gateway or SDK retries.
  */
 export async function executeOutboundRequest(
   admin: SupabaseClient,
   gateway: StripeGateway,
   requestId: string,
   urls?: ReturnUrls,
+  clock: DispatchClock = monotonicClock,
 ): Promise<ServiceResult<{ status: string }>> {
   const { data, error } = await admin.rpc("outbound_request_for_execution", {
     p_request_id: requestId,
@@ -249,51 +318,78 @@ export async function executeOutboundRequest(
     typeof superseded.next_request_id === "string" &&
     superseded.next_request_id !== requestId
   ) {
-    return executeOutboundRequest(admin, gateway, superseded.next_request_id, urls);
+    return executeOutboundRequest(admin, gateway, superseded.next_request_id, urls, clock);
   }
   const loaded = rpcResult(data, error);
   if (!loaded.ok) return loaded;
-  const row = loaded as unknown as ExecutionRow;
+  const { claim_token: claimToken, ...claimed } = loaded as Record<string, unknown>;
+  if (typeof claimToken !== "string") return { ok: false, error: "claim_token_missing" };
+  const row = claimed as unknown as ExecutionRow;
   if (row.expected_livemode && gateway.kind === "mock")
     return { ok: false, error: "mode_mismatch" };
-  if (!cardOnly(row)) {
-    const recorded = await record(admin, requestId, "failed", {
-      httpStatus: 409,
-      code: "payment_method_types_invalid",
-    });
-    return recorded.ok ? { ok: false, error: "payment_method_types_invalid" } : recorded;
-  }
+
+  // Nothing is sent, and the executor knows it: confirm (fail closed), then record a
+  // definitive failure. An unconfirmed result would be recorded ambiguous instead.
+  const failWithoutSend = async (
+    httpStatus: number,
+    code: string,
+  ): Promise<ServiceResult<{ status: string }>> => {
+    const confirmation = await confirmDispatch(admin, requestId, claimToken);
+    if (confirmation.kind === "superseded")
+      return executeOutboundRequest(admin, gateway, confirmation.nextRequestId, urls, clock);
+    if (confirmation.kind === "refused") return { ok: false, error: confirmation.error };
+    const recorded = await record(admin, requestId, claimToken, "failed", { httpStatus, code });
+    return recorded.ok ? { ok: false, error: code } : recorded;
+  };
+
+  if (!cardOnly(row)) return failWithoutSend(409, "payment_method_types_invalid");
 
   const priceProblem = await verifyPrices(gateway, row);
-  if (priceProblem) {
-    // Nothing was created at Stripe, so the request is definitively failed (not ambiguous).
-    const recorded = await record(admin, requestId, "failed", {
-      httpStatus: 409,
-      code: priceProblem,
+  // Nothing was created at Stripe, so the request is definitively failed (not ambiguous).
+  if (priceProblem) return failWithoutSend(409, priceProblem);
+
+  const params = stripeParams(row, urls);
+  const confirmationStarted = clock.now();
+  const confirmation = await confirmDispatch(admin, requestId, claimToken);
+  if (confirmation.kind === "superseded")
+    return executeOutboundRequest(admin, gateway, confirmation.nextRequestId, urls, clock);
+  if (confirmation.kind === "refused") return { ok: false, error: confirmation.error };
+  if (clock.now() - confirmationStarted > SEND_DEADLINE_MS) {
+    // The deadline passed before any provider request started: safe to record as failed.
+    const recorded = await record(admin, requestId, claimToken, "failed", {
+      code: "dispatch_not_initiated",
     });
-    return recorded.ok ? { ok: false, error: priceProblem } : recorded;
+    return recorded.ok ? { ok: false, error: "dispatch_not_initiated" } : recorded;
   }
 
-  const result = await call(gateway, row, stripeParams(row, urls));
+  // From here a provider request may have started: an unknown outcome is never `failed`.
+  const result = await call(gateway, row, params);
   if (result.kind === "ok") {
     const { id, livemode, ...rest } = result.object;
     const details: Record<string, unknown> = {};
     for (const key of ["url", "expires_at", "hosted_invoice_url"])
       if (key in rest) details[key] = rest[key];
-    const recorded = await record(admin, requestId, "succeeded", {
+    const recorded = await record(admin, requestId, claimToken, "succeeded", {
       objectId: id,
       // Strictly boolean; anything else is passed as null and the database aborts.
       livemode: typeof livemode === "boolean" ? livemode : undefined,
       httpStatus: result.httpStatus,
       details,
     });
-    return recorded.ok ? { ok: true, status: "succeeded" } : recorded;
+    if (!recorded.ok) return recorded;
+    // A late or unconfirmed success is recorded ambiguous and awaits Owner reconciliation.
+    return recorded.status === "succeeded"
+      ? { ok: true, status: "succeeded" }
+      : { ok: false, error: "reconciliation_required" };
   }
   if (result.kind === "failed") {
-    await record(admin, requestId, "failed", { httpStatus: result.httpStatus, code: result.code });
+    await record(admin, requestId, claimToken, "failed", {
+      httpStatus: result.httpStatus,
+      code: result.code,
+    });
     return { ok: false, error: "stripe_rejected" };
   }
-  await record(admin, requestId, "ambiguous", { code: result.reason });
+  await record(admin, requestId, claimToken, "ambiguous", { code: result.reason });
   return { ok: false, error: "reconciliation_required" };
 }
 

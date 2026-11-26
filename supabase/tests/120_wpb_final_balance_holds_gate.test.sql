@@ -149,6 +149,26 @@ language sql as $$
 $$;
 create temporary table ids (k text primary key, v text) on commit drop;
 grant all on ids to authenticated, service_role;
+-- AUTH-009 (setup): the one-time claim tokens, kept test-locally; never printed or asserted.
+create temporary table claim_tokens (request_id uuid primary key, token uuid not null) on commit drop;
+grant all on claim_tokens to service_role;
+create function pg_temp.token(p_request_id uuid) returns uuid language sql as $$
+  select token from claim_tokens where request_id = p_request_id;
+$$;
+grant execute on function pg_temp.token(uuid) to service_role;
+-- AUTH-009 (setup): claim and confirm as the executor does; the token is stored, not returned.
+create function pg_temp.claim(p_request_id uuid) returns jsonb language plpgsql as $$
+declare
+  v jsonb := public.outbound_request_for_execution(p_request_id);
+begin
+  if v ? 'claim_token' then
+    insert into claim_tokens values (p_request_id, (v ->> 'claim_token')::uuid);
+    perform public.confirm_outbound_dispatch(p_request_id, (v ->> 'claim_token')::uuid);
+  end if;
+  return v - 'claim_token';
+end;
+$$;
+grant execute on function pg_temp.claim(uuid) to service_role;
 
 -- ---------------------------------------------------------------------------
 -- 0. Setup: Project A reaches a verified deposit through the real workflow
@@ -163,9 +183,11 @@ insert into ids select 'acc1', public.accept_agreement((select v::uuid from ids 
 insert into ids select 'cs', public.begin_initial_checkout('20000000-0000-4000-8000-0000000000a0') ->> 'checkout_session_id';
 reset role;
 select pg_temp.as_service();
-select public.record_outbound_result(id, 'succeeded', 'cus_TestA000001', false, 200, null, '{}')
+select pg_temp.claim(id) ->> 'purpose' from public.outbound_stripe_requests where purpose = 'customer_create';
+select public.record_outbound_result(id, pg_temp.token(id), 'succeeded', 'cus_TestA000001', false, 200, null, '{}')
   from public.outbound_stripe_requests where purpose = 'customer_create';
-select public.record_outbound_result(id, 'succeeded', 'cs_test_A000001', false, 200, null,
+select pg_temp.claim(id) ->> 'purpose' from public.outbound_stripe_requests where purpose = 'checkout_session_create';
+select public.record_outbound_result(id, pg_temp.token(id), 'succeeded', 'cs_test_A000001', false, 200, null,
   '{"url": "https://checkout.stripe.com/c/pay/cs_test_A000001"}') from public.outbound_stripe_requests where purpose = 'checkout_session_create';
 reset role;
 select is(pg_temp.deliver(pg_temp.evt('evt_setup0000001', 'checkout.session.completed', jsonb_build_object('id', 'cs_test_A000001',
@@ -306,7 +328,9 @@ select throws_ok($$ update public.final_balance_invoices set amount_cents = 1 $$
 
 -- Hosted invoice, failure, mismatch, verified payment, stale failure (04 §10, §11; T-ARC-03).
 select pg_temp.as_service();
+select pg_temp.claim(id) ->> 'purpose' from public.outbound_stripe_requests where purpose = 'final_balance_invoice_create';
 select is(public.record_outbound_result((select id from public.outbound_stripe_requests where purpose = 'final_balance_invoice_create'),
+  pg_temp.token((select id from public.outbound_stripe_requests where purpose = 'final_balance_invoice_create')),
   'succeeded', 'in_TestAFB00001', false, 200, null, '{"hosted_invoice_url": "https://invoice.stripe.com/i/acct_test/in_TestAFB00001"}')
   ->> 'status', 'succeeded', 'the invoice create result is recorded');
 reset role;

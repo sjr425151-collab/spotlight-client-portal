@@ -1418,3 +1418,42 @@ Remote CI for the exact head is recorded in the pull request.
 Each is a durable non-approval record. WP-C does not merge. OI-113 closes only on the verified merge and its post-merge CI.
 
 **Effort (OI-67):** AI session about 1.5 h; Owner review: none yet; administrative about 0.1 h (two documentation-scope questions to Main).
+
+## 19. WP-I I-2 implementation record (AUTH-008 I-2)
+
+Implemented by the dedicated integration session (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`; not Main) on `wp-i/r1-e2e`, from the verified `main` at `9e8569c` (PR #41; I-2 active on PR #40's merge at `2d27d07` with post-merge CI run 45731539779, 7/7, verified by this session). Section number appended per OM-5; Main may renumber at merge if another record takes §19.
+
+**Scope (AUTHORIZATIONS AUTH-008 "I-2 grant", "I-2 carried-forward dispositions", "I-2 scope decisions"):**
+
+| Item | Files | Change |
+|---|---|---|
+| T-E2E-01 to T-E2E-10 | `tests/e2e/r1.spec.ts` (new) | One Sales-assisted journey on a fresh customer: Sales customer, order summary and invitation; Mailpit invitation and email-code sign-in; agreement; Checkout (intercepted) and a signed `checkout.session.completed`; card; intake save, resume, changes requested, resubmit, accept; uploads (clean, EICAR-flagged, content mismatch, guessed URL); releases (superseded release refused, double submission gives one approval); final balance through the billing-job runner (one invoice and one charge; an `invoice.payment_action_required` shows the hosted link and keeps G4 failing; `invoice.paid` verifies); QA, security and domain evidence and the derived admin queue; Owner authorization with fresh reauthentication, deployment record and live verification (matching build verified; mismatched build fails with an incident); role separation; console errors. Every step asserts the database state and audit events; counts are scoped to the run's fresh IDs (disposition (iv)). A second fresh project for client B proves T-E2E-02's "verified deposit without a reusable card leaves intake locked" (its Checkout is recorded through the real WP-B functions, so the server's card lookup finds none) |
+| Seam (a) billing-job runner | `tests/support/billing-job-runner.ts`, `.job.ts`, `.config.mts` (new) | One pass of the existing `runBillingJobs` in a Vitest subprocess with the in-memory mocked gateway. Affirmative `development`/`test` only; local stack only; refused with a Stripe credential present |
+| Seam (b) mock live verifier | `src/server/publication/verifier.ts` (+38: `mockLiveFetch`, `verifierFor`); `src/server/services/fulfillment.ts` (**exactly 2 lines**: the l.7 import and the l.98 call `verifierFor(env.APP_ENV)(deployment.production_url)`, confirmed within P-1 by Main) | The stub answers only for reserved `.test` hosts and serves the build ID from a 40-hex first host label; every classification other than an exact `development` or `test` selects the unchanged real verifier |
+| Isolation evidence | `tests/unit/wpi-live-verifier.test.ts` (20), `tests/unit/wpi-billing-job-runner.test.ts` (19, including the static check that nothing under `src/` imports the runner or any `tests/support` module), `tests/e2e/production-gating.spec.ts` (+1 test: the production build contains neither the runner nor any test-support module) | Mutations caught: 8 of 8 (preview allowed, case-insensitive match, any host served, `.test` without the dot, staging allowed, host check skipped, Stripe key allowed, `pg` version changed) |
+| Fail-closed paths | `supabase/tests/400_wpi_r1_fail_closed.test.sql` (new, 33), `tests/unit/wpi-scanner-fail-closed.test.ts` (new, 12) | Publication blocked by an unconsumed approval (G4 is the only failing gate, the Owner's authorization is refused and audited, consumption alone does not unblock); `no_usable_agreement_version` in a production-classified database; agreement of `private.runtime_environment` and `private.environment_settings` and their fail-closed absence; `scannerFor` outside development and test |
+| Disposition (i) | `tests/support/rpc.ts` (`selectOk`), `tests/integration/wpc-uploads.test.ts`, `tests/integration/wpc-delivery.test.ts` | The six non-RPC reads report the PostgREST error. `expect(` counts unchanged (42 and 70); no assertion line in the diff; storage-denial checks unchanged |
+| Disposition (iii) | `tests/unit/wpi-pg-version.test.ts` (new, 3) | Fails unless the resolved and pinned `pg` is 8.16.3 and `connection.stream` exists; a change requires explicit re-verification, not a freeze |
+| Dispositions (ii), (v) | none | Recorded only (WP-C O-2; the 19.9 s PostgREST startup observation) |
+| Authenticated Lighthouse (P-2) | `lighthouserc.json` (one assertion entry; collect URLs unchanged), `.github/workflows/ci.yml` (Lighthouse job only), `tests/support/lighthouse-auth.mjs` (new) | Public pages keep their signed-out collection and thresholds. The script signs the seed client in with Playwright (email code from local Mailpit, never logged), checks each page (HTTP 200, own route, page-specific content; stop condition otherwise), hands the session in memory to a separate Chrome on 127.0.0.1 only (temporary profile, deleted), runs `lhci collect --additive` for the three pages, and verifies every report (runs per page, own route, HTTP 200, no token, cookie name or profile path). The Job runs four steps without `if:`: collect public, the auth script, `lhci assert`, `lhci upload`. The LHCI `puppeteerScript` first proposed needs a `puppeteer` dependency (not resolvable under pnpm), so Main approved this mechanism under OM-4 (same files, pages, thresholds and safeguards; no dependency change) |
+
+**Findings for the Owner (raised to Main):**
+- **P-3 (stop condition; open, with the Owner):** `src/app/staff/projects/[projectId]/fulfillment-panel.tsx:599` `pattern="[a-z0-9][a-z0-9_-]{2,99}"` is invalid under the `v` flag browsers use for `pattern`; Chromium logs an error on every Owner view and ignores the pattern. T-E2E-10 fails on it and is not weakened. Proposed one-line fix: `[a-z0-9][a-z0-9_\-]{2,99}`.
+- **O-3:** after a deployment its authorization stays active, so the staff page offers no new authorization for the same release (no UI path to redeploy after a failed live verification). T-E2E-08's second authorization is labelled test setup through the real `authorize_publication` under the Owner's real aal2 session.
+- **O-4:** the database does not enforce that the two environment classifications agree; the seed sets both, and `400` asserts agreement and fail-closed absence.
+
+**Verification (local stack, Supabase CLI 3.2.0, synthetic data only), at `16dada6` from a fresh `supabase db reset`:**
+
+| Command | Result |
+|---|---|
+| `./scripts/run-db-tests.sh` (pgTAP) | 1,754 assertions, 0 files failing (`400`: 33/33) |
+| `pnpm test:integration` | 8 files, 99 passed |
+| `pnpm test` | 21 files, 366 passed |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm exec playwright test` | 63 passed, 1 failed: T-E2E-10 on P-3 only |
+| `lhci collect`, `lighthouse-auth.mjs`, `lhci assert` | 5 URLs × 3 runs; every assertion passes; report verification clean. Medians: performance 0.97–1.00, accessibility 1.00, best practices 1.00 |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+
+Not run locally: the dependency audit and gitleaks (CI only).
+
+**Effort (OI-67):** AI session about 3 h; Owner review: none yet; administrative about 0.3 h (P-1, P-2 and P-3 questions to Main).

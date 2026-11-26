@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.43.0 |
+| Version | 0.44.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,15 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### Operating model amendments OM-1 to OM-7 (Owner, 2026-11-26)
+
+Owner decision "governance streamlining amendment approved, subject to the following binding refinements". Recorded in AUTHORIZATIONS §2A; effective on the verified merge of this record (OM-1).
+
+- **Approved:** G-1 (documentation-only records effective on verified merge; post-merge CI mandatory, with suspension on failure), G-2 (implementation-equivalence records replace repeated reconfirmations; patch identity alone insufficient where the baseline changes behavior), G-3 (consolidated activation, completion and closure records), G-4 (Main's bounded delegated authority; Owner escalation categories preserved), G-5 (no competing header-version changes in implementation PRs), G-6(a) (Main's standing Tier 0 merge authority for faithful documentation-only records), G-6(b) (conditional implementation merge when every named condition is objectively met), G-7 (readiness-complete grants).
+- **This record:** Main is explicitly authorized to merge it under OM-6(a) after confirming it faithfully reflects the decision.
+- **Unchanged:** risk tiers, security principles, financial safeguards, independent review requirements for implementation, exact-head CI, and all provider, hosted-environment and production restrictions. Completed work packages are not reopened. AUTH-009 and AUTH-008 I-2 continue under their recorded grants.
+- **Metrics:** lightweight, from existing records; material changes only; measured durations distinguished from estimates.
+
 ### AUTH-009 and AUTH-008 I-2 implementation grants (Owner, 2026-11-26)
 
 Owner decision "AUTH-009 and AUTH-008 I-2 implementation grants approved". Documentation only.
@@ -1603,6 +1612,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.41.0 | 2026-11-25 | **AUTH-013 active** (PR #36 `19f6103`, post-merge CI 45694804255); **OI-113 correction implemented** (in review): migration `20261127110000`, pgTAP 235, the race test, fixture moves 1 to 6. **05 v0.5.2** (§7 "Gate rule", OI-113). CURRENT-STATE v1.27.0 (§18). Main's next record takes v0.42.0. | WP-C session | Owner (on merge) |
 | 0.42.0 | 2026-11-26 | **PRs #36, #27 and #38 merged** (`19f6103`, `05b32e9`, `7226d6f`; post-merge CI 45694804255 (#126), 45706248054 (#129), 45725850769 (#131)); AUTH-013 activated and completed; AUTH-007 completed; **OI-113 closed**; D-1 ratified; Stage A attestation wording approved; OI-86 and OI-87 reconciled. CURRENT-STATE v1.28.0; AUTHORIZATIONS v1.24.0; OPEN-ISSUES v0.34.0; OWNER-RUNBOOKS v0.5.0 (§12). | Main session | Owner |
 | 0.43.0 | 2026-11-26 | **AUTH-009 and AUTH-008 I-2 granted** (activation pending); PR #39 merged (`779fe61`, CI 45729483714 (#133)). CURRENT-STATE v1.29.0; AUTHORIZATIONS v1.25.0; OPEN-ISSUES v0.35.0. | Main session | Owner |
+| 0.44.0 | 2026-11-26 | **Operating model OM-1 to OM-7** approved and recorded (AUTHORIZATIONS §2A, v1.26.0; CLAUDE.md §7 pointer). | Main session | Owner |
 
 ## 6. Change-control rules
 

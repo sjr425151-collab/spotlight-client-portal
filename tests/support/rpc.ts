@@ -23,3 +23,34 @@ export async function callRpc<T = unknown>(
   }
   return data as T;
 }
+
+type PostgrestResult = {
+  data: unknown;
+  error: { code?: string; message: string; details?: string; hint?: string } | null;
+  status: number;
+};
+
+/**
+ * Awaits a non-RPC PostgREST read (a `select` query) and returns its `data`. As with
+ * `callRpc`, a PostgREST `error` fails the calling test with the read's label and the
+ * complete error instead of being read as missing data (AUTH-008 I-2, WP-C O-1). A read that
+ * returns no data at all also fails: every caller expects rows.
+ */
+export async function selectOk<Q extends PromiseLike<PostgrestResult>>(
+  label: string,
+  query: Q,
+): Promise<NonNullable<Awaited<Q>["data"]>> {
+  const { data, error, status } = await query;
+  if (data === null && !error) throw new Error(`select ${label} returned no data (HTTP ${status})`);
+  if (error) {
+    throw new Error(
+      `select ${label} failed (HTTP ${status}): ${JSON.stringify({
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      })}`,
+    );
+  }
+  return data as NonNullable<Awaited<Q>["data"]>;
+}

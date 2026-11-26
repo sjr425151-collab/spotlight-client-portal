@@ -15,7 +15,7 @@ import { mockScanner } from "@/server/uploads/scanner";
 
 import { withDb } from "../support/db";
 import { adminClient, signInWithCode, upgradeToAal2 } from "../support/local-supabase";
-import { callRpc } from "../support/rpc";
+import { callRpc, selectOk } from "../support/rpc";
 import { BUCKET, PROJECT_B, createPaidProject, freeQuota, png } from "../support/wpc-fixtures";
 
 /**
@@ -168,11 +168,10 @@ describe("upload pipeline end to end (05 §5.3)", () => {
     expect(outcome).toBe("available");
     const released = `${projectA}/assets/${req.upload_id}`;
     expect((await deliverAsset(clientA, adminClient(), projectA, req.upload_id)).ok).toBe(true);
-    const { data: row } = await adminClient()
-      .from("asset_uploads")
-      .select("sha256")
-      .eq("id", req.upload_id)
-      .single();
+    const row = await selectOk(
+      "asset_uploads sha256",
+      adminClient().from("asset_uploads").select("sha256").eq("id", req.upload_id).single(),
+    );
     // A delayed malicious callback from the vendor, for an attempt that is no longer current.
     const late = await recordScanVerdict(
       adminClient(),
@@ -189,11 +188,14 @@ describe("upload pipeline end to end (05 §5.3)", () => {
     });
     expect((await clientA.storage.from(BUCKET).createSignedUrl(released, 60)).data).toBeNull();
     expect((await adminClient().storage.from(BUCKET).download(released)).data).toBeNull(); // deleted
-    const { data: deletion } = await adminClient()
-      .from("asset_object_deletions")
-      .select("status, attempts")
-      .eq("upload_id", req.upload_id)
-      .single();
+    const deletion = await selectOk(
+      "asset_object_deletions",
+      adminClient()
+        .from("asset_object_deletions")
+        .select("status, attempts")
+        .eq("upload_id", req.upload_id)
+        .single(),
+    );
     expect(deletion).toEqual({ status: "deleted", attempts: 1 });
     const access = await callRpc<{ ok: boolean }>(clientA, "record_asset_access", {
       p_upload_id: req.upload_id,
@@ -275,11 +277,10 @@ describe("upload pipeline end to end (05 §5.3)", () => {
       null,
     );
     expect(outcome).toBe("quarantined");
-    const { data } = await clientA
-      .from("asset_uploads")
-      .select("status")
-      .eq("id", req.upload_id)
-      .single();
+    const data = await selectOk(
+      "asset_uploads status",
+      clientA.from("asset_uploads").select("status").eq("id", req.upload_id).single(),
+    );
     expect(data?.status).toBe("quarantined");
   });
 
@@ -306,11 +307,14 @@ describe("T-UP-04: quota under concurrent uploads", () => {
   it("never exceeds the 2 GB quota when requests race", async () => {
     await freeQuota(projectA);
     // Occupy all but 500 MB of the quota with reservations, then race five 249 MB requests.
-    const { data: usage } = await clientA
-      .from("asset_uploads")
-      .select("declared_bytes, size_bytes, status")
-      .eq("project_id", projectA) // client A is a member of more than one project
-      .not("status", "in", "(failed_upload,rejected)");
+    const usage = await selectOk(
+      "asset_uploads usage",
+      clientA
+        .from("asset_uploads")
+        .select("declared_bytes, size_bytes, status")
+        .eq("project_id", projectA) // client A is a member of more than one project
+        .not("status", "in", "(failed_upload,rejected)"),
+    );
     const used = (usage ?? []).reduce((n, u) => n + Number(u.size_bytes ?? u.declared_bytes), 0);
     let remaining = 2_000_000_000 - used - 500_000_000;
     const fillers: Promise<unknown>[] = [];

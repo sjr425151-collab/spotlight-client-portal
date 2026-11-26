@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.46.0 |
+| Version | 0.47.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1637,6 +1637,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.44.1 | 2026-11-26 | **04 v0.10.2** (AUTH-009 S2, Owner ruling 2026-11-26): §6.4 records the outbound claim-token rule and the audit action `outbound.claim_token_rejected` (registered in `src/domain/contracts/audit-actions.ts`). Implemented in PR #43 with AUTH-009 S1 (the Owner-only stop retry, migration `20261127120100`). The 08 version was allocated by Main in 0.45.0 (OM-5). | WP-B session | Owner |
 | 0.45.0 | 2026-11-26 | **PRs #40, #41, #42 and #43 merged** (`2d27d07`, `9e8569c`, `48a8c04`, `3545d0a`; post-merge CI 45731539779 (#136), 45732432770 (#138), 45744252813 (#148), 45745975920 (#150)); **AUTH-008 (I-2) and AUTH-009 completed; OI-91 closed**; Owner decisions: AUTH-010 mandatory for R1 (readiness preparation), OI-114 and OI-115 in R1, **AUTH-014 granted** (OI-116, test-only). CURRENT-STATE v1.30.0; AUTHORIZATIONS v1.27.0; OPEN-ISSUES v0.36.0. | Main session | Owner |
 | 0.46.0 | 2026-11-26 | **AUTH-002 Stage A credential mechanism amendment** (Owner): the proxy-injected Network secret (`api.stripe.com`, Bearer, prefixes `/v1/balance`, `/v1/products`, `/v1/prices`) with binding controls 1 to 5; prefix semantics unverified and isolation procedural, recorded; no activation. AUTHORIZATIONS v1.28.0; CURRENT-STATE v1.31.0. | Main session | Owner |
+| 0.47.0 | 2026-11-26 | **AUTH-002 Stage A Gate A record:** the Owner's attestation (key `SLM-AUTH-002-STAGE-A-20261126-01`, created 03:54:00Z; points 1 and 4 confirmed explicitly) recorded verbatim; WP-B named sole executor; execution baseline `3902da8`; acknowledgments from all five other active sessions. Not active: credential entry pending Main's notice. CURRENT-STATE v1.32.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { env } from "@/config/env";
 import { UPLOAD_CATEGORIES, sanitizeFileName, type UploadCategory } from "@/domain/uploads";
-import { observeLiveSite } from "@/server/publication/verifier";
+import { verifierFor } from "@/server/publication/verifier";
 import {
   runUploadPipeline,
   scanStoredUpload,
@@ -95,7 +95,7 @@ export async function verifyLiveDeployment(
   if (!deployment || deployment.outcome !== "succeeded" || !deployment.production_url) {
     return { ok: false, error: "not_found" };
   }
-  const observed = await observeLiveSite(deployment.production_url);
+  const observed = await verifierFor(env.APP_ENV)(deployment.production_url);
   return callRpc(await createAdminClient(), "record_live_verification", {
     p_deployment_id: deploymentId,
     p_requested_by: verifiedStaffUserId,

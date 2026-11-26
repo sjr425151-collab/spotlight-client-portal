@@ -48,6 +48,20 @@ async function resetLocalState() {
 
 let owner: SupabaseClient;
 
+/**
+ * The current fixed hourly rate-limit window on the database clock, computed exactly as
+ * private.consume_rate_limit does (read-only; OI-116, AUTH-014).
+ */
+const OTP_LOOP_SECONDS = 12; // 7 sends about 1.1 s apart, plus margin
+const rateLimitWindow = () =>
+  withDb(async (db) => {
+    const { rows } = await db.query(
+      `select floor(extract(epoch from now()) / 3600)::bigint::text as start,
+              (3600 - mod(extract(epoch from now())::numeric, 3600))::float8 as seconds_left`,
+    );
+    return { start: rows[0].start as string, secondsLeft: Number(rows[0].seconds_left) };
+  });
+
 beforeAll(async () => {
   await resetLocalState();
   owner = await signInWithCode(OWNER);
@@ -288,10 +302,24 @@ describe("live revocation with an unexpired access token", () => {
 describe("rate limits (T-AUTH-11)", () => {
   it("stops sending codes past the per-email limit with the same generic outcome", async () => {
     const { requestSignInCode } = await import("@/server/services/sign-in");
+    // OI-116 (AUTH-014): the per-email limit counts in fixed hourly windows aligned to the
+    // database clock (private.consume_rate_limit). All seven sends must fall in one window, so
+    // when the current window has too little time left for the loop, start in the next one.
+    const window = await rateLimitWindow();
+    if (window.secondsLeft < OTP_LOOP_SECONDS) {
+      await new Promise((resolve) => setTimeout(resolve, (window.secondsLeft + 0.5) * 1000));
+    }
+    const startWindow = (await rateLimitWindow()).start;
     await clearMailbox(CLIENT_B);
     for (let attempt = 0; attempt < 7; attempt += 1) {
       await requestSignInCode({ anon: anonClient(), ip: "203.0.113.10" }, CLIENT_B);
       await new Promise((resolve) => setTimeout(resolve, 1100));
+    }
+    const endWindow = (await rateLimitWindow()).start;
+    if (endWindow !== startWindow) {
+      throw new Error(
+        `T-AUTH-11 setup: the sends spanned two rate-limit windows (${startWindow}, ${endWindow})`,
+      );
     }
     // signInWithCode(CLIENT_B) above used Supabase directly, so the app limit of 5 applies here.
     expect(await messageCount(CLIENT_B)).toBe(5);

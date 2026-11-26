@@ -24,6 +24,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { chromium } from "@playwright/test";
+import pg from "pg";
 
 const ORIGIN = "http://localhost:3200";
 const DEBUG_PORT = 9333;
@@ -189,6 +190,34 @@ async function devtoolsEndpoint() {
   throw new Error("lighthouse-auth: the audit browser did not start");
 }
 
+/**
+ * The audited pages are read-only (WP-B N-2): after collection, the seeded PROJECT_A still has
+ * no accepted agreement, no Checkout, no ledger entry and no verified deposit.
+ */
+async function assertProjectAUnpaid() {
+  const url =
+    process.env.SUPABASE_DB_URL || "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+  assertLocal(url, "the database");
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    const { rows } = await client.query(
+      `select f.deposit_verified,
+              (select count(*)::int from public.agreement_acceptances where project_id = $1) as acceptances,
+              (select count(*)::int from public.checkout_sessions where project_id = $1) as checkouts,
+              (select count(*)::int from public.ledger_entries where project_id = $1) as ledger
+         from private.project_financial_status($1) f`,
+      [PROJECT_A],
+    );
+    const r = rows[0];
+    if (!r || r.deposit_verified !== false || r.acceptances || r.checkouts || r.ledger) {
+      throw new Error(`lighthouse-auth: PROJECT_A is no longer unpaid: ${JSON.stringify(r)}`);
+    }
+  } finally {
+    await client.end();
+  }
+}
+
 async function main() {
   assertLocal(MAILPIT, "Mailpit");
   if (SUPABASE) assertLocal(SUPABASE, "Supabase");
@@ -267,7 +296,10 @@ async function main() {
     rmSync(profile, { recursive: true, force: true });
   }
 
-  // 4. Every report: its own route, HTTP 200, the expected number of runs, no session data.
+  // 4. The audit was read-only: PROJECT_A is still unpaid (WP-B N-2).
+  await assertProjectAUnpaid();
+
+  // 5. Every report: its own route, HTTP 200, the expected number of runs, no session data.
   const problems = verifyReports();
   if (problems.length > 0) {
     throw new Error(`lighthouse-auth: ${problems.length} problem(s):\n${problems.join("\n")}`);

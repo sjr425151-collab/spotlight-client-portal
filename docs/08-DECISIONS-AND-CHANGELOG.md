@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.45.0 |
+| Version | 0.46.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,14 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-002 Stage A credential mechanism amendment (Owner, 2026-11-26)
+
+Owner decision approving amendments 1 to 3 of Main's read-only assessment and the recording of the exact path prefixes, "subject to the following additional controls". Documentation only; recorded in AUTHORIZATIONS AUTH-002 ("Stage A: credential mechanism amendment"); effective on the verified merge of this record (OM-1).
+
+- **Approved:** the proxy-injected Network secret on `spotlight-client-portal-dev` (host `api.stripe.com`, Bearer, path prefixes `/v1/balance`, `/v1/products`, `/v1/prices`, with the automatically created allow rule); session-isolation controls; cleanup of the secret and the allow rule; no client-supplied `Authorization` header.
+- **Additional controls:** (1) acknowledgment from every other active session on the environment before credential activation, or no activation; (2) WP-B the sole executing session, every AUTH-002 restriction preserved; (3) the execution window and request evidence recorded, Owner reconciliation against the Stripe Dashboard request logs, any discrepancy or inability to reconcile preventing closure and starting an investigation; (4) immediate removal of the secret and allow rule and prompt key revocation after execution, including on abort or failure, the 7-day limit an outer bound only; (5) explicitly recorded: prefix-matching semantics unverified, isolation procedural; (6) applies only to Stage A read-only test verification, no precedent for write-enabled, production or later-stage credentials.
+- **Not authorized by this record:** key creation, credential entry, any Stripe request or Stage A execution.
+
 ### R1 completion records and the next R1 allocation (Owner, 2026-11-26)
 
 Owner decisions "PR #42 pinned merge and PR #43 conditional merge approved", "Accept the consolidated completion report for PRs #42 and #43" and "next R1 execution allocation". Documentation only; effective on the verified merge of this record (OM-1).
@@ -1628,6 +1636,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.44.0 | 2026-11-26 | **Operating model OM-1 to OM-7** approved and recorded (AUTHORIZATIONS §2A, v1.26.0; CLAUDE.md §7 pointer). | Main session | Owner |
 | 0.44.1 | 2026-11-26 | **04 v0.10.2** (AUTH-009 S2, Owner ruling 2026-11-26): §6.4 records the outbound claim-token rule and the audit action `outbound.claim_token_rejected` (registered in `src/domain/contracts/audit-actions.ts`). Implemented in PR #43 with AUTH-009 S1 (the Owner-only stop retry, migration `20261127120100`). The 08 version was allocated by Main in 0.45.0 (OM-5). | WP-B session | Owner |
 | 0.45.0 | 2026-11-26 | **PRs #40, #41, #42 and #43 merged** (`2d27d07`, `9e8569c`, `48a8c04`, `3545d0a`; post-merge CI 45731539779 (#136), 45732432770 (#138), 45744252813 (#148), 45745975920 (#150)); **AUTH-008 (I-2) and AUTH-009 completed; OI-91 closed**; Owner decisions: AUTH-010 mandatory for R1 (readiness preparation), OI-114 and OI-115 in R1, **AUTH-014 granted** (OI-116, test-only). CURRENT-STATE v1.30.0; AUTHORIZATIONS v1.27.0; OPEN-ISSUES v0.36.0. | Main session | Owner |
+| 0.46.0 | 2026-11-26 | **AUTH-002 Stage A credential mechanism amendment** (Owner): the proxy-injected Network secret (`api.stripe.com`, Bearer, prefixes `/v1/balance`, `/v1/products`, `/v1/prices`) with binding controls 1 to 5; prefix semantics unverified and isolation procedural, recorded; no activation. AUTHORIZATIONS v1.28.0; CURRENT-STATE v1.31.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

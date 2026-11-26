@@ -189,13 +189,15 @@ jobs:
     needs: changes
     if: needs.changes.outputs.scope != 'docs'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       NEXT_PUBLIC_SITE_URL: http://localhost:3200
-      # Public pages only; no Supabase stack runs in this job. Placeholder key shapes.
-      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_placeholder
-      SUPABASE_SECRET_KEY: sb_secret_placeholder
+      # Public pages signed out, and the approved R1 client pages signed in as the synthetic seed
+      # client (AUTH-008 I-2, P-2) against a LOCAL Supabase stack only; the same checksum-verified
+      # CLI as the e2e job. No hosted project, no real email, no credential.
+      SUPABASE_CLI_VERSION: 3.2.0
+      # SHA-256 of supabase_3.2.0_linux_amd64.tar.gz from the official release checksums.txt.
+      SUPABASE_CLI_SHA256: fb88b175a817563505be02c60872060bcb8d5c869a1aa5656eaeb085d4a2f1e4
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -206,9 +208,44 @@ jobs:
           node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install Supabase CLI (checksum verified)
+        run: |
+          archive="supabase_${SUPABASE_CLI_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$archive" "https://github.com/supabase/cli/releases/download/v${SUPABASE_CLI_VERSION}/${archive}"
+          echo "${SUPABASE_CLI_SHA256}  ${archive}" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/supabase-cli"
+          tar -xzf "$archive" -C "$RUNNER_TEMP/supabase-cli" supabase
+          echo "$RUNNER_TEMP/supabase-cli" >> "$GITHUB_PATH"
+      - name: Start the local Supabase stack
+        run: supabase start
+      - name: Export local stack configuration
+        # The local stack's well-known development keys; nothing here is a real credential.
+        run: |
+          supabase status -o json > "$RUNNER_TEMP/supabase-status.json"
+          secret="$(jq -r .SECRET_KEY "$RUNNER_TEMP/supabase-status.json")"
+          echo "::add-mask::${secret}"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(jq -r .API_URL "$RUNNER_TEMP/supabase-status.json")"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$(jq -r .PUBLISHABLE_KEY "$RUNNER_TEMP/supabase-status.json")"
+            echo "SUPABASE_SECRET_KEY=${secret}"
+            echo "SUPABASE_DB_URL=$(jq -r .DB_URL "$RUNNER_TEMP/supabase-status.json")"
+            echo "MAILPIT_URL=$(jq -r .MAILPIT_URL "$RUNNER_TEMP/supabase-status.json")"
+          } >> "$GITHUB_ENV"
+          rm "$RUNNER_TEMP/supabase-status.json"
+      - name: Apply every migration and the synthetic seed from scratch
+        run: supabase db reset
       - run: pnpm build
       # Results stay on the runner (filesystem target); nothing is uploaded publicly.
-      - run: pnpm lhci
+      - name: Collect the public pages (signed out)
+        run: pnpm exec lhci collect
+      - name: Collect the approved R1 client pages (synthetic seed client, local stack)
+        # Signs in with an emailed code read from the local Mailpit; never logs it. Fails unless
+        # each page answers HTTP 200 on its own route and renders its own content.
+        run: CHROME_PATH="$(command -v google-chrome)" node tests/support/lighthouse-auth.mjs
+      - name: Assert the budgets
+        run: pnpm exec lhci assert
+      - name: Write the reports
+        run: pnpm exec lhci upload
       - name: Upload Lighthouse reports
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -216,6 +253,9 @@ jobs:
           name: lighthouse-reports
           path: .lighthouseci/
           retention-days: 7
+      - name: Stop the local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
 
   audit:
     name: Dependency audit

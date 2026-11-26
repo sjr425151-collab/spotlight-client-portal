@@ -55,3 +55,41 @@ export async function observeLiveSite(
     return failed;
   }
 }
+
+/** Observes the production URL of a recorded deployment. */
+export type LiveVerifier = (productionUrl: string) => Promise<LiveObservation>;
+
+/**
+ * Local development and test only (AUTH-008 I-2, seam (b)): an injected `fetch` stub, so a
+ * synthetic deployment can be verified without any network request. It answers only for a
+ * host in the reserved `.test` domain (RFC 6761) and throws for any other host, which
+ * `observeLiveSite` records as a failed observation. The served build identifier is the
+ * host's first label when that label is a 40-character lowercase hexadecimal commit SHA (for
+ * example `https://<sha>.live.example.test/`); otherwise the page serves none, so the
+ * verification fails.
+ */
+export const mockLiveFetch = async (url: string): Promise<Response> => {
+  const host = new URL(url).hostname;
+  if (!host.endsWith(".test")) {
+    throw new TypeError("The mock live verifier serves only reserved .test hosts");
+  }
+  const sha = /^([0-9a-f]{40})\./.exec(host)?.[1];
+  const meta = sha ? `<meta name="build-id" content="${sha}">` : "";
+  const html =
+    `<!doctype html><html lang="en"><head>${meta}<title>Synthetic live site</title></head>` +
+    `<body><main><h1>Synthetic live site</h1><form action="/contact"></form></main></body></html>`;
+  return new Response(html, { status: 200, headers: { "content-type": "text/html" } });
+};
+
+/**
+ * The live verifier for an environment, the same pattern as `scannerFor`. Only an affirmative
+ * `development` or `test` classification selects the stub; every other value, including a
+ * missing or unknown one, `preview`, `staging` and `production`, selects the real verifier,
+ * which is unchanged.
+ */
+export function verifierFor(appEnv: string): LiveVerifier {
+  if (appEnv === "development" || appEnv === "test") {
+    return (productionUrl) => observeLiveSite(productionUrl, mockLiveFetch);
+  }
+  return (productionUrl) => observeLiveSite(productionUrl);
+}

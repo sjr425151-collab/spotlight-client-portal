@@ -596,7 +596,7 @@ export async function FulfillmentPanel({
                 label="Client deployment target (project reference)"
                 name="targetRef"
                 required
-                pattern="[a-z0-9][a-z0-9_-]{2,99}"
+                pattern="[a-z0-9][a-z0-9_\-]{2,99}"
               />
               <Button type="submit" variant="secondary">
                 Register target

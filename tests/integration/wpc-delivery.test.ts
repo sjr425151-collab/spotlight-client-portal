@@ -23,7 +23,7 @@ import {
   signInWithCode,
   upgradeToAal2,
 } from "../support/local-supabase";
-import { callRpc } from "../support/rpc";
+import { callRpc, selectOk } from "../support/rpc";
 import { BUCKET, createPaidProject, createProject, freeQuota, png } from "../support/wpc-fixtures";
 
 /**
@@ -109,11 +109,14 @@ async function released(bytes = png()) {
     mockScanner,
   );
   expect(outcome).toBe("available");
-  const { data: row } = await adminClient()
-    .from("asset_uploads")
-    .select("sha256, released_path")
-    .eq("id", req.upload_id)
-    .single();
+  const row = await selectOk(
+    "asset_uploads released",
+    adminClient()
+      .from("asset_uploads")
+      .select("sha256, released_path")
+      .eq("id", req.upload_id)
+      .single(),
+  );
   return { id: req.upload_id, sha: row!.sha256 as string, path: row!.released_path as string };
 }
 
@@ -121,13 +124,14 @@ const present = async (path: string) =>
   (await adminClient().storage.from(BUCKET).exists(path)).data === true;
 
 const deletionOf = async (uploadId: string) =>
-  (
-    await adminClient()
+  selectOk(
+    "asset_object_deletions",
+    adminClient()
       .from("asset_object_deletions")
       .select("id, status, attempts, last_error, manual_retries")
       .eq("upload_id", uploadId)
-      .single()
-  ).data!;
+      .single(),
+  );
 
 const malicious = (id: string, sha: string, admin = adminClient()) =>
   recordScanVerdict(

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.34.0 |
+| Version | 0.35.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
 | Next unused issue ID | **OI-114** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-21** |
@@ -144,7 +144,7 @@ OI-79 (item by item) and OI-82 (allocation architecture, subject to DEP-03 and D
 
 OI-84 was decided on 2026-11-24; its decision is in [08](docs/08-DECISIONS-AND-CHANGELOG.md). The discrepancies and options considered remain in this file's Git history.
 
-**Open: OI-91 (mandatory R1 release-candidate blocker; separate authorization).** `private.outbound_request_for_execution` locks the final-balance invoice, then the payment authorization; revocation (`halt_automatic_collection`) locks the authorization, then the invoice; the two can deadlock. Remediation inventory: one consistent lock order (authorization, then invoice) in `outbound_request_for_execution`, body only, plus an Owner notification when the obligation's release was withdrawn after initiation (OI-92(e)). Acceptance: two-connection tests of outbound execution against revocation in both orders; no deadlock; no automatic charge after revocation (the hosted-only downgrade is honored); idempotency and single flight preserved. Not part of AUTH-006.
+**Open: OI-91 (mandatory R1 release-candidate blocker; separate authorization).** `private.outbound_request_for_execution` locks the final-balance invoice, then the payment authorization; revocation (`halt_automatic_collection`) locks the authorization, then the invoice; the two can deadlock. Remediation inventory: one consistent lock order (authorization, then invoice) in `outbound_request_for_execution`, body only, plus an Owner notification when the obligation's release was withdrawn after initiation (OI-92(e)). Acceptance: two-connection tests of outbound execution against revocation in both orders; no deadlock; no automatic charge after revocation (the hosted-only downgrade is honored); idempotency and single flight preserved. Not part of AUTH-006. **AUTH-009 granted (Owner, 2026-11-26), activation pending;** OI-91 stays open until its correction is implemented, independently verified and merged.
 
 OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in [08](docs/08-DECISIONS-AND-CHANGELOG.md).
 

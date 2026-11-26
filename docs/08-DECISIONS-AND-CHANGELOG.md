@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.42.0 |
+| Version | 0.43.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,17 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-009 and AUTH-008 I-2 implementation grants (Owner, 2026-11-26)
+
+Owner decision "AUTH-009 and AUTH-008 I-2 implementation grants approved". Documentation only.
+
+- **PR #39:** merged at `779fe614b2f2e023139e1aac5838f124862312de` (head `dbc0821`, base `7226d6f`; CI 45727012129, documentation-only set). Post-merge CI run 45729483714 (#133) 7/7 with the full suite. The closure record is in effect.
+- **AUTH-009 (granted, activation pending):** the complete package, items 1 to 7: interface assumptions A1 to A3; the payment authorization → final-balance invoice → outbound request lock hierarchy in all six recorded functions; `reconcile_outbound_request` keeps its `authenticated` grant, with its internal Owner authorization and fresh MFA unchanged; migration `20261127120000` and test file `191_wpb_oi91_dispatch.test.sql`; the setup-only scope extension and the exact dispositions; the earlier engineering defaults, stop-reconciliation direction and confirmation-to-send deadline; independent financial review by WP-S or a separate qualified session, WP-C read-only review and Main. Confirmation is necessary but not sufficient for a domain effect. All financial integrity, idempotency, token confidentiality, confirmation, reconciliation and concurrency requirements and stop conditions are preserved. **AUTH-010 is not authorized.**
+- **AUTH-008 I-2 (granted, activation pending):** the complete package, both test seams and every recorded acceptance criterion. Dispositions: (i) `selectOk()` implemented; (ii) WP-C O-2 recorded only; (iii) the `pg` 8.16.3 guard implemented, with explicit re-verification on any version change rather than a permanent freeze; (iv) R1 counts scoped to fresh journey IDs, `wps.spec.ts` unchanged; (v) the 19.9 s observation recorded. Authenticated Lighthouse with thresholds, public pages and security controls preserved. Mock behavior only on an affirmative `development` or `test` classification; the production verifier is unchanged.
+- **I-2 scope decisions (Owner, 2026-11-26):** P-1 option A (one `fulfillment.ts` call-site line to `verifierFor(env.APP_ENV)`); P-2 option A (database setup steps in the Lighthouse job only, plus `tests/support/lighthouse-auth.*`); the three client pages `/portal`, `/portal/projects/20000000-0000-4000-8000-0000000000a0` and its `/billing`, as the synthetic client at aal1, read-only, `PROJECT_A` unpaid; thresholds median of three, performance ≥ 0.90, accessibility ≥ 0.95, best practices ≥ 0.95, SEO excluded; each audit requires HTTP 200, the expected final route and a page-specific rendering check; no page substitution (stop and report). Recorded in AUTHORIZATIONS AUTH-008.
+- **Activation:** both grants activate when this record merges and its post-merge CI passes 7/7; WP-B and WP-I are then released concurrently.
+- **Unchanged:** AUTH-010 non-executable; AUTH-002 Stage A inactive; no provider, hosted or production access; no additional merge authority.
+
 ### PR #36, #27 and #38 merges; D-1 ratification; Stage A attestation; OI-113 closed (Owner, 2026-11-25 and 2026-11-26)
 
 Owner decisions "PR #36 — Approved", "Stage A attestation — Approved", "D-1 — Ratified", "PR #27 pinned merge approved" and "PR #38 pinned merge approved". Documentation only.
@@ -1591,6 +1602,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.40.0 | 2026-11-25 | **PR #35 merged** (`30414c7`, CI 45689577718 (#123) 7/7); AUTH-006 completed; **AUTH-013 granted** (activation pending; fixture-integrity clarification). CURRENT-STATE v1.25.0; OPEN-ISSUES v0.33.0. | Main session | Owner |
 | 0.41.0 | 2026-11-25 | **AUTH-013 active** (PR #36 `19f6103`, post-merge CI 45694804255); **OI-113 correction implemented** (in review): migration `20261127110000`, pgTAP 235, the race test, fixture moves 1 to 6. **05 v0.5.2** (§7 "Gate rule", OI-113). CURRENT-STATE v1.27.0 (§18). Main's next record takes v0.42.0. | WP-C session | Owner (on merge) |
 | 0.42.0 | 2026-11-26 | **PRs #36, #27 and #38 merged** (`19f6103`, `05b32e9`, `7226d6f`; post-merge CI 45694804255 (#126), 45706248054 (#129), 45725850769 (#131)); AUTH-013 activated and completed; AUTH-007 completed; **OI-113 closed**; D-1 ratified; Stage A attestation wording approved; OI-86 and OI-87 reconciled. CURRENT-STATE v1.28.0; AUTHORIZATIONS v1.24.0; OPEN-ISSUES v0.34.0; OWNER-RUNBOOKS v0.5.0 (§12). | Main session | Owner |
+| 0.43.0 | 2026-11-26 | **AUTH-009 and AUTH-008 I-2 granted** (activation pending); PR #39 merged (`779fe61`, CI 45729483714 (#133)). CURRENT-STATE v1.29.0; AUTHORIZATIONS v1.25.0; OPEN-ISSUES v0.35.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.47.0 |
+| Version | 0.48.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,15 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-002 Stage A attempt 1 termination and remediation direction (Owner, 2026-11-26)
+
+Owner decision "AUTH-002 Stage A — Owner Termination Confirmation and Remediation Direction". Documentation only; effective on the verified merge of this record (OM-1).
+
+- **Termination:** attempt 1 is recorded as stopped due to a runner defect, with zero requests reported by WP-B. The Owner confirmed the removal of the Network secret and its allow rule, the revocation of the key and the Dashboard reconciliation; the Owner's revocation time and observed request count are recorded in CURRENT-STATE as the Owner supplies them, and are not substituted from WP-B's report.
+- **Attempt 2 amendment (not active):** conditions 1 to 7 (formal closure first; the defect corrected with a comprehensive review; the unmodified request function exercised end to end against a local stub server; verification of the preflight, GET-only enforcement, endpoint restrictions, the ceiling, no client authorization header, failure handling, no retry and evidence generation; independent review before acceptance; every restriction and isolation control preserved; a fresh key, attestation, acknowledgments and baseline). Recorded in AUTHORIZATIONS AUTH-002.
+- **General engineering requirement:** external-provider execution runners must exercise their real request path through controlled local integration testing before acceptance; mocked request functions alone are insufficient (CLAUDE.md §6).
+- **Not authorized:** reactivation of attempt 1, any Stripe request, or any credential activation until the amendment has merged, post-merge CI passes and every fresh Gate A prerequisite is satisfied.
+
 ### AUTH-002 Stage A credential mechanism amendment (Owner, 2026-11-26)
 
 Owner decision approving amendments 1 to 3 of Main's read-only assessment and the recording of the exact path prefixes, "subject to the following additional controls". Documentation only; recorded in AUTHORIZATIONS AUTH-002 ("Stage A: credential mechanism amendment"); effective on the verified merge of this record (OM-1).
@@ -1638,6 +1647,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.45.0 | 2026-11-26 | **PRs #40, #41, #42 and #43 merged** (`2d27d07`, `9e8569c`, `48a8c04`, `3545d0a`; post-merge CI 45731539779 (#136), 45732432770 (#138), 45744252813 (#148), 45745975920 (#150)); **AUTH-008 (I-2) and AUTH-009 completed; OI-91 closed**; Owner decisions: AUTH-010 mandatory for R1 (readiness preparation), OI-114 and OI-115 in R1, **AUTH-014 granted** (OI-116, test-only). CURRENT-STATE v1.30.0; AUTHORIZATIONS v1.27.0; OPEN-ISSUES v0.36.0. | Main session | Owner |
 | 0.46.0 | 2026-11-26 | **AUTH-002 Stage A credential mechanism amendment** (Owner): the proxy-injected Network secret (`api.stripe.com`, Bearer, prefixes `/v1/balance`, `/v1/products`, `/v1/prices`) with binding controls 1 to 5; prefix semantics unverified and isolation procedural, recorded; no activation. AUTHORIZATIONS v1.28.0; CURRENT-STATE v1.31.0. | Main session | Owner |
 | 0.47.0 | 2026-11-26 | **AUTH-002 Stage A Gate A record:** the Owner's attestation (key `SLM-AUTH-002-STAGE-A-20261126-01`, created 03:54:00Z; points 1 and 4 confirmed explicitly) recorded verbatim; WP-B named sole executor; execution baseline `3902da8`; acknowledgments from all five other active sessions. Not active: credential entry pending Main's notice. CURRENT-STATE v1.32.0. | Main session | Owner |
+| 0.48.0 | 2026-11-26 | **AUTH-002 Stage A attempt 1 terminated** (runner defect; 0 requests reported by WP-B; cleanup confirmed by the Owner and verified by Main); **attempt 2 amendment** recorded (not active); general engineering requirement for external-provider runners (CLAUDE.md §6). AUTHORIZATIONS v1.29.0; CURRENT-STATE v1.33.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

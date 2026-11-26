@@ -1517,7 +1517,7 @@ The 130 claim sites stay byte-identical: the `pg_temp.svc` helper stores and con
 - The token hash stays readable to the Owner through the existing select policy (table row only). The plaintext is never stored, and neither the token nor the hash is ever placed in an audit record, a notification or a log (S2).
 - **WP-S findings at `43b4bee`:** F-1 is handled by the item-8 rule above. F-4 is fixed (the comment now states the behavior). F-3 (hosted parameter and statement logging), F-6 (the real gateway's timeout and retries) and F-7 (statement timeout) are for WP-D or the real-gateway authorization. F-2 and F-5 are informational, with no change.
 
-**Mutation checks** (each mutated function installed locally, the targeted checks run, the original restored). The S1 and S2 mutation run is in progress at this commit; its result is recorded in the next commit. The earlier 35, all caught, are listed here with the planned S1 and S2 cases:
+**Mutation checks** (each mutated function installed locally, the targeted checks run, the original restored). All 51 were caught (47 SQL and 4 executor; rerun in full after S1 and S2):
 - **Lock order:** claim invoice-first; confirmation and recording outbound-first; recording invoice-first; reconciliation outbound-first; `invoice.payment_failed` with the merged order; `invoice.paid` without the authorization lock; no lock timeout.
 - **Token:** any token accepted at recording or confirmation; livemode before token; legacy recordable; no rejection notification; no hash stored.
 - **Confirmation:** unconfirmed effect applied; no late boundary; repeated confirmation; no window; no authorization re-check; paid-stop confirmation.
@@ -1529,7 +1529,20 @@ The 130 claim sites stay byte-identical: the `pg_temp.svc` helper stores and con
 - **S2:** no audit at confirmation; no audit at recording; the submitted token in the audit summary; the stored hash in the notification.
 - **Executor:** no deadline check; the gateway without confirmation (the static guard was first too loose and was tightened to the send path); the record without the token; a refused confirmation still sending.
 
-**Suites:** see the pull request for the exact-head local and CI results.
+**Suites after S1 and S2** (local, fresh `supabase db reset`, Supabase CLI 3.2.0, CI order):
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, 313 passed |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `./scripts/run-db-tests.sh` | 32 files, 1,826 assertions, 0 failed (main: 1,721; plus 191's 105) |
+| `pnpm test:integration` | 9 files, 122 passed (main: 99; plus 23) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 52 passed |
+| Lighthouse | Not run locally; runs in CI |
+
+Exact-head CI is recorded in the pull request. At `43b4bee`, run 45738752135 was 7/7.
 
 **Reviews required (grant):**
 - WP-S's independent financial review: recorded at `43b4bee` (7180423952). The Owner approved a fresh, focused WP-S review of S1.

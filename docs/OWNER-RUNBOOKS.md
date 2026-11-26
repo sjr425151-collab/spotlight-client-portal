@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.4.0 |
+| Version | 0.5.0 |
 | Status | **[PROPOSED]** Operational procedures recorded from the WP-C and WP-B reviews (2026-11-24), for Owner review. They describe how existing, approved controls are used; they create no new permission, override, or payment path. Legal and contractual effects stay with counsel (DEP-03). |
 | Related | [CURRENT-STATE.md](CURRENT-STATE.md), 04, 05, 06 |
 
@@ -90,3 +90,13 @@ Exposure assessment:
 After the change:
 7. Verify that an unauthenticated request for the repository fails; the branch rules on `main` are unchanged; a test pull request runs the required checks; integrations still work.
 8. Record the evidence in CURRENT-STATE. Authoritative legal text, publication copies and counsel evidence still stay outside Git (CLAUDE.md §5).
+
+## 12. Final-balance initiation blocked by `approval_mismatch` (OI-113 option (c); emergency recovery only)
+
+**[PROPOSED]** Recorded from AUTH-013 (Owner, 2026-11-25). This is an emergency recovery procedure, never a resolution: OI-113 was resolved by the interface correction (PR #38, `7226d6f`), after which a legitimate approval no longer produces this block. It creates no new permission, override or payment path, and never marks anything paid or approved on a client's behalf.
+
+- **Trigger:** `payment.final_balance_blocked` with the audit detail `approval_mismatch`.
+- **Before acting:** confirm the block is not a genuine defect (for example, a withdrawn or superseded release), and record the audit event identifiers.
+- **Procedure:** staff re-release the same build through the normal release action (`preview_releases` has no `commit_sha` uniqueness); one client member approves the new release through the normal approval action; the consumer then initiates through its normal path.
+- **Unverified contractual effect (DEP-03):** the effect of a re-release after an approval on revision accounting is unverified and is checked with counsel before this procedure is used.
+- **Never:** fabricate, replay, replace or repair a `release.approved` event; edit an approval; or bypass the gate or WP-H's cross-check.

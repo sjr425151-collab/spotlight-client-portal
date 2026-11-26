@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.44.0 |
+| Version | 0.45.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,19 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### R1 completion records and the next R1 allocation (Owner, 2026-11-26)
+
+Owner decisions "PR #42 pinned merge and PR #43 conditional merge approved", "Accept the consolidated completion report for PRs #42 and #43" and "next R1 execution allocation". Documentation only; effective on the verified merge of this record (OM-1).
+
+- **Merges:** PR #40 (the AUTH-009 and I-2 grant record) at `2d27d0714681d8c8a4bc7c04dee22270acfc31ba` (head `12a43c5`, base `779fe61`), post-merge CI 45731539779 (#136) 7/7; PR #41 (OM-1 to OM-7) at `9e8569ca4b33feedba3828ec6fb3d11f7ab5c0d2` (head `1c822be`, base `2d27d07`), post-merge CI 45732432770 (#138) 7/7; PR #42 merged at `48a8c0461e7c440d83e76672d564880cdb16f8f4` (head `3ecfd69`, base `9e8569c`; exact-head CI 45742034442 7/7); post-merge CI run 45744252813 (#148) 7/7 with the full suite; PR #43 merged at `3545d0a0fc63f63a059c3409cc67c4fc9c65ff54` (head `655c816`, base `48a8c04`; reviewed head `1d51f97`, CI 45743274091; one synchronization, setup-only; exact-head CI 45745385436 7/7); post-merge CI run 45745975920 (#150) 7/7 with the full suite.
+- **Completed:** AUTH-008 (I-2) and AUTH-009; **OI-91 closed**. The Owner rulings P-3, S1 and S2 (2026-11-26) are recorded in AUTHORIZATIONS AUTH-008 and AUTH-009; 04 v0.10.2 (0.44.1).
+- **AUTH-010 / OI-93:** financial conflict resolution stays a mandatory R1 requirement. The finalized design is prepared for immediate implementation authorization under OM-7 (material changes since the reviewed design, unresolved decisions, implementation scope only); no design restart. Local and CI only; not dependent on Stripe access.
+- **OI-114:** controlled recovery from failed live verification is in R1. WP-C prepares a narrowly scoped proposal preserving publication authorization, release identity, financial gates, auditability and verification requirements; no automatic bypass or uncontrolled redeployment.
+- **OI-115:** environment classification consistency is in R1 hosted provisioning, within WP-D's scope; disagreement fails closed before environment-dependent privileged behavior or test-seam activation.
+- **OI-116:** a narrowly scoped test-only correction is granted as **AUTH-014** (rate-limit implementation, threshold, assertion semantics and authentication policy preserved; deterministic timing rather than waits or retry masking; Main resolves routine test-infrastructure details; escalation only if production behavior or an existing assertion must change).
+- **Parallel execution:** the DEP-07 (WP-C), DEP-12 (WP-I) and OI-88 (WP-S) Tier 0 research continues; the AUTH-002 and AUTH-003 activation prerequisites are prepared for the Owner (CURRENT-STATE §6).
+- **Unchanged:** every provider-access restriction until the applicable activation conditions are met; AUTH-002 (including Stage A) and AUTH-003 inactive; no hosted or production access; no merge authority beyond the recorded rules.
+
 ### Operating model amendments OM-1 to OM-7 (Owner, 2026-11-26)
 
 Owner decision "governance streamlining amendment approved, subject to the following binding refinements". Recorded in AUTHORIZATIONS §2A; effective on the verified merge of this record (OM-1).
@@ -1613,7 +1626,8 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.42.0 | 2026-11-26 | **PRs #36, #27 and #38 merged** (`19f6103`, `05b32e9`, `7226d6f`; post-merge CI 45694804255 (#126), 45706248054 (#129), 45725850769 (#131)); AUTH-013 activated and completed; AUTH-007 completed; **OI-113 closed**; D-1 ratified; Stage A attestation wording approved; OI-86 and OI-87 reconciled. CURRENT-STATE v1.28.0; AUTHORIZATIONS v1.24.0; OPEN-ISSUES v0.34.0; OWNER-RUNBOOKS v0.5.0 (§12). | Main session | Owner |
 | 0.43.0 | 2026-11-26 | **AUTH-009 and AUTH-008 I-2 granted** (activation pending); PR #39 merged (`779fe61`, CI 45729483714 (#133)). CURRENT-STATE v1.29.0; AUTHORIZATIONS v1.25.0; OPEN-ISSUES v0.35.0. | Main session | Owner |
 | 0.44.0 | 2026-11-26 | **Operating model OM-1 to OM-7** approved and recorded (AUTHORIZATIONS §2A, v1.26.0; CLAUDE.md §7 pointer). | Main session | Owner |
-| — | 2026-11-26 | **04 v0.10.2** (AUTH-009 S2, Owner ruling 2026-11-26): §6.4 records the outbound claim-token rule and the audit action `outbound.claim_token_rejected` (registered in `src/domain/contracts/audit-actions.ts`). Implemented in PR #43 with AUTH-009 S1 (the Owner-only stop retry, migration `20261127120100`). The 08 version is left to Main (OM-5). | WP-B session | Owner |
+| 0.44.1 | 2026-11-26 | **04 v0.10.2** (AUTH-009 S2, Owner ruling 2026-11-26): §6.4 records the outbound claim-token rule and the audit action `outbound.claim_token_rejected` (registered in `src/domain/contracts/audit-actions.ts`). Implemented in PR #43 with AUTH-009 S1 (the Owner-only stop retry, migration `20261127120100`). The 08 version was allocated by Main in 0.45.0 (OM-5). | WP-B session | Owner |
+| 0.45.0 | 2026-11-26 | **PRs #40, #41, #42 and #43 merged** (`2d27d07`, `9e8569c`, `48a8c04`, `3545d0a`; post-merge CI 45731539779 (#136), 45732432770 (#138), 45744252813 (#148), 45745975920 (#150)); **AUTH-008 (I-2) and AUTH-009 completed; OI-91 closed**; Owner decisions: AUTH-010 mandatory for R1 (readiness preparation), OI-114 and OI-115 in R1, **AUTH-014 granted** (OI-116, test-only). CURRENT-STATE v1.30.0; AUTHORIZATIONS v1.27.0; OPEN-ISSUES v0.36.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

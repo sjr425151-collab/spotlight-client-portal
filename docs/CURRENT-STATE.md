@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.26.0 |
+| Version | 1.27.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-25, by the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
+| Last updated | 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -16,7 +16,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
-| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-006** (WP-H; **completed**, expired on the PR #35 merge `30414c7`), **AUTH-007** (WP-D18), **AUTH-008** (WP-I, I-1 only), active 2026-11-25; **I-1 merged** (PR #28, `b027e41`); I-2 not authorized. **AUTH-012** (OI-95) **completed**: expired on the PR #37 merge (`e3a7508`). **AUTH-005** (WP-S) **expired 2026-11-25** on the WP-S merge |
+| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-006** (WP-H; **completed**, expired on the PR #35 merge `30414c7`), **AUTH-007** (WP-D18), **AUTH-008** (WP-I, I-1 only), active 2026-11-25; **I-1 merged** (PR #28, `b027e41`); I-2 not authorized. **AUTH-012** (OI-95) **completed**: expired on the PR #37 merge (`e3a7508`). **AUTH-005** (WP-S) **expired 2026-11-25** on the WP-S merge. **AUTH-013** (OI-113, WP-C) **active since 2026-11-25**: PR #36 merged at `19f6103`, post-merge CI run 45694804255 `success`; implementation in review (§18) |
 | Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
@@ -381,6 +381,7 @@ Local evidence for the §9 WP-B directive, on branch `wp-b/billing-ledger` rebas
 - **What goes wrong:** WP-C's emitting approval and `project_fulfillment_status.current_release_approval_id` disagree. The WP-H cross-check then rejects the initiation with **`approval_mismatch`**.
 - **Effect:** it fails closed, with no obligation, no outbound request and no charge. The automatic initiation does not happen, and the Owner receives `payment.final_balance_blocked`.
 - **Decision (Owner, 2026-11-25):** option (a), a separately authorized WP-C interface correction (AUTH-013, proposed). WP-H's strict approval matching is kept, and WP-H does not change for it. Option (c), re-release and re-approval, is an emergency recovery procedure only, never closure.
+- **Correction:** implemented under AUTH-013 and in review (§18). OI-113 stays open until that PR merges and its post-merge CI succeeds.
 
 The Owner merges, pinned to the exact head.
 
@@ -1295,3 +1296,115 @@ The runtime construction guard on `private.billing_package_scope` rejects every 
 **Synchronization.** This section was added with the documentation-only merge of `main` at `19f6103` (PR #36). No implementation or test file changed: the non-documentation diff against `main` is patch-identical to `41c5978` against `30414c7` (`git patch-id --stable`).
 
 **Effort (OI-67):** AI session about 0.2 h; Owner: none.
+
+## 18. WP-C OI-113 implementation record (AUTH-013)
+
+Implemented by the WP-C session on `wp-c/oi-113-approval-identity`, from the verified `main` at `19f6103385dd8778f449fdacae35add01ea0785a`. §17 is reserved by PR #27.
+
+**Entry (verified read-only):**
+- AUTH-013's activation conditions hold:
+  - PR #35 merged at `30414c7`, post-merge CI run 45689577718;
+  - the grant record (PR #36) merged at `19f6103`;
+  - post-merge CI run 45694804255 on `19f6103` completed `success`.
+- `git diff --name-only 30414c7 19f6103` lists only `.md` files.
+- Migration `20261127110000` and pgTAP file `235` were unused.
+- Main confirmed the documentation scope:
+  - "the interface definition" is 05 §7, the "Gate rule" row;
+  - OWNER-RUNBOOKS and OPEN-ISSUES are outside the file list. Main records the option (c) runbook entry and the OI-113 closure separately.
+
+**Change (files exactly as authorized):**
+
+| File | Change |
+|---|---|
+| `supabase/migrations/20261127110000_wpc_oi113_authoritative_approval.sql` | `create or replace function private.project_fulfillment_status`. Only the approval selection changes: the approval named by the canonical event, under the six conditions, with no fallback. Every other line is byte-identical to `20261124140200` (`diff` shows only that hunk). The file has no DML, grant, revoke or schema statement. SHA-256 `eed29d43c5710523be3825e92c0e4753e6d7e693d42ebf99ebff7856140d5c35` |
+| `supabase/tests/235_wpc_oi113_approval_identity.test.sql` | New, 67 assertions (below) |
+| `tests/integration/wpc-oi113-approval-race.test.ts` | New, 3 tests (below) |
+| `supabase/tests/120`, `130`, `150`, `160` | Moves 1 to 4: the same `pg_temp.genuine_release_approved` text in all four, following the fixture-integrity rule. Only a genuinely new first approval emits the canonical key; a canonical event is never fabricated, replaced or repaired. The helper raises unless (a) the canonical event is consistent and (b) the interface reports the release and approval as current. Plans and assertions are unchanged |
+| `supabase/tests/150_wpb_jobs_evidence.test.sql` | Move 5: the direct emission's key `'release.approved:t150'` becomes `'release.approved:' \|\| <rel>` |
+| `tests/integration/wpb-billing.test.ts` | Move 6: the first emission uses `` `release.approved:${rel.id}` ``. The unchanged `current` query and `expect` follow it; the second emission keeps `` `release.approved:${RUN}:2` `` |
+| `docs/05-PROJECT-LIFECYCLE-AND-UPLOADS.md` | v0.5.2: the §7 "Gate rule" row (**[APPROVED OI-113]**) |
+| This section and 08 | The record |
+
+**Unchanged:**
+- WP-H's cross-check and its equality rule;
+- `approve_preview`, `release_preview`, `withdraw_preview`;
+- every WP-B and WP-S function;
+- `src/domain/contracts/gates.ts`, 01 §7, the seed, dependencies and workflows.
+
+**Why the moves are needed:** the four helpers as they stand at `19f6103`, run against the new migration, fail closed, each at its first release: 120, 130 and 160 raise `fixture: release … is not WP-C current`, and 150 reports 4 failures. The rule is doing its job; the old fixtures never wrote the canonical event.
+
+**pgTAP 235 (67 assertions, one rolled-back transaction).** Projects are paid through the real WP-B workflow and use WP-C's real intake, `release_preview` and `approve_preview`. States WP-C never produces are labelled SYNTHETIC.
+
+| Case | Expectation verified |
+|---|---|
+| R1, RP | The `approve_preview` approval is current, equals the canonical event's `approval_id` and passes G3. A second client's approval and a repeat approval emit nothing and change nothing. The consumer returns `created` (1/1/1/1, as below); a replay returns `already_consumed` and adds nothing |
+| R2 (B-1) | Client B's approval has the earlier `approved_at`; the interface still reports the canonical approval A |
+| RA (F-1, refinement A) | A well-formed non-canonical event naming B's approval is consumed **before** any obligation exists: `rejected` / `approval_mismatch`, audited and notified, 0/0/0/0. The canonical event then returns `created`, with exactly one obligation, for A |
+| R3, R4 / C1 | An approval without a canonical event, and then with only a non-canonical one, is not approved (`false:null`); G3 fails `release_not_approved`. Consumption: `rejected` / `approval_mismatch`, audited and notified, 0/0/0/0 |
+| R5 | A later non-canonical event naming another approval never changes the identification |
+| C2 to C6c | A canonical-key event failing exactly one condition: another event type; another subject type; another subject; another project; an approval of another release; an approval row of this release recorded under another project; and an unrecorded, missing or non-UUID approval. Each case: not approved, G3 fails, the defective event rejected, a well-formed non-canonical event rejected `approval_mismatch`. Together: 18 rejections, each audited and notified, with 0/0/0/0 |
+| W, S | Withdrawal and supersession are unchanged. A superseding release is not approved until its own `approve_preview`. The superseded release's event is rejected with `release_superseded` |
+| H1 to H5 | The helper raises: **H1** for a missing canonical event (and fabricates nothing); **H2** for one naming another release's approval, or belonging to another project (check (a)); **H3** for the reserved key; **H5** when the interface does not report the release as current (check (b)). **H4:** a new first approval emits exactly one canonical event; a re-delivery keeps its non-canonical key |
+| G | `approve_preview` is the only database function that emits `release.approved`. Only `emit_domain_event` inserts into `domain_events` |
+| RD (refinement D) | Events, consumptions, approvals and publication evidence keep their guard triggers. The interface is `STABLE` (it cannot write, replay or re-emit). A consumed event's outcome is unchanged |
+| X | The composite attributes, the ACL (no API role) and `contract_version` 2 are unchanged |
+
+1/1/1/1 is one `final_balance_invoices` row, one `final_balance_invoice_create`, one `payment.balance_due` and one `balance.collection_authorized`; 0/0/0/0 is none of each.
+
+**Invariant, documented rather than manufactured:** `dedupe_key` is unique (asserted from the catalog), so two canonical events for one release cannot exist.
+
+**Race test (refinement A2, acceptance 2 and 3).** Each repetition uses a fresh project paid through `createPaidProject`, client B as a second member, and WP-C's real intake and `release_preview`. Two `pg` connections run WP-C's real `approve_preview`, then WP-H's real consumer runs.
+- **Inverted order, 20 repetitions:** B begins first; 50 ms later A approves and commits; then B approves. The test asserts B's `approved_at` is earlier, so the inversion happened.
+- **Natural order, 20 repetitions:** A approves and holds the lock. B is observed waiting on `Lock` in `pg_stat_activity`. A commits, then B completes.
+- **WP-C's original reproduction** (PR #35 comment 7168769499; B begins and A approves 200 ms later): returns `created`.
+
+Every repetition asserts:
+- exactly one `release.approved` event, with the canonical key, naming the first-locked approval;
+- the interface names that approval;
+- the consumer returns `created`, with 1/1/1/1;
+- no 40P01, and no other database error.
+
+Created requests are settled through the executor afterwards.
+
+**Mutations (refinement B; scratch copies of 235 inside its rolled-back transaction, and a temporary function replacement for the race test, restored from the migration file afterwards). Every mutation is caught:**
+
+| Mutation | Fails |
+|---|---|
+| (1) key condition removed | R4 / C1 and C2 to C6 (15 assertions) |
+| (2) event type removed | C2 |
+| (3) subject type removed | C3 |
+| (4) subject removed | C4 |
+| (5) project removed | C5 (and H2's project variant) |
+| (6) the approval's release removed | C6a |
+| (6) the approval's project removed | C6b |
+| (6) the approval join replaced by a direct cast | C6a, C6b, C6c, then a cast error on the non-UUID |
+| `approved_at` ordering restored | R2, RA, R3 and 24 more in 235; the race test's inverted order and the reproduction (natural order passes, as expected) |
+| Timestamp fallback added | R3, R4 / C1, C2 to C6 (20 assertions) |
+| Helper check (a) removed | H1 and both H2 variants |
+| Helper reserved-key guard removed | H3 |
+| Helper emits the canonical key for existing approvals | H1 (it would repair the missing event), H2, H3, H4 |
+| Helper check (b) removed | H5 |
+
+**Suites (local, fresh `supabase db reset`, Supabase CLI 3.2.0, CI order):**
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 17 files, 303 passed (unchanged) |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `supabase db reset`; `./scripts/run-db-tests.sh` | 31 files, 1,672 assertions, all pass (main: 30 files, 1,605; plus 235's 67; every existing file's plan unchanged) |
+| `pnpm test:integration` | 8 files, 99 passed (main: 7 files, 96; plus the race file's 3) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 52 passed (unchanged) |
+| Lighthouse | Not run locally; runs in CI |
+
+Remote CI for the exact head is recorded in the pull request.
+
+**Reviews required (AUTH-013):**
+- an independent WP-C-domain review by a session other than WP-C;
+- a WP-B read-only review of the consumer integration;
+- Main.
+
+Each is a durable non-approval record. WP-C does not merge. OI-113 closes only on the verified merge and its post-merge CI.
+
+**Effort (OI-67):** AI session about 1.5 h; Owner review: none yet; administrative about 0.1 h (two documentation-scope questions to Main).

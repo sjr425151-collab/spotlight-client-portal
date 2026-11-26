@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.40.0 |
+| Version | 0.41.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,25 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-013 activation and the OI-113 implementation (WP-C, 2026-11-25)
+
+Recorded by the WP-C session in its AUTH-013 implementation PR. No new decision: the activation follows the conditions recorded in AUTHORIZATIONS AUTH-013. The documentation scope follows Main's interpretation of the grant, which adds no authority.
+
+- **AUTH-013 active since 2026-11-25:**
+  - PR #35 merged at `30414c7` (post-merge CI 45689577718);
+  - the grant record (PR #36) merged at `19f6103`;
+  - post-merge CI run 45694804255 on `19f6103` completed `success`.
+- **Implemented as granted:**
+  - migration `20261127110000`, in which only the approval selection of `private.project_fulfillment_status` changes. The approval is the one named by the canonical `release.approved:<release_id>` event, under the six conditions, with no fallback;
+  - pgTAP `235`;
+  - the two-client race test;
+  - fixture moves 1 to 6;
+  - 05 v0.5.2 (the §7 "Gate rule" row, **[APPROVED OI-113]**).
+
+  Records are in CURRENT-STATE §18. The interface shape, `contract_version` 2, `src/domain/contracts/gates.ts` and 01 §7 are unchanged.
+- **Documentation scope (Main):** "the interface definition" is 05 §7's "Gate rule" row. OWNER-RUNBOOKS (the option (c) emergency entry) and OPEN-ISSUES are outside the file list. Main records them, and the OI-113 closure, separately.
+- **Unchanged:** OI-113 open until the verified merge and its post-merge CI; WP-H's cross-check and equality rule; `approve_preview`, `release_preview`, `withdraw_preview`; every WP-B function; no provider or production access.
+
 ### PR #35 merge and the AUTH-013 grant (Owner, 2026-11-25)
 
 Owner decision "PR #35 pinned merge approved; AUTH-013 implementation grant approved". Documentation only.
@@ -1558,6 +1577,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.38.0 | 2026-11-25 | **PR #28 merged** (`b027e41`, CI 45675171938 (#116) 7/7); F2 closed with residual items carried forward; PR #33 and PR #34 activation records reconciled in CURRENT-STATE (v1.24.0); AUTH-012 released. | Main session | Owner |
 | 0.39.0 | 2026-11-25 | **PR #37 merged** (`e3a7508`, CI 45682383873 (#120) 7/7); OI-95 closed; AUTH-012 completed; O-1 carried forward to I-2. OPEN-ISSUES v0.32.0. | Main session | Owner |
 | 0.40.0 | 2026-11-25 | **PR #35 merged** (`30414c7`, CI 45689577718 (#123) 7/7); AUTH-006 completed; **AUTH-013 granted** (activation pending; fixture-integrity clarification). CURRENT-STATE v1.25.0; OPEN-ISSUES v0.33.0. | Main session | Owner |
+| 0.41.0 | 2026-11-25 | **AUTH-013 active** (PR #36 `19f6103`, post-merge CI 45694804255); **OI-113 correction implemented** (in review): migration `20261127110000`, pgTAP 235, the race test, fixture moves 1 to 6. **05 v0.5.2** (§7 "Gate rule", OI-113). CURRENT-STATE v1.27.0 (§18). Main's next record takes v0.42.0. | WP-C session | Owner (on merge) |
 
 ## 6. Change-control rules
 

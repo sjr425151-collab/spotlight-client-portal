@@ -405,29 +405,25 @@ describe("WP-B final-balance obligation under real concurrency (04 §10, OI-73, 
         [rel.id, projectId],
       );
       const approvalId = approval.rows[0]!.id;
+      // SYNTHETIC test emissions in WP-C's payload shape: two events for that one approval. WP-C's
+      // approve_preview emits once per release and is unchanged. OI-113 (AUTH-013 move 6): the
+      // first emission carries WP-C's canonical key for the release, which the fulfillment
+      // interface requires, so the unchanged interface assertion follows it.
+      const emit = (key: string) =>
+        db.query(
+          `select private.emit_domain_event('release.approved', $1, 'preview_release', $3::text,
+             jsonb_build_object('release_id', $3::uuid, 'release_number', $4::integer, 'approval_id', $5::uuid,
+               'commit_sha', $6::text), $2)`,
+          [projectId, key, rel.id, rel.release_number, approvalId, rel.commit_sha],
+        );
+      await emit(`release.approved:${rel.id}`);
       const current = await db.query<{ release_id: string; approval_id: string }>(
         `select (s).current_release_id as release_id, (s).current_release_approval_id as approval_id
            from (select private.project_fulfillment_status($1::uuid) as s) f`,
         [projectId],
       );
       expect(current.rows[0]).toEqual({ release_id: rel.id, approval_id: approvalId });
-      // SYNTHETIC test emissions in WP-C's payload shape (keys unchanged): two events for that one
-      // approval. WP-C's approve_preview emits once per release and is unchanged.
-      for (const n of [1, 2]) {
-        await db.query(
-          `select private.emit_domain_event('release.approved', $1, 'preview_release', $3::text,
-             jsonb_build_object('release_id', $3::uuid, 'release_number', $4::integer, 'approval_id', $5::uuid,
-               'commit_sha', $6::text), $2)`,
-          [
-            projectId,
-            `release.approved:${RUN}:${n}`,
-            rel.id,
-            rel.release_number,
-            approvalId,
-            rel.commit_sha,
-          ],
-        );
-      }
+      await emit(`release.approved:${RUN}:2`);
     });
     const url =
       process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";

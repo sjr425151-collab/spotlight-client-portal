@@ -62,7 +62,7 @@ Requirement labels: **[APPROVED OI-nn]**, **[PROPOSED]**, **[PENDING OI-nn]**, *
 
 ## 7. Change control and evidence
 
-- All changes go through a branch and a pull request. Never push directly to `main`, and never merge your own PR without Owner approval.
+- All changes go through a branch and a pull request. Never push directly to `main`, and never merge your own PR without Owner approval. Owner-approved standing and conditional merge authority, documentation-only activation, implementation-equivalence carry-forward and Main's bounded delegated authority are defined in [AUTHORIZATIONS.md §2A](docs/AUTHORIZATIONS.md) (OM-1 to OM-7).
 - **An implementation PR carries its own evidence and documentation updates**: test results, verification records, provider run IDs, and the matching updates to [CURRENT-STATE.md](docs/CURRENT-STATE.md) and the affected specs. Do not open separate status-only PRs when the implementation PR can carry the update.
 - A changed spec gets a new version and status header and a row in 08 §5.
 - Never reuse or renumber issue, dependency, or authorization IDs.

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.25.0 |
+| Version | 1.26.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
 | Next unused ID | **AUTH-014** (AUTH-013 is the proposed OI-113 correction; AUTH-009 and AUTH-010 are named in the proposed OI-91 and OI-93 architectures, OPEN-ISSUES; neither is granted; AUTH-011 is PWP-0, expired on its merge; AUTH-012 is the OI-95 correction) |
@@ -38,6 +38,22 @@ Rules for every tier:
 | Stop conditions | The change would alter a decision, a requirement, or anything outside the allowlist |
 | Expiry | None (revocable by the Owner at any time) |
 | Granted | Owner, 2026-11-23 (OI-67) |
+
+## 2A. Operating model (Owner, 2026-11-26; OM-1 to OM-7)
+
+Owner decision "governance streamlining amendment approved, subject to the following binding refinements", effective on the verified merge of the record that adds this section (OM-1). It changes how verification, review, records and merges are carried out; it does not change any risk tier, security principle, financial safeguard or the provider, hosted-environment and production restrictions. Completed work packages are not reopened to apply it.
+
+| ID | Rule |
+|---|---|
+| OM-1 (G-1) Documentation-only records | A documentation-only record takes effect on its verified merge when its exact-head documentation CI passed, the merge tree equals the reviewed head, and all its substantive prerequisites are already satisfied. Post-merge CI stays mandatory and may run concurrently with newly authorized local implementation. **If it fails:** the affected authority is suspended immediately, dependent execution halts at a safe boundary, completed work is preserved and the Owner is notified; no dependent implementation merges while the failure is unresolved. This does not accelerate provider, hosted-environment or production authorization, and does not waive substantive implementation verification |
+| OM-2 (G-2) Implementation equivalence | Repeated reviewer reconfirmations are replaced by a durable implementation-equivalence record, which Main posts on the PR. It establishes: an identical non-documentation patch identity; unchanged migration hashes; no material change to integrated dependencies, runtime assumptions, permissions, interfaces or reviewed behavior; no substantive change to the governing authorization or acceptance criteria. Patch identity alone is insufficient if the surrounding baseline materially changes behavior. When equivalence and dependency compatibility are established, existing reviews carry forward without reviewer action. Where behavior or dependencies materially change, a focused review of the affected scope is required; a comprehensive re-review only when the impact warrants it. Exact-head CI stays mandatory |
+| OM-3 (G-3) Consolidated records | Activation, completion and closure records go into implementation PRs and subsequent grant records wherever practical; standalone administrative PRs only when genuinely necessary. Closure takes effect on successful post-merge verification of the implementation. Durable evidence is kept, and verified closure is distinguished from pending documentation reconciliation |
+| OM-4 (G-4) Delegated engineering authority (Main) | Within an existing grant's purpose, Main may authorize supporting test files, documentation and narrowly scoped non-gating CI additions, recorded concisely on the PR. Delegated additions must not introduce production-reachable test behavior, weaken isolation, expose credentials, alter required checks or circumvent any prohibition. **Owner escalation remains required** for production code, migrations, grants and policies, financial behavior, security, contractual guarantees, dependencies, required-check changes and assertion changes. Sessions resolve routine technical decisions that do not affect these categories, architecture or acceptance criteria |
+| OM-5 (G-5) Documentation metadata | Implementation PRs append their own durable records and do not change the CURRENT-STATE or 08 header version or "Last updated". Main maintains version and date metadata through its ordinary merge records. Every existing record and its traceability are preserved |
+| OM-6(a) (G-6(a)) Standing documentation merge authority (Tier 0) | Main may merge a documentation-only PR that faithfully records previously approved Owner decisions. It may not introduce a new grant, materially reinterpret a decision or modify governance beyond explicit Owner approval. Required: exact-head verification, green applicable CI, clean mergeability, a merge commit, merge-commit integrity and tree equivalence; no bypass |
+| OM-6(b) (G-6(b)) Conditional implementation merge | When the Owner explicitly names the PR, the approved change scope and the required acceptance conditions, Main may merge without another Owner round trip once every condition is objectively satisfied. At execution Main pins the actual full head and base SHAs and verifies exact-head CI, the required reviews, scope compliance, implementation equivalence where applicable, and clean mergeability. Any material deviation, unresolved blocking finding, changed acceptance criterion or unmet condition invalidates the conditional authority and requires Owner escalation. Conditional approval is not blanket implementation merge authority |
+| OM-7 (G-7) Readiness-complete grants | A grant is prepared from a read-only implementation inventory: call sites, supporting files, test infrastructure, CI requirements and foreseeable technical decisions. Routine discoveries during implementation use OM-4 rather than a grant amendment |
+| Metrics | Lightweight execution metrics (implementation versus waiting time, authorization-to-implementation and review-to-merge latency, synchronization and CI cycles, completed capabilities and resolved blockers) are kept in existing merge records, reported only on material change, with measured durations distinguished from estimates. No new tooling |
 
 ## 3. Active authorizations
 

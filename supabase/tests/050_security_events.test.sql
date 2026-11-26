@@ -75,7 +75,7 @@ select is((
         'project_billing_status', 'reconcile_outbound_request', 'record_maintenance_ceased', 'record_refund_decision',
         'record_service_transfer', 'record_services_deactivated', 'record_termination_notice',
         'record_written_cancellation_notice', 'resolve_quarantined_event', 'resolve_reconciliation_mismatch',
-        'resolve_stripe_cancellation_exception', 'retry_final_balance_invoice', 'submit_cancellation_request',
+        'resolve_stripe_cancellation_exception', 'retry_final_balance_invoice', 'retry_final_balance_stop', 'submit_cancellation_request',
         'withdraw_service_termination',
         -- WP-B, OI-74 and OI-82 (payment authorization, recovery, revocation, holding reconciliation)
         'begin_payment_method_recovery', 'reconcile_holding_reversal', 'record_payment_authorization_revocation',

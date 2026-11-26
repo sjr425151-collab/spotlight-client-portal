@@ -125,9 +125,10 @@ const monotonicClock: DispatchClock = { now: () => performance.now() };
 
 /**
  * Records a result with the claim token (A1). The token is held in memory only and never
- * logged or returned. One identical resubmission is made only when the response was lost
- * (a transport error, no result): the database returns the stored outcome, applies nothing
- * again, and never authorizes another provider request.
+ * logged or returned. One identical resubmission is made when the call returned an error and
+ * no result (a lost response, or a database error such as a lock timeout): the database is
+ * authoritative, returns any stored outcome, applies nothing again, and never authorizes
+ * another provider request.
  */
 async function record(
   admin: SupabaseClient,

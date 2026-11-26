@@ -32,9 +32,9 @@
 -- 6 minutes; stale threshold 10 minutes (unchanged); lock timeout 5 seconds on the four
 -- dispatch functions (a function-level setting; the webhook handlers keep the session's).
 --
--- PENDING (Owner rulings requested 2026-11-26, AUTH-009 S1 and S2): the Owner-only controlled
--- stop retry and its wrapper, and the audit action for a rejected claim token. Neither is
--- implemented here; this migration must not merge until both are resolved.
+-- Owner rulings of 2026-11-26: S2, a rejected claim token is audited as
+-- outbound.claim_token_rejected (04 §6.4), with no token or token hash in any audit record,
+-- notification or log; S1, the Owner-only controlled stop retry, is migration 20261127120100.
 -- Forward-only (T-MIG-02); merged migrations are not edited.
 
 -- ---------------------------------------------------------------------------
@@ -246,7 +246,9 @@ begin
   if p_claim_token is null or encode(sha256(convert_to(p_claim_token::text, 'UTF8')), 'hex') <> v_req.claim_token_sha256 then
     perform private.notify_owner('outbound.claim_token_rejected', 'outbound.claim_token_rejected:' || v_req.id::text || ':1',
       v_req.project_id, null, jsonb_build_object('request_id', v_req.id, 'operation', 'confirm'));
-    -- PENDING (AUTH-009 S2, Owner ruling): the audit event for a rejected claim token.
+    -- S2 (Owner, 2026-11-26): audited; never the token or its hash.
+    perform private.audit_financial('outbound.claim_token_rejected', 'outbound_stripe_request', v_req.id::text, v_req.project_id,
+      jsonb_build_object('operation', 'confirm', 'purpose', v_req.purpose));
     return private.fail('claim_token_mismatch');
   end if;
   if v_req.dispatch_confirmed_at is not null then
@@ -344,7 +346,9 @@ begin
   if not v_token_ok then
     perform private.notify_owner('outbound.claim_token_rejected', 'outbound.claim_token_rejected:' || v_req.id::text || ':1',
       v_req.project_id, null, jsonb_build_object('request_id', v_req.id, 'operation', 'record'));
-    -- PENDING (AUTH-009 S2, Owner ruling): the audit event for a rejected claim token.
+    -- S2 (Owner, 2026-11-26): audited; never the token or its hash.
+    perform private.audit_financial('outbound.claim_token_rejected', 'outbound_stripe_request', v_req.id::text, v_req.project_id,
+      jsonb_build_object('operation', 'record', 'purpose', v_req.purpose));
     return private.fail('claim_token_mismatch');
   end if;
   if p_outcome not in ('succeeded', 'failed', 'ambiguous') or (p_outcome = 'succeeded' and p_stripe_object_id is null) then
@@ -794,7 +798,13 @@ language sql stable security definer set search_path = '' as $$
     from public.outbound_stripe_requests o
     join public.final_balance_invoices f on f.id = o.domain_record_id
    where o.project_id = p_project_id and o.purpose = 'final_balance_invoice_disable_auto'
-     and o.domain_record_type = 'final_balance_invoice' and o.status = 'reconciled_absent' and f.status <> 'paid';
+     and o.domain_record_type = 'final_balance_invoice' and o.status = 'reconciled_absent' and f.status <> 'paid'
+     -- S1 (Owner, 2026-11-26): a later attempt (the Owner's controlled retry) that Stripe confirmed,
+     -- or that the Owner reconciled as present, is authoritative evidence of cessation.
+     and not exists (select 1 from public.outbound_stripe_requests r
+                      where r.domain_record_type = o.domain_record_type and r.domain_record_id = o.domain_record_id
+                        and r.purpose = o.purpose and r.attempt > o.attempt
+                        and r.status in ('succeeded', 'reconciled_present'));
 $$;
 
 -- ---------------------------------------------------------------------------

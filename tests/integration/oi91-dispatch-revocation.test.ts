@@ -755,3 +755,110 @@ describe("AUTH-009: the executor's send deadline (fake clock, mocked gateway)", 
     expect(await state(f)).toMatchObject({ invoice: "open", create_request: "succeeded::true" });
   });
 });
+
+describe("AUTH-009 S1 and S2: the Owner's stop retry and token confidentiality", () => {
+  afterAll(settle);
+
+  const retry = (c: Client, fbiId: string, reason: string) =>
+    one(c, "public.retry_final_balance_stop($1, $2)", [fbiId, reason]);
+
+  /** An opened automatic invoice whose stop the Owner reconciled as absent. */
+  async function unresolvedStop(label: string) {
+    const f = await initiated(label);
+    await opened(f);
+    expect((await step("owner", (c) => revoke(c, f.projectId))).ok).toBe(true);
+    const stop = await withDb(async (db) => {
+      const { rows } = await db.query(
+        "select id from public.outbound_stripe_requests where domain_record_id = $1 and purpose = 'final_balance_invoice_disable_auto'",
+        [f.fbiId],
+      );
+      return rows[0].id as string;
+    });
+    expect((await step("service", (c) => claim(c, stop))).ok).toBe(true);
+    expect((await step("service", (c) => confirm(c, stop))).confirmed).toBe(true);
+    await step("service", (c) => record(c, stop, "failed", null, "invoice_not_editable"));
+    const r = await step("owner", (c) =>
+      one(c, "public.reconcile_outbound_request($1, false, null, 'Still on in Stripe')", [stop]),
+    );
+    expect(r.ok).toBe(true);
+    return f;
+  }
+  const stops = (f: Fixture) =>
+    withDb(async (db) => {
+      const { rows } = await db.query(
+        `select id, status::text from public.outbound_stripe_requests
+          where domain_record_id = $1 and purpose = 'final_balance_invoice_disable_auto' order by attempt`,
+        [f.fbiId],
+      );
+      return rows as { id: string; status: string }[];
+    });
+
+  it("simultaneous Owner retries serialize: the second waits, then returns the first's attempt", async () => {
+    const f = await unresolvedStop("Rty1");
+    const { a, b } = await race(
+      { as: "owner", run: (c) => retry(c, f.fbiId, "Retry the stop (first)") },
+      { as: "owner", run: (c) => retry(c, f.fbiId, "Retry the stop (second)") },
+    );
+    expect(a).toMatchObject({ ok: true, existing: false });
+    expect(b).toEqual({ ok: true, existing: true, request_id: a.request_id });
+    expect(await stops(f)).toEqual([
+      { id: expect.any(String), status: "reconciled_absent" },
+      { id: a.request_id, status: "pending" },
+    ]);
+    const audits = await withDb(
+      async (db) =>
+        (
+          await db.query(
+            "select count(*)::int as n from public.audit_events where action = 'outbound.request_retried' and target_id = $1",
+            [f.fbiId],
+          )
+        ).rows[0].n,
+    );
+    expect(audits).toBe(1);
+  });
+
+  it("the retry waits for revocation-shaped locks in hierarchy order (authorization, then invoice)", async () => {
+    const f = await unresolvedStop("Rty2");
+    const r = await probe(lockAuthorizations(f), lockInvoice(f), {
+      as: "owner",
+      run: (c) => retry(c, f.fbiId, "Retry under contention"),
+    });
+    expect(r).toMatchObject({ ok: true, existing: false });
+  });
+
+  it("S2: no claim token reaches an application log during execution", async () => {
+    const f = await initiated("Log1");
+    const seen: string[] = [];
+    const admin = adminClient();
+    const watched = new Proxy(admin, {
+      get(target, prop, receiver) {
+        if (prop !== "rpc") return Reflect.get(target, prop, receiver);
+        return async (fn: string, args?: Record<string, unknown>) => {
+          const out = await target.rpc(fn, args);
+          const t = (out.data as { claim_token?: unknown } | null)?.claim_token;
+          if (typeof t === "string") seen.push(t);
+          return out;
+        };
+      },
+    });
+    const logged: string[] = [];
+    const methods = ["log", "info", "warn", "error", "debug"] as const;
+    const spies = methods.map((m) =>
+      vi.spyOn(console, m).mockImplementation((...args: unknown[]) => {
+        logged.push(args.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" "));
+      }),
+    );
+    try {
+      // A complete claim, confirm, send and record through the executor, with every console
+      // method captured.
+      const result = await executeOutboundRequest(watched, new MockStripeGateway(), f.createId);
+      expect(result.ok).toBe(true);
+      console.error("probe line so the capture is shown to work");
+    } finally {
+      for (const s of spies) s.mockRestore();
+    }
+    expect(seen).toHaveLength(1);
+    expect(logged).toEqual(["probe line so the capture is shown to work"]);
+    for (const line of logged) for (const t of seen) expect(line.includes(t)).toBe(false);
+  });
+});

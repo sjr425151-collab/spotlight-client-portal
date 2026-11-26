@@ -82,6 +82,7 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   b("outbound.request_reconciled", "payment", "04 §6.4"),
   b("outbound.request_retried", "payment", "04 §10"),
   b("outbound.livemode_mismatch", "payment", "04 §6.3"),
+  b("outbound.claim_token_rejected", "payment", "04 §6.4"),
   b("webhook.received", "payment", "03 §11"),
   b("webhook.processed", "payment", "03 §11"),
   b("webhook.rejected", "payment", "03 §11"),

@@ -1613,6 +1613,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.42.0 | 2026-11-26 | **PRs #36, #27 and #38 merged** (`19f6103`, `05b32e9`, `7226d6f`; post-merge CI 45694804255 (#126), 45706248054 (#129), 45725850769 (#131)); AUTH-013 activated and completed; AUTH-007 completed; **OI-113 closed**; D-1 ratified; Stage A attestation wording approved; OI-86 and OI-87 reconciled. CURRENT-STATE v1.28.0; AUTHORIZATIONS v1.24.0; OPEN-ISSUES v0.34.0; OWNER-RUNBOOKS v0.5.0 (§12). | Main session | Owner |
 | 0.43.0 | 2026-11-26 | **AUTH-009 and AUTH-008 I-2 granted** (activation pending); PR #39 merged (`779fe61`, CI 45729483714 (#133)). CURRENT-STATE v1.29.0; AUTHORIZATIONS v1.25.0; OPEN-ISSUES v0.35.0. | Main session | Owner |
 | 0.44.0 | 2026-11-26 | **Operating model OM-1 to OM-7** approved and recorded (AUTHORIZATIONS §2A, v1.26.0; CLAUDE.md §7 pointer). | Main session | Owner |
+| — | 2026-11-26 | **04 v0.10.2** (AUTH-009 S2, Owner ruling 2026-11-26): §6.4 records the outbound claim-token rule and the audit action `outbound.claim_token_rejected` (registered in `src/domain/contracts/audit-actions.ts`). Implemented in PR #43 with AUTH-009 S1 (the Owner-only stop retry, migration `20261127120100`). The 08 version is left to Main (OM-5). | WP-B session | Owner |
 
 ## 6. Change-control rules
 

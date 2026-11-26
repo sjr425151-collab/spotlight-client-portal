@@ -9,7 +9,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(71);
+select plan(105);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false, p_otp_fresh boolean default false)
 returns void language plpgsql as $$
@@ -448,8 +448,9 @@ select is((select array_agg(p.proname::text order by p.proname) from pg_proc p j
   'every changed and new private function is SECURITY DEFINER with an empty search_path');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'private' and 'lock_timeout=5s' = any(p.proconfig)),
-  array['confirm_outbound_dispatch', 'outbound_request_for_execution', 'reconcile_outbound_request', 'record_outbound_result'],
-  'engineering default: the four dispatch functions wait at most 5 seconds for a lock');
+  array['confirm_outbound_dispatch', 'outbound_request_for_execution', 'reconcile_outbound_request', 'record_outbound_result',
+        'retry_final_balance_stop'],
+  'engineering default: the four dispatch functions and the stop retry wait at most 5 seconds for a lock');
 select ok((select string_agg(a.attname || ':' || format_type(a.atttypid, a.atttypmod), ',' order by a.attname)
   from pg_attribute a where a.attrelid = 'public.outbound_stripe_requests'::regclass
     and a.attname in ('claim_token_sha256', 'dispatch_confirmed_at') and not a.attisdropped)
@@ -732,6 +733,175 @@ select is(pg_temp.reconcile((select v::uuid from ids where k = 'pc'), 'it191-rel
   'control: a current release');
 select is((select count(*)::int from public.notification_outbox where notification_type = 'final_balance.release_changed'
   and project_id = (select v::uuid from ids where k = 'pc')), 0, 'control: no release-change notification while the release is current');
+
+-- ---------------------------------------------------------------------------
+-- 8. S2 (Owner, 2026-11-26): a rejected claim token is audited; no token or hash leaks
+-- ---------------------------------------------------------------------------
+insert into ids select 'p6', pg_temp.checkout_project('TOKF')::text;
+insert into ids select 'r6', pg_temp.req((select v::uuid from ids where k = 'p6'), 'customer_create')::text;
+select pg_temp.claim_only((select v::uuid from ids where k = 'r6')) ->> 'purpose';
+insert into ids select 'w6', gen_random_uuid()::text;
+select is(pg_temp.confirm((select v::uuid from ids where k = 'r6'), (select v::uuid from ids where k = 'w6')) ->> 'error',
+  'claim_token_mismatch', 'a wrong token is refused at confirmation');
+select is(pg_temp.rec((select v::uuid from ids where k = 'r6'), (select v::uuid from ids where k = 'w6'),
+  'succeeded', 'cus_TTOKF00000', false, 200, null) ->> 'error', 'claim_token_mismatch', 'and at recording');
+select is((select array_agg(summary ->> 'operation' order by id) from public.audit_events
+  where action = 'outbound.claim_token_rejected' and target_id = (select v from ids where k = 'r6')),
+  array['confirm', 'record'], 'S2: each rejection writes an outbound.claim_token_rejected audit event');
+select ok((select bool_and(category = 'financial' and target_type = 'outbound_stripe_request') from public.audit_events
+  where action = 'outbound.claim_token_rejected')
+  and (select count(*) from public.audit_events where action = 'outbound.claim_token_rejected'
+        and target_id in ((select v from ids where k = 'r1'), (select v from ids where k = 'r2'))) = 3,
+  'every rejection is a financial audit event on its request (two at confirmation for r1, one at recording for r2)');
+select ok(pg_temp.notes('outbound.claim_token_rejected', 'outbound.claim_token_rejected:' || (select v from ids where k = 'r6')) = 1,
+  'the Owner notification stays deduplicated per request');
+select ok(not exists (
+    select 1 from public.audit_events a
+     cross join (select token::text as secret from claim_tokens
+                 union all select v from ids where k in ('w6', 'tw', 'tl', 'tf')
+                 union all select claim_token_sha256 from public.outbound_stripe_requests where claim_token_sha256 is not null) x
+     where position(x.secret in a.summary::text || coalesce(a.reason, '') || coalesce(a.target_id, '')) > 0)
+  and not exists (
+    select 1 from public.notification_outbox n
+     cross join (select token::text as secret from claim_tokens
+                 union all select v from ids where k in ('w6', 'tw', 'tl', 'tf')
+                 union all select claim_token_sha256 from public.outbound_stripe_requests where claim_token_sha256 is not null) x
+     where position(x.secret in n.payload_ref::text || n.idempotency_key) > 0),
+  'S2: no claim token (accepted or submitted) and no token hash appears in any audit record or notification');
+
+-- ---------------------------------------------------------------------------
+-- 9. S1 (Owner, 2026-11-26): the Owner-only controlled stop retry
+-- ---------------------------------------------------------------------------
+select ok(has_function_privilege('authenticated', 'public.retry_final_balance_stop(uuid, text)', 'execute')
+  and has_function_privilege('authenticated', 'private.retry_final_balance_stop(uuid, text)', 'execute')
+  and not has_function_privilege('anon', 'public.retry_final_balance_stop(uuid, text)', 'execute')
+  and not has_function_privilege('service_role', 'public.retry_final_balance_stop(uuid, text)', 'execute')
+  and not has_function_privilege('public', 'public.retry_final_balance_stop(uuid, text)', 'execute')
+  and (select p.prosecdef and 'search_path=""' = any(p.proconfig) from pg_proc p
+        where p.oid = 'private.retry_final_balance_stop(uuid, text)'::regprocedure),
+  'S1: authenticated only (re-authorized inside), never anon, PUBLIC or the server role; SECURITY DEFINER');
+
+-- A stop the Owner reconciled as absent (cessation not established), with an Owner hold in place.
+insert into ids select 'pt', pg_temp.paid_project('STRT', 'pm_STRTcard01')::text;
+select pg_temp.final_created((select v::uuid from ids where k = 'pt'), 'STRT', 20);
+select pg_temp.deliver(pg_temp.evt('evt_STRTdetach01', 'payment_method.detached', jsonb_build_object('id', 'pm_STRTcard01', 'object', 'payment_method')));
+insert into ids select 'ft', pg_temp.fbi((select v::uuid from ids where k = 'pt'))::text;
+insert into ids select 'rt1', pg_temp.req((select v::uuid from ids where k = 'pt'), 'final_balance_invoice_disable_auto')::text;
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', (select v from ids where k = 'ft'),
+  'Retry the stop')) ->> 'existing', 'true', 'while the first stop is pending, a retry returns it and creates nothing');
+select pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select v from ids where k = 'rt1'))) ->> 'purpose';
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', (select v from ids where k = 'ft'),
+  'Retry the stop')) ->> 'existing', 'true', 'nor while it is claimed and in flight');
+select pg_temp.rec((select v::uuid from ids where k = 'rt1'), pg_temp.token((select v::uuid from ids where k = 'rt1')),
+  'failed', null, null, 400, 'invoice_not_editable') ->> 'status';
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', (select v from ids where k = 'ft'),
+  'Retry the stop')) ->> 'error', 'reconciliation_required', 'an unreconciled failed stop is reconciled first, never retried blind');
+select pg_temp.owner_do(format('select public.reconcile_outbound_request(%L, false, null, %L)', (select v from ids where k = 'rt1'),
+  'Stripe still shows automatic collection on'));
+select is(pg_temp.owner_do(format('select public.place_billing_hold(%L, %L, %L)', (select v from ids where k = 'pt'),
+  'owner_manual_hold', 'Hold while the stop is resolved')) ->> 'ok', 'true', 'an Owner hold is in place');
+insert into ids select 'nt0', count(*)::text from public.outbound_stripe_requests where project_id = (select v::uuid from ids where k = 'pt');
+insert into ids select 'at0', count(*)::text from public.audit_events where action = 'outbound.request_retried'
+  and project_id = (select v::uuid from ids where k = 'pt');
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1', 'aal1', false, true);
+select is(public.retry_final_balance_stop((select v::uuid from ids where k = 'ft'), 'client') ->> 'error', 'forbidden',
+  'the project''s own client cannot retry');
+reset role;
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000b1', 'aal1', false, true);
+select is(public.retry_final_balance_stop((select v::uuid from ids where k = 'ft'), 'other tenant') ->> 'error', 'forbidden',
+  'cross-tenant: another business''s client cannot retry');
+reset role;
+select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2', true);
+select is(public.retry_final_balance_stop((select v::uuid from ids where k = 'ft'), 'admin') ->> 'error', 'forbidden',
+  'Admin cannot retry (Owner only)');
+reset role;
+select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', false);
+select is(public.retry_final_balance_stop((select v::uuid from ids where k = 'ft'), 'stale MFA') ->> 'error', 'forbidden',
+  'the Owner needs fresh MFA');
+reset role;
+select set_config('request.jwt.claims', jsonb_build_object('sub', '00000000-0000-4000-8000-000000000001', 'role', 'authenticated',
+  'aal', 'aal2', 'session_id', gen_random_uuid(), 'amr', jsonb_build_array(jsonb_build_object('method', 'totp',
+  'timestamp', extract(epoch from now())::bigint)))::text, true);
+set local role authenticated;
+select is(public.retry_final_balance_stop((select v::uuid from ids where k = 'ft'), 'no session') ->> 'error', 'forbidden',
+  'and a live session');
+reset role;
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', (select v from ids where k = 'ft'), '  ')) ->> 'error',
+  'reason_required', 'a reason is mandatory');
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', gen_random_uuid(), 'missing')) ->> 'error',
+  'not_found', 'an unknown invoice is refused');
+select ok((select count(*)::text from public.outbound_stripe_requests where project_id = (select v::uuid from ids where k = 'pt'))
+    = (select v from ids where k = 'nt0')
+  and (select count(*)::text from public.audit_events where action = 'outbound.request_retried'
+        and project_id = (select v::uuid from ids where k = 'pt')) = (select v from ids where k = 'at0'),
+  'every refusal writes nothing');
+
+insert into ids select 'rt2r', pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', (select v from ids where k = 'ft'),
+  'Stripe shows automatic collection still on; retry the stop'))::text;
+select ok((select (v::jsonb ->> 'ok')::boolean and not (v::jsonb ->> 'existing')::boolean from ids where k = 'rt2r'),
+  'S1: the Owner retries the stop reconciled absent');
+insert into ids select 'rt2', (select v::jsonb ->> 'request_id' from ids where k = 'rt2r');
+select ok((select o.status = 'pending' and o.purpose = 'final_balance_invoice_disable_auto'
+             and o.attempt = (select max(x.attempt) from public.outbound_stripe_requests x where x.domain_record_id = o.domain_record_id)
+             and o.idempotency_key = 'wpb-final-balance-stop-' || (select v from ids where k = 'ft') || '-a' || o.attempt
+             and o.idempotency_key <> (select r.idempotency_key from public.outbound_stripe_requests r where r.id = (select v::uuid from ids where k = 'rt1'))
+             and o.request_params = jsonb_build_object('invoice', 'in_STRTfinal01', 'auto_advance', false)
+           from public.outbound_stripe_requests o where o.id = (select v::uuid from ids where k = 'rt2')),
+  'a new stop attempt with a fresh attempt-specific idempotency key, auto_advance false');
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', (select v from ids where k = 'ft'),
+  'Retry again')) - 'existing', jsonb_build_object('ok', true, 'request_id', (select v from ids where k = 'rt2')),
+  'a duplicate retry is deterministic: it returns the attempt in flight');
+select is((select count(*)::int from public.outbound_stripe_requests where project_id = (select v::uuid from ids where k = 'pt'))::text,
+  ((select v::int from ids where k = 'nt0') + 1)::text, 'and creates nothing: exactly one new request in all');
+select ok((select a.reason = 'Stripe shows automatic collection still on; retry the stop'
+             and a.summary ->> 'request_id' = (select v from ids where k = 'rt2')
+             and a.summary ->> 'superseded_request_id' = (select v from ids where k = 'rt1') and a.category = 'financial'
+           from public.audit_events a where a.action = 'outbound.request_retried'
+            and a.project_id = (select v::uuid from ids where k = 'pt')),
+  'one immutable audit event records the retry with the Owner''s reason');
+select ok((select f.collection_mode = 'hosted_only' and f.automatic_stop_required and f.status = 'open'
+           from public.final_balance_invoices f where f.id = (select v::uuid from ids where k = 'ft'))
+  and (select count(*) from public.outbound_stripe_requests where project_id = (select v::uuid from ids where k = 'pt')
+        and purpose = 'final_balance_invoice_create') = 1
+  and (select status from public.payment_authorizations where project_id = (select v::uuid from ids where k = 'pt')) = 'payment_method_unavailable',
+  'no reactivation: collection stays hosted-only, no charge is queued, the authorization is unchanged');
+select ok((select cleared_at is null from public.billing_holds where project_id = (select v::uuid from ids where k = 'pt'))
+  and pg_temp.anomalies((select v::uuid from ids where k = 'pt')) -> 'G4' = '["automatic_stop_unresolved"]'::jsonb,
+  'the hold and the stop-specific anomaly stay in force while the retry is in flight');
+select pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select v from ids where k = 'rt2'))) ->> 'purpose';
+select is(pg_temp.rec((select v::uuid from ids where k = 'rt2'), pg_temp.token((select v::uuid from ids where k = 'rt2')),
+  'succeeded', 'in_STRTfinal01', false, 200, null) ->> 'status', 'succeeded', 'Stripe confirms the retried stop');
+select ok(pg_temp.anomalies((select v::uuid from ids where k = 'pt')) -> 'G4' = '[]'::jsonb
+  and (select cleared_at is null from public.billing_holds where project_id = (select v::uuid from ids where k = 'pt')),
+  'authoritative evidence clears only the stop-specific item; the hold stays until its own resolution');
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', (select v from ids where k = 'ft'),
+  'Once more')) ->> 'error', 'not_needed', 'a stop that succeeded is not retried');
+
+insert into ids select 'pu', pg_temp.paid_project('STRU', 'pm_STRUcard01')::text;
+select pg_temp.final_created((select v::uuid from ids where k = 'pu'), 'STRU', 21);
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', pg_temp.fbi((select v::uuid from ids where k = 'pu')),
+  'No stop yet')) ->> 'error', 'not_eligible', 'an invoice without a collection stop is not eligible');
+select pg_temp.deliver(pg_temp.evt('evt_STRUdetach01', 'payment_method.detached', jsonb_build_object('id', 'pm_STRUcard01', 'object', 'payment_method')));
+insert into ids select 'ru1', pg_temp.req((select v::uuid from ids where k = 'pu'), 'final_balance_invoice_disable_auto')::text;
+select pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select v from ids where k = 'ru1'))) ->> 'purpose';
+select pg_temp.rec((select v::uuid from ids where k = 'ru1'), pg_temp.token((select v::uuid from ids where k = 'ru1')),
+  'ambiguous', null, null, null, 'network_timeout') ->> 'status';
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', pg_temp.fbi((select v::uuid from ids where k = 'pu')),
+  'Ambiguous')) ->> 'error', 'reconciliation_required', 'an ambiguous stop is reconciled first');
+select pg_temp.owner_do(format('select public.reconcile_outbound_request(%L, false, null, %L)', (select v from ids where k = 'ru1'),
+  'Still on in Stripe'));
+insert into ids select 'ru2', pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)',
+  pg_temp.fbi((select v::uuid from ids where k = 'pu')), 'Retry after the ambiguous stop')) ->> 'request_id';
+select pg_temp.svc(format('select public.outbound_request_for_execution(%L)', (select v from ids where k = 'ru2'))) ->> 'purpose';
+select pg_temp.rec((select v::uuid from ids where k = 'ru2'), pg_temp.token((select v::uuid from ids where k = 'ru2')),
+  'failed', null, null, 400, 'invoice_not_editable') ->> 'status';
+select is(pg_temp.anomalies((select v::uuid from ids where k = 'pu')) -> 'G4', '["automatic_stop_failed", "automatic_stop_unresolved"]'::jsonb,
+  'a failed retry clears nothing: both the failed attempt and the unresolved one block G4');
+select is(pg_temp.deliver(pg_temp.evt('evt_STRUpaid0001', 'invoice.paid', pg_temp.final_body((select v::uuid from ids where k = 'pu'), 'STRU'), 5)) ->> 'status',
+  'processed', 'Stripe charges the card');
+select is(pg_temp.owner_do(format('select public.retry_final_balance_stop(%L, %L)', pg_temp.fbi((select v::uuid from ids where k = 'pu')),
+  'After payment')) ->> 'error', 'not_needed', 'after verified payment no stop retry is needed (collection is impossible)');
 
 select * from finish();
 rollback;

@@ -1829,38 +1829,39 @@ Implemented by the WP-C session on `wp-c/oi-114-publication-recovery`, from the 
 
 | File | Change |
 |---|---|
-| `supabase/migrations/20261127140000_wpc_oi114_publication_recovery.sql` | **New** `private.reopen_failed_publication(uuid, text)` with its security-invoker `public` wrapper, granted only to `authenticated`. **Replaced** (`create or replace`) `private.authorize_publication` and `private.record_live_verification`, one hunk each; every other line of both is byte-identical to `20261124140200` (`diff` shows only those hunks). No table, column, index, policy or trigger change, and no DML. SHA-256 `8ebad3ac85bc4aa8f58f36d309937c4a25118e0e4a7165a01458fde85f70c05a` |
+| `supabase/migrations/20261127140000_wpc_oi114_publication_recovery.sql` | **New** `private.reopen_failed_publication(uuid, text)` with its security-invoker `public` wrapper, granted only to `authenticated`, and the helper `private.wpc_publication_recovered(uuid)`, which no API role can execute. **Replaced** (`create or replace`) `private.authorize_publication` and `private.record_live_verification`, one hunk each; every other line of both is byte-identical to `20261124140200` (`diff` shows only those hunks). No table, column, index, policy or trigger change, and no DML. SHA-256 `8ebad3ac85bc4aa8f58f36d309937c4a25118e0e4a7165a01458fde85f70c05a` |
 | `src/app/staff/projects/[projectId]/fulfillment-actions.ts`, `fulfillment-panel.tsx` | The Owner's "Recover failed publication" card. It needs a reason and an explicit confirmation, and the action requires fresh MFA. "Start deployment" is offered only for an authorization without a deployment |
 | `src/domain/contracts/audit-actions.ts`, `src/lib/messages.ts` | `publication.recovery_opened` and `publication.recovery_rejected`; four messages |
 | `supabase/tests/220_wpc_publication_gates.test.sql` | Setup only: two Owner recoveries before the two existing re-authorizations. `plan(117)` and every assertion are unchanged |
 | `supabase/tests/050_security_events.test.sql` | One addition to the WP-C reviewed RPC list: `reopen_failed_publication` |
-| `supabase/tests/240_wpc_oi114_publication_recovery.test.sql` | **New**, 51 assertions (below) |
+| `supabase/tests/240_wpc_oi114_publication_recovery.test.sql` | **New**, 58 assertions (below) |
 | `tests/integration/wpc-oi114-recovery-race.test.ts` | **New**, 2 tests (below) |
 | `tests/e2e/r1.spec.ts` | T-E2E-08 reworked through the UI, under the Owner's disposition (below) |
 | `docs/06-PUBLISHING-AND-POST-LAUNCH.md` | v0.5.5: the §8.1 "Controlled recovery" rule (**[APPROVED OI-114]**, D6) |
 | This section and 08 | The record |
 
 **Behavior (D1 to D4):**
-- **D1.** `authorize_publication` refuses a same-release re-authorization while that release's used authorization is active. It returns `recovery_required`, writes an audit event and issues no authorization. All gates are still evaluated first, as before.
-- **D2.** `reopen_failed_publication` lets only the Owner (aal2, an active session, fresh MFA) recover a deployment, and requires a reason. Every guard is NULL-safe (`… is not true`; OI-120): `private.is_owner()` is NULL, not false, for a non-staff caller. It takes the per-project release lock, then the deployment row `FOR UPDATE`, then its authorization. The deployment must be the latest deployment of the current release, recorded as failed or with a failed latest verification. Otherwise the call returns `not_recoverable` with a detail (`authorization_closed`, `not_latest_deployment`, `release_not_current`, `deployment_in_progress`, `live_unverified` or `live_verified`) and audits the refusal. A stale-MFA refusal is also audited. A repeated recovery returns the existing one.
-- **D3.** A recovery only closes the authorization (`failed_publication_recovery`) and audits `publication.authorization_invalidated` and `publication.recovery_opened`. The latter records the reason, the failure and the open incident IDs. Re-authorization and deployment are the unchanged normal flow, which re-runs G1 to G8.
+- **D1 (with M-1, option B).** `authorize_publication` refuses a release when the project's latest deployment is of that release and has not been recovered. It returns `recovery_required`, writes an audit event and issues no authorization. This holds whether that deployment's authorization is still active or a gate failure has closed it (`gates_failed`, `gates_failed_at_start`). All gates are still evaluated first, as before. A deployment counts as recovered when it has its append-only `publication.recovery_opened` audit event; `private.wpc_publication_recovered` checks this.
+- **D2.** `reopen_failed_publication` lets only the Owner (aal2, an active session, fresh MFA) recover a deployment, and requires a reason. Every guard is NULL-safe (`… is not true`; OI-120): `private.is_owner()` is NULL, not false, for a non-staff caller. It takes the per-project release lock, then the deployment row `FOR UPDATE`, then its authorization. The deployment must be the latest deployment of the current release, recorded as failed or with a failed latest verification. An authorization closed by a gate failure is still recoverable; any other closure is not. Otherwise the call returns `not_recoverable` with a detail (`authorization_closed`, `not_latest_deployment`, `release_not_current`, `deployment_in_progress`, `live_unverified` or `live_verified`) and audits the refusal. A stale-MFA refusal is also audited. A repeated recovery returns the existing one.
+- **D3.** A recovery only closes the authorization (`failed_publication_recovery`) and audits `publication.authorization_invalidated` and `publication.recovery_opened`. An authorization a gate failure already closed keeps that single invalidation, and only `publication.recovery_opened` is written, with `authorization_closed_by`. The latter records the reason, the failure and the open incident IDs. Re-authorization and deployment are the unchanged normal flow, which re-runs G1 to G8.
 - **D4.** A release whose latest verification passed can be neither recovered nor re-authorized.
 - **Late verification.** `record_live_verification` reads the deployment `FOR SHARE` and refuses a deployment closed by a recovery (`deployment_closed`), recording nothing.
 
-**pgTAP 240 (51 assertions, one rolled-back transaction).** It uses 220's fixtures (the test-only WP-B financial interface fixture, so G2 and G4 can be flipped) and WP-C's real functions.
+**pgTAP 240 (58 assertions, one rolled-back transaction).** It uses 220's fixtures (the test-only WP-B financial interface fixture, so G2 and G4 can be flipped) and WP-C's real functions.
 
 | Case | Expectation verified |
 |---|---|
 | D1 | A same-release re-authorization after a failed deployment returns `recovery_required`. It is audited and issues no authorization |
 | Denials | The Admin, a client and the Owner at aal1 are refused (`forbidden`). **OI-120:** so are a client and a revoked former staff member, each at aal2 with a verified TOTP factor, fresh MFA and a live session. Stale MFA returns `reauthentication_required` and is audited. A blank reason and an unknown deployment are refused. No refused call closes the authorization |
-| Not recoverable | A deployment in progress; a deployment whose authorization a gate failure closed (`gates_failed`, the existing 06 §3 rule); an unverified deployment; a superseded release. Each refusal leaves the authorization unchanged |
+| M-1 | A gate failure after the failed deployment closes its authorization (`gates_failed`). With the gates passing again, re-authorization is still refused with `recovery_required` and issues nothing. The Owner recovers that deployment: the recovery is recorded with `authorization_closed_by: gates_failed`, the authorization keeps its single invalidation, and a repeat returns the existing recovery |
+| Not recoverable | A deployment in progress; an unverified deployment; a superseded release; a deployment whose authorization was closed other than by a gate failure (SYNTHETIC: a withdrawal). Each refusal leaves the authorization unchanged |
 | D2, D3 | The recovery returns `existing: false`, closes the authorization and audits the reason, the failure and the open incident. It creates no authorization, deployment, verification, notification or domain event. A repeat returns `existing: true` and writes nothing. The incident stays open |
 | G2, G4 | After recovery, authorization fails on G2, then on G4; with both passing, a new authorization is issued for the same release identity, and `start_deployment` records a new deployment of the same commit |
 | Verification failure | It is recoverable (`verification_failed`). The late verification is refused with `deployment_closed`, recording nothing and announcing nothing. The new deployment does not inherit an earlier verification and needs its own |
 | D4 | After a passing verification, recovery returns `live_verified` and re-authorization returns `recovery_required` |
-| Isolation, catalog | Client B sees no Project A audit event, and every recovery audit of a Project A deployment belongs to Project A. Counts are scoped to Project A, so committed rows of other test files never interfere. Only `authenticated` can execute the functions (not `anon` or `service_role`). The recovery is security definer with an empty `search_path` |
+| Isolation, catalog | Client B sees no Project A audit event, and every recovery audit of a Project A deployment belongs to Project A. No API role can execute the recovery marker helper. Counts are scoped to Project A, so committed rows of other test files never interfere. Only `authenticated` can execute the functions (not `anon` or `service_role`). The recovery is security definer with an empty `search_path` |
 
-**Invariant, documented rather than manufactured:** `not_latest_deployment` is defensive. A project has one active authorization and one deployment per authorization, so a deployment that is not the latest always has a closed authorization and returns `authorization_closed` first.
+**Invariant, documented rather than manufactured:** `not_latest_deployment` is defensive. A newer deployment needs a new authorization, and a new authorization for the same release needs the latest deployment recovered first. A deployment that is not the latest has therefore been recovered (`existing`), or its authorization was closed other than by a gate failure (`authorization_closed`).
 
 **Race test (two real connections, 10 repetitions per order, each on a fresh project paid through the real WP-B workflow).** Release 1 comes from WP-C's real intake and `release_preview`. The authorization and succeeded deployment rows are inserted directly; this is **SYNTHETIC** setup, since the gates are covered by pgTAP. The first, failed verification goes through the real `record_live_verification`.
 - **Recovery first:** the Owner's recovery holds the row. The verifier's call is seen waiting on `Lock` in `pg_stat_activity`. Once the recovery commits, the verification returns `deployment_closed`, with no new verification, no `publication.live` and the state still `failed`.
@@ -1887,29 +1888,31 @@ The old database-level second authorization (test setup) is removed. Unchanged: 
 | Authorization | Owner, 2026-11-27 (AUTH-015 assertion disposition, relayed by Main) |
 | Evidence | Local e2e run below; exact-head CI in the pull request |
 
-**Mutations (20; each installed locally, the targeted tests run, the original restored). 19 caught:**
+**Mutations (25; each installed locally, the targeted tests run, the original restored). 24 caught:**
 
 | Mutation | Caught by |
 |---|---|
-| D1 hunk disabled | 240 (7 assertions) |
+| D1/M-1 recovery check in `authorize_publication` disabled | 240 (14 assertions) |
 | `deployment_closed` check removed | 240 (2) and the race test (recovery first) |
 | Verification `FOR SHARE` removed | The race test (recovery first); 240 is single-session |
 | Recovery `FOR UPDATE` on the deployment removed | The race test (both orders) |
-| **OI-120: the NULL-unsafe guard (`if not (…)`) restored** | 240 (5, including both OI-120 denials) |
-| Fresh-MFA check removed | 240 (5) |
-| Owner check widened | 240 (6) |
+| **OI-120: the NULL-unsafe guard (`if not (…)`) restored** | 240 (8, including both OI-120 denials) |
+| Fresh-MFA check removed | 240 (8) |
+| Owner check widened | 240 (9) |
 | aal2 check removed | 240 (2) |
-| Reason check removed | 240 (4) |
-| `authorization_closed` check removed | 240 (the closed authorization's guard trigger raises; the file errors) |
+| Reason check removed | 240 (7) |
+| `authorization_closed` check removed; every closed authorization made recoverable | 240 (1 each: the SYNTHETIC withdrawal) |
+| Gate-failure closures made unrecoverable | 240 (23) |
+| Recovery marker always false; always true; ignoring the deployment | 240 (22; 24; 24) |
 | Current-release check removed | 240 (2) |
 | In-progress check removed | 240 (1) |
 | Unverified treated as recoverable | 240 (3) |
 | Passing verification treated as recoverable (D4) | 240 (5) |
 | Refusal audit removed; stale-MFA refusal audit removed | 240 (1 each) |
-| The recovery does not close the authorization | 240 (11) |
-| `publication.recovery_opened` audit removed | 240 (3) |
-| The existing-recovery return removed | 240 (2) |
-| Latest-deployment check removed | **Not caught, as expected:** the defensive invariant above (`authorization_closed` comes first) |
+| The recovery does not close an active authorization | 240 (4) |
+| `publication.recovery_opened` audit removed | 240 (23) |
+| The existing-recovery return removed | 240 (3) |
+| Latest-deployment check removed | **Not caught, as expected:** the defensive invariant above |
 
 Every mutation was installed by `create or replace` from a mutated copy of the migration and restored from the migration file. The baseline passes after the restore.
 
@@ -1930,7 +1933,7 @@ Run on the branch after merging `main` at `e67bddd` (documentation only since `1
 
 Remote CI for the exact head is recorded in the pull request.
 
-**Informational finding, outside AUTH-015 (not changed):** a gate failure during re-authorization after a failed deployment closes that authorization as `gates_failed`, under the existing 06 §3 rule. A later passing authorization then issues a same-release authorization without a recovery record. Every gate re-runs and the action is audited (`publication.authorization_rejected`, then `publication.authorized`), but no `publication.recovery_opened` is written. pgTAP 240 uses this path only as setup and asserts nothing about it. It is for the Owner to decide whether this needs a change.
+**M-1 (Main review 7227401266): closed under option B (Owner ruling @@OWNER_RULING@@).** The path: a failed deployment, then a gate failure that closes its authorization (`gates_failed`), then a passing authorization. Previously this re-issued the same release with no recovery record, and the recovery refused that deployment as `authorization_closed`. Now the re-authorization is refused with `recovery_required` until the Owner records a recovery, and the recovery accepts a gate-closed authorization. The change stays within AUTH-015's existing files and hunks, plus the new helper. No existing assertion changes.
 
 **Reported to Main, outside AUTH-015 (not changed):** the OI-120 pattern also appears as `if not private.is_owner() or not …` in `private.set_staff_role` (`20261125120100`:468) and `private.revoke_staff` (`20261123060000`:715). A rolled-back local probe showed two privilege escalations. A client at aal2 with fresh MFA promoted the Admin's existing staff row to Owner. A revoked former Admin re-granted itself Owner. Existing functions are left to the separate fix grant (Main's OI-120 directive).
 

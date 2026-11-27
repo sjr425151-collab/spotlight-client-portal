@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(51);
+select plan(58);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
 returns void language plpgsql as $$
@@ -246,15 +246,30 @@ select is(pg_temp.reopen(gen_random_uuid()) ->> 'error', 'not_found', 'an unknow
 select is((select invalidated_at from public.publication_authorizations where id = pg_temp.id('a1')), null,
   'no refused call closed the authorization');
 
--- A gate failure after the failed deployment closes its authorization (gates_failed, the
--- existing 06 §3 rule); that deployment is then not recoverable.
+-- M-1 (option B): a gate failure after the failed deployment closes its authorization
+-- (gates_failed, the existing 06 §3 rule). The release is still never re-authorized without a
+-- recovery, and the Owner can still recover that deployment.
 select pg_temp.fin('{"deposit_verified": false}');
 select is(pg_temp.authorize() ->> 'error', 'gates_failed', 'a failing gate refuses the re-authorization');
-select is(pg_temp.reopen(pg_temp.id('d1')) -> 'detail', '"authorization_closed"'::jsonb,
-  'a deployment whose authorization is already closed cannot be recovered');
+select is((select invalidated_reason from public.publication_authorizations where id = pg_temp.id('a1')), 'gates_failed',
+  'the gate failure closed the used authorization');
 select pg_temp.fin('{"deposit_verified": true}');
--- Setup: with the gates passing again, a new authorization and a second failed deployment of
--- release 1. The rest of this section recovers that deployment.
+select is(pg_temp.authorize() ->> 'error', 'recovery_required',
+  'M-1: with the gates passing again, the release is still not re-authorized without a recovery');
+select is((select count(*)::int from public.publication_authorizations where project_id = '20000000-0000-4000-8000-0000000000a0'), 1,
+  'M-1: no authorization was issued');
+insert into ids select 'r0', pg_temp.reopen(pg_temp.id('d1'), 'Provider build failed; the deposit gate was corrected')::text;
+select ok(((select v from ids where k = 'r0')::jsonb ->> 'ok')::boolean
+  and not ((select v from ids where k = 'r0')::jsonb ->> 'existing')::boolean
+  and exists (select 1 from public.audit_events where action = 'publication.recovery_opened'
+               and target_id = pg_temp.id('d1')::text and summary ->> 'failure' = 'deployment_failed'
+               and summary ->> 'authorization_closed_by' = 'gates_failed'),
+  'M-1: the Owner recovers the deployment whose authorization a gate failure closed, and it is recorded');
+select is((select invalidated_reason from public.publication_authorizations where id = pg_temp.id('a1')), 'gates_failed',
+  'M-1: the authorization keeps its single invalidation');
+select is(pg_temp.reopen(pg_temp.id('d1')) ->> 'existing', 'true', 'M-1: a repeated recovery returns the existing one');
+-- Setup: after the recovery, a new authorization (every gate re-run) and a second failed
+-- deployment of release 1. The rest of this section recovers that deployment.
 update ids set v = (select pg_temp.authorize() ->> 'authorization_id') where k = 'a1';
 update ids set v = (select pg_temp.start(pg_temp.id('a1')) ->> 'deployment_id') where k = 'd1';
 select pg_temp.record(pg_temp.id('d1'), false) ->> 'ok';
@@ -277,7 +292,7 @@ select ok(exists (select 1 from public.audit_events where action = 'publication.
 select is(pg_temp.side_effects(), (select v from ids where k = 'before'),
   'D3: the recovery issues no authorization, deployment, verification, notification or domain event');
 insert into ids select 'r1b', pg_temp.reopen(pg_temp.id('d1'))::text;
-select ok(((select v from ids where k = 'r1b')::jsonb ->> 'existing')::boolean and pg_temp.audits('publication.recovery_opened') = 1,
+select ok(((select v from ids where k = 'r1b')::jsonb ->> 'existing')::boolean and pg_temp.audits('publication.recovery_opened') = 2,
   'a repeated recovery returns the existing recovery and writes nothing');
 select is((select count(*)::int from public.publication_incidents where resolved_at is null and deployment_id = pg_temp.id('d1')), 1,
   'the incident stays open until the Owner resolves it');
@@ -358,6 +373,27 @@ select ok(not exists (select 1 from public.audit_events a where a.action like 'p
                                             where d.project_id = '20000000-0000-4000-8000-0000000000a0')
                        and a.project_id is distinct from '20000000-0000-4000-8000-0000000000a0'),
   'every recovery audit of a Project A deployment belongs to Project A');
+-- SYNTHETIC (no WP-C path yields it on the current release with every gate passing): a failed
+-- deployment of release 2 whose authorization a withdrawal closed. Only a gate-failure closure
+-- is recoverable (M-1); any other closure stays authorization_closed.
+with x as (insert into public.publication_authorizations
+  (project_id, release_id, gate_result, authorized_by, invalidated_at, invalidated_reason)
+  values ('20000000-0000-4000-8000-0000000000a0', (private.current_release('20000000-0000-4000-8000-0000000000a0')).id, '{"synthetic": true}', '00000000-0000-4000-8000-000000000001',
+    now(), 'release_withdrawn') returning id)
+insert into ids select 'a9', id from x;
+with x as (insert into public.publication_deployments
+  (authorization_id, project_id, release_id, commit_sha, target_ref, start_gate_result, started_by, outcome,
+   failure_reason, recorded_by, recorded_at)
+  values (pg_temp.id('a9'), '20000000-0000-4000-8000-0000000000a0', (private.current_release('20000000-0000-4000-8000-0000000000a0')).id, repeat('3', 40), 'client-a-site',
+    '{"synthetic": true}', '00000000-0000-4000-8000-000000000002', 'failed', 'Provider build failed',
+    '00000000-0000-4000-8000-000000000002', now()) returning id)
+insert into ids select 'd9', id from x;
+select is(pg_temp.reopen(pg_temp.id('d9')) -> 'detail', '"authorization_closed"'::jsonb,
+  'a deployment whose authorization was closed other than by a gate failure cannot be recovered');
+select ok(not has_function_privilege('authenticated', 'private.wpc_publication_recovered(uuid)', 'execute')
+  and not has_function_privilege('anon', 'private.wpc_publication_recovered(uuid)', 'execute')
+  and not has_function_privilege('service_role', 'private.wpc_publication_recovered(uuid)', 'execute'),
+  'the recovery marker helper is not executable by any API role');
 select ok(has_function_privilege('authenticated', 'public.reopen_failed_publication(uuid, text)', 'execute')
   and not has_function_privilege('anon', 'public.reopen_failed_publication(uuid, text)', 'execute')
   and not has_function_privilege('service_role', 'public.reopen_failed_publication(uuid, text)', 'execute')

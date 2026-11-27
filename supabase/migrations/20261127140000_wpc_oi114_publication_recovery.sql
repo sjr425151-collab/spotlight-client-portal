@@ -1,22 +1,41 @@
 -- WP-C (AUTH-015, OI-114): controlled recovery after a failed deployment or a failed live
 -- verification (06 §8.1, "Publication failure after successful payment"; Owner decisions D1 to D4).
 --
+-- 0. private.wpc_publication_recovered (new helper, no API role): whether a deployment has been
+--    recovered, i.e. has its append-only publication.recovery_opened audit event (option B, M-1).
 -- 1. private.reopen_failed_publication (new; Owner, aal2, live session, fresh MFA, a reason):
 --    for the project's LATEST deployment of its CURRENT release, when that deployment failed or
 --    its latest live verification failed, it closes the deployment's publication authorization
 --    (the single permitted invalidation, reason failed_publication_recovery) and audits the
---    recovery. It issues nothing, deploys nothing and evaluates no gate: the Owner then runs the
---    normal authorize_publication (G1 to G8, including G2 and G4) and start_deployment, which
---    re-evaluates every gate; the new deployment needs its own live verification (D3, two steps).
--- 2. private.authorize_publication: one hunk. The same release with a used active authorization
---    is refused (recovery_required) instead of being silently superseded (D1). A different release
---    still supersedes as before. A release whose latest verification passed cannot be reopened, so
---    it cannot be redeployed (D4).
+--    recovery. An authorization a gate failure already closed (gates_failed, gates_failed_at_start)
+--    keeps that invalidation, and the recovery is recorded by its audit event alone. It issues
+--    nothing, deploys nothing and evaluates no gate: the Owner then runs the normal
+--    authorize_publication (G1 to G8, including G2 and G4) and start_deployment, which re-evaluates
+--    every gate; the new deployment needs its own live verification (D3, two steps).
+-- 2. private.authorize_publication: one hunk. When the project's latest deployment is of this
+--    release and has not been recovered, the release is refused (recovery_required) instead of
+--    being silently superseded or re-issued (D1, M-1). A different release still supersedes as
+--    before. A release whose latest verification passed cannot be recovered, so it cannot be
+--    redeployed (D4).
 -- 3. private.record_live_verification: one hunk. The deployment row is read FOR SHARE, and a
 --    deployment whose authorization was closed by a recovery is refused (deployment_closed), so a
 --    late verification never counts after a recovery.
 -- Every other line of both replaced functions is byte-identical to 20261124140200; create or
 -- replace keeps their ACLs. No table, column, index, policy or trigger change; no DML.
+
+-- 0. Whether a deployment has been recovered (option B, M-1). The durable record is the
+--    append-only publication.recovery_opened audit event for that deployment: a recovery of a
+--    deployment whose authorization a gate failure already closed cannot close it again (one
+--    invalidation per authorization), so the event, not the authorization, is the marker.
+create function private.wpc_publication_recovered(p_deployment_id uuid) returns boolean
+language sql stable security definer set search_path = '' as $$
+  select exists (
+    select 1 from public.audit_events e
+     where e.action = 'publication.recovery_opened' and e.target_type = 'publication_deployments'
+       and e.target_id = p_deployment_id::text
+  );
+$$;
+revoke all on function private.wpc_publication_recovered(uuid) from public, anon, authenticated, service_role;
 
 -- 1. Recovery
 create function private.reopen_failed_publication(p_deployment_id uuid, p_reason text) returns jsonb
@@ -53,14 +72,18 @@ begin
   perform pg_advisory_xact_lock(hashtextextended('release:' || v_project::text, 0));
   select * into v_dep from public.publication_deployments where id = p_deployment_id for update;
   select * into v_auth from public.publication_authorizations where id = v_dep.authorization_id for update;
-  if v_auth.invalidated_reason = 'failed_publication_recovery' then
+  if private.wpc_publication_recovered(v_dep.id) then
     return jsonb_build_object('ok', true, 'existing', true, 'authorization_id', v_auth.id);
   end if;
   -- Fresh statements after the locks.
   select d.id into v_latest from public.publication_deployments d where d.project_id = v_project
    order by d.seq desc limit 1;
   v_current := private.current_release(v_project);
-  if v_auth.invalidated_at is not null then
+  -- An authorization a gate failure closed (gates_failed, gates_failed_at_start) after a failed
+  -- deployment is still recoverable (M-1): otherwise the release could be re-authorized with no
+  -- recovery record. Any other closure (superseded, a new or withdrawn release) is not.
+  if v_auth.invalidated_at is not null
+     and v_auth.invalidated_reason not in ('gates_failed', 'gates_failed_at_start') then
     v_detail := 'authorization_closed';
   elsif v_latest is distinct from v_dep.id then
     v_detail := 'not_latest_deployment';
@@ -86,16 +109,19 @@ begin
       v_project, null, jsonb_build_object('reason', 'not_recoverable', 'detail', v_detail));
     return jsonb_build_object('ok', false, 'error', 'not_recoverable', 'detail', v_detail);
   end if;
-  update public.publication_authorizations
-     set invalidated_at = now(), invalidated_reason = 'failed_publication_recovery'
-   where id = v_auth.id;
+  if v_auth.invalidated_at is null then
+    update public.publication_authorizations
+       set invalidated_at = now(), invalidated_reason = 'failed_publication_recovery'
+     where id = v_auth.id;
+    perform private.record_audit_event('publication.authorization_invalidated', 'publication_authorizations',
+      v_auth.id::text, v_project, null, jsonb_build_object('reason', 'failed_publication_recovery'));
+  end if;
   select coalesce(jsonb_agg(i.id order by i.opened_at, i.id), '[]'::jsonb) into v_incidents
     from public.publication_incidents i where i.deployment_id = v_dep.id and i.resolved_at is null;
-  perform private.record_audit_event('publication.authorization_invalidated', 'publication_authorizations',
-    v_auth.id::text, v_project, null, jsonb_build_object('reason', 'failed_publication_recovery'));
   perform private.record_audit_event('publication.recovery_opened', 'publication_deployments', v_dep.id::text,
     v_project, btrim(p_reason), jsonb_build_object('authorization_id', v_auth.id, 'release_id', v_dep.release_id,
-      'failure', v_failure, 'incident_ids', v_incidents));
+      'failure', v_failure, 'incident_ids', v_incidents,
+      'authorization_closed_by', coalesce(v_auth.invalidated_reason, 'failed_publication_recovery')));
   return jsonb_build_object('ok', true, 'existing', false, 'authorization_id', v_auth.id);
 end;
 $$;
@@ -144,10 +170,14 @@ begin
      and not exists (select 1 from public.publication_deployments where authorization_id = v_existing.id) then
     return jsonb_build_object('ok', true, 'authorization_id', v_existing.id, 'existing', true);
   end if;
-  -- AUTH-015 (OI-114, D1, D4): the active authorization for this same release has been used by a
-  -- deployment. A new one is issued only after the Owner's explicit recovery of a failed
-  -- deployment or failed live verification (reopen_failed_publication); never silently.
-  if found and v_existing.release_id = p_release_id then
+  -- AUTH-015 (OI-114, D1, D4; M-1): if the project's latest deployment is of this release and has
+  -- not been recovered, the release is not authorized again. This covers the used authorization
+  -- that is still active (a failed, unverified or verified deployment) and one a gate failure
+  -- closed after a failed deployment. A new authorization follows only the Owner's explicit
+  -- recovery (reopen_failed_publication); never silently.
+  if exists (select 1 from (select d.id, d.release_id from public.publication_deployments d
+                             where d.project_id = p_project_id order by d.seq desc limit 1) l
+              where l.release_id = p_release_id and not private.wpc_publication_recovered(l.id)) then
     perform private.record_audit_event('publication.authorization_rejected', 'preview_releases', p_release_id::text,
       p_project_id, null, jsonb_build_object('reason', 'recovery_required'));
     return private.fail('recovery_required');

@@ -159,7 +159,9 @@ export async function FulfillmentPanel({
       .limit(5),
     db
       .from("publication_deployments")
-      .select("id, release_id, commit_sha, target_ref, outcome, production_url, started_at")
+      .select(
+        "id, authorization_id, release_id, commit_sha, target_ref, outcome, production_url, started_at",
+      )
       .eq("project_id", projectId)
       .order("seq", { ascending: false })
       .limit(5),
@@ -185,6 +187,17 @@ export async function FulfillmentPanel({
   const gates = parseGateResult(report.ok ? report.data.result : null);
   const activeHold = (holds.data ?? []).find((h) => !h.cleared_at);
   const activeAuth = (authorizations.data ?? []).find((a) => !a.invalidated_at);
+  // AUTH-015 (OI-114): the latest deployment (highest seq first) of the current release, under the
+  // active authorization, after a failed deployment or a failed live verification. The database
+  // re-checks every condition.
+  const latestDeployment = (deployments.data ?? [])[0];
+  const recoverable =
+    isOwner &&
+    status.ok &&
+    status.data.publication_state === "failed" &&
+    latestDeployment !== undefined &&
+    latestDeployment.release_id === currentReleaseId &&
+    activeAuth?.id === latestDeployment.authorization_id;
   const available = (uploads.data ?? []).filter((u) => u.status === "available");
 
   return (
@@ -622,7 +635,8 @@ export async function FulfillmentPanel({
             </form>
           </Card>
         ) : null}
-        {activeAuth && !(deployments.data ?? []).some((d) => d.outcome === "started") ? (
+        {activeAuth &&
+        !(deployments.data ?? []).some((d) => d.authorization_id === activeAuth.id) ? (
           <Card>
             <form action={act.startDeploymentAction} className="flex flex-col gap-3">
               <Hidden projectId={projectId} extra={{ authorizationId: activeAuth.id }} />
@@ -630,6 +644,26 @@ export async function FulfillmentPanel({
                 Authorization active. Gates are evaluated again when you start.
               </p>
               <Button type="submit">Start deployment</Button>
+            </form>
+          </Card>
+        ) : null}
+        {recoverable ? (
+          <Card>
+            <form action={act.reopenFailedPublicationAction} className="flex flex-col gap-3">
+              <Hidden projectId={projectId} extra={{ deploymentId: latestDeployment.id }} />
+              <p className="text-sm text-fg">
+                The latest deployment failed or failed live verification. Recovery closes its
+                authorization; a new authorization must pass every gate again, and nothing is
+                redeployed automatically.
+              </p>
+              <TextField label="Recovery reason" name="reason" required maxLength={1000} />
+              <label className="flex gap-2 text-sm text-fg">
+                <input type="checkbox" name="confirm" value="yes" required />
+                Close this deployment&apos;s authorization so the release can be authorized again.
+              </label>
+              <Button type="submit" variant="secondary">
+                Recover failed publication
+              </Button>
             </form>
           </Card>
         ) : null}

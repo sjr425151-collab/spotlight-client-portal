@@ -93,6 +93,14 @@ export const MESSAGES = {
   already_registered: "A deployment target is already registered.",
   target_in_use: "That deployment target belongs to another project.",
   verification_recorded: "Live verification was recorded.",
+  // WP-C: controlled recovery (06 §8.1; AUTH-015, OI-114)
+  publication_recovery_opened:
+    "Recovery opened: the failed deployment's authorization is closed. Authorize publication again; every gate is re-checked.",
+  recovery_required:
+    "This release was already deployed. Recover the failed deployment before authorizing it again.",
+  not_recoverable:
+    "Only the latest deployment of the current release can be recovered, after it failed or failed live verification.",
+  deployment_closed: "This deployment was recovered; record verification on the new deployment.",
   // Agreement and payments (WP-B)
   agreement_accepted: "Agreement accepted. You can now make the initial payment.",
   explicit_acceptance_required:

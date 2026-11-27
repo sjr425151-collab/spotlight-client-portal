@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.5.4 |
-| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). v0.5.2 (documentation reconciliation, 2026-11-24): G7 clarification (failed medium and low findings do not fail G7, Owner-confirmed); B1 financial-integrity note for G2 and G4. v0.5.3 (PWP-0, AUTH-011; Owner direction 2026-11-25): §5 and §8.5 record Owner-reported post-launch commercial direction (CD-10, CD-12, CD-13, CD-22 to CD-24; INT-02) pending individual reconciliation and counsel-approved wording (OI-108, OI-110). No gate, check or implemented behavior changes. v0.5.4 (2026-11-25, Main, PR #32 review reconciliation): the Decisions header lists OI-108 and OI-110. No rule changed. |
-| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68, OI-108, OI-110 |
+| Version | 0.5.5 |
+| Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). v0.5.0: R1 staff-assisted publication against a server-issued authorization (OI-22 revised by OI-68); R2 automation tags. Earlier: v0.4.1 publication after the automatic final payment and recovery without recharging (OI-17 revised). v0.5.1 (**OI-79 item 5**, Owner decision 2026-11-24): every failed high or critical security finding blocks G7; no override or exception mechanism (§2, §7). v0.5.2 (documentation reconciliation, 2026-11-24): G7 clarification (failed medium and low findings do not fail G7, Owner-confirmed); B1 financial-integrity note for G2 and G4. v0.5.3 (PWP-0, AUTH-011; Owner direction 2026-11-25): §5 and §8.5 record Owner-reported post-launch commercial direction (CD-10, CD-12, CD-13, CD-22 to CD-24; INT-02) pending individual reconciliation and counsel-approved wording (OI-108, OI-110). No gate, check or implemented behavior changes. v0.5.4 (2026-11-25, Main, PR #32 review reconciliation): the Decisions header lists OI-108 and OI-110. No rule changed. v0.5.5 (**OI-114**, AUTH-015, Owner 2026-11-26 and 2026-11-27; D1 to D4 and D6): §8.1 controlled recovery after a failed deployment or a failed live verification. |
+| Decisions | OI-03, OI-05, OI-18, OI-19, OI-22–OI-27, OI-32, OI-33, OI-35, OI-37, OI-41, OI-44–OI-46, OI-68, OI-108, OI-110, OI-114 |
 | Open issues | None |
 | Dependencies | DEP-03, DEP-06, DEP-09 |
 
@@ -146,6 +146,15 @@ Critical security failures always block publication. No exception exists.
 5. Run live verification (§9).
 
 **Publication failure after successful payment [APPROVED OI-17, revised 2026-11-23]:** if deployment or live verification fails after the final balance is `verified`, the balance **keeps its paid status**. The publication is flagged for recovery (state `failed`, an Owner queue item, and an incident record, §9). Recovery re-runs the gates and the deployment with no new charge: publication never creates, retries, or re-attempts a Stripe payment.
+
+**Controlled recovery [APPROVED OI-114] [R1]** (AUTH-015; D1 to D4):
+1. **No silent re-authorization (D1).** While a release's used authorization (one with a deployment) is active, authorizing the same release again is refused (`recovery_required`) and audited. No new authorization is issued.
+2. **Owner-only recovery (D2).** The Owner, with fresh reauthentication and a reason, may recover only the **latest** deployment of the **current** release, and only when that deployment failed or its latest live verification failed. Recovery is refused, and audited (`publication.recovery_rejected`), for a deployment that is in progress, unverified, superseded by a later deployment or release, or whose authorization is already closed. A repeated recovery returns the existing one.
+3. **Two steps (D3).** Recovery only closes that deployment's authorization (`failed_publication_recovery`) and records `publication.recovery_opened` with the reason, the failure and the open incident references. It issues no authorization, deployment, verification, notification or charge. The normal authorization (§3) and deployment flow then re-run every gate G1 to G8, including G2 and G4, against the same release identity. A new deployment needs its own live verification (§9); an earlier verification is never reused.
+4. **No redeploy of a verified release (D4).** A release whose latest live verification passed can be neither recovered nor re-authorized.
+5. **No late verification.** Once a recovery has closed a deployment's authorization, a live verification of that deployment is refused (`deployment_closed`) and records nothing. The deployment row lock orders a concurrent recovery and verification.
+
+Nothing redeploys automatically. Recovery does not resolve open incidents (§8.3).
 
 ### 8.2 Rollback **[APPROVED OI-22, OI-32; detail PROPOSED]**
 - Owner-initiated, with reauthentication.

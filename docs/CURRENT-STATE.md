@@ -1779,3 +1779,40 @@ Exact-head CI is recorded in the pull request. At `43b4bee`, run 45738752135 was
 - Main: recorded at `43b4bee` (7180343349), with M-1 to be reconciled with S2 (done).
 
 Each is a durable non-approval record. OI-91 stays open until the merge and its post-merge CI.
+## 21. WP-S OI-88 option A implementation record (AUTH-017)
+
+Implemented by the WP-S session (`session_01RCnsL8EFk2jME7uNLi46as`) under AUTH-017 (Owner, 2026-11-27, Decision 1; effective on the verified merge of PR #51 at `12601a6`, OM-1), on `claude/wp-s-sales-representative-hbhex5` from `12601a6`. Local and CI only; synthetic data; no provider, hosted-environment or production access; no database change; no dependency, `package.json` or required-check change.
+
+**The gap (WP-S reassessment, 2026-11-26).** A confirmed account with no active membership (a former client whose memberships were revoked, or an acceptance interrupted after the email was confirmed) who is invited again receives no email: Supabase refuses `inviteUserByEmail` for an existing account (03A S-06), and the app records `auth.invite_email_not_sent`. The strict `requireClient` sends that user to the "No portal access" card, so the in-portal invitation list was unreachable and the invitation could not be accepted. The inviter was told the invitee "will see the invitation after signing in", which was not true for this population.
+
+**Change:**
+
+| File | Change |
+|---|---|
+| `src/server/auth/guards.ts` | New `rejectStaff(ctx)` (Owner and Admin to `/staff`, Sales to `/sales`, any other staff role value to `/sign-in?notice=inactive`, the same order and targets as `requireClient`) and `requireInvitee()` (`requireUser` plus `rejectStaff`; no membership requirement). **`requireClient` is unchanged.** |
+| `src/app/invitations/page.tsx` (new) | `/invitations`, behind `requireInvitee`: the caller's own pending invitations, read through RLS (`invitations_select`: pending, unexpired, the caller's verified email), each with an Accept button; an empty state when there are none; Sign out |
+| `src/app/invitations/actions.ts` (new) | `acceptListedInvitationAction`: `requireUser` then `rejectStaff`, then the existing email-bound `accept_invitation` with no link token (the same path as the in-portal acceptance). Client to `/portal?notice=invitation_accepted`; staff to MFA first; any refusal to one generic message |
+| `src/app/sign-in/page.tsx` | The "No portal access" card links to `/invitations` for `no_active_project` only |
+| `src/lib/messages.ts` | `invite_existing_user` now says no email was sent and that the invitee finds the invitation under "Your invitations" after signing in; `no_active_project` points to the invitations, not to an email; new `invitation_unavailable` |
+| `tests/unit/oi88-invitations.test.ts` (new) | 10 tests: the guard (non-staff with or without a membership admitted; Owner, Admin, Sales and unknown staff roles refused; signed-out, ended session and inactive refused; `requireClient` still refuses a memberless user), the action (email-bound, no token; staff to MFA; generic refusal; no database call for staff or signed-out callers), the messages and the card link |
+| `tests/e2e/wps.spec.ts` | One new test (additions only; the import line gains `messageCount`). Fresh synthetic Sales Representative and former client (revoked membership). Without an invitation: `/portal` is refused, the card links to `/invitations`, which lists nothing and offers no Accept button. The representative invites the former client: `invite_existing_user` with the accurate text, and no email (Mailpit count 0). A Sales session on `/invitations` is sent to `/sales`. The former client accepts from `/invitations`: `/portal` shows the new project only; the invitation is `accepted`, exactly one active membership, and the `invitation.accepted` audit names the former client. axe (WCAG 2.2 AA tags) on the card, the empty and populated invitations page, the inviter's page and the portal |
+
+**Security.** No database, RLS, grant or function change. The page reads only what RLS already lets the caller read, and acceptance uses the reviewed definer function, which binds the invitation to the verified `auth.users` email, serializes with the WP-S role and membership lock and refuses an active Sales role. Every client page and action keeps the strict `requireClient`; `/invitations` grants no project access. The static guard rule (`tests/unit/static-security.test.ts`) is unchanged: the new action's first statement is `await requireUser()`. `/invitations` is served `private, no-store` (the proxy's `/invite` prefix). 03 §6.1 step 2 ("the invitee signs in normally and sees the pending invitation") now holds for this population; no specification text changes.
+
+**Local results** (fresh `supabase db reset`, Supabase CLI 3.2.0; test build with `NEXT_PUBLIC_SITE_URL=http://localhost:3100`, as in CI):
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 22 files, **380** passed (370 on `main` plus 10). The 10 new tests fail against `main`'s code (non-vacuous) |
+| `pnpm build`, `pnpm build:production-check` | Pass |
+| `pnpm exec playwright test --trace off` | **66 passed**, including the new OI-88 test |
+| pgTAP, integration, Lighthouse | Not run locally (no database or server-side data change); CI runs them |
+
+One local e2e run failed before any changed code ran (no sign-in email for the seeded Sales user immediately after the preceding run); it passed on a fresh reset. A second local run failed only because the local `.env.local` site URL differed from CI's; rebuilt with CI's value, all 66 passed.
+
+**Shared file.** `src/lib/messages.ts` is shared with AUTH-015; whichever PR merges second makes an additions-only catch-up (OM-2).
+
+**Reviews required (AUTH-017):** WP-C and Main, durable non-approval records. Merge: OM-6(b), by Main once every condition is met. OI-88 closes on the verified merge and its post-merge CI.
+
+**Effort (OI-67):** AI session about 0.8 h; Owner review: none; administrative about 0.1 h (a Docker recovery).

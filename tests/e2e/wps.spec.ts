@@ -4,7 +4,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
 import { withDb } from "../support/db";
-import { clearMailbox, codeFrom, waitForEmail } from "../support/mailpit";
+import { clearMailbox, codeFrom, messageCount, waitForEmail } from "../support/mailpit";
 import { withSchemaCacheSync } from "../support/postgrest-sync";
 import { totp } from "../support/totp";
 
@@ -434,4 +434,139 @@ test("OI-95: the customer list is accessible when empty and when populated", asy
   await expect(customers).toContainText(projectName);
   await expect(customers).not.toContainText("No assigned customers yet.");
   await expectAccessibleWithListRule(page);
+});
+
+// OI-88 option A (AUTH-017): a former client whose only membership was revoked is invited again.
+// Supabase sends no email to an existing account (03A S-06), so the invitee accepts from
+// /invitations, reached from the "No portal access" card. Fresh, isolated synthetic users: a
+// Sales Representative (the inviter) and the former client, created as in the OI-95 test.
+async function syntheticUser(email: string, fullName: string): Promise<string> {
+  const id = randomUUID();
+  await withDb(async (db) => {
+    await db.query(
+      `insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+         raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token,
+         email_change_token_new, email_change, email_change_token_current, reauthentication_token,
+         phone_change, phone_change_token)
+       values ('00000000-0000-0000-0000-000000000000', $1, 'authenticated', 'authenticated', $2, '', now(),
+         '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', '', '', '', '', '')`,
+      [id, email],
+    );
+    await db.query("insert into public.profiles (id, email, full_name) values ($1, $2, $3)", [
+      id,
+      email,
+      fullName,
+    ]);
+  });
+  return id;
+}
+
+test("OI-88: a re-invited former client accepts from /invitations; without an invitation nothing can be accepted", async ({
+  browser,
+}) => {
+  const formerEmail = `wps.oi88.former.${RUN}@example.test`;
+  const formerId = await syntheticUser(formerEmail, "OI-88 Former Client");
+  const salesEmail = `wps.oi88.sales.${RUN}@example.test`;
+  const salesId = await syntheticUser(salesEmail, "OI-88 Sales");
+  const oldProject = `E2E OI-88 ${RUN} old website`;
+  await withDb(async (db) => {
+    await db.query("insert into public.staff_roles (user_id, role) values ($1, 'sales')", [
+      salesId,
+    ]);
+    // SYNTHETIC setup: the former client's earlier project, created as the seeded Owner, with
+    // the membership already revoked (as staff do with revoke_membership).
+    await db.query("begin");
+    await db.query("select set_config('request.jwt.claims', $1, true)", [
+      JSON.stringify({ sub: OWNER_ID, role: "authenticated", aal: "aal2" }),
+    ]);
+    const business = await db.query(
+      "insert into public.client_businesses (legal_name, display_name) values ($1, $1) returning id",
+      [`E2E OI-88 ${RUN} old LLC`],
+    );
+    const project = await db.query(
+      "insert into public.projects (client_business_id, name) values ($1, $2) returning id",
+      [business.rows[0].id, oldProject],
+    );
+    await db.query(
+      `insert into public.project_memberships (project_id, user_id, status, revoked_at)
+       values ($1, $2, 'revoked', now())`,
+      [project.rows[0].id, formerId],
+    );
+    await db.query("commit");
+  });
+
+  // Without an invitation: the strict portal guard refuses, the card offers the invitations
+  // page, and that page lists nothing and offers nothing to accept.
+  const former = await (await browser.newContext()).newPage();
+  await signIn(former, formerEmail);
+  await expect(former).toHaveURL(/\/sign-in\?notice=no_active_project/);
+  await expect(former.getByRole("heading", { name: "No portal access" })).toBeVisible();
+  await expect(former.locator("main")).toContainText("open your invitations");
+  await expectAccessible(former);
+  await former.getByRole("link", { name: "Your invitations" }).click();
+  await expect(former).toHaveURL(/\/invitations$/);
+  await expect(former.getByTestId("no-invitations")).toBeVisible();
+  await expect(former.getByRole("button", { name: "Accept invitation" })).toHaveCount(0);
+  await expectAccessible(former);
+  await former.goto("/portal");
+  await expect(former).toHaveURL(/\/sign-in\?notice=no_active_project/);
+
+  // The inviter: a new customer, then an invitation to the former client's existing account.
+  const inviter = await (await browser.newContext()).newPage();
+  await signIn(inviter, salesEmail);
+  await enrollTotp(inviter, /\/sales$/);
+  const newProject = `E2E OI-88 ${RUN} website`;
+  await inviter.getByLabel("Business legal name").fill(`E2E OI-88 ${RUN} LLC`);
+  await inviter.getByLabel("Project name").fill(newProject);
+  await inviter.getByRole("button", { name: "Create customer" }).click();
+  await expect(inviter).toHaveURL(/\/sales\/projects\/[0-9a-f-]{36}\?notice=customer_created/);
+  const newProjectId = /projects\/([0-9a-f-]{36})/.exec(inviter.url())![1]!;
+  await clearMailbox(formerEmail);
+  await inviter.getByLabel("Full name").fill("OI-88 Former Client");
+  await inviter.getByLabel("Email").fill(formerEmail);
+  await inviter.getByRole("button", { name: "Send invitation" }).click();
+  await expect(inviter).toHaveURL(/notice=invite_existing_user/);
+  // The inviter's message is accurate: no email was sent, and it says where the invitee looks.
+  const notice = inviter.locator("main").getByRole("status");
+  await expect(notice).toContainText("no email was sent");
+  await expect(notice).toContainText("Your invitations");
+  expect(await messageCount(formerEmail)).toBe(0);
+  await expectAccessible(inviter);
+
+  // A staff role never uses the invitations page.
+  await inviter.goto("/invitations");
+  await expect(inviter).toHaveURL(/\/sales$/);
+
+  // The former client accepts from /invitations and is a client of the new project only.
+  await former.goto("/invitations");
+  const list = former.getByTestId("invitation-list");
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+  await expect(list).toContainText("You have been invited to a new project.");
+  await expectAccessible(former);
+  await list.getByRole("button", { name: "Accept invitation" }).click();
+  await expect(former).toHaveURL(/\/portal\?notice=invitation_accepted/);
+  await expect(former.getByTestId("project-list")).toContainText(newProject);
+  await expect(former.getByTestId("project-list")).not.toContainText(oldProject);
+  await expectAccessible(former);
+
+  const { rows } = await withDb((db) =>
+    db.query(
+      `select i.status::text as invitation,
+              (select count(*)::int from public.project_memberships m
+                where m.user_id = $2 and m.status = 'active') as active_memberships,
+              (select m.project_id::text from public.project_memberships m
+                where m.user_id = $2 and m.status = 'active') as project
+         from public.invitations i where i.project_id = $1 and i.email = $3`,
+      [newProjectId, formerId, formerEmail],
+    ),
+  );
+  expect(rows).toEqual([{ invitation: "accepted", active_memberships: 1, project: newProjectId }]);
+  expect(await lastAudit("invitation.accepted")).toMatchObject({
+    actor_user_id: formerId,
+    project_id: newProjectId,
+  });
+
+  // Accepted: the invitations page is empty again.
+  await former.goto("/invitations");
+  await expect(former.getByTestId("no-invitations")).toBeVisible();
 });

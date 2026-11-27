@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.38.0 |
+| Version | 0.39.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-118** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-119** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-21** |
 | ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. **One-time exception (Owner, 2026-11-25):** OI-98 to OI-112, DEP-19, DEP-20 and AUTH-011 were allocated by the PWP-0 documentation session under explicit Owner direction (AUTHORIZATIONS AUTH-011). |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
@@ -156,7 +156,9 @@ OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in 
 
 **Open: OI-115 (R1; Owner decision 2026-11-26: "Include environment classification consistency in R1 hosted provisioning"; enforced within WP-D's scope; disagreement fails closed before environment-dependent privileged behavior or test-seam activation; WP-I prepares the proposal).** The database does not enforce agreement between `private.runtime_environment` and `private.environment_settings`. The seed sets both, and pgTAP `400_wpi_r1_fail_closed.test.sql` asserts their agreement and fail-closed absence. Found by WP-I in PR #42 (O-4). No decision is made.
 
-**Open: OI-116 (test reliability; Owner 2026-11-26: narrowly scoped test-only correction granted as AUTH-014).** T-AUTH-11 in `tests/integration/auth-tenancy.test.ts` is clock-dependent: `private.consume_rate_limit` uses fixed hour-aligned windows, so a 7-send loop that crosses an hour boundary restarts the count (run 45739220187: 7 = 2 + 5). Pre-existing, not caused by PR #42; the test and the function are unchanged. A fix needs its own authorization; the test is never skipped or weakened.
+**Closed: OI-116 (2026-11-27).** Resolved by AUTH-014: PR #45 merged at `eacc8b5799a22958773012044c74023910af7083` (head `25a77a1`, base `a959a4a`; exact-head CI 46041562594 7/7; post-merge CI 46054458273). T-AUTH-11 now keeps its seven sends inside one fixed hourly window and fails loudly if they span two; no assertion, threshold or migration changed.
+
+**Open: OI-118 (AUTH-002 Stage A; R1 test-mode dependency).** In Stage A attempt 2 (2026-11-27), `GET /v1/prices/price_1Uf5HxK5j4r4WkVPkRUJ4gnZ` (`essential.deposit`) returned HTTP 404 from Stripe after a passing `livemode: false` preflight. The same request returned 200 in DEP-01 on 2026-11-23. Hypotheses: the key was in a different sandbox (H1); the sandbox was deleted and recreated (H2); the price was deleted (H3). Main's read-only investigation is in CURRENT-STATE §13. **Owner decision needed:** the Dashboard-only discriminating checks, then the resolution. Every R1 test-mode activity that uses the recorded catalog IDs (the rest of AUTH-002, DEP-15) depends on it. No Stripe request, credential or catalog change is authorized by this record.
 
 **Closed: OI-117 (2026-11-27).** Decided by the Owner: **option A**. Attempt 2 is reconciled against the key's "View request logs" view (Workbench), which the Owner confirmed is available and shows zero requests before entry. Cleanup order: remove the Network secret and its allow rule; record the per-key request log; expire the key promptly. Recorded in AUTHORIZATIONS AUTH-002 and in CURRENT-STATE §13 (attempt 2 Gate A record). The options considered remain in this file's Git history.
 

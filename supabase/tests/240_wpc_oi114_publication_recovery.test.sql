@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(58);
+select plan(59);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
 returns void language plpgsql as $$
@@ -268,9 +268,17 @@ select ok(((select v from ids where k = 'r0')::jsonb ->> 'ok')::boolean
 select is((select invalidated_reason from public.publication_authorizations where id = pg_temp.id('a1')), 'gates_failed',
   'M-1: the authorization keeps its single invalidation');
 select is(pg_temp.reopen(pg_temp.id('d1')) ->> 'existing', 'true', 'M-1: a repeated recovery returns the existing one');
--- Setup: after the recovery, a new authorization (every gate re-run) and a second failed
--- deployment of release 1. The rest of this section recovers that deployment.
-update ids set v = (select pg_temp.authorize() ->> 'authorization_id') where k = 'a1';
+-- After the recovery, the normal authorization re-runs every gate and succeeds for the same
+-- release identity (the exact M-1 sequence ends here).
+insert into ids select 'a1m', pg_temp.authorize()::text;
+select ok(((select v from ids where k = 'a1m')::jsonb ->> 'ok')::boolean
+  and not ((select v from ids where k = 'a1m')::jsonb ->> 'existing')::boolean
+  and (select release_id = '34000000-0000-4000-8000-0000000000a1' and invalidated_at is null
+         from public.publication_authorizations where id = ((select v from ids where k = 'a1m')::jsonb ->> 'authorization_id')::uuid),
+  'M-1: after the recovery, authorization succeeds for the same release identity');
+-- Setup: a second failed deployment of release 1 under that authorization. The rest of this
+-- section recovers that deployment.
+update ids set v = (select (v::jsonb ->> 'authorization_id') from ids where k = 'a1m') where k = 'a1';
 update ids set v = (select pg_temp.start(pg_temp.id('a1')) ->> 'deployment_id') where k = 'd1';
 select pg_temp.record(pg_temp.id('d1'), false) ->> 'ok';
 

@@ -1834,7 +1834,7 @@ Implemented by the WP-C session on `wp-c/oi-114-publication-recovery`, from the 
 | `src/domain/contracts/audit-actions.ts`, `src/lib/messages.ts` | `publication.recovery_opened` and `publication.recovery_rejected`; four messages |
 | `supabase/tests/220_wpc_publication_gates.test.sql` | Setup only: two Owner recoveries before the two existing re-authorizations. `plan(117)` and every assertion are unchanged |
 | `supabase/tests/050_security_events.test.sql` | One addition to the WP-C reviewed RPC list: `reopen_failed_publication` |
-| `supabase/tests/240_wpc_oi114_publication_recovery.test.sql` | **New**, 58 assertions (below) |
+| `supabase/tests/240_wpc_oi114_publication_recovery.test.sql` | **New**, 59 assertions (below) |
 | `tests/integration/wpc-oi114-recovery-race.test.ts` | **New**, 2 tests (below) |
 | `tests/e2e/r1.spec.ts` | T-E2E-08 reworked through the UI, under the Owner's disposition (below) |
 | `docs/06-PUBLISHING-AND-POST-LAUNCH.md` | v0.5.5: the §8.1 "Controlled recovery" rule (**[APPROVED OI-114]**, D6) |
@@ -1847,13 +1847,13 @@ Implemented by the WP-C session on `wp-c/oi-114-publication-recovery`, from the 
 - **D4.** A release whose latest verification passed can be neither recovered nor re-authorized.
 - **Late verification.** `record_live_verification` reads the deployment `FOR SHARE` and refuses a deployment closed by a recovery (`deployment_closed`), recording nothing.
 
-**pgTAP 240 (58 assertions, one rolled-back transaction).** It uses 220's fixtures (the test-only WP-B financial interface fixture, so G2 and G4 can be flipped) and WP-C's real functions.
+**pgTAP 240 (59 assertions, one rolled-back transaction).** It uses 220's fixtures (the test-only WP-B financial interface fixture, so G2 and G4 can be flipped) and WP-C's real functions.
 
 | Case | Expectation verified |
 |---|---|
 | D1 | A same-release re-authorization after a failed deployment returns `recovery_required`. It is audited and issues no authorization |
 | Denials | The Admin, a client and the Owner at aal1 are refused (`forbidden`). **OI-120:** so are a client and a revoked former staff member, each at aal2 with a verified TOTP factor, fresh MFA and a live session. Stale MFA returns `reauthentication_required` and is audited. A blank reason and an unknown deployment are refused. No refused call closes the authorization |
-| M-1 | A gate failure after the failed deployment closes its authorization (`gates_failed`). With the gates passing again, re-authorization is still refused with `recovery_required` and issues nothing. The Owner recovers that deployment: the recovery is recorded with `authorization_closed_by: gates_failed`, the authorization keeps its single invalidation, and a repeat returns the existing recovery |
+| M-1 | A gate failure after the failed deployment closes its authorization (`gates_failed`). With the gates passing again, re-authorization is still refused with `recovery_required` and issues nothing. The Owner recovers that deployment: the recovery is recorded with `authorization_closed_by: gates_failed`, the authorization keeps its single invalidation, and a repeat returns the existing recovery. Authorization then succeeds for the same release identity |
 | Not recoverable | A deployment in progress; an unverified deployment; a superseded release; a deployment whose authorization was closed other than by a gate failure (SYNTHETIC: a withdrawal). Each refusal leaves the authorization unchanged |
 | D2, D3 | The recovery returns `existing: false`, closes the authorization and audits the reason, the failure and the open incident. It creates no authorization, deployment, verification, notification or domain event. A repeat returns `existing: true` and writes nothing. The incident stays open |
 | G2, G4 | After recovery, authorization fails on G2, then on G4; with both passing, a new authorization is issued for the same release identity, and `start_deployment` records a new deployment of the same commit |
@@ -1892,48 +1892,48 @@ The old database-level second authorization (test setup) is removed. Unchanged: 
 
 | Mutation | Caught by |
 |---|---|
-| D1/M-1 recovery check in `authorize_publication` disabled | 240 (14 assertions) |
+| D1/M-1 recovery check in `authorize_publication` disabled | 240 (15 assertions) |
 | `deployment_closed` check removed | 240 (2) and the race test (recovery first) |
 | Verification `FOR SHARE` removed | The race test (recovery first); 240 is single-session |
 | Recovery `FOR UPDATE` on the deployment removed | The race test (both orders) |
-| **OI-120: the NULL-unsafe guard (`if not (…)`) restored** | 240 (8, including both OI-120 denials) |
-| Fresh-MFA check removed | 240 (8) |
-| Owner check widened | 240 (9) |
+| **OI-120: the NULL-unsafe guard (`if not (…)`) restored** | 240 (9, including both OI-120 denials) |
+| Fresh-MFA check removed | 240 (9) |
+| Owner check widened | 240 (10) |
 | aal2 check removed | 240 (2) |
-| Reason check removed | 240 (7) |
+| Reason check removed | 240 (8) |
 | `authorization_closed` check removed; every closed authorization made recoverable | 240 (1 each: the SYNTHETIC withdrawal) |
-| Gate-failure closures made unrecoverable | 240 (23) |
-| Recovery marker always false; always true; ignoring the deployment | 240 (22; 24; 24) |
+| Gate-failure closures made unrecoverable | 240 (24) |
+| Recovery marker always false; always true; ignoring the deployment | 240 (23; 25; 25) |
 | Current-release check removed | 240 (2) |
 | In-progress check removed | 240 (1) |
 | Unverified treated as recoverable | 240 (3) |
 | Passing verification treated as recoverable (D4) | 240 (5) |
 | Refusal audit removed; stale-MFA refusal audit removed | 240 (1 each) |
 | The recovery does not close an active authorization | 240 (4) |
-| `publication.recovery_opened` audit removed | 240 (23) |
+| `publication.recovery_opened` audit removed | 240 (24) |
 | The existing-recovery return removed | 240 (3) |
 | Latest-deployment check removed | **Not caught, as expected:** the defensive invariant above |
 
 Every mutation was installed by `create or replace` from a mutated copy of the migration and restored from the migration file. The baseline passes after the restore.
 
-**Suites (local, fresh `supabase db reset`, Supabase CLI 3.2.0, CI order):**
+**Suites (local, fresh `supabase db reset`, Supabase CLI 3.2.0, CI order), on the branch synchronized with `main` at `8ebcced`, with option B:**
 
 | Command | Result |
 |---|---|
 | `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
-| `pnpm test` | 21 files, 367 passed |
+| `pnpm test` | 22 files, 380 passed |
 | `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
-| `supabase db reset`; `./scripts/run-db-tests.sh` | 34 files, 1,910 assertions, 0 failed (240: 51/51; 220: 117/117 and 050: 24/24, plans unchanged) |
+| `supabase db reset`; `./scripts/run-db-tests.sh` | 34 files, 1,918 assertions, 0 failed (240: 59/59; 220: 117/117 and 050: 24/24, plans unchanged) |
 | `pnpm test:integration` | 10 files, 124 passed (including the race file's 2) |
 | `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
-| `pnpm test:e2e --trace off` | 65 passed, including T-E2E-08 with its axe check |
+| `pnpm test:e2e --trace off` | 66 passed, including T-E2E-08 with its axe check |
 | Lighthouse | Not run locally; runs in CI |
 
-Run on the branch after merging `main` at `e67bddd` (documentation only since `12601a6`). The branch was then synchronized with `main` at `8ebcced` (PR #53, AUTH-017). That merge caused one documentation conflict, this section's number (§21 is WP-S's record). `src/lib/messages.ts` merged cleanly as an additions-only catch-up (OM-2): the four AUTH-015 messages are added and no AUTH-017 message is changed. The exact-head CI records the full suite on the synchronized head. An earlier local run showed two timing failures in WP-B's `oi91-dispatch-revocation` lock probes. That file passed 23/23 on its own and did not fail again in the full run above.
+Before option B, the same suites passed on the head before the sync (`7af10b5`). An earlier local run showed two timing failures in WP-B's `oi91-dispatch-revocation` lock probes. That file passed 23/23 on its own and has not failed again in any full run. The sync with `8ebcced` (PR #53, AUTH-017) caused one documentation conflict, this section's number (§21 is WP-S's record). `src/lib/messages.ts` merged cleanly as an additions-only catch-up (OM-2).
 
 Remote CI for the exact head is recorded in the pull request.
 
-**M-1 (Main review 7227401266): closed under option B (Owner ruling @@OWNER_RULING@@).** The path: a failed deployment, then a gate failure that closes its authorization (`gates_failed`), then a passing authorization. Previously this re-issued the same release with no recovery record, and the recovery refused that deployment as `authorization_closed`. Now the re-authorization is refused with `recovery_required` until the Owner records a recovery, and the recovery accepts a gate-closed authorization. The change stays within AUTH-015's existing files and hunks, plus the new helper. No existing assertion changes.
+**M-1 (Main review 7227401266): closed under option B (Owner, 2026-11-27; AUTH-015 Amendment 1, PR #56).** The path: a failed deployment, then a gate failure that closes its authorization (`gates_failed`), then a passing authorization. Previously this re-issued the same release with no recovery record, and the recovery refused that deployment as `authorization_closed`. Now the re-authorization is refused with `recovery_required` until the Owner records a recovery, and the recovery accepts a gate-closed authorization. The change stays within AUTH-015's existing files and hunks, plus the new helper. No existing assertion changes.
 
 **Reported to Main, outside AUTH-015 (not changed):** the OI-120 pattern also appears as `if not private.is_owner() or not …` in `private.set_staff_role` (`20261125120100`:468) and `private.revoke_staff` (`20261123060000`:715). A rolled-back local probe showed two privilege escalations. A client at aal2 with fresh MFA promoted the Admin's existing staff row to Owner. A revoked former Admin re-granted itself Owner. Existing functions are left to the separate fix grant (Main's OI-120 directive).
 

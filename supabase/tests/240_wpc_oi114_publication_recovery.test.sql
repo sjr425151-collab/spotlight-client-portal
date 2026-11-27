@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(59);
+select plan(63);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
 returns void language plpgsql as $$
@@ -325,6 +325,21 @@ select ok((select seq > (select seq from public.publication_deployments where id
            from public.publication_deployments where id = pg_temp.id('d2')),
   'start_deployment re-evaluates the gates and records a new deployment of the same commit');
 
+-- N-1 (Amendment 1): a gate failure also closes the authorization of a STARTED deployment (06 §3
+-- spares only succeeded deployments). The release is still not re-authorized, and the running
+-- deployment cannot be recovered until it concludes.
+select pg_temp.fin('{"balance_verified_or_settled": false}');
+select is(pg_temp.authorize() ->> 'error', 'gates_failed', 'N-1: a failing gate refuses authorization while d2 runs');
+select is((select invalidated_reason from public.publication_authorizations where id = pg_temp.id('a2')), 'gates_failed',
+  'N-1: the gate failure closed the started deployment''s authorization');
+select pg_temp.fin('{"balance_verified_or_settled": true}');
+select is(pg_temp.authorize() ->> 'error', 'recovery_required',
+  'N-1: with the gates passing, the release is not re-authorized while its deployment is started');
+select is((select count(*)::int from public.publication_authorizations where project_id = '20000000-0000-4000-8000-0000000000a0' and invalidated_at is null), 0,
+  'N-1: no authorization was issued');
+select is(pg_temp.reopen(pg_temp.id('d2')) -> 'detail', '"deployment_in_progress"'::jsonb,
+  'N-1: the running deployment cannot be recovered until it concludes');
+
 -- ---------------------------------------------------------------------------
 -- 2. A failed live verification; a late verification never counts; D4
 -- ---------------------------------------------------------------------------
@@ -398,10 +413,6 @@ with x as (insert into public.publication_deployments
 insert into ids select 'd9', id from x;
 select is(pg_temp.reopen(pg_temp.id('d9')) -> 'detail', '"authorization_closed"'::jsonb,
   'a deployment whose authorization was closed other than by a gate failure cannot be recovered');
-select ok(not has_function_privilege('authenticated', 'private.wpc_publication_recovered(uuid)', 'execute')
-  and not has_function_privilege('anon', 'private.wpc_publication_recovered(uuid)', 'execute')
-  and not has_function_privilege('service_role', 'private.wpc_publication_recovered(uuid)', 'execute'),
-  'the recovery marker helper is not executable by any API role');
 select ok(has_function_privilege('authenticated', 'public.reopen_failed_publication(uuid, text)', 'execute')
   and not has_function_privilege('anon', 'public.reopen_failed_publication(uuid, text)', 'execute')
   and not has_function_privilege('service_role', 'public.reopen_failed_publication(uuid, text)', 'execute')

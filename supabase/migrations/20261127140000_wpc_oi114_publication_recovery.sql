@@ -1,8 +1,6 @@
 -- WP-C (AUTH-015, OI-114): controlled recovery after a failed deployment or a failed live
 -- verification (06 §8.1, "Publication failure after successful payment"; Owner decisions D1 to D4).
 --
--- 0. private.wpc_publication_recovered (new helper, no API role): whether a deployment has been
---    recovered, i.e. has its append-only publication.recovery_opened audit event (option B, M-1).
 -- 1. private.reopen_failed_publication (new; Owner, aal2, live session, fresh MFA, a reason):
 --    for the project's LATEST deployment of its CURRENT release, when that deployment failed or
 --    its latest live verification failed, it closes the deployment's publication authorization
@@ -13,29 +11,15 @@
 --    authorize_publication (G1 to G8, including G2 and G4) and start_deployment, which re-evaluates
 --    every gate; the new deployment needs its own live verification (D3, two steps).
 -- 2. private.authorize_publication: one hunk. When the project's latest deployment is of this
---    release and has not been recovered, the release is refused (recovery_required) instead of
---    being silently superseded or re-issued (D1, M-1). A different release still supersedes as
+--    release and has not been recovered, whatever its outcome, the release is refused
+--    (recovery_required) instead of being silently superseded or re-issued (D1; M-1, N-1). A different release still supersedes as
 --    before. A release whose latest verification passed cannot be recovered, so it cannot be
 --    redeployed (D4).
 -- 3. private.record_live_verification: one hunk. The deployment row is read FOR SHARE, and a
---    deployment whose authorization was closed by a recovery is refused (deployment_closed), so a
---    late verification never counts after a recovery.
+--    recovered deployment (its publication.recovery_opened event) is refused (deployment_closed),
+--    so a late verification never counts after a recovery, whatever closed its authorization.
 -- Every other line of both replaced functions is byte-identical to 20261124140200; create or
 -- replace keeps their ACLs. No table, column, index, policy or trigger change; no DML.
-
--- 0. Whether a deployment has been recovered (option B, M-1). The durable record is the
---    append-only publication.recovery_opened audit event for that deployment: a recovery of a
---    deployment whose authorization a gate failure already closed cannot close it again (one
---    invalidation per authorization), so the event, not the authorization, is the marker.
-create function private.wpc_publication_recovered(p_deployment_id uuid) returns boolean
-language sql stable security definer set search_path = '' as $$
-  select exists (
-    select 1 from public.audit_events e
-     where e.action = 'publication.recovery_opened' and e.target_type = 'publication_deployments'
-       and e.target_id = p_deployment_id::text
-  );
-$$;
-revoke all on function private.wpc_publication_recovered(uuid) from public, anon, authenticated, service_role;
 
 -- 1. Recovery
 create function private.reopen_failed_publication(p_deployment_id uuid, p_reason text) returns jsonb
@@ -72,7 +56,11 @@ begin
   perform pg_advisory_xact_lock(hashtextextended('release:' || v_project::text, 0));
   select * into v_dep from public.publication_deployments where id = p_deployment_id for update;
   select * into v_auth from public.publication_authorizations where id = v_dep.authorization_id for update;
-  if private.wpc_publication_recovered(v_dep.id) then
+  -- Recovered: the deployment's append-only publication.recovery_opened audit event is the durable
+  -- record (an authorization a gate failure closed cannot be invalidated again).
+  if exists (select 1 from public.audit_events e
+              where e.project_id = v_project and e.action = 'publication.recovery_opened'
+                and e.target_type = 'publication_deployments' and e.target_id = v_dep.id::text) then
     return jsonb_build_object('ok', true, 'existing', true, 'authorization_id', v_auth.id);
   end if;
   -- Fresh statements after the locks.
@@ -170,14 +158,18 @@ begin
      and not exists (select 1 from public.publication_deployments where authorization_id = v_existing.id) then
     return jsonb_build_object('ok', true, 'authorization_id', v_existing.id, 'existing', true);
   end if;
-  -- AUTH-015 (OI-114, D1, D4; M-1): if the project's latest deployment is of this release and has
-  -- not been recovered, the release is not authorized again. This covers the used authorization
-  -- that is still active (a failed, unverified or verified deployment) and one a gate failure
-  -- closed after a failed deployment. A new authorization follows only the Owner's explicit
+  -- AUTH-015 (OI-114, D1, D4; Amendment 1, M-1 and N-1): if the project's latest deployment is of
+  -- this release and has not been recovered (no publication.recovery_opened event), the release is
+  -- not authorized again, whatever that deployment's outcome (started, failed, succeeded) and
+  -- whether its authorization is still active or a gate failure (gates_failed,
+  -- gates_failed_at_start) has closed it. A new authorization follows only the Owner's explicit
   -- recovery (reopen_failed_publication); never silently.
   if exists (select 1 from (select d.id, d.release_id from public.publication_deployments d
                              where d.project_id = p_project_id order by d.seq desc limit 1) l
-              where l.release_id = p_release_id and not private.wpc_publication_recovered(l.id)) then
+              where l.release_id = p_release_id
+                and not exists (select 1 from public.audit_events e
+                                 where e.project_id = p_project_id and e.action = 'publication.recovery_opened'
+                                   and e.target_type = 'publication_deployments' and e.target_id = l.id::text)) then
     perform private.record_audit_event('publication.authorization_rejected', 'preview_releases', p_release_id::text,
       p_project_id, null, jsonb_build_object('reason', 'recovery_required'));
     return private.fail('recovery_required');
@@ -225,8 +217,9 @@ begin
   if not found or v.outcome <> 'succeeded' then
     return private.fail('not_found');
   end if;
-  if exists (select 1 from public.publication_authorizations a
-              where a.id = v.authorization_id and a.invalidated_reason = 'failed_publication_recovery') then
+  if exists (select 1 from public.audit_events e
+              where e.project_id = v.project_id and e.action = 'publication.recovery_opened'
+                and e.target_type = 'publication_deployments' and e.target_id = v.id::text) then
     return private.fail('deployment_closed');
   end if;
   v_matches := coalesce(lower(btrim(p_served_build_id)) = v.commit_sha, false);

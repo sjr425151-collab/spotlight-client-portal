@@ -2218,9 +2218,9 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 
 **Not changed:** `private.is_owner()` and every other existing function and migration outside AUTH-018 (OI-120 is separate); `issue_order_summary`; AUTH-007 sealing objects; `seed.sql`; dependencies; CI workflows and required checks.
 
-## 25. OI-120 AUTH-019 implementation record (`private.is_owner()` NULL-safe)
+## 26. OI-120 AUTH-019 implementation record (`private.is_owner()` NULL-safe)
 
-Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84wJPQZT3im`), originally from `main` at `2d5705e` (PR #56, which records AUTH-019), re-applied on `main` at `23346ef` after PR #57 merged. Numbered §25, the next free section (OM-2).
+Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84wJPQZT3im`), originally from `main` at `2d5705e` (PR #56, which records AUTH-019), re-applied on `main` at `23346ef` after PR #57 merged. Numbered §26, the next free section (§25 is claimed by WP-I PR #55; OM-2).
 
 **Change:** migration `20261127125000_oi120_is_owner_null_safe.sql` runs `create or replace function private.is_owner()` with the body `select coalesce(private.staff_role_of((select auth.uid())) = 'owner', false);`. Every attribute is unchanged: language sql, stable, security definer, `search_path=""`, owner `postgres`, ACL `{postgres=X/postgres,authenticated=X/postgres}`, signature `() → boolean`. No call site, policy, grant or other function changes, `staff_role_of` included. A hosted database receives all migrations from scratch in filename order under AUTH-003, so `20261127125000` applies correctly whatever the merge order relative to AUTH-018's `20261127160000`.
 

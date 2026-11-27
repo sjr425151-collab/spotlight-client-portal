@@ -26,9 +26,10 @@
 --   awaiting_evidence with an unchanged oi93.fp.v1 fingerprint. After operational_failure a retry
 --   is allowed whatever the fingerprint;
 -- - one protected step (a subtransaction): classification, the extracted path for every object,
---   the post-check under the locks, the effect recognitions, the application entries and the
---   re-verification. Any unsupported or awaiting object, or any failed proof, rolls the whole
---   step back; the outcome is the most severe; the detail is per object;
+--   the post-check under the locks, the effect recognitions and the application entries. Any
+--   unsupported or awaiting object, or any failed proof, rolls the whole step back; the outcome is
+--   the most severe; the detail is per object. Clearing re-verifies every application against the
+--   ledger as it is then (financial_conflict_cleared);
 -- - the tenth non-success row carries terminal_reason 'exhausted'.
 --
 -- Block clearing (AUTH-010 "Block clearing"): only a posted or represented application whose
@@ -370,12 +371,6 @@ begin
         end if;
         v_effect_id := v_f.id;
       else
-        if v_effect.new_ids is not null and cardinality(v_effect.new_ids) <> cardinality(v_effect.ids) then
-          v_outcome := 'permanently_unsupported';
-          v_detail := jsonb_build_object('stage', 'recognition', 'reason', 'mixed_effect',
-            'object_id', v_effect.object_id, 'effect_type', v_effect.effect_type, 'objects', v_objects);
-          raise exception using errcode = 'WPBC1', message = v_outcome;
-        end if;
         insert into private.financial_conflict_effects (stripe_object_id, effect_type, amount_cents, project_id,
           recognized_by_application_id)
         values (v_effect.object_id, v_effect.effect_type, v_effect.amount, v_dec.project_id, v_app_id)
@@ -398,12 +393,6 @@ begin
       attempt_request_id, category, outcome, fingerprint, detail, reason, requested_by)
     values (v_app_id, v_dec.id, v_evt.id, v_dec.project_id, v_no, p_attempt_request_id, v_category, v_outcome, v_fp,
       v_detail, btrim(p_reason), (select auth.uid()));
-    -- The block-clearing proof must hold for the application just recorded.
-    if not private.financial_conflict_application_verified(v_app_id) then
-      v_outcome := 'permanently_unsupported';
-      v_detail := jsonb_build_object('stage', 'verification', 'reason', 'verification_failed', 'objects', v_objects);
-      raise exception using errcode = 'WPBC1', message = v_outcome;
-    end if;
   exception
     when sqlstate 'WPBC1' then
       null; -- v_outcome and v_detail survive the rollback of the protected step

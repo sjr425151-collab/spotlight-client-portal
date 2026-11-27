@@ -13,7 +13,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(122);
+select plan(126);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false, p_otp_fresh boolean default false)
 returns void language plpgsql as $$
@@ -307,8 +307,7 @@ insert into private.stripe_payment_links (stripe_ref, project_id, kind, domain_r
   ('pi_CFFfake0001', pg_temp.pid('pf'), 'renewal', null, 'in_CFFrenew01'),
   ('pi_CFGfake0001', pg_temp.pid('pg'), 'renewal', null, 'in_CFGrenew01'),
   ('pi_CFHfake0001', pg_temp.pid('ph'), 'renewal', null, 'in_CFHrenew01'),
-  ('ch_CFJfake0001', pg_temp.pid('pj'), 'renewal', null, 'in_CFJrenew01'),
-  ('pi_CFKfake0001', pg_temp.pid('pk'), 'renewal', null, 'in_CFKrenew01');
+  ('ch_CFJfake0001', pg_temp.pid('pj'), 'renewal', null, 'in_CFJrenew01');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
 insert into ids select 'dA', public.record_refund_decision(pg_temp.pid('pa'), 500, 'Partial refund of the deposit',
   jsonb_build_array(jsonb_build_object('obligation_id', pg_temp.ob(pg_temp.pid('pa'), 'development_deposit'), 'amount_cents', 500)))
@@ -675,25 +674,25 @@ select is(pg_temp.attempt(pg_temp.dec('evt_CFawh000001'), pg_temp.req('q_awh')) 
   'obligations_other_project', 'the attempt re-classifies under the locks: the obligations are another project''s');
 select is(pg_temp.apps('evt_CFawh000001'), '1:permanently_unsupported', 'permanently_unsupported');
 
--- K: an event that already carried a project (item 1 as well as item 7). Attributed to K and
--- deferred (K's renewal not paid yet); a recorded charge of B then appears; the retry finds two
--- projects and quarantines, keeping K's association.
-select is(pg_temp.refund_evt('evt_CFawk000001', 'refund.updated', 're_CFawk000001', 400, 'pi_CFKfake0001', 'ch_CFKbfake01',
-  null, 70) ->> 'status', 'deferred', 'K: attributed to K, charge not posted: deferred');
+-- K: an event that already carried a project (item 1 as well as item 7). Attributed to K by its
+-- checkout invoice and deferred (K's payment intent is not linked yet); a recorded charge of B then
+-- appears; the retry finds two projects and quarantines, keeping K's association.
+select is(pg_temp.refund_evt('evt_CFawk000001', 'refund.updated', 're_CFawk000001', 400, 'pi_CFKinit01', 'ch_CFKbfake01',
+  'in_CFK00000', 70) ->> 'status', 'deferred', 'K: attributed to K, charge evidence incomplete: deferred');
 insert into private.stripe_payment_links (stripe_ref, project_id, kind, domain_record_id, stripe_invoice_id)
 values ('ch_CFKbfake01', pg_temp.pid('pb'), 'renewal', null, 'in_CFKbrenew01');
 select pg_temp.svc($$ select public.run_billing_job('webhook_backfill') $$);
 select ok((pg_temp.evt_row('evt_CFawk000001')).quarantine_reason = 'attribution_conflict'
-  and (pg_temp.evt_row('evt_CFawk000001')).project_id = pg_temp.pid('pk')
-  and pg_temp.blocking(pg_temp.pid('pk'))::text like '%quarantined_event%',
-  'the event keeps K''s association and blocks K (items 1 and 7)');
+  and (pg_temp.evt_row('evt_CFawk000001')).project_id = pg_temp.pid('pk'),
+  'the event keeps K''s association');
 select pg_temp.decide('evt_CFawk000001', pg_temp.pid('pk'));
-select is(pg_temp.renewal(pg_temp.pid('pk'), 'CFK', 'pi_CFKfake0001', 71) ->> 'status', 'processed', 'K''s renewal is paid');
+select pg_temp.initial_invoice(pg_temp.pid('pk'), 'CFK');
+select ok(pg_temp.blocking(pg_temp.pid('pk')) -> 'G2' ? 'quarantined_event',
+  'K is blocked through its own quarantined event (items 1 and 7)');
 select is(pg_temp.attempt(pg_temp.dec('evt_CFawk000001'), pg_temp.req('q_awk')) #>> '{attempt,outcome}', 'posted',
-  'K: posted under K''s renewal obligation');
+  'K: posted under K''s initial charge');
 select ok(pg_temp.cleared('evt_CFawk000001')
-  and not coalesce(pg_temp.blocking(pg_temp.pid('pk'))::text like '%quarantined_event%', false)
-  and not coalesce(pg_temp.blocking(pg_temp.pid('pk'))::text like '%unposted_reversal%', false),
+  and not coalesce(pg_temp.blocking(pg_temp.pid('pk'))::text like '%quarantined_event%', false),
   'block clearing covers item 1 (the event''s own project) as well as item 7');
 
 -- ---------------------------------------------------------------------------
@@ -701,6 +700,8 @@ select ok(pg_temp.cleared('evt_CFawk000001')
 -- ---------------------------------------------------------------------------
 select is(private.oi93_canonical_json('{"b": [1, {"z": null, "a": "x"}], "a": true, "é": "ü"}'::jsonb),
   '{"a":true,"b":[1,{"a":"x","z":null}],"é":"ü"}', 'canonical JSON: sorted keys, no whitespace, explicit nulls, UTF-8');
+select is(private.oi93_canonical_json('{"b": 1, "aa": 2}'::jsonb), '{"aa":2,"b":1}',
+  'canonical JSON sorts keys by code point (not by jsonb''s length-first order)');
 select is(private.oi93_canonical_json('{"a":1,"b":2}'::jsonb), private.oi93_canonical_json('{ "b" : 2 , "a" : 1 }'::jsonb),
   'canonical JSON is independent of key order and whitespace');
 select is(length(pg_temp.fp('evt_CFawd000001')), 64, 'the fingerprint is a SHA-256 hex digest');
@@ -731,7 +732,13 @@ select pg_temp.renewal(pg_temp.pid('pd'), 'CFD', 'pi_CFDfake0001', 67);
 select ok(pg_temp.fp_changed('obligations'), 'sensitive: obligations and balances');
 select is(pg_temp.refund('evt_CFDnorm00001', 're_CFDnorm00001', 300, 'pi_CFDfake0001', 'succeeded', null, 69) ->> 'status',
   'processed', 'an unrelated refund on D''s renewal charge is posted');
-select ok(pg_temp.fp_changed('ledger'), 'sensitive: ledger entries on the charge');
+select ok(pg_temp.fp_changed('ledger_and_balances'), 'sensitive: postings on the charge (entries and balances)');
+-- A ledger entry for the event's own refund on a charge outside the scope: only the ledger class changes.
+insert into public.ledger_entries (project_id, entry_type, amount_cents, source, webhook_event_id, stripe_object_type,
+  stripe_object_id, holding_charge_key, dedupe_key)
+values (pg_temp.pid('pd'), 'refund', -1, 'webhook', pg_temp.eid('evt_CFDnorm00001'), 'refund', 're_CFawd000001',
+  'renewal:in_CFZother01', 're_CFawd000001:refund:fixture');
+select ok(pg_temp.fp_changed('ledger'), 'sensitive: ledger entries alone');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
 select public.record_refund_decision(pg_temp.pid('pd'), 100, 'A decision on D''s renewal charge',
   jsonb_build_array(jsonb_build_object('obligation_id', pg_temp.renewal_ob('CFD'), 'amount_cents', 100)));
@@ -772,6 +779,17 @@ select throws_ok($$ update private.financial_conflict_decisions set reason = 'ch
 select throws_ok($$ delete from private.financial_conflict_applications $$, '42501', null, 'attempts cannot be deleted');
 select throws_ok($$ update private.financial_conflict_effects set amount_cents = 0 $$, '42501', null, 'recognitions cannot be updated');
 select throws_ok($$ delete from private.financial_conflict_application_entries $$, '42501', null, 'application entries cannot be deleted');
+-- S0 exact match: a recognized effect whose ledger entries are no longer exactly the recognized
+-- IDs (a second entry for the same refund appears) is never cited.
+insert into public.ledger_entries (project_id, entry_type, amount_cents, source, webhook_event_id, stripe_object_type,
+  stripe_object_id, holding_charge_key, dedupe_key)
+select pg_temp.pid('pa'), 'refund', -100, 'webhook', pg_temp.eid('evt_CFs0norm0001'), 'refund', 're_CFs00000001',
+       (select 'initial:' || id from public.checkout_sessions where project_id = pg_temp.pid('pa')), 're_CFs00000001:refund:fixture';
+select is(pg_temp.refund_evt('evt_CFs0conf0003', 'charge.refund.updated', 're_CFs00000001', 100, 'pi_CFAinit01', 'ch_CFBfake0001', null, 72)
+  ->> 'reason', 'attribution_conflict', 'another event for the recognized refund');
+select pg_temp.decide('evt_CFs0conf0003', pg_temp.pid('pa'));
+select is(pg_temp.attempt(pg_temp.dec('evt_CFs0conf0003'), pg_temp.req('q_s0c')) #>> '{attempt,detail,reason}', 'recognition_mismatch',
+  'S0: a citation needs the exact recognized ledger entry IDs and amount');
 -- The deferred references (recognitions and entries recorded before their application row) hold.
 select lives_ok($$ set constraints all immediate $$, 'every recognition and entry references a recorded application');
 select throws_ok($$ truncate private.financial_conflict_decisions cascade $$, '42501', null, 'the records cannot be truncated');

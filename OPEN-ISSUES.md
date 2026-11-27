@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.40.0 |
+| Version | 0.41.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
 | Next unused issue ID | **OI-119** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-21** |
@@ -158,7 +158,7 @@ OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in 
 
 **Closed: OI-116 (2026-11-27).** Resolved by AUTH-014: PR #45 merged at `eacc8b5799a22958773012044c74023910af7083` (head `25a77a1`, base `a959a4a`; exact-head CI 46041562594 7/7; post-merge CI 46054458273). T-AUTH-11 now keeps its seven sends inside one fixed hourly window and fails loudly if they span two; no assertion, threshold or migration changed.
 
-**Open: OI-118 (AUTH-002 Stage A; R1 test-mode dependency).** In Stage A attempt 2 (2026-11-27), `GET /v1/prices/price_1Uf5HxK5j4r4WkVPkRUJ4gnZ` (`essential.deposit`) returned HTTP 404 from Stripe after a passing `livemode: false` preflight. The same request returned 200 in DEP-01 on 2026-11-23. Hypotheses: the key was in a different sandbox (H1); the sandbox was deleted and recreated (H2); the price was deleted (H3). Main's read-only investigation is in CURRENT-STATE §13. **Owner decision needed:** the Dashboard-only discriminating checks, then the resolution. Every R1 test-mode activity that uses the recorded catalog IDs (the rest of AUTH-002, DEP-15) depends on it. No Stripe request, credential or catalog change is authorized by this record.
+**Closed: OI-118 (2026-11-27).** Cause established by the Owner's Dashboard checks: **H1, sandbox mismatch.** The attempt 2 key belonged to "Setmore [Test mode]", which holds no products; the catalog is intact in "Spotlight Client Portal - Development" (all 11 products; `essential.deposit` matches the recorded IDs). Repository IDs, migrations and the accepted runner are unchanged. Remedy: the Stage A attempt 3 amendment binds the key to the dedicated sandbox's Stripe account ID (AUTHORIZATIONS AUTH-002). Record: CURRENT-STATE §13.
 
 **Closed: OI-117 (2026-11-27).** Decided by the Owner: **option A**. Attempt 2 is reconciled against the key's "View request logs" view (Workbench), which the Owner confirmed is available and shows zero requests before entry. Cleanup order: remove the Network secret and its allow rule; record the per-key request log; expire the key promptly. Recorded in AUTHORIZATIONS AUTH-002 and in CURRENT-STATE §13 (attempt 2 Gate A record). The options considered remain in this file's Git history.
 

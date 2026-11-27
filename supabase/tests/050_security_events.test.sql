@@ -85,7 +85,10 @@ select is((
         'retry_financial_conflict_application',
         -- WP-S (AUTH-005; reviewed in 300_wps_sales_*.test.sql; each re-authorizes inside its definer function)
         'assign_sales_representative', 'end_sales_assignment', 'sales_create_customer_project',
-        'sales_list_customers', 'sales_project_progress'
+        'sales_list_customers', 'sales_project_progress',
+        -- DEP-18 (AUTH-018; reviewed in 330_dep18_scope_loader_activation.test.sql; each re-authorizes inside its definer function)
+        'activate_package_scope_version', 'load_package_scope_version', 'record_package_scope_approval',
+        'withdraw_package_scope_version'
       ]) order by 1)::text[],
   'D1: the public RPC surface for signed-in users is exactly the reviewed list (no audit writers)');
 

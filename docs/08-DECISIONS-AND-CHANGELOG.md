@@ -1084,6 +1084,17 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-002 Stage A attempt 1 administrative closure: evidence limitation (Owner, 2026-11-27)
+
+Owner attestation "Attempt 1 closure". Documentation only; effective on the verified merge of this record (OM-1).
+
+- The Owner confirms that the original restricted test key (`SLM-AUTH-002-STAGE-A-20261126-01`) was revoked.
+- The historical revocation timestamp and the key-specific request count are not accessible through the Owner's Stripe Dashboard. Both are recorded as **unavailable, not independently verified**. No timestamp, count or external verification is substituted.
+- The runner evidence that execution ended before the first network request is preserved. WP-B's runner-reported 0 requests is recorded separately from an independently verified Dashboard count, which does not exist.
+- **Approved:** this evidence limitation, for **administrative** closure of attempt 1. No further investigation of the unavailable historical information is required unless a material security concern emerges.
+- **Unchanged:** every credential isolation control, execution restriction, request limit and cleanup requirement. Control (3), Dashboard reconciliation, still applies to attempt 2; how it is met is open as OI-117.
+- **Direction:** after the merge is verified, Main prepares the fresh Stage A activation prerequisites using the accepted, frozen revision 4 runner (`5094817a…10ca`). That preparation authorizes no credential entry and no Stripe request.
+
 ### AUTH-002 Stage A attempt 1 termination and remediation direction (Owner, 2026-11-26)
 
 Owner decision "AUTH-002 Stage A — Owner Termination Confirmation and Remediation Direction". Documentation only; effective on the verified merge of this record (OM-1).
@@ -1647,7 +1658,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.45.0 | 2026-11-26 | **PRs #40, #41, #42 and #43 merged** (`2d27d07`, `9e8569c`, `48a8c04`, `3545d0a`; post-merge CI 45731539779 (#136), 45732432770 (#138), 45744252813 (#148), 45745975920 (#150)); **AUTH-008 (I-2) and AUTH-009 completed; OI-91 closed**; Owner decisions: AUTH-010 mandatory for R1 (readiness preparation), OI-114 and OI-115 in R1, **AUTH-014 granted** (OI-116, test-only). CURRENT-STATE v1.30.0; AUTHORIZATIONS v1.27.0; OPEN-ISSUES v0.36.0. | Main session | Owner |
 | 0.46.0 | 2026-11-26 | **AUTH-002 Stage A credential mechanism amendment** (Owner): the proxy-injected Network secret (`api.stripe.com`, Bearer, prefixes `/v1/balance`, `/v1/products`, `/v1/prices`) with binding controls 1 to 5; prefix semantics unverified and isolation procedural, recorded; no activation. AUTHORIZATIONS v1.28.0; CURRENT-STATE v1.31.0. | Main session | Owner |
 | 0.47.0 | 2026-11-26 | **AUTH-002 Stage A Gate A record:** the Owner's attestation (key `SLM-AUTH-002-STAGE-A-20261126-01`, created 03:54:00Z; points 1 and 4 confirmed explicitly) recorded verbatim; WP-B named sole executor; execution baseline `3902da8`; acknowledgments from all five other active sessions. Not active: credential entry pending Main's notice. CURRENT-STATE v1.32.0. | Main session | Owner |
-| 0.48.0 | 2026-11-26 | **AUTH-002 Stage A attempt 1 terminated** (runner defect; 0 requests reported by WP-B; cleanup confirmed by the Owner and verified by Main); **attempt 2 amendment** recorded (not active); general engineering requirement for external-provider runners (CLAUDE.md §6). AUTHORIZATIONS v1.29.0; CURRENT-STATE v1.33.0. | Main session | Owner |
+| 0.48.0 | 2026-11-27 | **AUTH-002 Stage A attempt 1 terminated and administratively closed** (runner defect; 0 requests reported by WP-B; cleanup confirmed by the Owner and verified by Main; the revocation time and key-specific Dashboard count unavailable, not independently verified; evidence limitation approved by the Owner, 2026-11-27); **attempt 2 amendment** recorded (not active); attempt 2 remediation: runner revision 4 accepted by SHA-256 after independent review by WP-I; general engineering requirement for external-provider runners (CLAUDE.md §6); **OI-117** opened. AUTHORIZATIONS v1.29.0; CURRENT-STATE v1.33.0; OPEN-ISSUES v0.37.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

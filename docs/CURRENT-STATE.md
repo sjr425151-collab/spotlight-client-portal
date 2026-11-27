@@ -1867,7 +1867,7 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
   - **Owner functions.** Four Owner-only functions, each requiring fresh MFA and a live session: `record_package_scope_approval`, `load_package_scope_version`, `activate_package_scope_version` and `withdraw_package_scope_version`. Each has a security-invoker `public.` wrapper granted to `authenticated`, following the `create_agreement_version` pattern.
   - **Resolver.** A new body for `private.current_package_scope(text)`. Its name, arguments and return type are unchanged.
 - Tests:
-  - new pgTAP `supabase/tests/330_dep18_scope_loader_activation.test.sql` (129 assertions);
+  - new pgTAP `supabase/tests/330_dep18_scope_loader_activation.test.sql` (137 assertions, including the F-1 review fix);
   - new integration `tests/integration/dep18-scope-loader-race.test.ts`: 5 concurrency scenarios, 5 repetitions each, real parallel connections;
   - the dispositions D-a to D-c and B-1 to B-4b below.
 
@@ -1910,7 +1910,7 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
   - the Owner at aal1, with a stale MFA verification, and with an ended session.
   Each of those is fresh MFA unless stated. anon cannot execute any wrapper (42501), so nothing runs. All 32 refusals are audited with the caller.
 - *Authorization:* Owner, 2026-11-27, exactly as proposed.
-- *Evidence:* 050 24/24 and 330 129/129.
+- *Evidence:* 050 24/24 and 330 137/137.
 
 **B-3: T-SALES-36 (`supabase/tests/310_wps_sales_commercial.test.sql`, test 165).**
 - *Original:* "non-fixture rows are not affected by the allowlist"; a non-fixture version resolved under a missing classification.
@@ -1922,7 +1922,7 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
   - Positive: a non-fixture version that is independently approved, loaded and explicitly activated resolves in `development` and in `test`.
   - Negative: it does not resolve with no activation, under a missing classification (shown to read as `production`), under `staging`, when withdrawn (including withdrawal after activation), or when tampered.
 - *Authorization:* Owner, 2026-11-27, exactly as proposed.
-- *Evidence:* 310 217/217 and 330 129/129.
+- *Evidence:* 310 217/217 and 330 137/137.
 
 **B-4: header truncation (`supabase/tests/310_wps_sales_commercial.test.sql`, test 180).**
 - *Original:* `truncate private.billing_package_scope_versions` fails with 42501.
@@ -1932,7 +1932,7 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 - *Exposure:* none.
 - *Compensating coverage (required), in 330:* `truncate … cascade` is refused by the no-truncate triggers (42501). Row counts and content hashes of the headers and the eligibility events are equal before and after both attempts.
 - *Authorization:* Owner, 2026-11-27, exactly as proposed.
-- *Evidence:* 310 217/217 and 330 129/129.
+- *Evidence:* 310 217/217 and 330 137/137.
 
 **B-4b: header truncation in the isolated race (`supabase/tests-isolated/wpd18_commit_race.test.sql:168-169`, test 21).**
 - *Original:* `like '42501 %'`.
@@ -1966,11 +1966,13 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 **Verification (local stack: Supabase CLI 3.2.0, checksum verified; a fresh `supabase db reset` before each suite; CI order; re-run on the merge with `main` at `2d5705e`):**
 - `pnpm lint`, `pnpm typecheck` and `pnpm format:check`: pass.
 - `pnpm test` (unit): 22 files, 381 tests, pass on the merged tree.
-- `supabase test db`: 34 files, 1988 tests, PASS.
+- `supabase test db`: 34 files, 1996 tests, PASS (on the F-1 head merged with `main` at `208d7e7`; 1988 before F-1).
 - `./scripts/wpd18-isolated-commit-test.sh`: PASS 27/27.
 - `pnpm test:integration`: 10 files, 127 tests, pass.
 - `pnpm build`, `pnpm check:bundle` and `pnpm build:production-check`: pass.
 - `pnpm test:e2e --trace off`: 66 passed on the merged tree (65 before the merge). The local run used the container's preinstalled Chromium build 1243, not the 1255 build pinned by Playwright 1.65.1; CI uses its own install.
 - Not run locally: the Lighthouse job, the dependency audit and the secret scan. Exact-head CI is authoritative.
+
+**Review fix F-1 (WP-C security review, confirmed by Main; OM-4 within the grant):** the four governance functions build the audit `target_id` only from a package key validated against `private.billing_packages` (otherwise `invalid`) and the integer version (otherwise `invalid`), so no refusal can write caller-supplied or unbounded text into the immutable audit log. 330 section 9: a 200,000-character key from a client and from the Owner yields exactly one refusal row per call with a bounded target, and no row carries the key. Mutation (raw key restored in all four functions): 3 of the 8 F-1 assertions fail. The migration header also records that the C-1 reader guarantee assumes READ COMMITTED (the PostgREST default).
 
 **Not changed:** `private.is_owner()` and every other existing function and migration outside AUTH-018 (OI-120 is separate); `issue_order_summary`; AUTH-007 sealing objects; `seed.sql`; dependencies; CI workflows and required checks.

@@ -2217,3 +2217,48 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 **Review fix F-1 (WP-C security review, confirmed by Main; OM-4 within the grant):** the four governance functions build the audit `target_id` only from a package key validated against `private.billing_packages` (otherwise `invalid`) and the integer version (otherwise `invalid`), so no refusal can write caller-supplied or unbounded text into the immutable audit log. 330 section 9: a 200,000-character key from a client and from the Owner yields exactly one refusal row per call with a bounded target, and no row carries the key. Mutation (raw key restored in all four functions): 3 of the 8 F-1 assertions fail. The migration header also records that the C-1 reader guarantee assumes READ COMMITTED (the PostgREST default).
 
 **Not changed:** `private.is_owner()` and every other existing function and migration outside AUTH-018 (OI-120 is separate); `issue_order_summary`; AUTH-007 sealing objects; `seed.sql`; dependencies; CI workflows and required checks.
+
+## 25. OI-120 AUTH-019 implementation record (`private.is_owner()` NULL-safe)
+
+Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84wJPQZT3im`), originally from `main` at `2d5705e` (PR #56, which records AUTH-019), re-applied on `main` at `23346ef` after PR #57 merged. Numbered §25, the next free section (OM-2).
+
+**Change:** migration `20261127125000_oi120_is_owner_null_safe.sql` runs `create or replace function private.is_owner()` with the body `select coalesce(private.staff_role_of((select auth.uid())) = 'owner', false);`. Every attribute is unchanged: language sql, stable, security definer, `search_path=""`, owner `postgres`, ACL `{postgres=X/postgres,authenticated=X/postgres}`, signature `() → boolean`. No call site, policy, grant or other function changes, `staff_role_of` included. A hosted database receives all migrations from scratch in filename order under AUTH-003, so `20261127125000` applies correctly whatever the merge order relative to AUTH-018's `20261127160000`.
+
+**Inventory: all 45 sites named in AUTH-019 inherit the fix (27 direct sites and the 18 `owner_ok()` callers); the re-check against the migrations merged after the grant (AUTH-010 `20261127130000` and `20261127130100`, AUTH-015 `20261127140000`, AUTH-018 `20261127160000`) adds one more inheriting site and nine already NULL-safe sites (rows (a′) and (f)):**
+
+| Class | Sites | Before (NULL) | After (false) |
+|---|---|---|---|
+| (a) Conjunctive guard: `if not (is_owner() and …)`, including the staff-invitation form `p_kind = 'staff' and not (is_owner() and mfa_is_fresh())` | `20261123060000` :510, :658, :742; `20261125120100` :278, :367; `20261124140000` :1475; `20261124140200` :1212, :1286, :1317, :1527, :1797; `20261124160000` :216, :239; `20261124160100` :2167, :2214, :3326; `20261126120200` :432; `20261127120000` :430; `20261127120100` :26 | `not NULL` is NULL, so the IF is skipped and the refusal is bypassed | the refusal fires |
+| (b) Disjunctive guard: `if not is_owner() or not … or not …` | `20261123060000` :688, :715; `20261125120100` :468 | `NULL or false or false` is NULL, so the refusal is bypassed | the refusal fires |
+| (b′) Mixed guard: `if not is_owner() and v_resp.response_id is null` | `20261124140200` :1136 | `NULL and true` is NULL, so the rejection is bypassed | the rejection fires (bypass-closing semantics, as in (a) and (b)) |
+| (c) Expression feeding other guards | `20261124160100` :3638 (the `owner_ok()` body; its 18 callers at :1724, :1739, :3648, :3682, :3712, :3758, :3796, :3854, :3882, :3926, :3950, :3981, :4017, :4036, :4069, :4136, :4200, :4380 all use `if not private.owner_ok(…)`); :4709 (`(is_owner() and …) or (member path)`) | `owner_ok()` is NULL, so each caller's refusal is bypassed. At :4709, `NULL or false` is NULL (bypassed); `NULL or true` is true | `owner_ok()` is false, so every caller refuses. At :4709 the member path is unchanged; only the bypass closes |
+| (d) Already equivalent | `20261124140200` :777 (`redact_gate_result(…, is_owner())` uses `case when p_owner`, so NULL already takes the redacted branch); :1635 (`v_owner` inside `operational_queue`, after the `wpc_is_staff_aal2()` gate, so the caller is staff and `is_owner()` is never NULL; `case when v_owner` also treats NULL as false) | the same as false | unchanged behavior |
+| (a′) Conjunctive guard, merged after the grant | `20261127140000`:137 (`authorize_publication`, current body, AUTH-015; it replaces the earlier body at `20261124140200`:1797) | `not NULL` is NULL, so the refusal is bypassed | the refusal fires |
+| (f) Already NULL-safe, merged after the grant | `20261127130100` :166, :278, :483, :506 (AUTH-010: `record_financial_conflict_decision`, `retry_financial_conflict_application`, `financial_conflict_attempt_status`, `financial_conflict_events`); `20261127140000`:39 (AUTH-015: `reopen_failed_publication`); `20261127160000` :107, :186, :289, :377 (AUTH-018: the four package-scope governance functions). `20261127130000` has no call site | `(… ) is not true` / `is_owner() is not true` already refuses NULL | unchanged behavior |
+| (e) Outside the 45: RLS policies and ACL lists | policies `20261123060000`:1014, `20261124120000`:445 and :447, `20261124160100`:4778 and :4786–:4792 (`(select is_owner()) or …`); `20261123060000`:903 (revoke list) | in USING, NULL denies just as false does; `NULL or X` equals `false or X` whenever it decides | unchanged behavior; no change needed |
+
+**Tests:** `supabase/tests/420_oi120_owner_guard_null_safety.test.sql`, 60 assertions.
+- **Regressions:**
+  1. A fresh-MFA client cannot create an agreement version.
+  2. A fresh-MFA client cannot promote the Admin (`…0002`) to Owner through `set_staff_role` (the reproduced case).
+  3. A revoked former staff member, the Admin revoked using the 225/240 pattern, cannot re-grant itself Owner.
+  Extra guard: the Admin promoting itself is refused, as it already was before the fix.
+- **Representatives:** `create_agreement_version` and `create_invitation('staff', …)` (class a, contractual and staff invitation); `register_client_site_target` (class a, WP-C); `set_staff_role` (class b); `place_billing_hold` (class c, an `owner_ok()` caller); `project_billing_status` (class c, :4709). The callers are:
+  - a fresh-MFA client, Sales, an Admin and a revoked former staff member, each refused by all six with no privileged state change: agreement versions, invitations, site targets, billing holds and every staff role compared before and after;
+  - anon, which cannot execute any of them (42501).
+- **Genuine Owner (fresh MFA):** succeeds on all six, and restores the revoked Admin. The Owner without fresh MFA is still refused.
+- `is_owner()` and `owner_ok(false|true)` are false, never NULL, for every non-Owner, and true for the Owner.
+- The attributes and ACL match the pre-fix values recorded above.
+
+**Mutation test (scratch run):** with the original body restored on the local database, 420 fails 30 of 60, including all three regressions and the no-state-change checks. Because the client's escalation then succeeds first, the later Admin cases fail as a consequence. With the fix, 60 of 60 pass.
+
+**Verification (local stack, Supabase CLI 3.2.0; fresh `supabase db reset`; CI order; `main` at `2d5705e` plus this change only):**
+- lint, typecheck and format: pass.
+- unit: 22 files, 380 tests, pass.
+- check-migrations: pass.
+- pgTAP: 34 files, 1919 tests, PASS. That is `main`'s existing 1859 unchanged, plus 420's 60. No existing assertion changed.
+- isolated WP-D18: PASS 25/25.
+- integration: 9 files, 122 tests, pass.
+- build, check:bundle and build:production-check: pass.
+- e2e: 66 passed. The local run used the preinstalled Chromium 1243, not the 1255 build Playwright 1.65.1 pins.
+- Not run locally: Lighthouse, the dependency audit and the secret scan.

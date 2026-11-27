@@ -686,6 +686,21 @@ The execution window (credential entry to removal, UTC), the request evidence, t
 | Residual risks not testable offline (for the Owner's execution decision) | The real upstream proxy, its credential injection and its CA; Stripe's real response format, including the `Stripe-Version` response header; SIGKILL (the IN_PROGRESS record then remains with its note) |
 | Remaining before attempt 2 activation | Condition (1): satisfied by the Owner's attestation and evidence-limitation approval (2026-11-27) on this record's merge with post-merge CI 7/7. **OI-117:** the Owner's decision on how attempt 2 will be reconciled under control (3), given that key-specific Dashboard counts are not accessible to the Owner. Condition (7): a fresh restricted test key with a new unique name, a fresh Owner attestation (points 1 to 8), fresh acknowledgments from every other active session, and a freshly verified execution baseline; then Main's activation notice |
 
+**AUTH-002 Stage A attempt 2 Gate A record (DRAFT, 2026-11-27; Main; not active):** this is the consolidated record the attempt 2 amendment (AUTHORIZATIONS AUTH-002, condition (7)) requires. It authorizes no credential entry and no Stripe request. Main notifies the Owner when secure credential entry is authorized.
+
+| Gate A prerequisite | State |
+|---|---|
+| (1) Amendment merged; (2) post-merge CI | **Met:** PR #48 at `18c4215f9d215f9d39b39631243d42c7f9d159da` (parents `9eb71cc`, `8e6e847`; tree equal to the reviewed head); post-merge CI run 45935443149 (#159) passed 7 of 7, including the full suite |
+| (3) Credential-permission verification | **Met** (option (a), 2026-11-25; unchanged). Per-key request logs: docs.stripe.com/keys, read 2026-11-27, SHA-256 `22ff383f2faa88dff821a7797d1a27ed43770d7e6cb0e7d6f6015c566136d46c` ("View API request logs for a key … click the overflow menu for any key, then select View request logs"; this opens Workbench). That is documentation, not a verified view of the Owner's Dashboard |
+| Runner | **Met:** revision 4, accepted by SHA-256 `5094817abbebd4f9c97144b8562f682cd3f5254ecabfa24e98b72eb16cc310ca` (§13 "attempt 2 remediation record"); frozen and held read-only by WP-B |
+| OI-117: reconciliation method under control (3) | OWNER_OI117_DECISION |
+| (4) Credential attestation, points 1 to 8 (new key) | OWNER_ATTESTATION |
+| (5) Execution baseline | **`main` at `18c4215f9d215f9d39b39631243d42c7f9d159da`**, post-merge CI 45935443149 7/7 (Owner accepted, 2026-11-27). Open PRs: #45 (one integration test) and #6 (draft proposal); neither changes the catalog migrations or 04 §6.1 or §6.5. At activation, Main re-verifies that `main` has gained no such change since `18c4215` |
+| (6) No other Stripe operation in progress | OWNER_NO_OTHER_OPERATION |
+| (7) Secure credential entry | **Pending** Main's activation notice: Network secret on `spotlight-client-portal-dev`, host `api.stripe.com`, Bearer, path prefixes `/v1/balance`, `/v1/products`, `/v1/prices` |
+| (8) Execution go-ahead naming the session and environment | OWNER_GO_AHEAD (WP-B `session_01RCnsL4vnvrx7b11HRxeo8T`, `spotlight-client-portal-dev`) |
+| Control 1: acknowledgments from every other active session | **Collected by Main immediately before the activation notice**, recorded with session IDs and UTC times |
+
 ## 14. WP-I I-1 implementation record (AUTH-008, I-1 only)
 
 Original I-1 record (14.1 to 14.3, as reviewed at `a01b84e`), followed by the AUTH-008 Amendment 1 correction (14.4), the Owner-approved W-1 correction (14.5), decisions (14.6), and final-candidate verification (14.7). Implemented by the dedicated integration session (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`; not Main) on `wp-i/integration-infra`. Branched from `58d0e98981befe32f8ddff11c89ce7952dad3a72`; before review, rebased onto `main` at `b4a43bc` (PR #26; `git diff --name-only 58d0e98 b4a43bc` lists only `.md` files and AUTH-008's boundaries are unchanged). `git range-diff` shows both implementation commits identical after the rebase. **Implementation commit: `c829fdb`** (rebased from `045470f`; the same non-documentation tree). Tests and test infrastructure only: no production code, migration, `seed.sql`, workflow, `lighthouserc.json`, WP-B static guard test, or dependency change.

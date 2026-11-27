@@ -104,3 +104,21 @@ export function createEnvironmentCheck(
     passed = true;
   };
 }
+
+let processCheck: (() => Promise<void>) | undefined;
+
+/**
+ * The per-process check for this deployment's `APP_ENV`, read through the service-role client.
+ * Every test seam calls it before it activates: the mocked scanner and live verifier
+ * (`fulfillment.ts`) and the mocked Stripe gateway (`getStripeGateway`).
+ */
+export async function assertEnvironmentConsistent(): Promise<void> {
+  if (!processCheck) {
+    const [{ env }, { createAdminClient }] = await Promise.all([
+      import("@/config/env"),
+      import("@/server/supabase/admin"),
+    ]);
+    processCheck = createEnvironmentCheck(env.APP_ENV, rpcClassificationReader(createAdminClient));
+  }
+  return processCheck();
+}

@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { env } from "@/config/env";
 import { UPLOAD_CATEGORIES, sanitizeFileName, type UploadCategory } from "@/domain/uploads";
-import { createEnvironmentCheck, rpcClassificationReader } from "@/server/environment-consistency";
+import { assertEnvironmentConsistent } from "@/server/environment-consistency";
 import { verifierFor } from "@/server/publication/verifier";
 import {
   runUploadPipeline,
@@ -23,14 +23,9 @@ import { createAdminClient } from "@/server/supabase/admin";
  * caller, and only for the service-role functions that record server observations.
  */
 
-/**
- * OI-115 (AUTH-016): before the scanner or the live verifier is selected, APP_ENV must agree
- * with the database's classifications; a disagreement throws and nothing runs.
- */
-const assertEnvironmentConsistent = createEnvironmentCheck(
-  env.APP_ENV,
-  rpcClassificationReader(createAdminClient),
-);
+// OI-115 (AUTH-016): before the scanner or the live verifier is selected, APP_ENV must agree
+// with the database's classifications (`assertEnvironmentConsistent`); a disagreement throws
+// and nothing runs.
 
 export type Result = { ok: true; data: Record<string, unknown> } | { ok: false; error: string };
 

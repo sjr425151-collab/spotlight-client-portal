@@ -1,6 +1,7 @@
 import "server-only";
 
 import { env } from "@/config/env";
+import { assertEnvironmentConsistent } from "@/server/environment-consistency";
 
 import { StripeGatewayUnavailableError, type StripeGateway } from "./gateway";
 import { MockStripeGateway } from "./mock-gateway";
@@ -17,8 +18,14 @@ const holder = globalThis as typeof globalThis & {
   __spotlightMockStripeGateway?: MockStripeGateway;
 };
 
-export function getStripeGateway(): StripeGateway {
+/**
+ * OI-115 (AUTH-016): the mock is handed out only after APP_ENV and the database
+ * classifications agree. A failed check rejects here, before any caller can claim, confirm or
+ * dispatch an outbound request, and the mock is never created.
+ */
+export async function getStripeGateway(): Promise<StripeGateway> {
   if (env.STRIPE_GATEWAY === "mock") {
+    await assertEnvironmentConsistent();
     holder.__spotlightMockStripeGateway ??= new MockStripeGateway();
     return holder.__spotlightMockStripeGateway;
   }

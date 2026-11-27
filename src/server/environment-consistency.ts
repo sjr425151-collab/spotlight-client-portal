@@ -16,7 +16,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *   as production);
  * - `c2`: `private.runtime_environment` (development or test; null means no mock scanner).
  *
- * Rule [PENDING OI-119: the Owner decides the development/test branch]:
+ * Rule [APPROVED OI-119, point 1]:
  * - `APP_ENV` development or test: `c2` is present and `c1` equals it. CI runs with
  *   `APP_ENV=test` against the seed's `development` classification, so the database values
  *   must agree with each other, not with `APP_ENV` itself.

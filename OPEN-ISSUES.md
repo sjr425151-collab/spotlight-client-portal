@@ -4,7 +4,7 @@
 |---|---|
 | Version | 0.41.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-120** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-122** (OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal; OI-120, the `private.is_owner()` NULL bypass, and OI-121, the `charge.refunded` dedupe key, are allocated by Main and recorded in their own PRs) |
 | Next unused dependency ID | **DEP-21** |
 | ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. **One-time exception (Owner, 2026-11-25):** OI-98 to OI-112, DEP-19, DEP-20 and AUTH-011 were allocated by the PWP-0 documentation session under explicit Owner direction (AUTHORIZATIONS AUTH-011). |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |

@@ -410,19 +410,43 @@ describe("WP-S repository checks", () => {
     // The label's halves hex-encoded (UTF-8) or base64-encoded, as decode() would take them.
     ["label", /5445535420464958545552|44454c4956455241424c45|VEVTVCBGSVhUVVJF|REVMSVZFUkFCTEU/i],
   ];
+  // D-a (AUTH-018, Owner disposition 2026-11-27): a bounded exemption for the loader migration only.
+  // That exact file may name the constructor exactly once, as this literal call with `false`, inside
+  // the body of private.load_package_scope_version; its marker and label controls stay enforced.
+  const LOADER_MIGRATION = "20261127160000_dep18_scope_loader_activation.sql";
+  const LOADER_CONSTRUCTOR_CALL =
+    "private.create_package_scope_version(p_package_key, p_items, false)";
+  const CONSTRUCTOR_ANY = /create[\W_]*package[\W_]*scope[\W_]*version/gi;
+  function loaderConstructorViolations(sql: string): string[] {
+    const anyCount = (sql.match(CONSTRUCTOR_ANY) ?? []).length;
+    const callCount = sql.split(LOADER_CONSTRUCTOR_CALL).length - 1;
+    const start = sql.indexOf("create function private.load_package_scope_version(");
+    const end = start < 0 ? -1 : sql.indexOf("\n$$;", start);
+    const call = sql.indexOf(LOADER_CONSTRUCTOR_CALL);
+    const inside = start >= 0 && end > start && call > start && call < end;
+    return anyCount === 1 && callCount === 1 && inside ? [] : ["loader-constructor"];
+  }
   function scopeContentViolations(file: string, sql: string): string[] {
     if (file === SEALING_MIGRATION) return [];
     const scanned =
       file === LABEL_CONSTRAINT_MIGRATION ? sql.replace(LABEL_CONSTRAINT_TEXT, "") : sql;
-    return SCOPE_CONTENT_CONTROLS.filter(([, pattern]) => pattern.test(scanned)).map(
-      ([name]) => name,
-    );
+    const controls =
+      file === LOADER_MIGRATION
+        ? SCOPE_CONTENT_CONTROLS.filter(([name]) => name !== "constructor")
+        : SCOPE_CONTENT_CONTROLS;
+    const violations = controls
+      .filter(([, pattern]) => pattern.test(scanned))
+      .map(([name]) => name);
+    return file === LOADER_MIGRATION
+      ? [...violations, ...loaderConstructorViolations(sql)]
+      : violations;
   }
 
-  it("FD-14 compensating controls: no migration but the sealing migration calls the constructor, uses the marker, or carries the label", () => {
+  it("FD-14 compensating controls: no migration but the sealing migration calls the constructor, uses the marker, or carries the label; the loader migration only through its one bounded call (D-a)", () => {
     // Non-vacuous scan: every migration is read, including the two named above.
     expect(migrations).toContain(SEALING_MIGRATION);
     expect(migrations).toContain(LABEL_CONSTRAINT_MIGRATION);
+    expect(migrations).toContain(LOADER_MIGRATION);
     expect(migrations.length).toBeGreaterThan(10);
     // The merged constraint exemption matches exactly once (it would silently exempt nothing otherwise).
     expect(
@@ -480,6 +504,44 @@ describe("WP-S repository checks", () => {
     }
   });
 
+  it("D-a: the loader exemption is bounded (seven offending cases fail; the real loader migration passes)", () => {
+    const real = readFileSync(join("supabase/migrations", LOADER_MIGRATION), "utf8");
+    expect(scopeContentViolations(LOADER_MIGRATION, real)).toEqual([]);
+    const body = (call: string) =>
+      `create function private.load_package_scope_version(\n  p_package_key text\n) returns jsonb as $$\nbegin\n  v := ${call};\nend;\n$$;\n`;
+    const offending: ReadonlyArray<readonly [string, string]> = [
+      // 1. Two constructor calls in the loader file.
+      [LOADER_MIGRATION, body(`${LOADER_CONSTRUCTOR_CALL}; w := ${LOADER_CONSTRUCTOR_CALL}`)],
+      // 2. The call with `true`.
+      [
+        LOADER_MIGRATION,
+        body("private.create_package_scope_version(p_package_key, p_items, true)"),
+      ],
+      // 3. The call outside the loader function.
+      [LOADER_MIGRATION, `${body("1")}select ${LOADER_CONSTRUCTOR_CALL};\n`],
+      // 4. The constructor built by dynamic concatenation in the loader file.
+      [
+        LOADER_MIGRATION,
+        `${body(LOADER_CONSTRUCTOR_CALL)}do $x$ begin execute 'select private.create_package_' || 'scope_version(''essential'', ''{Item}'', false)'; end $x$;\n`,
+      ],
+      // 5. The marker in the loader file.
+      [
+        LOADER_MIGRATION,
+        `${body(LOADER_CONSTRUCTOR_CALL)}select set_config('wpd18.scope_construction', 'essential:9', true);\n`,
+      ],
+      // 6. The label in the loader file.
+      [
+        LOADER_MIGRATION,
+        `${body(LOADER_CONSTRUCTOR_CALL)}select 'TEST FIXTURE — NOT A DELIVERABLE (item)';\n`,
+      ],
+      // 7. The identical call in any other migration name, including a similarly named file.
+      ["20270101000000_dep18_scope_loader_activation_v2.sql", body(LOADER_CONSTRUCTOR_CALL)],
+    ];
+    for (const [file, sql] of offending) {
+      expect(scopeContentViolations(file, sql).length, `${file}: ${sql}`).toBeGreaterThan(0);
+    }
+  });
+
   // D-1 stricter lexical rule (AUTH-007 Amendment 3 and its correction, option (a), active at a5dfad0);
   // exemptions are exactly three file names, with no other form. Outside the migrations that legitimately
   // define or protect the package-scope tables, a migration that names billing_package_scope in
@@ -492,6 +554,8 @@ describe("WP-S repository checks", () => {
     "20261125120100_wps_sales_representative.sql",
     "20261125120200_wps_oi85_separation.sql",
     "20261126140000_wpd18_scope_version_sealing.sql",
+    // B-1 (AUTH-018, Owner disposition 2026-11-27): the loader migration, by exact file name only.
+    "20261127160000_dep18_scope_loader_activation.sql",
   ]);
   function withoutSqlComments(sql: string): string {
     let out = "";
@@ -603,6 +667,10 @@ describe("WP-S repository checks", () => {
     expect(stricterScopeViolations("20261125120200_wps_oi85_separation.sql", plainInsert)).toEqual(
       [],
     );
+    // B-1: a file named like the loader migration is still caught.
+    expect(
+      stricterScopeViolations("20270101000000_dep18_scope_loader_activation_v2.sql", plainInsert),
+    ).toEqual(["names-scope-table"]);
     // Not trivially failing: comments alone, and an unrelated table, pass.
     expect(
       stricterScopeViolations(

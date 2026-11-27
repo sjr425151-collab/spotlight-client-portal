@@ -1777,3 +1777,120 @@ Exact-head CI is recorded in the pull request. At `43b4bee`, run 45738752135 was
 - Main: recorded at `43b4bee` (7180343349), with M-1 to be reconciled with S2 (done).
 
 Each is a durable non-approval record. OI-91 stays open until the merge and its post-merge CI.
+## 21. DEP-18 AUTH-018 implementation record (R1 interim scope loading and activation)
+
+Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `claude/magical-mendel-glggv7`, from `main` at `12601a6` (PR #51, the R1 execution grant record). Grant: AUTH-018 (Decision 8a; 04 §4A "R1 interim scope loading and activation"; FD-05). Local and CI only, synthetic data only. No real content, no real approval evidence, no activation outside tests, no hosted operation and no production eligibility. Section number 21 may be renumbered under OM-2 if another implementation record lands first.
+
+**Delivered:**
+- Migration `20261127160000_dep18_scope_loader_activation.sql`, infrastructure only:
+  - **Tables.** `private.billing_package_scope_approvals` has PK (package_key, scope_version) and an FK to `billing_packages`. `private.billing_package_scope_eligibility` has PK (package_key, scope_version, event, classification), FK `billing_package_scope_eligibility_version_fkey` to the sealed versions only, and a CHECK that `activated` rows are `development` or `test` only. Both tables are append-only, cannot be truncated and carry no API privileges.
+  - **Owner functions.** Four Owner-only functions, each requiring fresh MFA and a live session: `record_package_scope_approval`, `load_package_scope_version`, `activate_package_scope_version` and `withdraw_package_scope_version`. Each has a security-invoker `public.` wrapper granted to `authenticated`, following the `create_agreement_version` pattern.
+  - **Resolver.** A new body for `private.current_package_scope(text)`. Its name, arguments and return type are unchanged.
+- Tests:
+  - new pgTAP `supabase/tests/330_dep18_scope_loader_activation.test.sql` (129 assertions);
+  - new integration `tests/integration/dep18-scope-loader-race.test.ts`: 5 concurrency scenarios, 5 repetitions each, real parallel connections;
+  - the dispositions D-a to D-c and B-1 to B-4b below.
+
+**Design decisions (Main rulings and Owner acceptance, 2026-11-27):**
+- **C-1, serialization.**
+  - **Locks.** Every governance function takes `dep18-scope-eligibility:<pkg>` exclusively, then the AUTH-007 sealing key `wpd18-scope-version:<pkg>` exclusively, always in that order. The resolver takes only the eligibility key, shared, held until commit. Plain AUTH-007 sealing still takes only the sealing key.
+  - **Volatility.** The resolver changes from STABLE to VOLATILE, so that it reads only after its lock is granted. A STABLE function would read the calling query's earlier snapshot and miss a withdrawal committed while it waited.
+  - **Reader guarantee.** Readers never wait on standalone AUTH-007 sealing: the existing race-test cases pass unchanged. Readers do wait on governance operations (approve, load, activate, withdraw), which hold the eligibility lock until they commit.
+  - **Lock order.** Issuance takes the project row, then the shared eligibility lock. Governance takes eligibility, then sealing. There is no cycle.
+- **C-2, the expected hash.** The expected hash comes only from the recorded approval for the exact (package, scope_version). The canonical hash already includes the version. The load request has no hash parameter, so it cannot supply or override it. A load without an approval, with different content, or for a version other than the next one fails closed and is audited.
+- **OM-4 choices (accepted by Main):**
+  - Refusals are returned as `{"ok": false, "error": code}` after an audit event committed with the call; they are never raised.
+  - The constructor call runs inside a sub-block, so any sealing error rolls back only the partial version. It is audited by code and SQLSTATE only, because a constraint message could echo item text.
+  - The eligibility table has no identity, index or comment, so the D-b closure stays at exactly six descriptors.
+  - Fixtures resolve only in `development` and `test`, and can never be approved or activated. Any withdrawal makes a version unresolvable in every classification.
+  - The Owner guards are NULL-safe (`… is not true`; OI-120). The tests cover a signed-in user with no staff role and an Owner whose role is revoked.
+- The test choice for D11: synthetic non-legal strings (`PGTAP SYNTHETIC …`, `IT SYNTHETIC …`). The integration race uses only `prestige`, which no other integration or e2e test uses, because its records are append-only.
+
+**Individual assertion dispositions (FD-14 format; Owner, 2026-11-27, relayed by Main):**
+
+**B-1: D-1 stricter lexical rule (`tests/unit/wps-sales.test.ts`, `SCOPE_TABLE_MIGRATIONS`).**
+- *Original:* the exemption covers exactly three migration files that may name the package-scope tables.
+- *Replacement:* four exact names, adding `20261127160000_dep18_scope_loader_activation.sql`, plus one synthetic case showing that `20270101000000_dep18_scope_loader_activation_v2.sql` is still caught.
+- *Original guarantee:* no other migration names the package-scope tables in any lexical form.
+- *Replacement guarantee:* the same, except the exact loader file, which must define the new tables and the resolver body.
+- *Exposure:* the loader file may name the tables. The D-a constructor, marker and label controls stay enforced on it. Runtime controls (no API privileges, construction guard, Owner gating, the approval-supplied hash) are unchanged.
+- *Compensating coverage:* the similarly named case, and the existing loop over every migration.
+- *Authorization:* Owner, 2026-11-27, exactly as proposed.
+- *Evidence:* unit suite, 22/22 in `wps-sales.test.ts`.
+
+**B-2: public RPC surface (`supabase/tests/050_security_events.test.sql`, test 8).**
+- *Original:* the reviewed list of `public` functions executable by `authenticated`.
+- *Replacement:* adds a "DEP-18 (AUTH-018 …)" group with exactly `activate_package_scope_version`, `load_package_scope_version`, `record_package_scope_approval` and `withdraw_package_scope_version`.
+- *Original guarantee:* the signed-in RPC surface is exactly the reviewed list, with no audit writers.
+- *Replacement guarantee:* the same, for the list including the four granted wrappers.
+- *Exposure:* four new entry points, each re-authorizing inside its definer function.
+- *Compensating coverage (required):* in 330, all four functions return `forbidden` for:
+  - a signed-in user without a staff role;
+  - a client, Sales, Admin and a revoked Owner;
+  - the Owner at aal1, with a stale MFA verification, and with an ended session.
+  Each of those is fresh MFA unless stated. anon cannot execute any wrapper (42501), so nothing runs. All 32 refusals are audited with the caller.
+- *Authorization:* Owner, 2026-11-27, exactly as proposed.
+- *Evidence:* 050 24/24 and 330 129/129.
+
+**B-3: T-SALES-36 (`supabase/tests/310_wps_sales_commercial.test.sql`, test 165).**
+- *Original:* "non-fixture rows are not affected by the allowlist"; a non-fixture version resolved under a missing classification.
+- *Replacement:* the same setup, asserting that `scope_rows('signature') = 0`, titled "a non-fixture version without activation does not resolve, and never under a missing classification".
+- *Original guarantee:* the fixture allowlist does not affect non-fixture rows.
+- *Replacement guarantee:* the fixture allowlist is unchanged. Eligibility (04 §4A items 4 and 7) is a new, stricter gate.
+- *Exposure:* none; behavior is stricter.
+- *Compensating coverage (required), in 330:*
+  - Positive: a non-fixture version that is independently approved, loaded and explicitly activated resolves in `development` and in `test`.
+  - Negative: it does not resolve with no activation, under a missing classification (shown to read as `production`), under `staging`, when withdrawn (including withdrawal after activation), or when tampered.
+- *Authorization:* Owner, 2026-11-27, exactly as proposed.
+- *Evidence:* 310 217/217 and 330 129/129.
+
+**B-4: header truncation (`supabase/tests/310_wps_sales_commercial.test.sql`, test 180).**
+- *Original:* `truncate private.billing_package_scope_versions` fails with 42501.
+- *Replacement:* it fails with 0A000, because the D-b eligibility foreign key refuses it before the trigger runs.
+- *Original guarantee:* sealed headers cannot be truncated.
+- *Replacement guarantee:* unchanged; truncation is still refused.
+- *Exposure:* none.
+- *Compensating coverage (required), in 330:* `truncate … cascade` is refused by the no-truncate triggers (42501). Row counts and content hashes of the headers and the eligibility events are equal before and after both attempts.
+- *Authorization:* Owner, 2026-11-27, exactly as proposed.
+- *Evidence:* 310 217/217 and 330 129/129.
+
+**B-4b: header truncation in the isolated race (`supabase/tests-isolated/wpd18_commit_race.test.sql:168-169`, test 21).**
+- *Original:* `like '42501 %'`.
+- *Replacement:* `like '0A000 %'`, plus a CASCADE case expecting 42501 and a data-preservation case (row counts and content hashes). The file's plan and recorded count go from 25 to 27, as does `expected_plan` in `scripts/wpd18-isolated-commit-test.sh`. The immutability range comment is renumbered from 18-23 to 18-25, and the bounded-failure comment from 24-25 to 26-27.
+- *Original guarantee:* sealed headers cannot be truncated.
+- *Replacement guarantee:* unchanged.
+- *Exposure:* none. Every concurrency assertion (tests 6-13) and every other assertion is unchanged.
+- *Compensating coverage:* the two added cases.
+- *Authorization:* Owner, 2026-11-27, on the same terms as B-4.
+- *Evidence:* the isolated test PASS 27/27.
+
+**D-a, D-b and D-c (approved in §13 "R1 execution grant record") as implemented:**
+- **D-a:** the exact approved replacement. The real loader migration passes. The seven negative cases each fail: two calls; the call with `true`; the call outside the function; dynamic concatenation; the marker; the label; a similarly named file. No existing `expect(` changed.
+- **D-b:** exactly the six approved lines; `expected_entries` changes from 37 to 43. Two allowlist comment lines now read "5 tables" and "43". Measured: "selected 43 of 719 dump entries", and the restore completed with no errors.
+- **D-c:** the eligibility table is in the table set, its select and insert privileges are in the privilege row, and an eligibility `state` row is added. The measured fingerprint is **84 lines**, against a projection of 83. `expected_fingerprint_lines` changes from 67 to 84, and the parity comment reads "exactly 84 lines". Parity is identical: 84 fingerprint lines and 26 state lines. Main verifies each added line.
+
+**Owner acceptance requirements, and where each is shown:**
+- **Durable refusal auditing.** All refusals are returned with a committed audit event: 330 section 2, and the reasons in sections 3 to 7.
+- **Serialization of load, activate, withdraw and issue, with no reactivation after withdrawal.** The integration race shows:
+  - a withdrawal committed while issuance waits is seen, and issuance fails closed;
+  - an issuance committed first stays valid while the withdrawal waits;
+  - a load committed while issuance waits suspends issuance;
+  - a withdrawal first makes a waiting activation fail with `withdrawn`;
+  - concurrent identical activations and loads produce one record and one event.
+  Both commit orders are covered, with no deadlock. The waits are observed in `pg_locks`.
+- **Idempotent replay.** Approval, load, activation and withdrawal replays return `replayed: true`, with no new version or event: 330 and the integration race.
+- **No item text.** None in audit events, refusal results or errors: 330 section 8, and the load error is reported by SQLSTATE only.
+- **Approval binding.** The approval binds the exact package, version and content hash. The approval is the expected hash for loading (C-2), and activation requires it to equal the sealed hash, re-verified from the items.
+- **No ineligible version issuable.** Sales issuance returns `scope_definition_missing` for inactive and withdrawn versions, and a newer loaded version suspends issuance. There is no fallback, and fixtures resolve only in `development` and `test`.
+
+**Verification (local stack: Supabase CLI 3.2.0, checksum verified; a fresh `supabase db reset` before each suite; CI order):**
+- `pnpm lint`, `pnpm typecheck` and `pnpm format:check`: pass.
+- `pnpm test` (unit): pass.
+- `supabase test db`: 34 files, 1988 tests, PASS.
+- `./scripts/wpd18-isolated-commit-test.sh`: PASS 27/27.
+- `pnpm test:integration`: 10 files, 127 tests, pass.
+- `pnpm build`, `pnpm check:bundle` and `pnpm build:production-check`: pass.
+- `pnpm test:e2e --trace off`: 65 passed. The local run used the container's preinstalled Chromium build 1243, not the 1255 build pinned by Playwright 1.65.1; CI uses its own install.
+- Not run locally: the Lighthouse job, the dependency audit and the secret scan. Exact-head CI is authoritative.
+
+**Not changed:** `private.is_owner()` and every other existing function and migration outside AUTH-018 (OI-120 is separate); `issue_order_summary`; AUTH-007 sealing objects; `seed.sql`; dependencies; CI workflows and required checks.

@@ -1,11 +1,12 @@
 -- WP-D18 isolated concurrent-commit verification (AUTH-007 Amendment 3, F3).
 -- Read-only. Run unchanged against the source database and the disposable copy; the output
 -- must be byte-identical. Section "fp" is the catalog fingerprint of the tested objects
--- (exactly 67 lines; ACLs normalized with acldefault(), because pg_dump omits an ACL equal to
+-- (exactly 84 lines; ACLs normalized with acldefault(), because pg_dump omits an ACL equal to
 -- the default). Section "state" is the package-scope state (headers, items, resolved scope,
 -- totals and classification). scripts/wpd18-isolated-commit-test.sh checks both.
 with t(rel) as (values ('private.billing_packages'::regclass), ('private.billing_package_scope'::regclass),
-                       ('private.billing_package_scope_versions'::regclass), ('private.environment_settings'::regclass)),
+                       ('private.billing_package_scope_versions'::regclass), ('private.environment_settings'::regclass),
+                       ('private.billing_package_scope_eligibility'::regclass)),
 f(fn) as (select p.oid from pg_proc p where p.pronamespace = 'private'::regnamespace and p.proname in
   ('create_package_scope_version','current_package_scope','billing_package_scope_construction_guard',
    'billing_package_scope_fixture_guard','app_environment','insert_only','audit_events_immutable'))
@@ -17,7 +18,7 @@ union all select 'fp', 'constraint', k.conrelid::regclass::text || ' ' || k.conn
 union all select 'fp', 'index', pg_get_indexdef(i.indexrelid) from pg_index i join t on t.rel = i.indrelid
 union all select 'fp', 'trigger', pg_get_triggerdef(g.oid) || ' enabled=' || g.tgenabled::text from pg_trigger g join t on t.rel = g.tgrelid where not g.tgisinternal
 union all select 'fp', 'function', p.oid::regprocedure::text || ' owner=' || pg_get_userbyid(p.proowner) || ' secdef=' || p.prosecdef || ' config=' || coalesce(p.proconfig::text, '-') || ' acl=' || coalesce(p.proacl, acldefault('f', p.proowner))::text || ' def_md5=' || md5(pg_get_functiondef(p.oid)) from pg_proc p join f on f.fn = p.oid
-union all select 'fp', 'privilege', r || ' exec_constructor=' || has_function_privilege(r, 'private.create_package_scope_version(text,text[],boolean)', 'execute') || ' exec_resolver=' || has_function_privilege(r, 'private.current_package_scope(text)', 'execute') || ' sel_items=' || has_table_privilege(r, 'private.billing_package_scope', 'select') || ' ins_items=' || has_table_privilege(r, 'private.billing_package_scope', 'insert') || ' sel_headers=' || has_table_privilege(r, 'private.billing_package_scope_versions', 'select') || ' ins_headers=' || has_table_privilege(r, 'private.billing_package_scope_versions', 'insert') from unnest(array['anon', 'authenticated', 'service_role', 'public']) r
+union all select 'fp', 'privilege', r || ' exec_constructor=' || has_function_privilege(r, 'private.create_package_scope_version(text,text[],boolean)', 'execute') || ' exec_resolver=' || has_function_privilege(r, 'private.current_package_scope(text)', 'execute') || ' sel_items=' || has_table_privilege(r, 'private.billing_package_scope', 'select') || ' ins_items=' || has_table_privilege(r, 'private.billing_package_scope', 'insert') || ' sel_headers=' || has_table_privilege(r, 'private.billing_package_scope_versions', 'select') || ' ins_headers=' || has_table_privilege(r, 'private.billing_package_scope_versions', 'insert') || ' sel_eligibility=' || has_table_privilege(r, 'private.billing_package_scope_eligibility', 'select') || ' ins_eligibility=' || has_table_privilege(r, 'private.billing_package_scope_eligibility', 'insert') from unnest(array['anon', 'authenticated', 'service_role', 'public']) r
 union all select 'fp', 'classification', private.app_environment()
 order by 1, 2, 3;
 select 'state', 'header', package_key || '|' || scope_version || '|' || item_count || '|' || content_sha256 || '|' || is_test_fixture
@@ -30,6 +31,8 @@ union all select 'state', 'resolved', r.package_key || '|' || r.v || '|' || r.n 
                md5(string_agg(s.item_position || ':' || s.item_text, '|' order by s.item_position)) d
           from private.billing_packages p cross join lateral private.current_package_scope(p.package_key) s
          group by p.package_key, s.scope_version) r
+union all select 'state', 'eligibility', package_key || '|' || scope_version || '|' || event || '|' || classification || '|' || approved_sha256
+  from private.billing_package_scope_eligibility
 union all select 'state', 'totals', (select count(*) from private.billing_packages) || '|'
   || (select count(*) from private.billing_package_scope_versions) || '|' || (select count(*) from private.billing_package_scope)
 order by 1, 2, 3;

@@ -642,9 +642,10 @@ select pg_temp.use_session('00000000-0000-4000-8000-000000000005', pg_temp.id('s
 select is(public.issue_order_summary(pg_temp.id('c5'), 'essential') ->> 'error', 'scope_definition_missing',
   'T-SALES-36: Sales issuance fails closed when the classification is missing');
 reset role;
--- A non-fixture row still resolves anywhere (synthetic, inside this rolled-back transaction).
+-- B-3 (AUTH-018, Owner disposition 2026-11-27): a non-fixture version without an activation does not resolve
+-- (synthetic, inside this rolled-back transaction); the positive path is in 330_dep18_scope_loader_activation.
 select private.create_package_scope_version('signature', array['PGTAP SYNTHETIC NON-FIXTURE ROW (rolled back)'], false);
-select is(pg_temp.scope_rows('signature'), 1, 'T-SALES-36: non-fixture rows are not affected by the allowlist');
+select is(pg_temp.scope_rows('signature'), 0, 'T-SALES-36: a non-fixture version without activation does not resolve, and never under a missing classification');
 -- development and test
 insert into private.environment_settings (app_env) values ('test');
 select is(pg_temp.scope_rows('prestige'), 3, 'T-SALES-36: under test, fixtures resolve');
@@ -697,7 +698,9 @@ select throws_ok($$ update private.billing_package_scope_versions set item_count
   '42501', 'billing_package_scope_versions is insert-only', 'WP-D18: a sealed header cannot be modified');
 select throws_ok($$ delete from private.billing_package_scope_versions where package_key = 'essential' $$, '42501',
   'billing_package_scope_versions is insert-only', 'WP-D18: a sealed header cannot be deleted');
-select throws_ok($$ truncate private.billing_package_scope_versions $$, '42501', null, 'WP-D18: headers cannot be truncated');
+-- B-4 (AUTH-018, Owner disposition 2026-11-27): the eligibility foreign key refuses the truncation first (0A000);
+-- the CASCADE form is refused by the no-truncate triggers (42501; 330_dep18_scope_loader_activation).
+select throws_ok($$ truncate private.billing_package_scope_versions $$, '0A000', null, 'WP-D18: headers cannot be truncated');
 -- No API role can execute the constructor or touch either table
 select pg_temp.as_service();
 select throws_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (svc)'], true) $$,

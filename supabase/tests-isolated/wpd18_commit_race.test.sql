@@ -142,7 +142,7 @@ select pg_temp.ok((select string_agg(scope_version || ':' || item_position || ':
   = '3:1:TEST FIXTURE — NOT A DELIVERABLE (isolated commit b1)|3:2:TEST FIXTURE — NOT A DELIVERABLE (isolated commit b2)',
   'the resolver returns version 3, positions 1 and 2, with the exact item texts');
 
--- 18-23: sealed-version immutability after the commits (every attempt fails; nothing persists)
+-- 18-25: sealed-version immutability after the commits (every attempt fails; nothing persists)
 do $$
 declare
   v_error text := 'no error';
@@ -165,8 +165,25 @@ select pg_temp.ok(pg_temp.error_of($$ update private.billing_package_scope_versi
 select pg_temp.ok(pg_temp.error_of($$ delete from private.billing_package_scope_versions
   where package_key = 'advanced' and scope_version = 3 $$) = '42501 billing_package_scope_versions is insert-only',
   'the committed version 3 header cannot be deleted');
-select pg_temp.ok(pg_temp.error_of($$ truncate private.billing_package_scope_versions $$) like '42501 %',
+-- B-4b (AUTH-018, Owner disposition 2026-11-27): the eligibility foreign key refuses the truncation first
+-- (0A000); the CASCADE form is refused by the no-truncate triggers (42501); nothing is lost.
+create temp table b4b_before as
+  select (select count(*) from private.billing_package_scope_versions) hn, (select count(*) from private.billing_package_scope_eligibility) en,
+         (select md5(coalesce(string_agg(package_key || '|' || scope_version || '|' || content_sha256, ',' order by package_key, scope_version), ''))
+            from private.billing_package_scope_versions) hd,
+         (select md5(coalesce(string_agg(package_key || '|' || scope_version || '|' || event || '|' || classification || '|' || approved_sha256, ','
+            order by package_key, scope_version, event, classification), '')) from private.billing_package_scope_eligibility) ed;
+select pg_temp.ok(pg_temp.error_of($$ truncate private.billing_package_scope_versions $$) like '0A000 %',
   'the headers cannot be truncated');
+select pg_temp.ok(pg_temp.error_of($$ truncate private.billing_package_scope_versions cascade $$) like '42501 %',
+  'the headers cannot be truncated with CASCADE either (a no-truncate trigger refuses it, 42501)');
+select pg_temp.ok((select (hn, en, hd, ed) from b4b_before) = (select ((select count(*) from private.billing_package_scope_versions),
+    (select count(*) from private.billing_package_scope_eligibility),
+    (select md5(coalesce(string_agg(package_key || '|' || scope_version || '|' || content_sha256, ',' order by package_key, scope_version), ''))
+       from private.billing_package_scope_versions),
+    (select md5(coalesce(string_agg(package_key || '|' || scope_version || '|' || event || '|' || classification || '|' || approved_sha256, ','
+       order by package_key, scope_version, event, classification), '')) from private.billing_package_scope_eligibility))),
+  'neither protected table lost data after both truncation attempts (row counts and content hashes unchanged)');
 select pg_temp.ok(pg_temp.error_of($$ update private.billing_package_scope set item_text = 'TEST FIXTURE — NOT A DELIVERABLE (changed)'
   where package_key = 'advanced' and scope_version = 3 $$) = '42501 billing_package_scope is insert-only',
   'a committed item cannot be updated');
@@ -175,7 +192,7 @@ select pg_temp.ok((select string_agg(tgname::text || ':' || tgenabled::text, ','
   = 'billing_package_scope_append_only:O,billing_package_scope_construction_guard:O,billing_package_scope_fixture_guard:O,billing_package_scope_no_truncate:O,billing_package_scope_versions_append_only:O,billing_package_scope_versions_construction_guard:O,billing_package_scope_versions_no_truncate:O',
   'all seven protection triggers are still enabled after the race');
 
--- 24-25: bounded failure. A holds and never commits; B must fail with a lock timeout.
+-- 26-27: bounded failure. A holds and never commits; B must fail with a lock timeout.
 do $$
 declare
   t0 timestamptz := clock_timestamp();
@@ -206,6 +223,6 @@ select pg_temp.ok((select string_agg(scope_version::text, ',' order by scope_ver
   'the held, uncommitted prestige version rolled back when its session ended');
 
 -- TAP output
-select '1..25';
+select '1..27';
 select case when ok then 'ok ' else 'not ok ' end || n || ' - ' || description from tap order by n;
-select case when count(*) = 25 then '# 25 assertions recorded' else 'not ok 0 - expected 25 recorded assertions, got ' || count(*) end from tap;
+select case when count(*) = 27 then '# 27 assertions recorded' else 'not ok 0 - expected 27 recorded assertions, got ' || count(*) end from tap;

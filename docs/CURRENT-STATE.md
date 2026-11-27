@@ -1919,3 +1919,18 @@ Implemented by the WP-B session on branch `claude/wp-b-client-portal-xjftil`. It
 Two misses during development were real gaps and were closed by new tests: item-1 clearing on a renewal charge (item 1 gives a renewal charge no gate) and an unisolated ledger-sensitivity case. One unreachable in-attempt check was removed; clearing re-verifies.
 
 **Shared files:** AUTH-015 (PR #54) also adds to `050`, `audit-actions.ts` and `messages.ts`. A trial merge with its head `2b59ef3` is clean and both sets of additions coexist (WP-B review comment 7227962518).
+
+**Suites** (local, fresh `supabase db reset`, CI order, at `c15ec68`):
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 22 files, 383 passed |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `./scripts/run-db-tests.sh` | 2,010 assertions, 0 files failed (195: 151) |
+| `pnpm test:integration` | 10 files, 137 passed (oi93: 15) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 67 passed |
+| Lighthouse | Not run locally; runs in CI |
+
+Exact-head CI is recorded in the pull request.

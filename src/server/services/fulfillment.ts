@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { env } from "@/config/env";
 import { UPLOAD_CATEGORIES, sanitizeFileName, type UploadCategory } from "@/domain/uploads";
+import { createEnvironmentCheck, rpcClassificationReader } from "@/server/environment-consistency";
 import { verifierFor } from "@/server/publication/verifier";
 import {
   runUploadPipeline,
@@ -21,6 +22,15 @@ import { createAdminClient } from "@/server/supabase/admin";
  * for the upload pipeline and the live verifier, after the database has authorized the
  * caller, and only for the service-role functions that record server observations.
  */
+
+/**
+ * OI-115 (AUTH-016): before the scanner or the live verifier is selected, APP_ENV must agree
+ * with the database's classifications; a disagreement throws and nothing runs.
+ */
+const assertEnvironmentConsistent = createEnvironmentCheck(
+  env.APP_ENV,
+  rpcClassificationReader(createAdminClient),
+);
 
 export type Result = { ok: true; data: Record<string, unknown> } | { ok: false; error: string };
 
@@ -53,6 +63,7 @@ export async function acceptUpload(
   file: File,
   replacesAssetId: string | null,
 ): Promise<{ ok: true; outcome: PipelineOutcome } | { ok: false; error: string }> {
+  await assertEnvironmentConsistent();
   const requested = await callRpc(user, "request_upload", {
     p_project_id: projectId,
     p_category: category,
@@ -87,6 +98,7 @@ export async function verifyLiveDeployment(
   deploymentId: string,
   verifiedStaffUserId: string,
 ): Promise<Result> {
+  await assertEnvironmentConsistent();
   const { data: deployment } = await user
     .from("publication_deployments")
     .select("id, production_url, outcome")
@@ -113,6 +125,7 @@ export async function verifyLiveDeployment(
  * backing off or after the last allowed attempt.
  */
 export async function retryUploadScan(user: SupabaseClient, uploadId: string): Promise<Result> {
+  await assertEnvironmentConsistent();
   const { data: upload } = await user
     .from("asset_uploads")
     .select("id, project_id, category, declared_mime, quarantine_path, status")

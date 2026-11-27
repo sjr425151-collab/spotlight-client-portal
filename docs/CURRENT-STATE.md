@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.30.0 |
+| Version | 1.34.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-26, by the R1 completion and allocation record (PRs #40 to #43 merged; AUTH-008 I-2 and AUTH-009 completed; OI-91 closed; AUTH-010 mandatory for R1; AUTH-014 granted). Earlier: 2026-11-26, by the AUTH-009 and AUTH-008 I-2 grant record. Earlier: 2026-11-26, by the post-merge record for PRs #36, #27 and #38 (AUTH-013 activated and completed; AUTH-007 completed; OI-113 closed; D-1 ratified; Stage A attestation wording approved). Earlier: 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
+| Last updated | 2026-11-27, by the AUTH-002 Stage A attempt 2 Gate A record (new key attestation; OI-117 option A; baseline `18c4215`; not active). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 1 termination and administrative closure record (Owner-approved evidence limitation), the attempt 2 remediation record (runner revision 4 accepted) and the attempt 2 amendment (not active). Earlier: 2026-11-26, by the AUTH-002 Stage A Gate A record (attestation and acknowledgments recorded; not active). Earlier: 2026-11-26, by the AUTH-002 Stage A credential mechanism amendment (no activation). Earlier: 2026-11-26, by the R1 completion and allocation record (PRs #40 to #43 merged; AUTH-008 I-2 and AUTH-009 completed; OI-91 closed; AUTH-010 mandatory for R1; AUTH-014 granted). Earlier: 2026-11-26, by the AUTH-009 and AUTH-008 I-2 grant record. Earlier: 2026-11-26, by the post-merge record for PRs #36, #27 and #38 (AUTH-013 activated and completed; AUTH-007 completed; OI-113 closed; D-1 ratified; Stage A attestation wording approved). Earlier: 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -16,7 +16,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
-| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-014** (Tier 1, OI-116 test-only; effective on this record's verified merge). **Completed:** AUTH-006 (WP-H, PR #35 `30414c7`), AUTH-007 (WP-D18, PR #27 `05b32e9`), **AUTH-008** (I-1 PR #28 `b027e41`; I-2 PR #42 `48a8c04`), **AUTH-009** (OI-91, PR #43 `3545d0a`), AUTH-012 (OI-95, PR #37 `e3a7508`), AUTH-013 (OI-113, PR #38 `7226d6f`). **Expired:** AUTH-005 (WP-S). **Recorded, not active:** AUTH-002 Stage A (Gate A prerequisites 1 to 3 met; §6). **Proposed, non-executable:** AUTH-010 (**mandatory for R1**, Owner 2026-11-26; readiness preparation) |
+| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-014** (Tier 1, OI-116 test-only; effective on this record's verified merge). **Completed:** AUTH-006 (WP-H, PR #35 `30414c7`), AUTH-007 (WP-D18, PR #27 `05b32e9`), **AUTH-008** (I-1 PR #28 `b027e41`; I-2 PR #42 `48a8c04`), **AUTH-009** (OI-91, PR #43 `3545d0a`), AUTH-012 (OI-95, PR #37 `e3a7508`), AUTH-013 (OI-113, PR #38 `7226d6f`). **Expired:** AUTH-005 (WP-S). **Recorded, not active:** AUTH-002 Stage A (attempt 1 terminated and administratively closed under the Owner-approved evidence limitation of 2026-11-27, §13 "Stage A attempt 1 termination record"; attempt 2 amendment recorded, not active; corrected runner revision 4 accepted by SHA-256 after independent review, §13 "attempt 2 remediation record"; attempt 2 Gate A record, §13: prerequisites 1 to 6 and 8 recorded, OI-117 decided (option A); pending the session acknowledgments and Main's activation notice). **Proposed, non-executable:** AUTH-010 (**mandatory for R1**, Owner 2026-11-26; readiness preparation) |
 | Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
@@ -100,6 +100,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 3. Review OWNER-RUNBOOKS (proposed), **including §7** (direct role and membership writes, OI-90; required before R1 release-candidate acceptance).
 4. Engage counsel and a tax advisor (DEP-03, DEP-04, DEP-05). DEP-03 includes the OI-74 items, the OI-82 refund and allocation terms, revocation effects, and the interim payment wording (F10), and the contractual package-scope language (A4).
 5. **AUTH-002 Stage A (Gate A; read-only catalog check by WP-B), Owner steps in order:** (a) create a **new** restricted key in sandbox "Spotlight Client Portal - Development", test mode, with Balance, Products and Prices **Read** and every other resource **None**; (b) give the approved attestation (AUTHORIZATIONS AUTH-002, "Stage A: credential attestation") in your own message, which Main records word for word: you created the key personally, with the UTC date and time; in that sandbox, in test mode; a new restricted key whose displayed value begins `rk_test_` (nothing more of the key); the Dashboard labels for Balance, Products and Prices copied word for word, every other resource None and nothing Write; a unique key name, separate from any later AUTH-002 key; and that the key was not pasted into chat, committed or entered anywhere but the secure form. Main then confirms, by names only, that exactly one `api.stripe.com` credential exists; any discrepancy means Gate A is not met; (c) enter the key only through the secure credential form for `api.stripe.com` on `spotlight-client-portal-dev`, which must hold no other `api.stripe.com` credential; (d) confirm that no other Stripe operation is in progress; (e) give the execution go-ahead naming WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) and its environment. Main then records the execution baseline (`main` at a verified merge commit). At most 30 `GET` requests; the key is revoked after the run. **Rest of AUTH-002 (F7, F8, N1(c), DEP-15):** a separate restricted test key with the AUTH-002 permissions, `api.stripe.com` (and any verified Stripe CLI hosts) on the allowlist, no live credential, and a checksum-pinned CLI if used.
+   **Mechanism and added controls (amendment, Owner 2026-11-26; AUTHORIZATIONS AUTH-002 "Stage A: credential mechanism amendment"):** the credential is a Network secret on this environment (`api.stripe.com`, Bearer, path prefixes `/v1/balance`, `/v1/products`, `/v1/prices`). Before you enter it, Main records an acknowledgment from every other active session on the environment that it sends no Stripe request during the window; without that, the credential is not activated. WP-B alone executes. After the run (or any abort or failure) you remove the secret and its allow rule at once, revoke the key, and reconcile the run against the Stripe Dashboard request logs; a discrepancy blocks closure. Prefix semantics are unverified and isolation is procedural; no precedent for other stages.
 6. **AUTH-003 (WP-D hosted staging), Owner steps:** (a) create the hosted **staging** Supabase project on the Pro plan (OI-50) and record its region; (b) create the Vercel portal project with protected preview and staging environments (02 §4); (c) set up Resend SMTP on a separate auth sending subdomain for staging (OI-51; DNS records are Tier 3 Owner actions); (d) enter each credential only through the secure credential form, and add exactly the provider API hosts WP-D verifies as needed to the allowlist; (e) record the accounts and plans (no credential values) so Main can record AUTH-003 active. Hosted projects receive reviewed migrations only: no seed, no reset (A3). WP-D then delivers DEP-14, DEP-17, the OI-115 enforcement and the F-3 logging exclusion.
 7. Select the malware scanning vendor (DEP-07) and the monitoring vendor (DEP-12) from the verified shortlists (in preparation by WP-C and WP-I).
 8. Grant AUTH-010 on WP-B's readiness-complete package (mandatory for R1); decide the OI-114 proposal (WP-C) and the OI-115 enforcement (WP-D scope); merge the AUTH-014 correction (OI-116).
@@ -608,6 +609,122 @@ Baseline: `main` at `a8c6ddc` (PR #24, post-merge CI run 45538366194 7/7). Autho
 **AUTH-009 and AUTH-008 I-2 granted (Owner, 2026-11-26); activation pending** this record's merge and post-merge CI. On activation, WP-B implements AUTH-009 and WP-I implements I-2, concurrently. They share no file. Migration `20261127120000` is reserved for AUTH-009; I-2 adds no migration. AUTH-009's independent financial reviewer is WP-S or a separate session. AUTH-010 stays non-executable.
 
 **R1 completion and allocation record (2026-11-26):** PR #40 merged at `2d27d0714681d8c8a4bc7c04dee22270acfc31ba` (head `12a43c5`, base `779fe61`; documentation only), post-merge CI 45731539779 (#136) 7/7: AUTH-009 and AUTH-008 I-2 active. PR #41 merged at `9e8569ca4b33feedba3828ec6fb3d11f7ab5c0d2` (head `1c822be`, base `2d27d07`; documentation only, OM-6(a)), post-merge CI 45732432770 (#138) 7/7: OM-1 to OM-7 in effect. PR #42 merged at `48a8c0461e7c440d83e76672d564880cdb16f8f4` (head `3ecfd69`, base `9e8569c`; exact-head CI 45742034442 7/7); post-merge CI run 45744252813 (#148) 7/7 with the full suite: AUTH-008 completed (§19). PR #43 merged at `3545d0a0fc63f63a059c3409cc67c4fc9c65ff54` (head `655c816`, base `48a8c04`; reviewed head `1d51f97`, CI 45743274091; one synchronization, setup-only; exact-head CI 45745385436 7/7); post-merge CI run 45745975920 (#150) 7/7 with the full suite: AUTH-009 completed, **OI-91 closed** (§20). Owner decisions of 2026-11-26 (08): AUTH-010 mandatory for R1 (readiness preparation by WP-B); OI-114 and OI-115 in R1 (proposals by WP-C and WP-I); AUTH-014 granted (OI-116). Allocation: WP-B AUTH-010 readiness package, then AUTH-002 Stage A when the Owner completes §6 item 5; WP-C DEP-07 shortlist and the OI-114 proposal; WP-I DEP-12 shortlist, AUTH-014 and the OI-115 proposal (WP-D scope); WP-S OI-88 reassessment; Main records and reviews. No provider, hosted or production access.
+
+**AUTH-002 Stage A Gate A record (2026-11-26; Main):** recorded before Gate A, as AUTHORIZATIONS AUTH-002 "Stage A: activation" and "Stage A: credential mechanism amendment" require. **Not active:** this record authorizes no credential entry and no Stripe request; Main notifies the Owner when secure credential activation is authorized.
+
+*Owner attestation, verbatim (message of 2026-11-26, "AUTH-002 Stage A — Formal Owner Attestation"):*
+
+> I confirm the following:
+>
+> * Previous restricted test key: revoked.
+> * New credential creation timestamp: 2026-11-26T03:54:00Z.
+> * Sandbox: Spotlight Client Portal - Development.
+> * Environment mode: Test.
+> * Unique key name: SLM-AUTH-002-STAGE-A-20261126-01.
+> * Displayed credential prefix: rk_test_.
+> * Balance: Read.
+> * Products: Read.
+> * Prices: Read.
+> * All other resources: None.
+> * No permissions set to Write.
+> * The new credential has not been pasted, committed or entered anywhere.
+> * No other Stripe operation is in progress.
+>
+> I authorize WP-B (session_01RCnsL4vnvrx7b11HRxeo8T) on spotlight-client-portal-dev as the sole executing session for AUTH-002 Stage A, conditional upon satisfaction of all remaining Gate A prerequisites.
+
+*Owner confirmation of points 1 and 4, verbatim (second message, 2026-11-26):*
+
+> I explicitly confirm attestation points 1 and 4.
+>
+> Point 1: I personally created the new restricted test key directly in the Stripe Dashboard within the Spotlight Client Portal - Development sandbox on November 26, 2026, at 03:54 UTC.
+>
+> Point 4: I confirm the permission labels are copied word for word from the Stripe Dashboard:
+>
+> * Balance: Read
+> * Prices: Read
+> * Products: Read
+>
+> All other resources are set to None. No permissions are set to Write.
+>
+> The credential remains unactivated in the Claude Code environment.
+
+| Gate A prerequisite | State |
+|---|---|
+| (1) Amendment merged; (2) post-merge CI | **Met** (PR #34 `a5dfad0`, CI 45665855580); mechanism amendment PR #46 `3902da8`, CI 45749645350 7/7 |
+| (3) Credential-permission verification | **Met** (option (a), 2026-11-25); Bearer support verified (docs.stripe.com/api/authentication, 2026-11-26, SHA-256 `79251fa4…87cc34a`) |
+| (4) Credential attestation, points 1 to 8 | **Met for points 1 to 6** by the two messages above (points 1 and 4 confirmed explicitly); point 7 (exactly one `api.stripe.com` credential, by names only) is verified by Main after entry; point 8 (any discrepancy stops) stands |
+| (5) Execution baseline | **`main` at `3902da8f6f144cb0506147544fc2cb7479e0f582`**, post-merge CI 45749645350 7/7 with the full suite; no unmerged change to the catalog migrations or to 04 §6.1 or §6.5 (open PRs: #45, one integration test; #6, draft proposal). Main re-verifies at activation that `main` contains no such change since `3902da8` |
+| (6) No other Stripe operation in progress | **Met** (Owner, above) |
+| (7) Secure credential entry | **Pending** Main's activation notice: Network secret on `spotlight-client-portal-dev`, host `api.stripe.com`, Bearer, path prefixes `/v1/balance`, `/v1/products`, `/v1/prices` |
+| (8) Execution go-ahead naming the session and environment | **Given** (WP-B `session_01RCnsL4vnvrx7b11HRxeo8T`, `spotlight-client-portal-dev`), conditional on the remaining prerequisites |
+| Control 1: acknowledgments from every other active session on the environment | **Met:** `ACK Stage A no-Stripe <session>` from WP-I `session_01RCnsL7k3rDKjjpTicExTsF` (03:55:56Z), DEP-18 review `session_01RCnsL6oDLGr84wJPQZT3im` (03:55:59Z), Node.js verification `session_01RCnsL97ZSD9t59G2ipBD8Y` (03:56:01Z), WP-C `session_01RCnsL4zY9edGTBFKQUbXM6` (03:56:03Z), WP-S `session_01RCnsL8EFk2jME7uNLi46as` (03:56:08Z). Main (`session_01RCnsL4ywSjuERyt4yrCwbM`) sends no Stripe request. Archived sessions cannot act |
+| Before activation (Main) | Review of WP-B's run plan and runner (sequential `GET` only; no client `Authorization` header; `Stripe-Version: 2026-09-30.endive`; hard stop at 30 requests; fail-closed preflight; no retry; evidence fields only) |
+
+The execution window (credential entry to removal, UTC), the request evidence, the Owner's Dashboard request-log reconciliation, the removal of the Network secret and its allow rule, and the key revocation are recorded in the Stage A closure record.
+
+**AUTH-002 Stage A attempt 1 termination record (2026-11-26; Main):**
+
+| Item | Record |
+|---|---|
+| Credential entry | Owner message "credential entered", received 04:12:19Z (window start at or before that time). Main verified by names at 04:12:19Z: exactly one Network secret, host `api.stripe.com`, header `Authorization`, label "api.stripe.com/v1/balance"; nothing else changed. The path prefixes are not visible to Main |
+| Execution | WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`), once, at 04:13:14Z, after verifying the accepted runner SHA-256 `446b15ef…033884efb`; command `python3 -I stage_a_runner.py --execute --baseline 3902da8f…` |
+| Outcome | **STOPPED: runner defect.** A pre-send assertion (`h.lower()` over `req.header_items()` tuples) raised `AttributeError` before the first request was opened; exit code 1; no summary or evidence JSON written. **WP-B reported 0 requests sent.** Root cause: the offline tests stubbed the request function, so the real request path was never exercised; Main's acceptance review did not catch it |
+| Cleanup | Owner confirmation (2026-11-26): the Network secret removed, the automatically created allow rule removed, the key `SLM-AUTH-002-STAGE-A-20261126-01` revoked, the Dashboard log reconciliation completed. The Owner's attestation of 2026-11-27 (next row) clarifies that the key-specific request count is not accessible in the Owner's Dashboard, so no key-specific Dashboard count was independently verified. Main verified by names at 04:18:27Z: no Network secret; allowed hosts exactly `github.com`, `api.github.com`, `registry.npmjs.org`, `nodejs.org`, `docs.stripe.com`, `pkg-containers.githubusercontent.com`; no `api.stripe.com` |
+| Owner evidence for formal closure (Owner attestation, 2026-11-27) | "I confirm that the original restricted Stripe test key was revoked. I cannot access the historical revocation timestamp or the key-specific request count through my Stripe Dashboard. Record both as unavailable, not independently verified." **Revocation time (UTC): unavailable, not independently verified.** **Key-specific Stripe Dashboard request count: unavailable, not independently verified.** The Owner approved this evidence limitation for administrative closure of attempt 1, with no further investigation unless a material security concern emerges |
+| Request evidence (distinguished) | **Runner-reported (WP-B):** 0 requests; the runner stopped on a pre-send assertion before the first request was opened (exit code 1; no evidence JSON). This is the executing session's report and the runner's code path, preserved as evidence that execution ended before the first network request. **Independently verified Stripe Dashboard count:** none; unavailable (above). No other count is substituted |
+| Status | **Attempt 1 administratively closed** on this record's verified merge, under the Owner-approved evidence limitation (2026-11-27). This is not a successful Stage A closure under control (3), because no key-specific Dashboard reconciliation exists. Attempt 1 is never resumed. A further attempt only under the attempt 2 amendment (AUTHORIZATIONS AUTH-002); the reconciliation method for attempt 2 is OI-117 |
+
+**AUTH-002 Stage A attempt 2 remediation record (2026-11-26; Main; offline only, no Stripe request, no credential):**
+
+| Item | Record |
+|---|---|
+| Condition (2): defect corrected, adjacent defects reviewed | The `header_items()` defect was fixed in revision 2. Independent review by WP-I (`session_01RCnsL7k3rDKjjpTicExTsF`) and Main across revisions 2 to 4 found and closed further items: N-1 (a Proxy-Authorization header added by `ProxyHandler` is now refused in `https_open`), N-2 (SIGTERM, SIGINT and SIGHUP handled from `--out` acceptance to the last evidence write), N-3 (`request_count_note`: the count is of attempted requests), H-1 and H-2 (signal and send-time `not_proxied` cases), and H3-1 (argparse accepted the abbreviations `--e`, `--ex` and `--exe` as `--execute`; fixed with `ArgumentParser(allow_abbrev=False)`). N-4 (SIGALRM cannot interrupt a blocking proxy-host `getaddrinfo`) is documented and accepted |
+| Conditions (3) and (4): real request path against a local stub | A local integration harness runs the **unmodified** runner's real `urllib` request path over TLS through a local CONNECT proxy to a loopback stub (test-only CA, `make_certs.sh`; no private key shipped). It verifies the preflight, GET-only enforcement, the endpoint allowlist, the 30-request ceiling, that the runner sends no `Authorization` or `Proxy-Authorization` header of its own, the failure and stop paths, no retry, signal handling and evidence on every exit path. The test-only `--test-base-url` (loopback only) is refused together with `--execute`. Every harness launch, and the mutation script's harness launch, goes through `no_execute()`, which refuses `--execute` and any abbreviation of it |
+| Results (revision 4) | Harness **87 of 87** cases passed (exit 0). Mutation check: **36 of 36** runner mutants caught (exit 0); M36 (`allow_abbrev=False` removed) is caught by the static case `static_allow_abbrev_false`. WP-B ran both once, and WP-I reran both independently (`env -i`, `python3 -I`, Python 3.13.18, loopback only) with identical results. The repository was untouched throughout |
+| Condition (5): independent review and acceptance | WP-I final verdict **ACCEPT** (2026-11-26T06:33Z). Main decoded and hashed every file itself and reviewed each revision's diff. **Accepted by SHA-256:** `stage_a_runner.py` `5094817abbebd4f9c97144b8562f682cd3f5254ecabfa24e98b72eb16cc310ca`; `test/harness.py` `e47abe78443fef62a20734900c091a5f7e36c17ca28a18a999c24975cf92a8e9`; `test/mutate_runner.py` `8b3dd133a4d40e75a8c8348dee9c71172f8f9f78aad0a315046dd488ec960687`; `test/make_certs.sh` `aac172145a42376df48b3ad95e28820c0ee9d26fb580b88a2a0494ab55e4ce92`. The files are held outside the repository, in WP-B's scratchpad; any change voids the acceptance. Acceptance authorizes no execution |
+| Deviation during remediation (recorded) | At about 05:19Z, while no credential existed (removed by 04:18:27Z), WP-B reran two former harness cases contrary to Main's no-`--execute` instruction: case 80 invoked `--execute` against the loopback proxy, which received one `CONNECT api.stripe.com:443` and refused it locally (403); nothing left the container to Stripe; and case 58. That run was voided. Remedies: the `no_execute()` guard; case 80 removed; case 58 replaced by a static AST check (`static_execute_test_url_refusal`); case 75 (in-process `EXECUTE` construction, which sends nothing) kept with a no-traffic assertion |
+| Residual risks not testable offline (for the Owner's execution decision) | The real upstream proxy, its credential injection and its CA; Stripe's real response format, including the `Stripe-Version` response header; SIGKILL (the IN_PROGRESS record then remains with its note) |
+| Remaining before attempt 2 activation | Condition (1): satisfied by the Owner's attestation and evidence-limitation approval (2026-11-27) on this record's merge with post-merge CI 7/7. **OI-117:** the Owner's decision on how attempt 2 will be reconciled under control (3), given that key-specific Dashboard counts are not accessible to the Owner. Condition (7): a fresh restricted test key with a new unique name, a fresh Owner attestation (points 1 to 8), fresh acknowledgments from every other active session, and a freshly verified execution baseline; then Main's activation notice |
+
+**AUTH-002 Stage A attempt 2 Gate A record (2026-11-27; Main; not active):** this is the consolidated record the attempt 2 amendment (AUTHORIZATIONS AUTH-002, condition (7)) requires. It authorizes no credential entry and no Stripe request. Main notifies the Owner when secure credential entry is authorized.
+
+*Owner attestation, verbatim (message of 2026-11-27, "Owner attestation — AUTH-002 Stage A attempt 2"):*
+
+> 1. I personally created a new restricted test key directly in the Stripe Dashboard on 2026-11-27 at 10:57 UTC.
+> 2. Sandbox: Spotlight Client Portal - Development. Environment mode: Test (not live mode).
+> 3. Displayed credential prefix: rk_test_. No other part of the key is disclosed.
+> 4. Dashboard permissions: Balance: Read; Prices: Read; Products: Read. All other resources: None. No Write permissions.
+> 5. Unique key name: SLM-AUTH-002-STAGE-A-20261127-02. Never previously used and separate from every earlier AUTH-002 key.
+> 6. The key has not been pasted into chat, committed or entered anywhere. It will be entered only through the secure credential form after Main's activation notice.
+> 7. I understand Main must confirm by names only that exactly one credential exists for api.stripe.com.
+> 8. I understand any discrepancy means Gate A is not met, no request is sent and I am notified.
+>
+> No other Stripe operation is in progress.
+>
+> OI-117 decision: Option A approved. The per-key View request logs view is available and shows zero requests.
+>
+> I authorize WP-B (session_01RCnsL4vnvrx7b11HRxeo8T) on spotlight-client-portal-dev as the sole executing session for AUTH-002 Stage A attempt 2, conditional on all remaining Gate A prerequisites.
+
+*Discrepancy and correction (point 8):* Main received the attestation before 04:00Z on 2026-11-27, so a creation time of 10:57 UTC was in the future. Main held Gate A and asked the Owner for the exact UTC time. *Owner correction, verbatim (second message, 2026-11-27):*
+
+> Corrected Owner attestation — Point 1:
+>
+> I personally created the new restricted test key directly in the Stripe Dashboard on 2026-11-27 at 03:57 UTC.
+>
+> All other attestation points remain unchanged.
+
+| Gate A prerequisite | State |
+|---|---|
+| (1) Amendment merged; (2) post-merge CI | **Met:** PR #48 at `18c4215f9d215f9d39b39631243d42c7f9d159da` (parents `9eb71cc`, `8e6e847`; tree equal to the reviewed head); post-merge CI run 45935443149 (#159) passed 7 of 7, including the full suite |
+| (3) Credential-permission verification | **Met** (option (a), 2026-11-25; unchanged). Per-key request logs: docs.stripe.com/keys, read 2026-11-27, SHA-256 `22ff383f2faa88dff821a7797d1a27ed43770d7e6cb0e7d6f6015c566136d46c` ("View API request logs for a key … click the overflow menu for any key, then select View request logs"; this opens Workbench). That is documentation, not a verified view of the Owner's Dashboard |
+| Runner | **Met:** revision 4, accepted by SHA-256 `5094817abbebd4f9c97144b8562f682cd3f5254ecabfa24e98b72eb16cc310ca` (§13 "attempt 2 remediation record"); frozen and held read-only by WP-B |
+| OI-117: reconciliation method under control (3) | **Decided: option A** (Owner, 2026-11-27). The Owner confirmed that the key's "View request logs" view is available and shows zero requests before entry. **Cleanup order for attempt 2:** (i) immediately after the run, remove the Network secret and its allow rule; (ii) open the key's "View request logs" and record the count, methods, paths and first and last request times (UTC); (iii) expire the key promptly. Any discrepancy, or a view that cannot be read, prevents successful closure (control (3), unchanged) |
+| (4) Credential attestation, points 1 to 8 (new key) | **Met for points 1 to 6** by the attestation and the Owner's point 1 correction above. The key is `SLM-AUTH-002-STAGE-A-20261127-02`, created **2026-11-27T03:57Z** (corrected; the first attestation's 10:57 UTC was in the future when received). Point 4's labels ("Balance: Read; Prices: Read; Products: Read") are identical to the labels the Owner confirmed word for word from this sandbox's Dashboard on 2026-11-26, so there is no naming or grouping difference to record. Point 7 (exactly one `api.stripe.com` credential, by names only) is verified by Main after entry. Point 8 stands. Before entry, Main verified by names that the environment has no Network secret and no `api.stripe.com` allowed host (2026-11-27) |
+| (5) Execution baseline | **`main` at `18c4215f9d215f9d39b39631243d42c7f9d159da`**, post-merge CI 45935443149 7/7 (Owner accepted, 2026-11-27). Open PRs: #45 (one integration test) and #6 (draft proposal); neither changes the catalog migrations or 04 §6.1 or §6.5. At activation, Main re-verifies that `main` has gained no such change since `18c4215` |
+| (6) No other Stripe operation in progress | **Met** (Owner, above) |
+| (7) Secure credential entry | **Pending** Main's activation notice: Network secret on `spotlight-client-portal-dev`, host `api.stripe.com`, Bearer, path prefixes `/v1/balance`, `/v1/products`, `/v1/prices` |
+| (8) Execution go-ahead naming the session and environment | **Given** (WP-B `session_01RCnsL4vnvrx7b11HRxeo8T`, `spotlight-client-portal-dev`), conditional on the remaining prerequisites. WP-B runs the accepted revision 4 runner once, unchanged |
+| Control 1: acknowledgments from every other active session | **Collected by Main immediately before the activation notice**, recorded with session IDs and UTC times |
 
 ## 14. WP-I I-1 implementation record (AUTH-008, I-1 only)
 

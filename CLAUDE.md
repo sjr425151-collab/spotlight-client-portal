@@ -59,6 +59,7 @@ Requirement labels: **[APPROVED OI-nn]**, **[PROPOSED]**, **[PENDING OI-nn]**, *
 - Every feature ships with the acceptance tests listed in its spec (T-TEN-*, T-PAY-*, T-LC-*, T-PUB-*, and so on).
 - Merging requires the aggregate `CI result` check. It runs lint, typecheck, format, unit tests, the dependency audit, and the secret scan on every change, and the database, integration, end-to-end, and Lighthouse suites on every change that is not documentation-only (OI-70).
 - Never claim a test passed unless it ran. Report the commands and results. A suite that did not run is reported as not run.
+- Any runner or code that sends requests to an external provider must exercise its real, unmodified request path end to end through controlled local integration testing (a local stub server) before it is accepted. Mocked request functions alone are insufficient. Independent review covers that evidence (Owner, 2026-11-26).
 
 ## 7. Change control and evidence
 

@@ -309,6 +309,8 @@ select is(public.record_scan_result((select id from public.asset_uploads where o
   'scanner_not_permitted', 'DEP-07: outside a development database a mock "clean" leaves the file in quarantine');
 reset role;
 insert into private.runtime_environment (app_env) values ('test');
+-- OI-119: the billing classification agrees with the runtime 'test' row, so they never disagree.
+update private.environment_settings set app_env = 'test';
 select pg_temp.as_server();
 select is(public.record_content_check((select id from public.asset_uploads where original_name = 'logo2.png'), true, 'image/png', null) ->> 'status',
   'scanning', 'the file is re-checked');

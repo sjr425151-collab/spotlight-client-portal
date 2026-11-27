@@ -296,6 +296,21 @@ insert into ids select 'nv', pg_temp.fresh_project('WPINOVER')::text;
 select ok(not exists (select 1 from public.agreement_versions v where not v.is_test_fixture),
   'precondition: the local database holds only the test-only fixture agreement');
 create temporary table saved_env on commit drop as select * from private.environment_settings;
+-- OI-119 (AUTH-016, option A): setup-only guard. Aborts the file unless both classifications
+-- are back to the seeded single development rows; it adds no pgTAP assertion.
+create function pg_temp.oi119_assert_restored(p_site text) returns void language plpgsql as $oi119$
+begin
+  if (select count(*) from private.runtime_environment) <> 1
+     or (select count(*) from private.environment_settings) <> 1
+     or (select app_env from private.runtime_environment) <> 'development'
+     or (select app_env from private.environment_settings) <> 'development' then
+    raise exception 'OI-119: classifications not restored at %', p_site;
+  end if;
+end;
+$oi119$;
+-- OI-119: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi119_runtime_400 on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
 delete from private.environment_settings;
 select ok(private.is_production(), 'with no classification row the database is production');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
@@ -305,6 +320,8 @@ reset role;
 select is((select count(*)::int from public.order_summaries where project_id = pg_temp.id('nv')), 0,
   'no order summary was created');
 insert into private.environment_settings select * from saved_env;
+insert into private.runtime_environment select * from oi119_runtime_400;
+select pg_temp.oi119_assert_restored('400');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
 select ok((public.issue_order_summary(pg_temp.id('nv'), 'essential', '[]'::jsonb) ->> 'ok')::boolean,
   'control: with the development classification restored, the same call succeeds');

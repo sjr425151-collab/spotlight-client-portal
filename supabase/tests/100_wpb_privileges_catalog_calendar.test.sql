@@ -136,11 +136,28 @@ select is((select count(*)::integer from pg_enum e join pg_type t on t.oid = e.e
 -- 4. Environment marker (OI-69)
 -- ---------------------------------------------------------------------------
 select is(private.app_environment(), 'development', 'the local seed marks this database as development');
+-- OI-119 (AUTH-016, option A): setup-only guard. Aborts the file unless both classifications
+-- are back to the seeded single development rows; it adds no pgTAP assertion.
+create function pg_temp.oi119_assert_restored(p_site text) returns void language plpgsql as $oi119$
+begin
+  if (select count(*) from private.runtime_environment) <> 1
+     or (select count(*) from private.environment_settings) <> 1
+     or (select app_env from private.runtime_environment) <> 'development'
+     or (select app_env from private.environment_settings) <> 'development' then
+    raise exception 'OI-119: classifications not restored at %', p_site;
+  end if;
+end;
+$oi119$;
+-- OI-119: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi119_runtime_100 on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
 delete from private.environment_settings;
 select is(private.app_environment(), 'production', 'no environment row means production (fail closed)');
 select is(private.stripe_mode(), 'live', 'production expects live mode');
 select ok(private.expected_livemode(), 'production expects livemode true events');
 insert into private.environment_settings (app_env) values ('development');
+insert into private.runtime_environment select * from oi119_runtime_100;
+select pg_temp.oi119_assert_restored('100');
 select is(private.stripe_mode(), 'test', 'non-production expects test mode');
 select throws_ok($$ insert into private.environment_settings (app_env) values ('production') $$, '23514', null,
   'the environment marker cannot claim production (production simply has no row)');

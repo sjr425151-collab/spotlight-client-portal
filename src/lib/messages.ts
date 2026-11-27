@@ -152,6 +152,47 @@ export const MESSAGES = {
     "Only the person who accepted the agreement can turn off automatic final payment.",
   client_reauthentication_required:
     "For your security, please sign in again with a new code, then turn off automatic final payment within five minutes.",
+  // OI-93 conflict decisions (WP-B, AUTH-010; Owner only)
+  conflict_decision_recorded:
+    "Decision recorded. Nothing has been applied yet: apply it to post the event under the chosen project.",
+  conflict_posted:
+    "Applied: the event was posted under the chosen project and the block is cleared.",
+  conflict_represented:
+    "Applied: the effect was already recorded under the chosen project, so nothing new was posted. The block is cleared.",
+  conflict_awaiting_evidence:
+    "Not applied: the evidence is incomplete (for example, the charge is not posted yet). Nothing was kept. Retry when the evidence changes.",
+  conflict_operational_failure:
+    "Not applied: a temporary problem stopped the attempt and nothing was kept. You can retry after one minute.",
+  conflict_permanently_unsupported:
+    "Not applied: this conflict cannot be applied automatically. It stays blocked; nothing was kept.",
+  conflict_exhausted:
+    "Not applied, and this was the tenth attempt. No further attempts are possible; the block stays.",
+  not_yet_resolvable:
+    "No project holds this charge's payments yet, so a decision cannot be recorded. Decide again once the charge is posted.",
+  conflict_unsupported:
+    "That project cannot be chosen: the recorded evidence shows it can never be applied there.",
+  already_decided: "A decision is already recorded for this event.",
+  not_eligible: "This event is not an attribution conflict that can be decided.",
+  not_a_candidate: "That project is not one of the event's recorded candidates.",
+  evidence_invalid: "Please give your evidence references.",
+  reason_too_long: "The reason is too long.",
+  already_applied: "This decision was already applied.",
+  permanently_unsupported: "This decision cannot be applied; no further attempts are possible.",
+  attempts_exhausted: "All ten attempts have been used; no further attempts are possible.",
+  retry_too_soon: "Please wait one minute after the last attempt before retrying.",
+  evidence_unchanged:
+    "The evidence has not changed since the last attempt, which was waiting for evidence.",
+  attempt_request_id_reused: "That request belongs to another decision. Reload the page.",
+  attempt_rolled_back:
+    "The database refused the attempt (for example, a lock timeout) and nothing was recorded. You can try again.",
+  deadline_exceeded: "The request took too long to start, so nothing was sent. Please try again.",
+  outcome_unknown:
+    "No answer arrived in time. The attempt may or may not have been recorded. Check its status before doing anything else.",
+  attempt_status_recorded: "The attempt is recorded. Its outcome is shown below.",
+  attempt_status_in_progress:
+    "The attempt is still running. Check its status again shortly; do not start a new attempt.",
+  attempt_status_not_recorded:
+    "No record of the attempt was found. That does not prove nothing happened: resubmit the same request, which is safe to repeat.",
   // WP-S: Sales Representatives (03 §4.1; OI-77, OI-78, OI-84)
   no_active_project:
     "Your account has no active project. If you have been invited to a project, open your invitations.",

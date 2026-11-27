@@ -368,3 +368,137 @@ test("the staff billing section shows Admin the derived states only after paymen
     { deposit_requirement_satisfied: true, payment_recovery_required: false },
   ]);
 });
+
+// AUTH-010 (OI-93): the Owner's conflict screen. A refund naming this project's payment intent
+// and another project's recorded charge arrives through the signed webhook route and is
+// quarantined as a conflict; the Owner records a decision and applies it; the block clears.
+test("the Owner decides and applies an attribution conflict; Admin cannot open the screen (AUTH-010)", async ({
+  browser,
+}) => {
+  const tag = `e2e${RUN}`;
+  const otherProject = await withDb(async (db) => {
+    const record = await db.query(
+      "select id::text, stripe_invoice_id from public.checkout_sessions where project_id = $1",
+      [projectId],
+    );
+    // The initial invoice's payment link for this project, and a recorded renewal charge of
+    // another project whose obligation is not posted (synthetic records, as in pgTAP 195).
+    await db.query(
+      `insert into private.stripe_payment_links (stripe_ref, project_id, kind, domain_record_id, stripe_invoice_id)
+       values ($1, $2, 'initial', $3, $4) on conflict do nothing`,
+      [`pi_${tag}a`, projectId, record.rows[0].id, record.rows[0].stripe_invoice_id],
+    );
+    await db.query(
+      `select set_config('request.jwt.claims', json_build_object('sub', $1::text, 'role', 'authenticated')::text, false)`,
+      [OWNER_ID],
+    );
+    const business = await db.query(
+      `insert into public.client_businesses (legal_name, display_name) values ($1, $1) returning id`,
+      [`E2E conflict ${RUN} LLC`],
+    );
+    const other = await db.query(
+      `insert into public.projects (client_business_id, name) values ($1, $2) returning id`,
+      [business.rows[0].id, `E2E other project ${RUN}`],
+    );
+    await db.query(
+      `insert into private.stripe_payment_links (stripe_ref, project_id, kind, domain_record_id, stripe_invoice_id)
+       values ($1, $2, 'renewal', null, $3)`,
+      [`ch_${tag}b`, other.rows[0].id, `in_${tag}brenew`],
+    );
+    return other.rows[0].id as string;
+  });
+  const event = signed("refund.updated", {
+    id: `re_${tag}c1`,
+    object: "refund",
+    amount: 500,
+    currency: "usd",
+    status: "succeeded",
+    payment_intent: `pi_${tag}a`,
+    charge: `ch_${tag}b`,
+    metadata: {},
+  });
+  const delivered = await clientPage.request.post("/api/stripe/webhook", {
+    data: event.body,
+    headers: { "content-type": "application/json", "stripe-signature": event.header },
+  });
+  expect(delivered.status()).toBe(200);
+  const quarantined = await withDb(async (db) => {
+    const { rows } = await db.query(
+      "select processing_status::text, quarantine_reason from public.webhook_events where stripe_event_id = $1",
+      [JSON.parse(event.body).id],
+    );
+    return rows[0];
+  });
+  expect(quarantined).toEqual({
+    processing_status: "quarantined",
+    quarantine_reason: "attribution_conflict",
+  });
+
+  // Admin is not the Owner: the screen redirects.
+  await staffPage.goto("/staff/billing/conflicts");
+  await expect(staffPage).toHaveURL(/\/staff\?notice=forbidden/);
+
+  // The Owner signs in with a new authenticator (fresh MFA).
+  await withDb((db) => db.query("delete from auth.mfa_factors where user_id = $1", [OWNER_ID]));
+  const ownerPage = await (await browser.newContext()).newPage();
+  try {
+    await signIn(ownerPage, "owner@example.test");
+    await expect(ownerPage).toHaveURL(/\/mfa/);
+    await ownerPage.getByRole("button", { name: "Set up authenticator app" }).click();
+    const secret = (await ownerPage.locator("code").textContent())?.trim() ?? "";
+    await ownerPage.getByLabel("Authenticator code").fill(totp(secret));
+    await ownerPage.getByRole("button", { name: "Verify and continue" }).click();
+    await expect(ownerPage).toHaveURL(/\/staff/);
+
+    await ownerPage.goto("/staff/billing/conflicts");
+    await expect(ownerPage.getByRole("heading", { name: "Financial conflicts" })).toBeVisible();
+    const card = ownerPage.getByRole("listitem").filter({ hasText: `re_${tag}c1` });
+    await expect(card).toContainText("Blocked");
+    await expect(card).toContainText(`E2E billing project ${RUN}`);
+    await expect(card).toContainText(`E2E other project ${RUN}`);
+    await expectAccessible(ownerPage);
+
+    await card.getByLabel(`E2E billing project ${RUN}`).check();
+    await card
+      .getByLabel("Evidence references")
+      .fill("Stripe Dashboard: refund and charge reviewed");
+    await card.getByLabel("Reason").fill("The refund belongs to this project's initial charge");
+    await card.getByRole("button", { name: "Record decision" }).click();
+    await expect(ownerPage.locator("main")).toContainText("Decision recorded.");
+    const decided = ownerPage.getByRole("listitem").filter({ hasText: `re_${tag}c1` });
+    await expect(decided).toContainText("Blocked");
+    await expectAccessible(ownerPage);
+
+    await decided.getByLabel("Reason").fill("Apply the recorded decision");
+    await decided.getByRole("button", { name: "Apply decision" }).click();
+    await expect(ownerPage.locator("main")).toContainText("Applied: the event was posted");
+    await expect(ownerPage.getByRole("listitem").filter({ hasText: `re_${tag}c1` })).toContainText(
+      "Cleared",
+    );
+    await expectAccessible(ownerPage);
+  } finally {
+    await ownerPage.context().close();
+  }
+
+  // The database agrees: posted once under this project by the existing ledger rules; the
+  // original event stays quarantined; the other project has nothing.
+  const after = await withDb(async (db) => {
+    const { rows } = await db.query(
+      `select (select string_agg(a.outcome, ',') from private.financial_conflict_applications a
+                where a.webhook_event_id = w.id) as outcomes,
+              (select count(*)::int from public.ledger_entries l where l.stripe_object_id = $2 and l.project_id = $3) as here,
+              (select count(*)::int from public.ledger_entries l where l.stripe_object_id = $2 and l.project_id = $4) as there,
+              w.processing_status::text as status, private.financial_conflict_cleared(w.id) as cleared
+         from public.webhook_events w where w.stripe_event_id = $1`,
+      [JSON.parse(event.body).id, `re_${tag}c1`, projectId, otherProject],
+    );
+    return rows[0];
+  });
+  expect(after).toEqual({
+    outcomes: "posted",
+    here: 1,
+    there: 0,
+    status: "quarantined",
+    cleared: true,
+  });
+});

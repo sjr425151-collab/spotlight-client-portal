@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(49);
+select plan(51);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
 returns void language plpgsql as $$
@@ -195,9 +195,12 @@ create function pg_temp.audits(p_action text) returns integer language sql as $$
   select count(*)::int from public.audit_events where action = p_action and project_id = '20000000-0000-4000-8000-0000000000a0';
 $$;
 create function pg_temp.side_effects() returns text language sql as $$
-  select (select count(*) from public.publication_authorizations) || '/' || (select count(*) from public.publication_deployments)
-    || '/' || (select count(*) from public.deployment_verifications) || '/' || (select count(*) from public.notification_outbox)
-    || '/' || (select count(*) from public.domain_events);
+  -- Project A only, so committed rows of other projects (other test files) never interfere.
+  select (select count(*) from public.publication_authorizations where project_id = '20000000-0000-4000-8000-0000000000a0')
+    || '/' || (select count(*) from public.publication_deployments where project_id = '20000000-0000-4000-8000-0000000000a0')
+    || '/' || (select count(*) from public.deployment_verifications where project_id = '20000000-0000-4000-8000-0000000000a0')
+    || '/' || (select count(*) from public.notification_outbox where project_id = '20000000-0000-4000-8000-0000000000a0')
+    || '/' || (select count(*) from public.domain_events where project_id = '20000000-0000-4000-8000-0000000000a0');
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -216,7 +219,8 @@ select ok(pg_temp.audits('publication.authorization_rejected') = 1
   and exists (select 1 from public.audit_events where action = 'publication.authorization_rejected'
                and summary ->> 'reason' = 'recovery_required'),
   'D1: the refusal is audited (recovery_required)');
-select is((select count(*)::int from public.publication_authorizations), 1, 'D1: no new authorization was issued');
+select is((select count(*)::int from public.publication_authorizations where project_id = '20000000-0000-4000-8000-0000000000a0'), 1,
+  'D1: no new authorization was issued');
 
 -- Denials.
 select is(pg_temp.reopen(pg_temp.id('d1'), p_uid => '00000000-0000-4000-8000-000000000002') ->> 'error', 'forbidden',
@@ -225,6 +229,14 @@ select is(pg_temp.reopen(pg_temp.id('d1'), p_uid => '00000000-0000-4000-8000-000
   p_totp_age => null) ->> 'error', 'forbidden', 'a client cannot recover a publication');
 select is(pg_temp.reopen(pg_temp.id('d1'), p_aal => 'aal1', p_totp_age => null) ->> 'error', 'forbidden',
   'the Owner at aal1 cannot recover a publication');
+-- OI-120: private.is_owner() is NULL for a non-staff caller; the guard must still refuse a
+-- client, or a revoked former staff member, at aal2 with fresh MFA and a live session.
+select is(pg_temp.reopen(pg_temp.id('d1'), p_uid => '00000000-0000-4000-8000-0000000000a1') ->> 'error', 'forbidden',
+  'OI-120: a client at aal2 with fresh MFA and a live session cannot recover a publication');
+update public.staff_roles set status = 'revoked' where user_id = '00000000-0000-4000-8000-000000000002';
+select is(pg_temp.reopen(pg_temp.id('d1'), p_uid => '00000000-0000-4000-8000-000000000002') ->> 'error', 'forbidden',
+  'OI-120: a revoked former staff member at aal2 with fresh MFA cannot recover a publication');
+update public.staff_roles set status = 'active' where user_id = '00000000-0000-4000-8000-000000000002';
 select is(pg_temp.reopen(pg_temp.id('d1'), p_totp_age => interval '2 hours') ->> 'error', 'reauthentication_required',
   'the Owner needs fresh reauthentication');
 select is(pg_temp.audits('publication.recovery_rejected'), 2,
@@ -305,11 +317,11 @@ select ok(((select v from ids where k = 'r2')::jsonb ->> 'ok')::boolean
   and exists (select 1 from public.audit_events where action = 'publication.recovery_opened'
                and target_id = pg_temp.id('d2')::text and summary ->> 'failure' = 'verification_failed'),
   'D2: the Owner recovers the failed live verification');
-insert into ids values ('verifications', (select count(*) from public.deployment_verifications)::text);
+insert into ids values ('verifications', (select count(*) from public.deployment_verifications where project_id = '20000000-0000-4000-8000-0000000000a0')::text);
 select is(pg_temp.verify(pg_temp.id('d2'), repeat('1', 40)) ->> 'error', 'deployment_closed',
   'a late verification of the recovered deployment is refused');
-select ok((select count(*) from public.deployment_verifications)::text = (select v from ids where k = 'verifications')
-  and (select count(*) from public.notification_outbox where notification_type = 'publication.live') = 0,
+select ok((select count(*) from public.deployment_verifications where project_id = '20000000-0000-4000-8000-0000000000a0')::text = (select v from ids where k = 'verifications')
+  and (select count(*) from public.notification_outbox where notification_type = 'publication.live' and project_id = '20000000-0000-4000-8000-0000000000a0') = 0,
   'the late verification records nothing and announces nothing');
 insert into ids select 'a3', pg_temp.authorize() ->> 'authorization_id';
 insert into ids select 'd3', pg_temp.start(pg_temp.id('a3')) ->> 'deployment_id';
@@ -341,9 +353,11 @@ select pg_temp.act_as('00000000-0000-4000-8000-0000000000b1');
 select is((select count(*)::int from public.audit_events where project_id = '20000000-0000-4000-8000-0000000000a0'), 0,
   'client B sees no Project A audit event');
 reset role;
-select ok(not exists (select 1 from public.audit_events where action like 'publication.recovery%'
-                       and project_id is distinct from '20000000-0000-4000-8000-0000000000a0'),
-  'every recovery audit belongs to Project A');
+select ok(not exists (select 1 from public.audit_events a where a.action like 'publication.recovery%'
+                       and a.target_id in (select d.id::text from public.publication_deployments d
+                                            where d.project_id = '20000000-0000-4000-8000-0000000000a0')
+                       and a.project_id is distinct from '20000000-0000-4000-8000-0000000000a0'),
+  'every recovery audit of a Project A deployment belongs to Project A');
 select ok(has_function_privilege('authenticated', 'public.reopen_failed_publication(uuid, text)', 'execute')
   and not has_function_privilege('anon', 'public.reopen_failed_publication(uuid, text)', 'execute')
   and not has_function_privilege('service_role', 'public.reopen_failed_publication(uuid, text)', 'execute')

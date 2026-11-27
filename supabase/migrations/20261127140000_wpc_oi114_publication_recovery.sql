@@ -32,16 +32,17 @@ declare
   v_detail text;
   v_incidents jsonb;
 begin
-  if not (private.is_owner() and private.is_aal2() and private.session_is_active()) then
+  -- NULL-safe (OI-120): private.is_owner() is NULL, not false, for a non-staff caller.
+  if (private.is_owner() and private.is_aal2() and private.session_is_active()) is not true then
     return private.fail('forbidden');
   end if;
   select d.project_id into v_project from public.publication_deployments d where d.id = p_deployment_id;
-  if not private.mfa_is_fresh() then
+  if private.mfa_is_fresh() is not true then
     perform private.record_audit_event('publication.recovery_rejected', 'publication_deployments', p_deployment_id::text,
       v_project, null, jsonb_build_object('reason', 'reauthentication_required'));
     return private.fail('reauthentication_required');
   end if;
-  if not private.wpc_text_ok(p_reason, 1000) then
+  if private.wpc_text_ok(p_reason, 1000) is not true then
     return private.fail('reason_required');
   end if;
   if v_project is null then

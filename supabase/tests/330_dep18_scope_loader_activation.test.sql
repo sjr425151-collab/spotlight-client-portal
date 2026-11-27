@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(129);
+select plan(137);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false)
 returns uuid language plpgsql as $$
@@ -492,6 +492,35 @@ select ok(public.load_package_scope_version('signature', 2, pg_temp.items('label
   'a refused load returns no item text');
 reset role;
 select is((select count(*)::int from private.billing_package_scope where is_test_fixture), 15, 'the seed fixtures are unchanged (5 packages x 3 items)');
+
+-- ===========================================================================
+-- 9. F-1 (WP-C review): audit targets never carry caller-supplied text
+-- ===========================================================================
+create temp table f1_mark as select coalesce(max(id), 0) as m from public.audit_events;
+create function pg_temp.long_key() returns text language sql as $$ select repeat('k', 200000) $$;
+grant execute on function pg_temp.long_key() to authenticated;
+select pg_temp.use_session('00000000-0000-4000-8000-0000000000a1', pg_temp.id('cli'), 'aal2', true);
+select is(public.load_package_scope_version(pg_temp.long_key(), 2, array['PGTAP SYNTHETIC SCOPE ITEM F1']) ->> 'error', 'forbidden',
+  'F-1: a client with a 200,000-character key is refused');
+reset role;
+select is((select string_agg(action || '=' || target_id, ',') from public.audit_events where id > (select m from f1_mark)),
+  'package_scope.load_rejected=invalid:2', 'F-1: exactly one refusal row for the client, target invalid:2 (bounded)');
+create temp table f1_mark2 as select coalesce(max(id), 0) as m from public.audit_events;
+select pg_temp.owner();
+select is(public.load_package_scope_version(pg_temp.long_key(), 2, array['PGTAP SYNTHETIC SCOPE ITEM F1']) ->> 'error', 'invalid_input',
+  'F-1: the Owner with a 200,000-character key is refused as invalid input');
+select is(public.record_package_scope_approval(pg_temp.long_key(), 2, repeat('a', 64), 'PGTAP-F1', pg_temp.ev()) ->> 'error', 'invalid_input',
+  'F-1: the same for an approval');
+select is(public.activate_package_scope_version(pg_temp.long_key(), 2) ->> 'error', 'version_not_found', 'F-1: activation of an unknown key is refused');
+select is(public.withdraw_package_scope_version(pg_temp.long_key(), null) ->> 'error', 'invalid_input', 'F-1: withdrawal with a null version is refused');
+reset role;
+select is((select string_agg(action || '=' || target_id, ',' order by id) from public.audit_events where id > (select m from f1_mark2)),
+  'package_scope.load_rejected=invalid:2,package_scope.approval_rejected=invalid:2,package_scope.activation_rejected=invalid:2,'
+  || 'package_scope.withdrawal_rejected=invalid:invalid',
+  'F-1: one refusal row per Owner call, each with a bounded target (invalid key, version or invalid)');
+select is((select count(*)::int from public.audit_events where id > (select m from f1_mark)
+  and (octet_length(coalesce(target_id, '')) > 64 or summary::text ~ 'kkkk' or coalesce(reason, '') ~ 'kkkk')), 0,
+  'F-1: no audit row carries the caller-supplied key or any unbounded caller text');
 
 select * from finish();
 rollback;

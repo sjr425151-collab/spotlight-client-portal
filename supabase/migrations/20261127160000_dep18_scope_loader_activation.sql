@@ -25,6 +25,10 @@
 --
 -- Refusals return {"ok": false, "error": <code>} after writing their audit event, so the event is
 -- committed with the call (an event rolled back by an exception would not count).
+--
+-- The reader guarantee above assumes READ COMMITTED (the PostgREST default).
+-- Audit targets are built only from a validated package key and the integer version ('invalid'
+-- otherwise), so no refusal can write caller-supplied text into the immutable audit log.
 
 -- ---------------------------------------------------------------------------
 -- 1. Legal approval records (04 §4A item 2): one per (package, version); append-only
@@ -92,7 +96,9 @@ create function private.record_package_scope_approval(
 ) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
-  v_target text := coalesce(p_package_key, '') || ':' || coalesce(p_scope_version::text, '');
+  -- Audit target from validated values only (never the raw caller-supplied key or unbounded text).
+  v_target text := (case when exists (select 1 from private.billing_packages b where b.package_key = p_package_key)
+    then p_package_key else 'invalid' end) || ':' || coalesce(p_scope_version::text, 'invalid');
   v_existing private.billing_package_scope_approvals;
   v_header private.billing_package_scope_versions;
   v_code text;
@@ -164,7 +170,9 @@ create function private.load_package_scope_version(
 ) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
-  v_target text := coalesce(p_package_key, '') || ':' || coalesce(p_scope_version::text, '');
+  -- Audit target from validated values only (never the raw caller-supplied key or unbounded text).
+  v_target text := (case when exists (select 1 from private.billing_packages b where b.package_key = p_package_key)
+    then p_package_key else 'invalid' end) || ':' || coalesce(p_scope_version::text, 'invalid');
   v_count integer := coalesce(cardinality(p_items), 0);
   v_approval private.billing_package_scope_approvals;
   v_header private.billing_package_scope_versions;
@@ -265,7 +273,9 @@ create function private.activate_package_scope_version(
 ) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
-  v_target text := coalesce(p_package_key, '') || ':' || coalesce(p_scope_version::text, '');
+  -- Audit target from validated values only (never the raw caller-supplied key or unbounded text).
+  v_target text := (case when exists (select 1 from private.billing_packages b where b.package_key = p_package_key)
+    then p_package_key else 'invalid' end) || ':' || coalesce(p_scope_version::text, 'invalid');
   v_env text := private.app_environment();
   v_header private.billing_package_scope_versions;
   v_approval private.billing_package_scope_approvals;
@@ -356,7 +366,9 @@ create function private.withdraw_package_scope_version(
 ) returns jsonb
 language plpgsql security definer set search_path = '' as $$
 declare
-  v_target text := coalesce(p_package_key, '') || ':' || coalesce(p_scope_version::text, '');
+  -- Audit target from validated values only (never the raw caller-supplied key or unbounded text).
+  v_target text := (case when exists (select 1 from private.billing_packages b where b.package_key = p_package_key)
+    then p_package_key else 'invalid' end) || ':' || coalesce(p_scope_version::text, 'invalid');
   v_env text := private.app_environment();
   v_header private.billing_package_scope_versions;
   v_code text;

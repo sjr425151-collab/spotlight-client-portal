@@ -631,6 +631,80 @@ describe("AUTH-010 U-4: effective timeouts through PostgREST", () => {
     }
   });
 
+  // I-1 (a): each call waits on the exact lock its private function takes, held by another client.
+  const cases = [
+    {
+      name: "record_financial_conflict_decision on the event row",
+      decide: false,
+      hold: "select 1 from public.webhook_events where id = $1 for update",
+      key: (f: Conflict) => [f.eventId],
+      call: (f: Conflict) =>
+        owner.rpc("record_financial_conflict_decision", {
+          p_webhook_event_id: f.eventId,
+          p_project_id: f.a,
+          p_evidence: { references: "lock probe" },
+          p_reason: "lock probe",
+        }),
+    },
+    {
+      name: "retry_financial_conflict_application on the event row",
+      decide: true,
+      hold: "select 1 from public.webhook_events where id = $1 for update",
+      key: (f: Conflict) => [f.eventId],
+      call: (f: Conflict) =>
+        owner.rpc("retry_financial_conflict_application", {
+          p_decision_id: f.decisionId,
+          p_attempt_request_id: randomUUID(),
+          p_reason: "lock probe",
+        }),
+    },
+  ] as const;
+  for (const c of cases) {
+    it(`55P03 at about 5 s: ${c.name}`, async () => {
+      const f = await conflict(c.decide);
+      const holder = await open("raw");
+      try {
+        await holder.query(c.hold, c.key(f));
+        const t0 = performance.now();
+        const { error } = await c.call(f);
+        const elapsed = performance.now() - t0;
+        expect(error?.code).toBe("55P03");
+        expect(elapsed).toBeGreaterThan(4_500);
+        expect(elapsed).toBeLessThan(7_500);
+      } finally {
+        await holder.query("rollback");
+        await holder.end();
+      }
+      expect(await applications(f.eventId)).toEqual([]);
+    });
+  }
+
+  it("55P03 at about 5 s: retry_financial_conflict_application on its attempt_request_id lock", async () => {
+    const f = await conflict();
+    const requestId = randomUUID();
+    const holder = await open("raw");
+    try {
+      await holder.query(
+        "select pg_advisory_xact_lock(hashtextextended('wpb:oi93:attempt:' || $1::text, 0))",
+        [requestId],
+      );
+      const t0 = performance.now();
+      const { error } = await owner.rpc("retry_financial_conflict_application", {
+        p_decision_id: f.decisionId,
+        p_attempt_request_id: requestId,
+        p_reason: "lock probe",
+      });
+      const elapsed = performance.now() - t0;
+      expect(error?.code).toBe("55P03");
+      expect(elapsed).toBeGreaterThan(4_500);
+      expect(elapsed).toBeLessThan(7_500);
+    } finally {
+      await holder.query("rollback");
+      await holder.end();
+    }
+    expect(await applications(f.eventId)).toEqual([]);
+  });
+
   it("57014 at about 8 s: the effective statement limit of the API path (an Owner RPC with no lock_timeout)", async () => {
     const f = await conflict(false);
     const holder = await open("raw");

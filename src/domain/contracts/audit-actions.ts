@@ -145,6 +145,8 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   b("financial_conflict.decision_recorded", "payment", "04 §15.2.1"),
   b("financial_conflict.attempt_recorded", "payment", "04 §15.2.1"),
   b("financial_conflict.attempt_refused", "payment", "04 §15.2.1"),
+  // AUTH-010 Amendment 2 (04 §15.2.1 rule 10, v0.10.4).
+  b("financial_conflict.decision_refused", "payment", "04 §15.2.1"),
   b("billing_job.started", "payment", "04 §13"),
   b("billing_job.completed", "payment", "04 §13"),
   b("billing_job.skipped", "payment", "04 §13"),

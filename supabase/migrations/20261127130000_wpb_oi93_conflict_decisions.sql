@@ -15,6 +15,12 @@
 -- - handle_refund, handle_dispute and handle_charge_refunded replaced with equivalent bodies: the
 --   attribution step is unchanged and the rest delegates to the extracted functions. Equivalence
 --   is shown by the unchanged pgTAP 140, 160, 180, 190 and 191.
+-- - AUTH-010 Amendment 1 (OI-121; Owner 2026-11-27, option A), the only behavior change: the
+--   payment.refund_recorded deduplication key is passed in by the caller. refund.* events keep
+--   'payment.refund_recorded:' || stripe_event_id; a charge.refunded event, which carries several
+--   refunds, uses 'payment.refund_recorded:' || stripe_event_id || ':' || <refund id>, so its
+--   second refund no longer collides with the first (which raised 23505 and left the event
+--   unposted). No ledger rule changes; each refund is still recognized once (apply_reversal).
 --
 -- Unchanged (AUTH-010 "Prohibited"): webhook_events_guard, apply_reversal, mirror_reversal,
 -- post_reversal_entry, every ledger rule and constraint, process_stripe_event,
@@ -166,8 +172,10 @@ language sql immutable set search_path = '' as $$
 $$;
 
 -- handle_refund after attribution, for one identified project: the body of the WP-H handler
--- (20261126120200) from the refund-decision check on, with v_project as p_project_id.
-create function private.apply_refund_for_project(e public.webhook_events, r jsonb, p_project_id uuid) returns text
+-- (20261126120200) from the refund-decision check on, with v_project as p_project_id and the
+-- domain-event deduplication key passed in by the caller (Amendment 1).
+create function private.apply_refund_for_project(e public.webhook_events, r jsonb, p_project_id uuid, p_event_key text)
+returns text
 language plpgsql security definer set search_path = '' as $$
 declare
   v_link private.stripe_payment_links%rowtype;
@@ -211,7 +219,7 @@ begin
   end if;
   if v_outcome = 'processed' then
     perform private.emit_domain_event('payment.refund_recorded', v_link.project_id, 'refund', r ->> 'id',
-      jsonb_build_object('status', r ->> 'status'), 'payment.refund_recorded:' || e.stripe_event_id);
+      jsonb_build_object('status', r ->> 'status'), p_event_key);
     perform private.audit_financial('refund.recorded', 'refund', r ->> 'id', v_link.project_id,
       jsonb_build_object('amount_cents', v_amount, 'status', r ->> 'status', 'refund_decision_id', v_decision));
   end if;
@@ -328,8 +336,10 @@ begin
     return 'quarantined:attribution_conflict';
   end if;
   update public.webhook_events set project_id = v_project where id = e.id and project_id is null;
-  -- AUTH-010: the rest of the path, shared with an Owner conflict application.
-  return private.apply_refund_for_project(e, r, v_project);
+  -- AUTH-010: the rest of the path, shared with an Owner conflict application. Amendment 1
+  -- (OI-121): a charge.refunded event keys each refund's domain event by the refund.
+  return private.apply_refund_for_project(e, r, v_project, 'payment.refund_recorded:' || e.stripe_event_id
+    || case when e.event_type = 'charge.refunded' then ':' || (r ->> 'id') else '' end);
 end;
 $$;
 
@@ -434,9 +444,13 @@ $$;
 
 -- Classifies an attribution-conflict event for one chosen project (AUTH-010 "Categories"):
 -- S1 refunds and S2 disputes where exactly one candidate, the chosen project, holds the posted
--- obligations. Everything on the unsupported list is permanently_unsupported. Missing
--- obligations are awaiting_evidence (the charge may not be posted yet: order independence).
--- Read-only; the attempt re-checks the money-moving conditions after posting, under the locks.
+-- obligations. Everything on the unsupported list is permanently_unsupported. Obligations under
+-- no project are reported as awaiting_evidence (obligations_missing): the decision is then
+-- refused as not yet resolvable (I-4), so nothing immutable is recorded before the charge is
+-- posted. Each object also carries its expected money effect, derived from the event alone
+-- (I-5): 'none' for a pending refund, a dispute inquiry, or a failed or canceled refund with no
+-- earlier refund entry; 'some' otherwise. Read-only; the attempt re-checks the money-moving
+-- conditions after posting, under the locks.
 create function private.financial_conflict_classify(e public.webhook_events, p_project_id uuid) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare
@@ -542,7 +556,14 @@ begin
       v_obj_outcome := 'permanently_unsupported';
     end if;
     v_details := v_details || jsonb_build_array(jsonb_build_object('ord', v_ord, 'object_id', v_o ->> 'id',
-      'outcome', v_obj_outcome, 'reason', v_obj_reason));
+      'outcome', v_obj_outcome, 'reason', v_obj_reason,
+      'expected_effect', case
+        when v_kind = 'refund' and v_o ->> 'status' = 'succeeded' then 'some'
+        when v_kind = 'refund' and v_o ->> 'status' in ('failed', 'canceled')
+             and exists (select 1 from public.ledger_entries l where l.stripe_object_id = v_o ->> 'id'
+                           and l.entry_type = 'refund' and l.amount_cents < 0) then 'some'
+        when v_kind = 'dispute' and v_o ->> 'status' in ('needs_response', 'under_review', 'won', 'lost') then 'some'
+        else 'none' end));
     if v_obj_outcome = 'permanently_unsupported' then
       v_outcome := 'permanently_unsupported';
     elsif v_obj_outcome = 'awaiting_evidence' and v_outcome is null then
@@ -677,7 +698,7 @@ $$;
 
 revoke all on function
   private.charge_refunded_objects(jsonb),
-  private.apply_refund_for_project(public.webhook_events, jsonb, uuid),
+  private.apply_refund_for_project(public.webhook_events, jsonb, uuid, text),
   private.apply_dispute_for_project(public.webhook_events, jsonb, uuid),
   private.financial_conflict_scope(public.webhook_events),
   private.financial_conflict_classify(public.webhook_events, uuid),

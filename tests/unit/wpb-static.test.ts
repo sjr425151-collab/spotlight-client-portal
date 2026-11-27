@@ -204,9 +204,28 @@ describe("WP-B static security checks", () => {
       "  -- A refund decision counts only when it exists",
       "  return v_outcome;\nend;",
     );
+    // Amendment 1 (OI-121) is the one authorized change: the domain-event key is passed in.
     expect(refundNew).toBe(
-      refundOld.replace("project_id = v_project", "project_id = p_project_id"),
+      refundOld
+        .replace("project_id = v_project", "project_id = p_project_id")
+        .replace("'payment.refund_recorded:' || e.stripe_event_id);", "p_event_key);"),
     );
+    // Both callers pass the same key rule: refund.* events keep their key; charge.refunded keys
+    // each refund by its ID.
+    const flat = sql.replace(/\s+/g, " ");
+    const keyRule = (event: string, refund: string) =>
+      `'payment.refund_recorded:' || ${event}.stripe_event_id || case when ${event}.event_type = 'charge.refunded' then ':' || (${refund} ->> 'id') else '' end`;
+    expect(flat).toContain(`apply_refund_for_project(e, r, v_project, ${keyRule("e", "r")});`);
+    expect(flat).toContain(
+      `apply_refund_for_project(v_evt, v_o, v_dec.project_id, ${keyRule("v_evt", "v_o")});`,
+    );
+    // OI-120: every Owner guard in the AUTH-010 migrations is NULL-safe.
+    expect(sql).not.toMatch(/if not \(private\.is_owner\(\)/);
+    expect(
+      sql.match(
+        /if \(private\.is_owner\(\) and private\.is_aal2\(\) and private\.mfa_is_fresh\(\) and private\.session_is_active\(\)\) is not true then/g,
+      ),
+    ).toHaveLength(4);
     const disputeOld = between(
       wph.slice(wph.indexOf("create or replace function private.handle_dispute(")),
       "  select * into v_link from private.stripe_payment_links",
@@ -230,6 +249,7 @@ describe("WP-B static security checks", () => {
     // U-1: every audit action the AUTH-010 migrations write is registered as financial.
     const actions = [...sql.matchAll(/audit_financial\('([a-z_.]+)'/g)].map((m) => m[1]);
     for (const required of [
+      "financial_conflict.decision_refused",
       "financial_conflict.decision_recorded",
       "financial_conflict.attempt_recorded",
       "financial_conflict.attempt_refused",

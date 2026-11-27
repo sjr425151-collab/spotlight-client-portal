@@ -3,9 +3,9 @@
 -- replacement. Decision: OI-93; AUTHORIZATIONS AUTH-010 (design rows, grant, U-1 to U-4).
 --
 -- Owner-facing functions (U-2; names and signatures fixed): each a private SECURITY DEFINER
--- function with search_path='' that checks Owner, aal2 (implied by fresh MFA), fresh MFA, a live
--- session and, where it takes one, a reason; each with an INVOKER public wrapper granted to
--- authenticated only, which sets the 5-second lock_timeout for the whole call:
+-- function with search_path='' and lock_timeout 5 s that checks, NULL-safe (OI-120), Owner, aal2,
+-- fresh MFA, a live session and, where it takes one, a reason; each with an INVOKER public
+-- wrapper granted to authenticated only:
 --   record_financial_conflict_decision(p_webhook_event_id bigint, p_project_id uuid, p_evidence jsonb, p_reason text)
 --   retry_financial_conflict_application(p_decision_id uuid, p_attempt_request_id uuid, p_reason text)
 --   financial_conflict_attempt_status(p_attempt_request_id uuid)
@@ -155,13 +155,15 @@ $$;
 -- ---------------------------------------------------------------------------
 create function private.record_financial_conflict_decision(p_webhook_event_id bigint, p_project_id uuid, p_evidence jsonb,
   p_reason text) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+language plpgsql security definer set search_path = '' set lock_timeout = '5s' as $$
 declare
   v_evt public.webhook_events%rowtype;
   v_class jsonb;
+  v_refusal text;
   v_id uuid;
 begin
-  if not (private.is_owner() and private.mfa_is_fresh() and private.session_is_active()) then
+  -- OI-120: NULL-safe (is_owner() is NULL, not false, for a caller with no staff role).
+  if (private.is_owner() and private.is_aal2() and private.mfa_is_fresh() and private.session_is_active()) is not true then
     return private.fail('forbidden');
   end if;
   if nullif(btrim(coalesce(p_reason, '')), '') is null then
@@ -178,21 +180,40 @@ begin
   if not found then
     return private.fail('not_found');
   end if;
+  -- Business-rule refusals write no decision row, consume no attempt and change no ledger
+  -- state. Each is returned, never raised, so its audit event (Amendment 2) is durable.
   if exists (select 1 from private.financial_conflict_decisions d where d.webhook_event_id = v_evt.id) then
-    return private.fail('already_decided');
-  end if;
-  if v_evt.processing_status <> 'quarantined' or v_evt.quarantine_reason is distinct from 'attribution_conflict'
+    v_refusal := 'already_decided';
+  elsif v_evt.processing_status <> 'quarantined' or v_evt.quarantine_reason is distinct from 'attribution_conflict'
      or not exists (select 1 from private.financial_event_project_candidates c where c.webhook_event_id = v_evt.id) then
-    return private.fail('not_eligible');
+    v_refusal := 'not_eligible';
+  elsif not exists (select 1 from private.financial_event_project_candidates c
+                     where c.webhook_event_id = v_evt.id and c.project_id = p_project_id) then
+    v_refusal := 'not_a_candidate';
+  else
+    -- One decision per event, so a choice that can never be applied is refused, not recorded;
+    -- and so is one made before any project holds the obligations (I-4: decide again once the
+    -- charge is posted).
+    v_class := private.financial_conflict_classify(v_evt, p_project_id);
+    if v_class ->> 'outcome' = 'permanently_unsupported' then
+      v_refusal := 'conflict_unsupported';
+    elsif v_class ->> 'outcome' = 'awaiting_evidence' then
+      v_refusal := 'not_yet_resolvable';
+    end if;
   end if;
-  if not exists (select 1 from private.financial_event_project_candidates c
-                  where c.webhook_event_id = v_evt.id and c.project_id = p_project_id) then
-    return private.fail('not_a_candidate');
-  end if;
-  -- One decision per event, so a choice that can never be applied is refused, not recorded.
-  v_class := private.financial_conflict_classify(v_evt, p_project_id);
-  if v_class ->> 'outcome' = 'permanently_unsupported' then
-    return private.fail('conflict_unsupported') || jsonb_build_object('classification', v_class);
+  if v_refusal is not null then
+    perform private.audit_financial('financial_conflict.decision_refused', 'webhook_event', v_evt.id::text, p_project_id,
+      jsonb_build_object('stripe_event_id', v_evt.stripe_event_id, 'chosen_project_id', p_project_id,
+        'refusal', v_refusal,
+        'classifier_reason', coalesce(nullif(v_class ->> 'reason', 'object'),
+          (select o ->> 'reason' from jsonb_array_elements(coalesce(v_class -> 'objects', '[]'::jsonb)) o
+            where o ->> 'reason' is not null order by (o ->> 'ord')::int limit 1), v_refusal),
+        'object_reasons', (select coalesce(jsonb_agg(jsonb_build_object('object_id', o ->> 'object_id', 'reason', o ->> 'reason')
+                                            order by (o ->> 'ord')::int), '[]'::jsonb)
+                             from jsonb_array_elements(coalesce(v_class -> 'objects', '[]'::jsonb)) o)),
+      btrim(p_reason));
+    return private.fail(v_refusal)
+      || case when v_class is not null then jsonb_build_object('classification', v_class) else '{}'::jsonb end;
   end if;
   insert into private.financial_conflict_decisions (webhook_event_id, project_id, evidence, reason, decided_by)
   values (v_evt.id, p_project_id, p_evidence, btrim(p_reason), (select auth.uid()))
@@ -220,7 +241,7 @@ $$;
 
 create function private.retry_financial_conflict_application(p_decision_id uuid, p_attempt_request_id uuid, p_reason text)
 returns jsonb
-language plpgsql security definer set search_path = '' as $$
+language plpgsql security definer set search_path = '' set lock_timeout = '5s' as $$
 declare
   v_dec private.financial_conflict_decisions%rowtype;
   v_evt public.webhook_events%rowtype;
@@ -249,7 +270,8 @@ declare
   v_state text;
   v_constraint text;
 begin
-  if not (private.is_owner() and private.mfa_is_fresh() and private.session_is_active()) then
+  -- OI-120: NULL-safe (is_owner() is NULL, not false, for a caller with no staff role).
+  if (private.is_owner() and private.is_aal2() and private.mfa_is_fresh() and private.session_is_active()) is not true then
     return private.fail('forbidden');
   end if;
   if nullif(btrim(coalesce(p_reason, '')), '') is null then
@@ -319,7 +341,9 @@ begin
     for v_o, v_ord in select x.o, x.i from jsonb_array_elements(private.financial_conflict_scope(v_evt) -> 'objects')
                         with ordinality x(o, i) order by x.i loop
       if v_kind = 'refund' then
-        v_result := private.apply_refund_for_project(v_evt, v_o, v_dec.project_id);
+        -- The handler's key rule (Amendment 1, OI-121).
+        v_result := private.apply_refund_for_project(v_evt, v_o, v_dec.project_id, 'payment.refund_recorded:' || v_evt.stripe_event_id
+          || case when v_evt.event_type = 'charge.refunded' then ':' || (v_o ->> 'id') else '' end);
       else
         v_result := private.apply_dispute_for_project(v_evt, v_o, v_dec.project_id);
       end if;
@@ -371,6 +395,14 @@ begin
         end if;
         v_effect_id := v_f.id;
       else
+        -- I-6: entries already recorded for another recognition are never recognized again.
+        if exists (select 1 from private.financial_conflict_application_entries x
+                    where x.ledger_entry_id = any (v_effect.ids)) then
+          v_outcome := 'permanently_unsupported';
+          v_detail := jsonb_build_object('stage', 'recognition', 'reason', 'recognition_mismatch',
+            'object_id', v_effect.object_id, 'effect_type', v_effect.effect_type, 'objects', v_objects);
+          raise exception using errcode = 'WPBC1', message = v_outcome;
+        end if;
         insert into private.financial_conflict_effects (stripe_object_id, effect_type, amount_cents, project_id,
           recognized_by_application_id)
         values (v_effect.object_id, v_effect.effect_type, v_effect.amount, v_dec.project_id, v_app_id)
@@ -384,11 +416,24 @@ begin
              l.project_id, l.stripe_object_id, l.entry_type, l.amount_cents, l.currency, l.obligation_id, l.holding_charge_key
         from public.ledger_entries l where l.id = any (v_effect.ids);
     end loop;
-    -- All represented: represented. Any new (or no money effect at all): posted.
+    -- I-5: an object whose event implies a money effect must have one (new or cited); a posting
+    -- with no entries is accepted only where the event itself implies none.
+    if exists (select 1 from jsonb_array_elements(v_class -> 'objects') o
+                where o ->> 'expected_effect' = 'some'
+                  and not exists (select 1 from private.financial_conflict_application_entries x
+                                   where x.application_id = v_app_id and x.stripe_object_id = o ->> 'object_id')) then
+      v_outcome := 'permanently_unsupported';
+      v_detail := jsonb_build_object('stage', 'expected_effect', 'reason', 'expected_effect_missing', 'objects', v_objects,
+        'expected', v_class -> 'objects');
+      raise exception using errcode = 'WPBC1', message = v_outcome;
+    end if;
+    -- All represented: represented. Any new (or, where no money effect is expected, none): posted.
     v_outcome := case when v_any_new or not exists (select 1 from private.financial_conflict_application_entries x
                                                      where x.application_id = v_app_id)
                       then 'posted' else 'represented' end;
-    v_detail := jsonb_build_object('stage', 'complete', 'objects', v_objects);
+    v_detail := jsonb_build_object('stage', 'complete', 'objects', v_objects,
+      'expected', (select jsonb_agg(jsonb_build_object('object_id', o ->> 'object_id', 'expected_effect', o ->> 'expected_effect')
+                                    order by (o ->> 'ord')::int) from jsonb_array_elements(v_class -> 'objects') o));
     insert into private.financial_conflict_applications (id, decision_id, webhook_event_id, project_id, attempt_no,
       attempt_request_id, category, outcome, fingerprint, detail, reason, requested_by)
     values (v_app_id, v_dec.id, v_evt.id, v_dec.project_id, v_no, p_attempt_request_id, v_category, v_outcome, v_fp,
@@ -426,11 +471,12 @@ $$;
 -- and 'not_recorded' are not: a missing record alone does not establish a rollback, and the
 -- same attempt_request_id stays idempotent.
 create function private.financial_conflict_attempt_status(p_attempt_request_id uuid) returns jsonb
-language plpgsql security definer set search_path = '' as $$
+language plpgsql volatile security definer set search_path = '' set lock_timeout = '5s' as $$
 declare
   v_app private.financial_conflict_applications%rowtype;
 begin
-  if not (private.is_owner() and private.mfa_is_fresh() and private.session_is_active()) then
+  -- OI-120: NULL-safe (is_owner() is NULL, not false, for a caller with no staff role).
+  if (private.is_owner() and private.is_aal2() and private.mfa_is_fresh() and private.session_is_active()) is not true then
     return private.fail('forbidden');
   end if;
   if p_attempt_request_id is null then
@@ -450,9 +496,10 @@ $$;
 
 -- Every event with recorded conflict candidates, for the Owner's conflict screen.
 create function private.financial_conflict_events() returns jsonb
-language plpgsql security definer set search_path = '' as $$
+language plpgsql security definer set search_path = '' set lock_timeout = '5s' as $$
 begin
-  if not (private.is_owner() and private.mfa_is_fresh() and private.session_is_active()) then
+  -- OI-120: NULL-safe (is_owner() is NULL, not false, for a caller with no staff role).
+  if (private.is_owner() and private.is_aal2() and private.mfa_is_fresh() and private.session_is_active()) is not true then
     return private.fail('forbidden');
   end if;
   return jsonb_build_object('ok', true, 'events', (
@@ -562,24 +609,26 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 6. Wrappers and privileges (U-2)
 -- ---------------------------------------------------------------------------
--- The wrappers carry the 5-second lock_timeout for the whole call (the private functions they
--- call inherit it); the private functions re-authorize the caller.
+-- INVOKER wrappers, the only API entry path (the private schema is not exposed). The private
+-- functions re-authorize the caller and carry the 5-second lock_timeout (I-1: an INVOKER wrapper
+-- requires its caller to hold EXECUTE on the private function, so the private function is where
+-- the setting is guaranteed; Main, 2026-11-27).
 create function public.record_financial_conflict_decision(p_webhook_event_id bigint, p_project_id uuid, p_evidence jsonb,
   p_reason text) returns jsonb
-language sql security invoker set search_path = '' set lock_timeout = '5s' as $$
+language sql security invoker set search_path = '' as $$
   select private.record_financial_conflict_decision(p_webhook_event_id, p_project_id, p_evidence, p_reason);
 $$;
 create function public.retry_financial_conflict_application(p_decision_id uuid, p_attempt_request_id uuid, p_reason text)
 returns jsonb
-language sql security invoker set search_path = '' set lock_timeout = '5s' as $$
+language sql security invoker set search_path = '' as $$
   select private.retry_financial_conflict_application(p_decision_id, p_attempt_request_id, p_reason);
 $$;
 create function public.financial_conflict_attempt_status(p_attempt_request_id uuid) returns jsonb
-language sql security invoker set search_path = '' set lock_timeout = '5s' as $$
+language sql security invoker set search_path = '' as $$
   select private.financial_conflict_attempt_status(p_attempt_request_id);
 $$;
 create function public.financial_conflict_events() returns jsonb
-language sql security invoker set search_path = '' set lock_timeout = '5s' as $$
+language sql security invoker set search_path = '' as $$
   select private.financial_conflict_events();
 $$;
 

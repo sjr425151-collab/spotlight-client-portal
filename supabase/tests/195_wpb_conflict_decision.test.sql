@@ -13,7 +13,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(126);
+select plan(151);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false, p_otp_fresh boolean default false)
 returns void language plpgsql as $$
@@ -304,9 +304,6 @@ select pg_temp.initial_invoice(pg_temp.pid('pj'), 'CFJ');
 insert into private.stripe_payment_links (stripe_ref, project_id, kind, domain_record_id, stripe_invoice_id) values
   ('ch_CFBfake0001', pg_temp.pid('pb'), 'renewal', null, 'in_CFBrenew01'),
   ('pi_CFDfake0001', pg_temp.pid('pd'), 'renewal', null, 'in_CFDrenew01'),
-  ('pi_CFFfake0001', pg_temp.pid('pf'), 'renewal', null, 'in_CFFrenew01'),
-  ('pi_CFGfake0001', pg_temp.pid('pg'), 'renewal', null, 'in_CFGrenew01'),
-  ('pi_CFHfake0001', pg_temp.pid('ph'), 'renewal', null, 'in_CFHrenew01'),
   ('ch_CFJfake0001', pg_temp.pid('pj'), 'renewal', null, 'in_CFJrenew01');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
 insert into ids select 'dA', public.record_refund_decision(pg_temp.pid('pa'), 500, 'Partial refund of the deposit',
@@ -340,21 +337,21 @@ select is((select array_agg(p.oid::regprocedure::text order by p.oid::regprocedu
             join pg_namespace n on n.oid = p.pronamespace
            where n.nspname = 'public' and p.proname in ('record_financial_conflict_decision', 'retry_financial_conflict_application',
              'financial_conflict_attempt_status', 'financial_conflict_events')
-             and not p.prosecdef and p.proconfig @> array['search_path=""', 'lock_timeout=5s']
+             and not p.prosecdef and p.proconfig = array['search_path=""']
              and has_function_privilege('authenticated', p.oid, 'execute') and not has_function_privilege('anon', p.oid, 'execute')
              and not has_function_privilege('service_role', p.oid, 'execute') and not has_function_privilege('public', p.oid, 'execute')),
   array['financial_conflict_attempt_status(uuid)', 'financial_conflict_events()',
         'record_financial_conflict_decision(bigint,uuid,jsonb,text)', 'retry_financial_conflict_application(uuid,uuid,text)'],
-  'U-2: the four wrappers with the exact signatures: INVOKER, empty search_path, 5 s lock_timeout, authenticated only');
+  'U-2: the four wrappers with the exact signatures: INVOKER, empty search_path, authenticated only');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
            where n.nspname = 'private' and p.proname in ('record_financial_conflict_decision', 'retry_financial_conflict_application',
              'financial_conflict_attempt_status', 'financial_conflict_events')
-             and p.prosecdef and p.proconfig = array['search_path=""']
+             and p.prosecdef and p.proconfig @> array['search_path=""', 'lock_timeout=5s']
              and has_function_privilege('authenticated', p.oid, 'execute') and not has_function_privilege('anon', p.oid, 'execute')
              and not has_function_privilege('service_role', p.oid, 'execute')),
   array['financial_conflict_attempt_status', 'financial_conflict_events', 'record_financial_conflict_decision',
         'retry_financial_conflict_application'],
-  'U-2: the private functions are SECURITY DEFINER with an empty search_path');
+  'U-2: the private functions are SECURITY DEFINER with an empty search_path and the 5 s lock_timeout');
 select ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private' and p.proname in ('apply_refund_for_project', 'apply_dispute_for_project', 'charge_refunded_objects',
      'financial_conflict_scope', 'financial_conflict_classify', 'oi93_canonical_json', 'financial_conflict_fingerprint',
@@ -487,6 +484,49 @@ set local role anon;
 select throws_ok($$ select public.financial_conflict_events() $$, '42501', null, 'anon cannot call the functions');
 reset role;
 
+-- OI-120: is_owner() is NULL (not false) for a caller with no staff role, so every guard is
+-- NULL-safe. Each of the four functions refuses every non-Owner caller, a fresh-MFA client and a
+-- revoked former Owner included, and an Owner without fresh MFA.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data,
+  raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token, email_change_token_new, email_change,
+  email_change_token_current, reauthentication_token, phone_change, phone_change_token)
+values ('00000000-0000-0000-0000-000000000000', '00000000-0000-4000-8000-0000000000f1', 'authenticated', 'authenticated',
+  'former.owner@example.test', '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now(),
+  '', '', '', '', '', '', '', '');
+insert into public.profiles (id, email, full_name)
+values ('00000000-0000-4000-8000-0000000000f1', 'former.owner@example.test', 'Former Owner');
+insert into public.staff_roles (user_id, role, status, revoked_at, reason)
+values ('00000000-0000-4000-8000-0000000000f1', 'owner', 'revoked', now(), 'former staff (fixture)');
+create function pg_temp.all_forbidden() returns boolean language sql as $$
+  select public.record_financial_conflict_decision(pg_temp.eid('evt_CFpost000001'), pg_temp.pid('pa'), '{"r": 1}', 'x') ->> 'error' = 'forbidden'
+     and public.retry_financial_conflict_application(pg_temp.pid('dec_post'), gen_random_uuid(), 'x') ->> 'error' = 'forbidden'
+     and public.financial_conflict_attempt_status(pg_temp.pid('q_post')) ->> 'error' = 'forbidden'
+     and public.financial_conflict_events() ->> 'error' = 'forbidden';
+$$;
+grant execute on function pg_temp.all_forbidden() to authenticated;
+create function pg_temp.forbidden_for(p_uid uuid, p_aal text, p_fresh boolean) returns boolean language plpgsql as $$
+declare
+  v boolean;
+begin
+  perform pg_temp.act_as(p_uid, p_aal, p_fresh);
+  v := pg_temp.all_forbidden();
+  reset role;
+  return v;
+end;
+$$;
+select ok(pg_temp.forbidden_for('00000000-0000-4000-8000-0000000000a1', 'aal2', true),
+  'OI-120: a client with a verified factor, fresh TOTP and a live session is refused by all four functions');
+select ok(pg_temp.forbidden_for('00000000-0000-4000-8000-0000000000f1', 'aal2', true),
+  'OI-120: a revoked former Owner with fresh MFA is refused by all four functions');
+select ok(pg_temp.forbidden_for('00000000-0000-4000-8000-000000000002', 'aal2', true),
+  'Admin with fresh MFA is refused by all four functions');
+select ok(pg_temp.forbidden_for('00000000-0000-4000-8000-000000000005', 'aal2', true),
+  'Sales with fresh MFA is refused by all four functions');
+select ok(pg_temp.forbidden_for('00000000-0000-4000-8000-000000000001', 'aal2', false),
+  'the Owner without fresh MFA is refused by all four functions');
+select is((select count(*)::int from private.financial_conflict_applications where webhook_event_id = pg_temp.eid('evt_CFpost000001')), 1,
+  'the refused callers recorded nothing');
+
 -- ---------------------------------------------------------------------------
 -- 3. S0 represented: the effect is already in the ledger under A; overlapping events cite it
 -- ---------------------------------------------------------------------------
@@ -521,6 +561,14 @@ select ok((select count(*) = 1 from private.financial_conflict_effects where str
         where a.webhook_event_id in (pg_temp.eid('evt_CFs0conf0001'), pg_temp.eid('evt_CFs0conf0002'))) =
       (select array_agg(id) from private.financial_conflict_effects where stripe_object_id = 're_CFs00000001'),
   'one recognition per effect key, cited by both events with the same exact entry');
+select ok((select bool_and(l.webhook_event_id = pg_temp.eid('evt_CFs0norm0001') and x.role = 'cited')
+             and bool_and(f.recognized_by_application_id = (select id from private.financial_conflict_applications
+                                                              where attempt_request_id = pg_temp.pid('q_s0a')))
+           from private.financial_conflict_effects f
+           join private.financial_conflict_application_entries x on x.effect_id = f.id
+           join public.ledger_entries l on l.id = x.ledger_entry_id
+          where f.stripe_object_id = 're_CFs00000001'),
+  'I-6: the recognition''s provenance is its cited entries'' source event (the normal refund event), recognized once');
 
 -- ---------------------------------------------------------------------------
 -- 4. charge.refunded: new and represented refunds in one step; a failure rolls the step back
@@ -614,15 +662,36 @@ select is(private.financial_conflict_classify(jsonb_populate_record(pg_temp.evt_
   pg_temp.pid('pa')) #>> '{objects,0,reason}', 'invalid_object', 'unsupported: a validity failure');
 
 -- ---------------------------------------------------------------------------
--- 7. awaiting_evidence, the 60-second interval, the fingerprint rule, the tenth attempt
+-- 7. Not yet resolvable, awaiting_evidence, the 60-second interval, the fingerprint rule, the tenth
+--    attempt, and a second holder appearing after the decision
 -- ---------------------------------------------------------------------------
--- D: B's recorded renewal charge and D's recorded renewal payment; neither holds obligations yet.
-select is(pg_temp.refund_evt('evt_CFawd000001', 'refund.updated', 're_CFawd000001', 700, 'pi_CFDfake0001', 'ch_CFBfake0001',
-  'in_CFDrenew01', 60) ->> 'reason', 'attribution_conflict', 'D: a conflict where no candidate holds obligations yet');
-select is(pg_temp.decide('evt_CFawd000001', pg_temp.pid('pd')) #>> '{classification,outcome}', 'awaiting_evidence',
-  'the decision is recorded; the classification awaits evidence');
+-- I-4: no candidate holds the obligations yet (B's and D's recorded renewal charges): the decision
+-- is refused, with no row, and the refusal is audited durably (Amendment 2).
+select is(pg_temp.refund_evt('evt_CFnyr000001', 'refund.updated', 're_CFnyr000001', 700, 'pi_CFDfake0001', 'ch_CFBfake0001',
+  null, 59) ->> 'reason', 'attribution_conflict', 'a conflict where no candidate holds obligations yet');
+select is(pg_temp.decide('evt_CFnyr000001', pg_temp.pid('pd')) ->> 'error', 'not_yet_resolvable',
+  'I-4: obligations under no project: refused as not yet resolvable');
+select ok(pg_temp.dec('evt_CFnyr000001') is null
+  and (select count(*) = 1 and bool_and(a.category = 'financial' and a.project_id = pg_temp.pid('pd')
+             and a.summary ->> 'refusal' = 'not_yet_resolvable' and a.summary ->> 'classifier_reason' = 'obligations_missing'
+             and a.summary ->> 'chosen_project_id' = pg_temp.pid('pd')::text and not a.summary ? 'evidence'
+             and a.reason = 'Owner reviewed the provider evidence')
+         from public.audit_events a where a.action = 'financial_conflict.decision_refused'
+          and a.target_id = pg_temp.eid('evt_CFnyr000001')::text),
+  'Amendment 2: no decision row; one durable financial_conflict.decision_refused (event, chosen project, classifier reason, no evidence)');
+select ok((select count(*) = 2 from public.audit_events a where a.action = 'financial_conflict.decision_refused'
+            and a.target_id = pg_temp.eid('evt_CFsev000001')::text and a.summary ->> 'classifier_reason' = 'obligations_several_projects')
+  and (select count(*) = 1 from public.audit_events a where a.action = 'financial_conflict.decision_refused'
+         and a.target_id = pg_temp.eid('evt_CFpost000001')::text and a.summary ->> 'refusal' = 'not_a_candidate'),
+  'Amendment 2: unsupported and non-candidate choices are audited as refused decisions too');
+
+-- D: D's checkout invoice (D holds the obligations) and B's recorded charge; D's payment is not
+-- linked yet, so the application has an evidence gap at attempt time.
+select is(pg_temp.refund_evt('evt_CFawd000001', 'refund.updated', 're_CFawd000001', 700, 'pi_CFDinit01', 'ch_CFBfake0001',
+  'in_CFD00000', 60) ->> 'reason', 'attribution_conflict', 'D: a conflict that only D can resolve');
+select ok((pg_temp.decide('evt_CFawd000001', pg_temp.pid('pd')) ->> 'ok')::boolean, 'the decision for D is recorded');
 select is(pg_temp.attempt(pg_temp.dec('evt_CFawd000001'), pg_temp.req('q_awd')) #>> '{attempt,outcome}', 'awaiting_evidence',
-  'obligations missing: awaiting_evidence');
+  'D''s charge is not linked yet: awaiting_evidence');
 select ok((select count(*) = 0 from public.refunds where stripe_refund_id = 're_CFawd000001') and not pg_temp.cleared('evt_CFawd000001'),
   'nothing is kept and the block stays');
 select ok((select r ->> 'error' = 'retry_too_soon' and r ->> 'retry_after' is not null
@@ -633,15 +702,15 @@ select is(pg_temp.attempt(pg_temp.dec('evt_CFpost000001'), pg_temp.pid('q_awd'))
   'an attempt_request_id belongs to one decision');
 
 -- F: an earlier awaiting_evidence attempt with the current fingerprint.
-select is(pg_temp.refund_evt('evt_CFawf000001', 'refund.updated', 're_CFawf000001', 700, 'pi_CFFfake0001', 'ch_CFBfake0001',
-  null, 61) ->> 'reason', 'attribution_conflict', 'F: the same shape');
+select is(pg_temp.refund_evt('evt_CFawf000001', 'refund.updated', 're_CFawf000001', 700, 'pi_CFFinit01', 'ch_CFBfake0001',
+  'in_CFF00000', 61) ->> 'reason', 'attribution_conflict', 'F: the same shape');
 select pg_temp.decide('evt_CFawf000001', pg_temp.pid('pf'));
 select pg_temp.past_attempt('evt_CFawf000001', 1, 'awaiting_evidence', pg_temp.fp('evt_CFawf000001'), interval '5 minutes');
 select is(pg_temp.attempt(pg_temp.dec('evt_CFawf000001'), gen_random_uuid()) ->> 'error', 'evidence_unchanged',
   'after awaiting_evidence a retry needs a changed fingerprint');
 insert into ids select 'fp_f0', pg_temp.fp('evt_CFawf000001');
-select is(pg_temp.renewal(pg_temp.pid('pf'), 'CFF', 'pi_CFFfake0001', 65) ->> 'status', 'processed', 'F''s renewal is paid');
-select isnt(pg_temp.fp('evt_CFawf000001'), (select v from ids where k = 'fp_f0'), 'the posted charge changes the fingerprint');
+select pg_temp.initial_invoice(pg_temp.pid('pf'), 'CFF');
+select isnt(pg_temp.fp('evt_CFawf000001'), (select v from ids where k = 'fp_f0'), 'the linked payment changes the fingerprint');
 select is(pg_temp.attempt(pg_temp.dec('evt_CFawf000001'), pg_temp.req('q_awf')) #>> '{attempt,outcome}', 'posted',
   'with the new evidence the retry is posted');
 select ok(pg_temp.apps('evt_CFawf000001') = '1:awaiting_evidence,2:posted' and pg_temp.cleared('evt_CFawf000001')
@@ -649,8 +718,8 @@ select ok(pg_temp.apps('evt_CFawf000001') = '1:awaiting_evidence,2:posted' and p
   'the second durable attempt is posted under F and clears the block');
 
 -- G: nine earlier operational failures with the current fingerprint.
-select is(pg_temp.refund_evt('evt_CFawg000001', 'refund.updated', 're_CFawg000001', 700, 'pi_CFGfake0001', 'ch_CFBfake0001',
-  null, 62) ->> 'reason', 'attribution_conflict', 'G: the same shape');
+select is(pg_temp.refund_evt('evt_CFawg000001', 'refund.updated', 're_CFawg000001', 700, 'pi_CFGinit01', 'ch_CFBfake0001',
+  'in_CFG00000', 62) ->> 'reason', 'attribution_conflict', 'G: the same shape');
 select pg_temp.decide('evt_CFawg000001', pg_temp.pid('pg'));
 select pg_temp.past_attempt('evt_CFawg000001', n, 'operational_failure', pg_temp.fp('evt_CFawg000001'), interval '5 minutes')
   from generate_series(1, 9) n;
@@ -664,14 +733,14 @@ select is(pg_temp.attempt(pg_temp.dec('evt_CFawg000001'), gen_random_uuid()) ->>
 select throws_ok($$ select pg_temp.past_attempt('evt_CFawg000001', 11, 'operational_failure', repeat('0', 64), interval '1 hour') $$,
   '23514', null, 'at most 10 durable attempt rows');
 
--- H: decided while awaiting evidence; then the other candidate's charge is posted.
-select is(pg_temp.refund_evt('evt_CFawh000001', 'refund.updated', 're_CFawh000001', 700, 'pi_CFHfake0001', 'ch_CFJfake0001',
-  null, 63) ->> 'reason', 'attribution_conflict', 'H: J''s and H''s recorded renewal charges');
-select pg_temp.decide('evt_CFawh000001', pg_temp.pid('ph'));
+-- H: decided while only H holds the obligations; then J's recorded charge is paid.
+select is(pg_temp.refund_evt('evt_CFawh000001', 'refund.updated', 're_CFawh000001', 700, 'pi_CFHinit01', 'ch_CFJfake0001',
+  'in_CFH00000', 63) ->> 'reason', 'attribution_conflict', 'H: H''s checkout invoice and J''s recorded renewal charge');
+select ok((pg_temp.decide('evt_CFawh000001', pg_temp.pid('ph')) ->> 'ok')::boolean, 'the decision for H is recorded');
 select is(pg_temp.renewal(pg_temp.pid('pj'), 'CFJ', 'pi_CFJrenew01', 66) ->> 'status', 'processed',
   'J''s renewal is paid: J now holds that charge''s obligation');
 select is(pg_temp.attempt(pg_temp.dec('evt_CFawh000001'), pg_temp.req('q_awh')) #>> '{attempt,detail,objects,0,reason}',
-  'obligations_other_project', 'the attempt re-classifies under the locks: the obligations are another project''s');
+  'obligations_several_projects', 'the attempt re-classifies under the locks: the obligations are now under two projects');
 select is(pg_temp.apps('evt_CFawh000001'), '1:permanently_unsupported', 'permanently_unsupported');
 
 -- K: an event that already carried a project (item 1 as well as item 7). Attributed to K by its
@@ -694,6 +763,54 @@ select is(pg_temp.attempt(pg_temp.dec('evt_CFawk000001'), pg_temp.req('q_awk')) 
 select ok(pg_temp.cleared('evt_CFawk000001')
   and not coalesce(pg_temp.blocking(pg_temp.pid('pk'))::text like '%quarantined_event%', false),
   'block clearing covers item 1 (the event''s own project) as well as item 7');
+
+-- I-5: a pending refund implies no money effect: posted with zero entries, the expectation recorded.
+select is(pg_temp.refund_evt('evt_CFpnd000001', 'refund.created', 're_CFpnd000001', 250, 'pi_CFAinit01', 'ch_CFBfake0001', null, 73,
+  null, 'pending') ->> 'reason', 'attribution_conflict', 'a pending refund on A''s charge and B''s recorded charge');
+select pg_temp.decide('evt_CFpnd000001', pg_temp.pid('pa'));
+insert into ids select 'r_pnd', pg_temp.attempt(pg_temp.dec('evt_CFpnd000001'), pg_temp.req('q_pnd'))::text;
+select ok((select v::jsonb #>> '{attempt,outcome}' = 'posted' and v::jsonb #>> '{attempt,detail,expected,0,expected_effect}' = 'none'
+             and (v::jsonb #>> '{attempt,cleared}')::boolean from ids where k = 'r_pnd')
+  and (select count(*) = 0 from public.ledger_entries where stripe_object_id = 're_CFpnd000001')
+  and (select project_id = pg_temp.pid('pa') and status = 'pending' from public.refunds where stripe_refund_id = 're_CFpnd000001'),
+  'I-5: no expected money effect: posted with zero entries, recorded under A, expectation kept');
+
+-- ---------------------------------------------------------------------------
+-- 7A. Amendment 1 (OI-121): payment.refund_recorded keys on the normal path
+-- ---------------------------------------------------------------------------
+select is(pg_temp.charge_refunded('evt_CFdup000001', 'ch_CFAdup000001', 'pi_CFAinit01', null,
+  jsonb_build_array(pg_temp.re('re_CFdup000001', 110), pg_temp.re('re_CFdup000002', 120)), 80) ->> 'status', 'processed',
+  'OI-121: a charge.refunded event with two refunds is processed');
+select is((select string_agg(l.stripe_object_id || ':' || l.amount_cents, ',' order by l.stripe_object_id) from public.ledger_entries l
+            where l.stripe_object_id like 're_CFdup%'), 're_CFdup000001:-110,re_CFdup000002:-120',
+  'each refund in the event is posted exactly once');
+select is((select string_agg(d.dedupe_key, ',' order by d.dedupe_key) from public.domain_events d
+            where d.event_type = 'payment.refund_recorded' and d.subject_id like 're_CFdup%'),
+  'payment.refund_recorded:evt_CFdup000001:re_CFdup000001,payment.refund_recorded:evt_CFdup000001:re_CFdup000002',
+  'charge.refunded keys each refund''s domain event by the refund');
+select ok((pg_temp.charge_refunded('evt_CFdup000001', 'ch_CFAdup000001', 'pi_CFAinit01', null,
+  jsonb_build_array(pg_temp.re('re_CFdup000001', 110), pg_temp.re('re_CFdup000002', 120)), 80) ->> 'duplicate')::boolean
+  and (select count(*) = 2 from public.ledger_entries l where l.stripe_object_id like 're_CFdup%'),
+  'a replay of the event is a duplicate and adds no financial entry');
+select is((select d.dedupe_key from public.domain_events d where d.event_type = 'payment.refund_recorded'
+            and d.subject_id = 're_CFs00000001' order by d.id limit 1), 'payment.refund_recorded:evt_CFs0norm0001',
+  'refund.* events keep their key');
+-- The same refund across refund.* and charge.refunded events, in both arrival orders: one financial
+-- recognition each.
+select pg_temp.refund('evt_CFord100001', 're_CFord100001', 130, 'pi_CFAinit01', 'succeeded', null, 81);
+select pg_temp.charge_refunded('evt_CFord100002', 'ch_CFAord100001', 'pi_CFAinit01', null,
+  jsonb_build_array(pg_temp.re('re_CFord100001', 130), pg_temp.re('re_CFord100002', 140)), 82);
+select pg_temp.charge_refunded('evt_CFord200001', 'ch_CFAord200001', 'pi_CFAinit01', null,
+  jsonb_build_array(pg_temp.re('re_CFord200001', 150), pg_temp.re('re_CFord200002', 160)), 83);
+select pg_temp.refund_evt('evt_CFord200002', 'refund.updated', 're_CFord200001', 150, 'pi_CFAinit01', null, null, 84);
+select is((select string_agg(x.k, ',' order by x.k) from (
+            select l.stripe_object_id || ':' || count(*) || ':' || sum(l.amount_cents) as k from public.ledger_entries l
+             where l.stripe_object_id like 're_CFord%' group by l.stripe_object_id) x),
+  're_CFord100001:1:-130,re_CFord100002:1:-140,re_CFord200001:1:-150,re_CFord200002:1:-160',
+  'refund.* then charge.refunded, and charge.refunded then refund.*: each refund is recognized once');
+select ok((select bool_and(w.processing_status = 'processed') from public.webhook_events w
+            where w.stripe_event_id in ('evt_CFord100001', 'evt_CFord100002', 'evt_CFord200001', 'evt_CFord200002')),
+  'all four events are processed');
 
 -- ---------------------------------------------------------------------------
 -- 8. oi93.fp.v1: canonical JSON, stability, sensitivity per input class (on D)
@@ -726,13 +843,13 @@ insert into private.financial_event_project_candidates (webhook_event_id, projec
 values (pg_temp.eid('evt_CFawd000001'), pg_temp.pid('pc'), 'payment_link', 'ch_CFBfake0001');
 select ok(pg_temp.fp_changed('candidates'), 'sensitive: candidates');
 insert into private.stripe_payment_links (stripe_ref, project_id, kind, domain_record_id, stripe_invoice_id)
-values ('ch_CFDextra001', pg_temp.pid('pd'), 'renewal', null, 'in_CFDrenew01');
+values ('ch_CFDextra001', pg_temp.pid('pd'), 'renewal', null, 'in_CFD00000');
 select ok(pg_temp.fp_changed('links'), 'sensitive: payment links');
-select pg_temp.renewal(pg_temp.pid('pd'), 'CFD', 'pi_CFDfake0001', 67);
+select pg_temp.initial_invoice(pg_temp.pid('pd'), 'CFD');
+select ok(pg_temp.fp_changed('initial_link'), 'sensitive: the payment link the initial invoice records');
+select is(pg_temp.refund('evt_CFDnorm00001', 're_CFDnorm00001', 300, 'pi_CFDinit01', 'succeeded', null, 69) ->> 'status',
+  'processed', 'an unrelated refund on D''s initial charge is posted');
 select ok(pg_temp.fp_changed('obligations'), 'sensitive: obligations and balances');
-select is(pg_temp.refund('evt_CFDnorm00001', 're_CFDnorm00001', 300, 'pi_CFDfake0001', 'succeeded', null, 69) ->> 'status',
-  'processed', 'an unrelated refund on D''s renewal charge is posted');
-select ok(pg_temp.fp_changed('ledger_and_balances'), 'sensitive: postings on the charge (entries and balances)');
 -- A ledger entry for the event's own refund on a charge outside the scope: only the ledger class changes.
 insert into public.ledger_entries (project_id, entry_type, amount_cents, source, webhook_event_id, stripe_object_type,
   stripe_object_id, holding_charge_key, dedupe_key)
@@ -740,12 +857,12 @@ values (pg_temp.pid('pd'), 'refund', -1, 'webhook', pg_temp.eid('evt_CFDnorm0000
   'renewal:in_CFZother01', 're_CFawd000001:refund:fixture');
 select ok(pg_temp.fp_changed('ledger'), 'sensitive: ledger entries alone');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
-select public.record_refund_decision(pg_temp.pid('pd'), 100, 'A decision on D''s renewal charge',
-  jsonb_build_array(jsonb_build_object('obligation_id', pg_temp.renewal_ob('CFD'), 'amount_cents', 100)));
+select public.record_refund_decision(pg_temp.pid('pd'), 100, 'A decision on D''s initial charge',
+  jsonb_build_array(jsonb_build_object('obligation_id', pg_temp.ob(pg_temp.pid('pd'), 'development_deposit'), 'amount_cents', 100)));
 reset role;
 select ok(pg_temp.fp_changed('refund_decisions'), 'sensitive: refund decisions');
 insert into public.refunds (stripe_refund_id, project_id, stripe_charge_ref, amount_cents, currency, status, last_event_created)
-values ('re_CFawd000001', pg_temp.pid('pd'), 'pi_CFDfake0001', 700, 'usd', 'pending', now());
+values ('re_CFawd000001', pg_temp.pid('pd'), 'pi_CFDinit01', 700, 'usd', 'pending', now());
 select ok(pg_temp.fp_changed('refunds'), 'sensitive: the refund row');
 insert into private.financial_conflict_effects (stripe_object_id, effect_type, amount_cents, project_id, recognized_by_application_id)
 select 're_CFawd000001', 'refund', 700, pg_temp.pid('pd'), id from private.financial_conflict_applications
@@ -775,6 +892,20 @@ select pg_temp.pid('fab'), l.id, pg_temp.pid('fab_effect'), 'cited', l.project_i
                                               where id = pg_temp.ob(pg_temp.pid('pa'), 'development_deposit'));
 select ok(not pg_temp.cleared('evt_CFfab000001') and pg_temp.g(pg_temp.pid('pa')) = '(f,f)',
   'an unrelated historical entry never satisfies clearance');
+-- I-6: an entry already recorded for another recognition (a corrupted fixture: another object's
+-- recognition holding this refund's entry) is never recognized again.
+insert into private.financial_conflict_effects (id, stripe_object_id, effect_type, amount_cents, project_id, recognized_by_application_id)
+values (pg_temp.req('fab_other'), 're_CFotherfab01', 'refund', 100, pg_temp.pid('pa'), pg_temp.pid('fab'));
+insert into private.financial_conflict_application_entries (application_id, ledger_entry_id, effect_id, role, project_id,
+  stripe_object_id, entry_type, amount_cents, currency, obligation_id, holding_charge_key)
+select pg_temp.pid('fab'), l.id, pg_temp.pid('fab_other'), 'cited', l.project_id, l.stripe_object_id, l.entry_type, l.amount_cents,
+       l.currency, l.obligation_id, l.holding_charge_key
+  from public.ledger_entries l where l.stripe_object_id = 're_CFamt000001';
+select is(pg_temp.refund_evt('evt_CFamt000003', 'refund.updated', 're_CFamt000001', 100, 'pi_CFAinit01', 'ch_CFBfake0001', null, 74)
+  ->> 'reason', 'attribution_conflict', 'a conflicting event for a refund whose entry another recognition holds');
+select pg_temp.decide('evt_CFamt000003', pg_temp.pid('pa'));
+select is(pg_temp.attempt(pg_temp.dec('evt_CFamt000003'), pg_temp.req('q_amt3')) #>> '{attempt,detail,reason}', 'recognition_mismatch',
+  'I-6: entries that already belong to another recognition are never recognized again');
 select throws_ok($$ update private.financial_conflict_decisions set reason = 'changed' $$, '42501', null, 'decisions cannot be updated');
 select throws_ok($$ delete from private.financial_conflict_applications $$, '42501', null, 'attempts cannot be deleted');
 select throws_ok($$ update private.financial_conflict_effects set amount_cents = 0 $$, '42501', null, 'recognitions cannot be updated');
@@ -793,6 +924,20 @@ select is(pg_temp.attempt(pg_temp.dec('evt_CFs0conf0003'), pg_temp.req('q_s0c'))
 -- The deferred references (recognitions and entries recorded before their application row) hold.
 select lives_ok($$ set constraints all immediate $$, 'every recognition and entry references a recorded application');
 select throws_ok($$ truncate private.financial_conflict_decisions cascade $$, '42501', null, 'the records cannot be truncated');
+
+-- I-5 fail-closed (fault injection, last in this file): with apply_reversal replaced, inside this
+-- rolled-back transaction, by one that reports success and posts nothing, a succeeded refund that
+-- posts nothing is never recorded as posted.
+select is(pg_temp.refund_evt('evt_CFflt000001', 'refund.updated', 're_CFflt000001', 90, 'pi_CFAinit01', 'ch_CFBfake0001', null, 90)
+  ->> 'reason', 'attribution_conflict', 'a succeeded refund in conflict');
+select pg_temp.decide('evt_CFflt000001', pg_temp.pid('pa'));
+create or replace function private.apply_reversal(e public.webhook_events, p_link private.stripe_payment_links,
+  p_type public.ledger_entry_type, p_object_type text, p_object_id text, p_amount bigint, p_decision_id uuid) returns text
+language plpgsql security definer set search_path = '' as $$ begin return 'processed'; end; $$;
+select is(pg_temp.attempt(pg_temp.dec('evt_CFflt000001'), pg_temp.req('q_flt')) #>> '{attempt,detail,reason}', 'expected_effect_missing',
+  'I-5: a succeeded refund that posts nothing fails closed (permanently_unsupported, nothing kept)');
+select ok(not pg_temp.cleared('evt_CFflt000001') and (select count(*) = 0 from public.refunds where stripe_refund_id = 're_CFflt000001'),
+  'the block stays and the whole step rolled back');
 
 select * from finish();
 rollback;

@@ -159,6 +159,8 @@ export const MESSAGES = {
     "Not applied: this conflict cannot be applied automatically. It stays blocked; nothing was kept.",
   conflict_exhausted:
     "Not applied, and this was the tenth attempt. No further attempts are possible; the block stays.",
+  not_yet_resolvable:
+    "No project holds this charge's payments yet, so a decision cannot be recorded. Decide again once the charge is posted.",
   conflict_unsupported:
     "That project cannot be chosen: the recorded evidence shows it can never be applied there.",
   already_decided: "A decision is already recorded for this event.",

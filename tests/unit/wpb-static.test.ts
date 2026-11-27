@@ -260,6 +260,20 @@ describe("WP-B static security checks", () => {
       expect(entry, action).toBeDefined();
       expect(entry!.category, action).toBe("financial");
     }
+    // I-1 (c) (Main, 2026-11-27): the private schema is not an exposed API schema, so the INVOKER
+    // wrappers (lock_timeout 5 s) are the only API entry path to the Owner functions.
+    const config = readFileSync(join(root, "supabase/config.toml"), "utf8");
+    const api = config.slice(
+      config.indexOf("[api]"),
+      config.indexOf("\n[", config.indexOf("[api]") + 1),
+    );
+    const exposed = /^schemas = \[([^\]]*)\]/m.exec(api)?.[1];
+    expect(exposed).toBeDefined();
+    expect(exposed!.split(",").map((s) => s.trim().replace(/"/g, ""))).toEqual([
+      "public",
+      "graphql_public",
+    ]);
+    expect(api).not.toMatch(/private/);
     // The Owner screen: guarded actions, the 45-second deadline, no provider call.
     const conflicts = sources.filter(({ path }) =>
       path.startsWith("src/app/staff/billing/conflicts/"),

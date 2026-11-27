@@ -3,9 +3,9 @@
 -- replacement. Decision: OI-93; AUTHORIZATIONS AUTH-010 (design rows, grant, U-1 to U-4).
 --
 -- Owner-facing functions (U-2; names and signatures fixed): each a private SECURITY DEFINER
--- function with search_path='' and lock_timeout 5 s that checks, NULL-safe (OI-120), Owner, aal2,
--- fresh MFA, a live session and, where it takes one, a reason; each with an INVOKER public
--- wrapper granted to authenticated only:
+-- function with search_path='' that checks, NULL-safe (OI-120), Owner, aal2, fresh MFA, a live
+-- session and, where it takes one, a reason; each with an INVOKER public wrapper granted to
+-- authenticated only, which sets the 5-second lock_timeout for the whole call:
 --   record_financial_conflict_decision(p_webhook_event_id bigint, p_project_id uuid, p_evidence jsonb, p_reason text)
 --   retry_financial_conflict_application(p_decision_id uuid, p_attempt_request_id uuid, p_reason text)
 --   financial_conflict_attempt_status(p_attempt_request_id uuid)
@@ -155,7 +155,7 @@ $$;
 -- ---------------------------------------------------------------------------
 create function private.record_financial_conflict_decision(p_webhook_event_id bigint, p_project_id uuid, p_evidence jsonb,
   p_reason text) returns jsonb
-language plpgsql security definer set search_path = '' set lock_timeout = '5s' as $$
+language plpgsql security definer set search_path = '' as $$
 declare
   v_evt public.webhook_events%rowtype;
   v_class jsonb;
@@ -241,7 +241,7 @@ $$;
 
 create function private.retry_financial_conflict_application(p_decision_id uuid, p_attempt_request_id uuid, p_reason text)
 returns jsonb
-language plpgsql security definer set search_path = '' set lock_timeout = '5s' as $$
+language plpgsql security definer set search_path = '' as $$
 declare
   v_dec private.financial_conflict_decisions%rowtype;
   v_evt public.webhook_events%rowtype;
@@ -471,7 +471,7 @@ $$;
 -- and 'not_recorded' are not: a missing record alone does not establish a rollback, and the
 -- same attempt_request_id stays idempotent.
 create function private.financial_conflict_attempt_status(p_attempt_request_id uuid) returns jsonb
-language plpgsql volatile security definer set search_path = '' set lock_timeout = '5s' as $$
+language plpgsql volatile security definer set search_path = '' as $$
 declare
   v_app private.financial_conflict_applications%rowtype;
 begin
@@ -496,7 +496,7 @@ $$;
 
 -- Every event with recorded conflict candidates, for the Owner's conflict screen.
 create function private.financial_conflict_events() returns jsonb
-language plpgsql security definer set search_path = '' set lock_timeout = '5s' as $$
+language plpgsql security definer set search_path = '' as $$
 begin
   -- OI-120: NULL-safe (is_owner() is NULL, not false, for a caller with no staff role).
   if (private.is_owner() and private.is_aal2() and private.mfa_is_fresh() and private.session_is_active()) is not true then
@@ -609,26 +609,26 @@ $$;
 -- ---------------------------------------------------------------------------
 -- 6. Wrappers and privileges (U-2)
 -- ---------------------------------------------------------------------------
--- INVOKER wrappers, the only API entry path (the private schema is not exposed). The private
--- functions re-authorize the caller and carry the 5-second lock_timeout (I-1: an INVOKER wrapper
--- requires its caller to hold EXECUTE on the private function, so the private function is where
--- the setting is guaranteed; Main, 2026-11-27).
+-- INVOKER wrappers, the only API entry path (the private schema is not an exposed API schema):
+-- they carry the 5-second lock_timeout for the whole call, nested definer calls included (I-1,
+-- Main 2026-11-27, proved through PostgREST by the integration test); the private functions
+-- re-authorize the caller.
 create function public.record_financial_conflict_decision(p_webhook_event_id bigint, p_project_id uuid, p_evidence jsonb,
   p_reason text) returns jsonb
-language sql security invoker set search_path = '' as $$
+language sql security invoker set search_path = '' set lock_timeout = '5s' as $$
   select private.record_financial_conflict_decision(p_webhook_event_id, p_project_id, p_evidence, p_reason);
 $$;
 create function public.retry_financial_conflict_application(p_decision_id uuid, p_attempt_request_id uuid, p_reason text)
 returns jsonb
-language sql security invoker set search_path = '' as $$
+language sql security invoker set search_path = '' set lock_timeout = '5s' as $$
   select private.retry_financial_conflict_application(p_decision_id, p_attempt_request_id, p_reason);
 $$;
 create function public.financial_conflict_attempt_status(p_attempt_request_id uuid) returns jsonb
-language sql security invoker set search_path = '' as $$
+language sql security invoker set search_path = '' set lock_timeout = '5s' as $$
   select private.financial_conflict_attempt_status(p_attempt_request_id);
 $$;
 create function public.financial_conflict_events() returns jsonb
-language sql security invoker set search_path = '' as $$
+language sql security invoker set search_path = '' set lock_timeout = '5s' as $$
   select private.financial_conflict_events();
 $$;
 

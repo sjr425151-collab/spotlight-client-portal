@@ -337,21 +337,21 @@ select is((select array_agg(p.oid::regprocedure::text order by p.oid::regprocedu
             join pg_namespace n on n.oid = p.pronamespace
            where n.nspname = 'public' and p.proname in ('record_financial_conflict_decision', 'retry_financial_conflict_application',
              'financial_conflict_attempt_status', 'financial_conflict_events')
-             and not p.prosecdef and p.proconfig = array['search_path=""']
+             and not p.prosecdef and p.proconfig @> array['search_path=""', 'lock_timeout=5s']
              and has_function_privilege('authenticated', p.oid, 'execute') and not has_function_privilege('anon', p.oid, 'execute')
              and not has_function_privilege('service_role', p.oid, 'execute') and not has_function_privilege('public', p.oid, 'execute')),
   array['financial_conflict_attempt_status(uuid)', 'financial_conflict_events()',
         'record_financial_conflict_decision(bigint,uuid,jsonb,text)', 'retry_financial_conflict_application(uuid,uuid,text)'],
-  'U-2: the four wrappers with the exact signatures: INVOKER, empty search_path, authenticated only');
+  'U-2, I-1 (b): the four wrappers with the exact signatures: INVOKER, empty search_path, 5 s lock_timeout, authenticated only');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
            where n.nspname = 'private' and p.proname in ('record_financial_conflict_decision', 'retry_financial_conflict_application',
              'financial_conflict_attempt_status', 'financial_conflict_events')
-             and p.prosecdef and p.proconfig @> array['search_path=""', 'lock_timeout=5s']
+             and p.prosecdef and p.proconfig = array['search_path=""']
              and has_function_privilege('authenticated', p.oid, 'execute') and not has_function_privilege('anon', p.oid, 'execute')
-             and not has_function_privilege('service_role', p.oid, 'execute')),
+             and not has_function_privilege('service_role', p.oid, 'execute') and not has_function_privilege('public', p.oid, 'execute')),
   array['financial_conflict_attempt_status', 'financial_conflict_events', 'record_financial_conflict_decision',
         'retry_financial_conflict_application'],
-  'U-2: the private functions are SECURITY DEFINER with an empty search_path and the 5 s lock_timeout');
+  'U-2, I-1 (b), (c): the private functions are SECURITY DEFINER with an empty search_path, executable by authenticated only (the wrapper''s caller), never anon, service_role or PUBLIC');
 select ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'private' and p.proname in ('apply_refund_for_project', 'apply_dispute_for_project', 'charge_refunded_objects',
      'financial_conflict_scope', 'financial_conflict_classify', 'oi93_canonical_json', 'financial_conflict_fingerprint',

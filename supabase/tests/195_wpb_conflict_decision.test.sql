@@ -13,7 +13,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(154);
+select plan(157);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false, p_otp_fresh boolean default false)
 returns void language plpgsql as $$
@@ -631,6 +631,22 @@ select is((select string_agg(distinct f.effect_type || ':' || x.role, ',') from 
 -- ---------------------------------------------------------------------------
 -- 6. The unsupported list (classifier)
 -- ---------------------------------------------------------------------------
+-- WP-S F-1: the only reason for refusal is that the obligations are held under another candidate
+-- (no refund decision, no earlier record or recognition of the refund, a single holder).
+select is(pg_temp.refund_evt('evt_CFoop000001', 'refund.updated', 're_CFoop000001', 400, 'pi_CFAinit01', 'ch_CFBfake0001', null, 49)
+  ->> 'reason', 'attribution_conflict', 'a refund on A''s charge and B''s recorded charge, with nothing else');
+insert into ids select 'r_oop', pg_temp.decide('evt_CFoop000001', pg_temp.pid('pb'))::text;
+select ok((select v::jsonb ->> 'error' = 'conflict_unsupported'
+             and v::jsonb #>> '{classification,objects,0,reason}' = 'obligations_other_project'
+             and jsonb_array_length(v::jsonb #> '{classification,objects}') = 1 from ids where k = 'r_oop')
+  and (select count(*) = 1 from public.audit_events a where a.action = 'financial_conflict.decision_refused'
+         and a.target_id = pg_temp.eid('evt_CFoop000001')::text and a.summary ->> 'classifier_reason' = 'obligations_other_project'),
+  'F-1: choosing a candidate that does not hold the obligations (A holds them) is refused for that reason alone, and audited');
+select ok(pg_temp.dec('evt_CFoop000001') is null
+  and (select count(*) = 0 from public.ledger_entries where stripe_object_id = 're_CFoop000001')
+  and (select count(*) = 0 from public.refunds where stripe_refund_id = 're_CFoop000001')
+  and (select count(*) = 0 from private.financial_conflict_effects where stripe_object_id = 're_CFoop000001'),
+  'F-1: no decision row and no money moved');
 select is(pg_temp.refund_evt('evt_CFsev000001', 'refund.updated', 're_CFsev000001', 100, 'pi_CFAinit01', null, 'in_CFC00000', 50)
   ->> 'reason', 'attribution_conflict', 'A''s payment intent and C''s invoice: both hold obligations');
 select ok(pg_temp.decide('evt_CFsev000001', pg_temp.pid('pa')) #>> '{classification,objects,0,reason}' = 'obligations_several_projects'

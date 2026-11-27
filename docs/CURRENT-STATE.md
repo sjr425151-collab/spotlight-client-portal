@@ -2026,12 +2026,12 @@ Implemented by the WP-B session on branch `claude/wp-b-client-portal-xjftil`. It
 **Existing assertions:** only the `050` additions (U-2). Every other assertion in every existing suite is unchanged.
 
 **New tests:**
-- `supabase/tests/195_wpb_conflict_decision.test.sql`, 154 assertions: records and privileges; OI-120 denials on all four functions (a fresh-MFA client, a revoked former Owner, Admin, Sales, an Owner without fresh MFA); decisions and refusals with their durable, bounded audit (WP-C U-3 I-1: the first 20 object reasons and the total); every outcome; S0, S1 and S2 (dispute opened, then won: cited and new); overlapping events; recognition under another project; mixed charge.refunded (new and cited) and the whole-step rollback; idempotency; the 60 s interval, the fingerprint rule and the tenth attempt; a second holder appearing after the decision; item-1 and item-7 clearing; fingerprint stability and sensitivity per input class; fabricated and corrupted clearance never clearing; OI-121 normal-path regressions in both arrival orders; the I-5 fault injection.
+- `supabase/tests/195_wpb_conflict_decision.test.sql`, 157 assertions: records and privileges; OI-120 denials on all four functions (a fresh-MFA client, a revoked former Owner, Admin, Sales, an Owner without fresh MFA); decisions and refusals with their durable, bounded audit (WP-C U-3 I-1: the first 20 object reasons and the total); every outcome; a refusal whose only reason is obligations held under another candidate (WP-S F-1); S0, S1 and S2 (dispute opened, then won: cited and new); overlapping events; recognition under another project; mixed charge.refunded (new and cited) and the whole-step rollback; idempotency; the 60 s interval, the fingerprint rule and the tenth attempt; a second holder appearing after the decision; item-1 and item-7 clearing; fingerprint stability and sensitivity per input class; fabricated and corrupted clearance never clearing; OI-121 normal-path regressions in both arrival orders; the I-5 fault injection.
 - `tests/integration/oi93-conflict-decision.test.ts`, 15 tests: the Owner's real session through PostgREST (Admin refused); two attempts and one `attempt_request_id` raced on one decision; the attempt against the same refund's webhook in both orders; the attempt against `invoice.paid` on the same project in both orders, with no AUTH-009 lock held; the re-check under the charge lock; U-4 (55P03 at about 5 s on four locks; 57014 at about 8 s); the 45 s deadline (fake clock), a client abort, the inconclusive status read and recovery by the same id.
 - `tests/unit/wpb-static.test.ts` (one case): the payment invariants, exactly four replaced functions, no guard or ledger change, the verbatim extraction with only the Amendment 1 key change, the key rule in both callers, NULL-safe guards, registered financial audit actions, `private` not exposed, and the Owner screen's guards and deadline.
 - `tests/e2e/wpb.spec.ts` (one test): the signed webhook quarantines a conflict; Admin is redirected; the Owner decides and applies it; axe on each state; the database agrees.
 
-**Mutation checks:** 42 of 42 caught (the 42nd, an unbounded refusal summary, added after WP-C's U-3 note I-1). They cover:
+**Mutation checks:** 43 of 43 caught (the 42nd, an unbounded refusal summary, added after WP-C's U-3 note I-1; the 43rd, the classifier's obligations-other-project branch removed, added after WP-S's F-1). They cover:
 - the Owner checks and the OI-120 `if not (…)` form;
 - each refusal rule;
 - the cap and `exhausted`;
@@ -2056,7 +2056,7 @@ Two misses during development were real gaps and were closed by new tests: item-
 | `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
 | `pnpm test` | 22 files, 383 passed |
 | `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
-| `./scripts/run-db-tests.sh` | 2,078 assertions, 0 files failed (195: 154), after the `b5d8078` sync |
+| `./scripts/run-db-tests.sh` | 2,081 assertions, 0 files failed (195: 157), after the `b5d8078` sync |
 | `pnpm test:integration` | 10 files, 137 passed (oi93: 15) |
 | `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
 | `pnpm test:e2e --trace off` | 67 passed |

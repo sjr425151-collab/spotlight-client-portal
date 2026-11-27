@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(63);
+select plan(65);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_totp_age interval default null)
 returns void language plpgsql as $$
@@ -413,6 +413,19 @@ with x as (insert into public.publication_deployments
 insert into ids select 'd9', id from x;
 select is(pg_temp.reopen(pg_temp.id('d9')) -> 'detail', '"authorization_closed"'::jsonb,
   'a deployment whose authorization was closed other than by a gate failure cannot be recovered');
+-- The recovery record is the publication.recovery_opened audit event (Amendment 1). The audit
+-- table is append-only and no API role can write it; only the recovery function emits that action.
+select ok(not has_table_privilege('anon', 'public.audit_events', 'insert, update, delete, truncate')
+  and not has_table_privilege('authenticated', 'public.audit_events', 'insert, update, delete, truncate')
+  and not has_table_privilege('service_role', 'public.audit_events', 'insert, update, delete, truncate')
+  and not has_function_privilege('authenticated', 'private.record_audit_event(text, text, text, uuid, text, jsonb, text)', 'execute')
+  and not has_function_privilege('service_role', 'private.record_audit_event(text, text, text, uuid, text, jsonb, text)', 'execute')
+  and exists (select 1 from pg_trigger where tgrelid = 'public.audit_events'::regclass and tgname = 'audit_events_no_update_delete')
+  and exists (select 1 from pg_trigger where tgrelid = 'public.audit_events'::regclass and tgname = 'audit_events_no_truncate'),
+  'the recovery record is append-only: no API role can write audit events, and no row can be updated, deleted or truncated');
+select is((select string_agg(p.oid::regprocedure::text, ',') from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname in ('public', 'private') and p.prosrc like '%record_audit_event(''publication.recovery_opened''%'),
+  'private.reopen_failed_publication(uuid,text)', 'only the recovery function writes publication.recovery_opened');
 select ok(has_function_privilege('authenticated', 'public.reopen_failed_publication(uuid, text)', 'execute')
   and not has_function_privilege('anon', 'public.reopen_failed_publication(uuid, text)', 'execute')
   and not has_function_privilege('service_role', 'public.reopen_failed_publication(uuid, text)', 'execute')

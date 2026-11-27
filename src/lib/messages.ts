@@ -16,8 +16,10 @@ export const MESSAGES = {
     "This invitation link is not valid. It may have expired, been replaced, or already been used.",
   invitation_accepted: "Invitation accepted.",
   invite_sent: "Invitation created and emailed.",
+  // OI-88 option A (AUTH-017): no email is sent to an existing account (03A S-06); the
+  // invitee finds the invitation under "Your invitations" (/invitations) after signing in.
   invite_existing_user:
-    "Invitation created. This person already has a portal account and will see the invitation after signing in.",
+    "Invitation created. This person already has a portal account, so no email was sent. After signing in with an emailed code, they will find the invitation under Your invitations.",
   role_not_assignable: "That role cannot be assigned.",
   too_many_pending: "This project already has the maximum number of pending invitations.",
   project_not_found: "That project was not found or is archived.",
@@ -144,7 +146,9 @@ export const MESSAGES = {
     "For your security, please sign in again with a new code, then turn off automatic final payment within five minutes.",
   // WP-S: Sales Representatives (03 §4.1; OI-77, OI-78, OI-84)
   no_active_project:
-    "Your account has no active project. If you received a new invitation, open the link in that email.",
+    "Your account has no active project. If you have been invited to a project, open your invitations.",
+  invitation_unavailable:
+    "This invitation is no longer available. It may have expired, been replaced, or already been used.",
   invalid_recipient: "That address cannot receive a client invitation.",
   invitation_resent: "A new invitation was sent. The previous link no longer works.",
   invitation_revoked: "Invitation revoked.",

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.51.0 |
+| Version | 0.52.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,15 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### OI-118 cause and AUTH-002 Stage A attempt 3 amendment (Owner, 2026-11-27)
+
+Owner evidence "OI-118 investigation". Documentation only; effective on the verified merge of this record (OM-1).
+
+- **Cause: H1, sandbox mismatch.** The attempt 2 key belonged to "Setmore [Test mode]" (no products); the catalog is intact in "Spotlight Client Portal - Development". OI-118 is closed.
+- **Preserved:** the catalog, the repository price IDs, the migrations and the accepted runner.
+- **Attempt 3 amendment (not active):** every existing Stage A control carried forward; added binding of the key to the dedicated sandbox's Stripe account ID, verified by the Owner before creation and used for reconciliation (AUTHORIZATIONS AUTH-002). Completed runner reviews are not reopened.
+- **Not authorized:** any credential creation, Stripe request or execution.
+
 ### R1 execution grants (Owner, 2026-11-27)
 
 Owner decision "Consolidated Owner authorization — R1 execution". Documentation only; each grant takes effect on the verified merge of this record (OM-1).
@@ -1690,6 +1699,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.49.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 Gate A record:** the Owner's attestation for key `SLM-AUTH-002-STAGE-A-20261127-02` (created 03:57Z, as corrected by the Owner) recorded verbatim, with the point 1 correction; **OI-117 decided (option A**, per-key request-log reconciliation; cleanup order recorded); WP-B named sole executor; baseline `18c4215`. Not active: session acknowledgments and Main's activation notice pending. AUTHORIZATIONS v1.30.0; CURRENT-STATE v1.34.0; OPEN-ISSUES v0.38.0. | Main session | Owner |
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
+| 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

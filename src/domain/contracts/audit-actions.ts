@@ -198,6 +198,9 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   c("deployment.verification_recorded", "deployment", "06 §9"),
   c("incident.opened", "deployment", "06 §8"),
   c("incident.resolved", "deployment", "06 §8"),
+  // AUTH-015 (OI-114): controlled recovery after a failed deployment or live verification.
+  c("publication.recovery_opened", "deployment", "06 §8.1"),
+  c("publication.recovery_rejected", "deployment", "06 §8.1"),
 ];
 
 export function auditAction(name: string): AuditAction {

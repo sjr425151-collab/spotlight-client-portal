@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.49.0 |
+| Version | 0.50.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,15 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-002 Stage A attempt 2 closure and PR #45 merge (Owner, 2026-11-27)
+
+Documentation only; effective on the verified merge of this record (OM-1).
+
+- **PR #45 (Decision 2):** the Owner approved the merge under OM-2 and OM-6(b), pinned to head `25a77a1` and base `a959a4a`. Main merged it at `eacc8b5`; post-merge CI 46054458273 passed. AUTH-014 is completed and OI-116 closed.
+- **Attempt 2:** executed once; STOPPED: http_404 after 2 requests. Cleanup by the Owner: Network secret removed 19:15 UTC, key removed 19:17 UTC. Reconciled against Stripe Workbench (2 requests, statuses 200 and 404, 19:13:28Z), with the evidence limitations recorded in CURRENT-STATE §13. Attempt 2 is closed.
+- **Direction:** a read-only root-cause investigation (OI-118). **Not authorized:** any further Stripe request, credential creation, retry or rerun.
+- **Decision 8a (DEP-18 loading and activation):** approved in principle, subject to the safeguards and outstanding dispositions in the Owner's separate response, which has not yet been recorded. Nothing is authorized until it is.
+
 ### AUTH-002 Stage A attempt 2 attestation and OI-117 decision (Owner, 2026-11-27)
 
 Owner attestation "AUTH-002 Stage A attempt 2", recorded verbatim in CURRENT-STATE §13 (attempt 2 Gate A record). Documentation only; effective on the verified merge of this record (OM-1).
@@ -1669,6 +1678,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.47.0 | 2026-11-26 | **AUTH-002 Stage A Gate A record:** the Owner's attestation (key `SLM-AUTH-002-STAGE-A-20261126-01`, created 03:54:00Z; points 1 and 4 confirmed explicitly) recorded verbatim; WP-B named sole executor; execution baseline `3902da8`; acknowledgments from all five other active sessions. Not active: credential entry pending Main's notice. CURRENT-STATE v1.32.0. | Main session | Owner |
 | 0.48.0 | 2026-11-27 | **AUTH-002 Stage A attempt 1 terminated and administratively closed** (runner defect; 0 requests reported by WP-B; cleanup confirmed by the Owner and verified by Main; the revocation time and key-specific Dashboard count unavailable, not independently verified; evidence limitation approved by the Owner, 2026-11-27); **attempt 2 amendment** recorded (not active); attempt 2 remediation: runner revision 4 accepted by SHA-256 after independent review by WP-I; general engineering requirement for external-provider runners (CLAUDE.md §6); **OI-117** opened. AUTHORIZATIONS v1.29.0; CURRENT-STATE v1.33.0; OPEN-ISSUES v0.37.0. | Main session | Owner |
 | 0.49.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 Gate A record:** the Owner's attestation for key `SLM-AUTH-002-STAGE-A-20261127-02` (created 03:57Z, as corrected by the Owner) recorded verbatim, with the point 1 correction; **OI-117 decided (option A**, per-key request-log reconciliation; cleanup order recorded); WP-B named sole executor; baseline `18c4215`. Not active: session acknowledgments and Main's activation notice pending. AUTHORIZATIONS v1.30.0; CURRENT-STATE v1.34.0; OPEN-ISSUES v0.38.0. | Main session | Owner |
+| 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

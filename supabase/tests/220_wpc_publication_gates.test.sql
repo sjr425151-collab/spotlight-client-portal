@@ -426,6 +426,12 @@ select is((select count(*)::int from public.publication_incidents where kind = '
 select is((select count(*)::int from public.domain_events where category = 'financial'), 0,
   'T-PUB-18: recovery creates no financial event (no invoice or charge path exists in WP-C)');
 -- Recovery: a new authorization and deployment, with no new charge.
+-- AUTH-015 (OI-114) setup: the Owner's explicit recovery of the failed deployment closes its
+-- authorization; without it, a same-release re-authorization is refused (recovery_required).
+select pg_temp.as_owner();
+select public.reopen_failed_publication((select id from public.publication_deployments where outcome = 'failed'),
+  'Provider build failed; redeploying the same release') ->> 'ok';
+reset role;
 select ok(pg_temp.reauthorize(), 'recovery re-runs the authorization through every gate');
 select is(pg_temp.try_start(), 'started', 'recovery starts a new deployment');
 select pg_temp.as_admin();
@@ -464,6 +470,16 @@ select is((select count(*)::int from public.notification_outbox where notificati
   'the publication-live notification is recorded once verified');
 
 -- T-PUB-05 / T-PUB-12: a new release invalidates the pending authorization and needs its own evidence.
+-- AUTH-015 (OI-114) setup: a release whose latest verification passed cannot be re-authorized (D4),
+-- so a later verification fails (the live site stopped serving the release) and the Owner recovers it.
+select pg_temp.as_server();
+select public.record_live_verification((select id from public.publication_deployments where outcome = 'succeeded'),
+  '00000000-0000-4000-8000-000000000002', null, true, true, true, true) ->> 'verified';
+reset role;
+select pg_temp.as_owner();
+select public.reopen_failed_publication((select id from public.publication_deployments where outcome = 'succeeded'),
+  'Live site no longer serves the release') ->> 'ok';
+reset role;
 select ok(pg_temp.reauthorize(), 'an authorization is pending for release 1');
 select pg_temp.as_admin();
 select is((public.release_preview('20000000-0000-4000-8000-0000000000a0', repeat('3', 40), 'dpl_a2', 'https://preview-a2.example.test', '{}')

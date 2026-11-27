@@ -1071,7 +1071,42 @@ test("T-E2E-08: the Owner, freshly reauthenticated, authorizes exactly the appro
   expect(auth.rows).toEqual([{ release: release2, by: OWNER_ID }]);
   expect((await audited(since, "publication.authorized")).length).toBe(1);
 
-  // Live verification through the mock verifier (seam (b)): the served build matches.
+  // A mismatched build fails live verification (seam (b)) and opens an incident.
+  await deploy(`https://${SHA_OTHER}.live.r1.example.test/`);
+
+  // AUTH-015 (OI-114): the Owner recovers the failed publication through the page (fresh
+  // MFA, a reason, an explicit confirmation). The recovery closes the used authorization; the
+  // normal authorization flow then re-runs every gate (D3) before the release deploys again.
+  const recover = async () => {
+    await owner.goto(projectPage);
+    await owner.getByLabel("Recovery reason").fill("The live site served a different build");
+    await owner
+      .getByLabel(/Close this deployment's authorization so the release can be authorized again/)
+      .check();
+    await owner.getByRole("button", { name: "Recover failed publication" }).click();
+    await owner.waitForURL(OUTCOME);
+  };
+  await recover();
+  if (/\/mfa\?reauth=1/.test(owner.url())) {
+    await reauthenticateIfAsked(owner);
+    await recover();
+  }
+  await expect(owner).toHaveURL(/notice=publication_recovery_opened/);
+  expect((await audited(since, "publication.recovery_opened")).length).toBe(1);
+  await authorize();
+  const auths = await withDb((db) =>
+    db.query(
+      `select release_id::text as release, invalidated_reason from public.publication_authorizations
+        where project_id = $1 order by authorized_at, id`,
+      [projectId],
+    ),
+  );
+  expect(auths.rows).toEqual([
+    { release: release2, invalidated_reason: "failed_publication_recovery" },
+    { release: release2, invalidated_reason: null },
+  ]);
+
+  // The served build matches the authorized release on the new deployment.
   await deploy(`https://${SHA_2}.live.r1.example.test/`);
   const verified = await withDb((db) =>
     db.query(
@@ -1082,36 +1117,9 @@ test("T-E2E-08: the Owner, freshly reauthenticated, authorizes exactly the appro
     ),
   );
   expect(verified.rows).toEqual([
+    { build_matches: false, verified: false, served_build_id: SHA_OTHER, commit_sha: SHA_2 },
     { build_matches: true, verified: true, served_build_id: SHA_2, commit_sha: SHA_2 },
   ]);
-
-  // A mismatched build fails verification and opens an incident. After a deployment its
-  // authorization stays active, and the staff page then offers no new authorization for the
-  // same release; this second authorization is therefore TEST SETUP through the real
-  // authorize_publication function, under the Owner's own aal2 session (the gates are
-  // re-evaluated and pass). Starting, recording and verifying the deployment use the page.
-  await withDb(async (db) => {
-    const { rows } = await db.query(
-      `select id from auth.sessions where user_id = $1 and aal = 'aal2' order by created_at desc limit 1`,
-      [OWNER_ID],
-    );
-    await db.query("begin");
-    await db.query(
-      `select set_config('request.jwt.claims', json_build_object('sub', $1::text, 'role', 'authenticated',
-         'aal', 'aal2', 'session_id', $2::text, 'amr', json_build_array(json_build_object('method', 'totp',
-         'timestamp', extract(epoch from now())::bigint)))::text, true)`,
-      [OWNER_ID, rows[0].id],
-    );
-    await db.query("set local role authenticated");
-    const result = await db.query("select public.authorize_publication($1, $2) as r", [
-      projectId,
-      release2,
-    ]);
-    await db.query("commit");
-    expect(result.rows[0].r).toMatchObject({ ok: true, existing: false });
-  });
-  await owner.goto(projectPage);
-  await deploy(`https://${SHA_OTHER}.live.r1.example.test/`);
   const all = await withDb((db) =>
     db.query(
       `select v.build_matches, v.verified from public.deployment_verifications v
@@ -1120,8 +1128,8 @@ test("T-E2E-08: the Owner, freshly reauthenticated, authorizes exactly the appro
     ),
   );
   expect(all.rows).toEqual([
-    { build_matches: true, verified: true },
     { build_matches: false, verified: false },
+    { build_matches: true, verified: true },
   ]);
   const incidents = await withDb((db) =>
     db.query("select kind::text, summary from public.publication_incidents where project_id = $1", [

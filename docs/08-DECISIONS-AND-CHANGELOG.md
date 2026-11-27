@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.48.0 |
+| Version | 0.49.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,15 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-002 Stage A attempt 2 attestation and OI-117 decision (Owner, 2026-11-27)
+
+Owner attestation "AUTH-002 Stage A attempt 2", recorded verbatim in CURRENT-STATE §13 (attempt 2 Gate A record). Documentation only; effective on the verified merge of this record (OM-1).
+
+- **New key:** `SLM-AUTH-002-STAGE-A-20261127-02`, created by the Owner on 2026-11-27 at 10:57 UTC, in the "Spotlight Client Portal - Development" sandbox in test mode. Prefix `rk_test_`. Balance, Prices and Products set to Read; everything else None; nothing Write. Not entered anywhere.
+- **OI-117 decided, option A:** reconciliation uses the key's "View request logs" view, which the Owner confirmed is available and shows zero requests before entry. Cleanup order for attempt 2: remove the secret and its allow rule; record the per-key request log; expire the key promptly.
+- **Executor:** WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) on `spotlight-client-portal-dev`, conditional on the remaining prerequisites. Baseline `main` at `18c4215` (Owner accepted). Runner revision 4 (`5094817a…10ca`), unchanged.
+- **Not authorized by this record:** credential entry or any Stripe request before Main's activation notice, which follows the session acknowledgments.
+
 ### AUTH-002 Stage A attempt 1 administrative closure: evidence limitation (Owner, 2026-11-27)
 
 Owner attestation "Attempt 1 closure". Documentation only; effective on the verified merge of this record (OM-1).
@@ -1659,6 +1668,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.46.0 | 2026-11-26 | **AUTH-002 Stage A credential mechanism amendment** (Owner): the proxy-injected Network secret (`api.stripe.com`, Bearer, prefixes `/v1/balance`, `/v1/products`, `/v1/prices`) with binding controls 1 to 5; prefix semantics unverified and isolation procedural, recorded; no activation. AUTHORIZATIONS v1.28.0; CURRENT-STATE v1.31.0. | Main session | Owner |
 | 0.47.0 | 2026-11-26 | **AUTH-002 Stage A Gate A record:** the Owner's attestation (key `SLM-AUTH-002-STAGE-A-20261126-01`, created 03:54:00Z; points 1 and 4 confirmed explicitly) recorded verbatim; WP-B named sole executor; execution baseline `3902da8`; acknowledgments from all five other active sessions. Not active: credential entry pending Main's notice. CURRENT-STATE v1.32.0. | Main session | Owner |
 | 0.48.0 | 2026-11-27 | **AUTH-002 Stage A attempt 1 terminated and administratively closed** (runner defect; 0 requests reported by WP-B; cleanup confirmed by the Owner and verified by Main; the revocation time and key-specific Dashboard count unavailable, not independently verified; evidence limitation approved by the Owner, 2026-11-27); **attempt 2 amendment** recorded (not active); attempt 2 remediation: runner revision 4 accepted by SHA-256 after independent review by WP-I; general engineering requirement for external-provider runners (CLAUDE.md §6); **OI-117** opened. AUTHORIZATIONS v1.29.0; CURRENT-STATE v1.33.0; OPEN-ISSUES v0.37.0. | Main session | Owner |
+| 0.49.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 Gate A record:** the Owner's attestation for key `SLM-AUTH-002-STAGE-A-20261127-02` (created 10:57Z) recorded verbatim; **OI-117 decided (option A**, per-key request-log reconciliation; cleanup order recorded); WP-B named sole executor; baseline `18c4215`. Not active: session acknowledgments and Main's activation notice pending. AUTHORIZATIONS v1.30.0; CURRENT-STATE v1.34.0; OPEN-ISSUES v0.38.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

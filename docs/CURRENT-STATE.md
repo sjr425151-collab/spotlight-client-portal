@@ -1963,14 +1963,14 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 - **Approval binding.** The approval binds the exact package, version and content hash. The approval is the expected hash for loading (C-2), and activation requires it to equal the sealed hash, re-verified from the items.
 - **No ineligible version issuable.** Sales issuance returns `scope_definition_missing` for inactive and withdrawn versions, and a newer loaded version suspends issuance. There is no fallback, and fixtures resolve only in `development` and `test`.
 
-**Verification (local stack: Supabase CLI 3.2.0, checksum verified; a fresh `supabase db reset` before each suite; CI order):**
+**Verification (local stack: Supabase CLI 3.2.0, checksum verified; a fresh `supabase db reset` before each suite; CI order; re-run on the merge with `main` at `2d5705e`):**
 - `pnpm lint`, `pnpm typecheck` and `pnpm format:check`: pass.
-- `pnpm test` (unit): pass.
+- `pnpm test` (unit): 22 files, 381 tests, pass on the merged tree.
 - `supabase test db`: 34 files, 1988 tests, PASS.
 - `./scripts/wpd18-isolated-commit-test.sh`: PASS 27/27.
 - `pnpm test:integration`: 10 files, 127 tests, pass.
 - `pnpm build`, `pnpm check:bundle` and `pnpm build:production-check`: pass.
-- `pnpm test:e2e --trace off`: 65 passed. The local run used the container's preinstalled Chromium build 1243, not the 1255 build pinned by Playwright 1.65.1; CI uses its own install.
+- `pnpm test:e2e --trace off`: 66 passed on the merged tree (65 before the merge). The local run used the container's preinstalled Chromium build 1243, not the 1255 build pinned by Playwright 1.65.1; CI uses its own install.
 - Not run locally: the Lighthouse job, the dependency audit and the secret scan. Exact-head CI is authoritative.
 
 **Not changed:** `private.is_owner()` and every other existing function and migration outside AUTH-018 (OI-120 is separate); `issue_order_summary`; AUTH-007 sealing objects; `seed.sql`; dependencies; CI workflows and required checks.

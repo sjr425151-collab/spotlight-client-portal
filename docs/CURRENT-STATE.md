@@ -1862,7 +1862,7 @@ Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) 
 - *Guarantee:* a failed check rejects inside `getStripeGateway()`. The checkout and recovery actions rethrow before reaching `startInitialCheckoutAsCaller` or `beginPaymentMethodRecoveryAsCaller`, so no outbound row is claimed or confirmed and no provider request starts. The webhook route keeps verifying and storing the event, with a `null` gateway (card lookups wait for the job, as when no gateway is configured). Payment logic, authorization, idempotency, webhook verification and financial state transitions are unchanged (no change to `billing.ts`, `gateway.ts` or `mock-gateway.ts`).
 - *Evidence:* `wpi-oi115-seams-fail-closed.test.ts` shows that on a failed check the mock is never constructed and the global holder stays empty, neither billing service is called, and the webhook service receives `null`; with agreement the same mock is passed on unchanged.
 
-### 22.3 Verification (local, exact branch state)
+### 22.3 Verification (local; rerun after merging `main` at `8ebcced` with a merge commit)
 
 | Suite | Result |
 |---|---|
@@ -1870,7 +1870,7 @@ Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) 
 | `supabase test db` | 34 files, 1,896 tests, all pass |
 | The six edited files in isolation | 42, 142, 106, 81, 217, 33: all pass |
 | pgTAP 410 mutations | M1 (no raise): 9 failures; M2 (scanner without the consistency term): 3; M3 (reader granted to `authenticated`): 3 |
-| `pnpm test` | 23 files, 500 tests, all pass |
+| `pnpm test` | 24 files, 513 tests, all pass (after merging `main` at `8ebcced`) |
 | `pnpm test:integration` | 9 files, 122 tests, all pass |
 | `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Clean |
 | `pnpm build`, `pnpm build:production-check` | Pass |

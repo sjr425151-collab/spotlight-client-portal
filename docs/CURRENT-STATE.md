@@ -1959,14 +1959,14 @@ The old database-level second authorization (test setup) is removed. Unchanged: 
 
 Every mutation was installed by `create or replace` from a mutated copy of the migration and restored from the migration file. The baseline passes after the restore.
 
-**Suites (local, fresh `supabase db reset`, Supabase CLI 3.2.0, CI order), on the branch synchronized with `main` at `8ebcced`, with option B:**
+**Suites (local, fresh `supabase db reset`, Supabase CLI 3.2.0, CI order), on the branch synchronized with `main` at `2d5705e` (PR #56), with Amendment 1 (option B, M-1 and N-1):**
 
 | Command | Result |
 |---|---|
 | `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
 | `pnpm test` | 22 files, 380 passed |
 | `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
-| `supabase db reset`; `./scripts/run-db-tests.sh` | 34 files, 1,918 assertions, 0 failed (240: 59/59; 220: 117/117 and 050: 24/24, plans unchanged) |
+| `supabase db reset`; `./scripts/run-db-tests.sh` | 34 files, 1,922 assertions, 0 failed (240: 63/63; 220: 117/117 and 050: 24/24, plans unchanged) |
 | `pnpm test:integration` | 10 files, 124 passed (including the race file's 2) |
 | `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
 | `pnpm test:e2e --trace off` | 66 passed, including T-E2E-08 with its axe check |

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.52.0 |
+| Version | 0.53.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,18 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### Consolidated Owner decisions (Owner, 2026-11-27)
+
+Owner decision "Consolidated Owner Decisions & Implementation Authorization". Documentation only; each item takes effect on the verified merge of this record (OM-1).
+
+- **Item 1, AUTH-019 (OI-120):** granted as proposed: the root-function correction of `private.is_owner()` only (migration `20261127125000`, pgTAP `420`), DEP-18 session, reviews WP-C, WP-B and Main, OM-6(b). Additional verification: all 45 call sites inherit the correction; regression for the three reproduced escalations; refusals change no privileged state; legitimate Owner access and every attribute, permission, assertion and guarantee preserved; the original body caught by mutation. OI-120 blocks hosted migration deployment (AUTH-003) and R1 release-candidate acceptance. No expansion without further authorization.
+- **Item 2, AUTH-010 Amendment 1 (OI-121): option A**, the minimal per-refund dedupe key for charge.refunded; refund-event keys preserved; cross-event and arrival-order non-duplication verified; anything beyond is escalated.
+- **Item 3, AUTH-010 Amendment 2 (I-3): option A**, `financial_conflict.decision_refused` (04 v0.10.4, §15.2.1 rule 10), with no decision row, no attempt consumed, no ledger change and no sensitive payload.
+- **Item 4, AUTH-015 Amendment 1 (M-1): option B**, close the recovery bypass inside AUTH-015 before merge, with regression coverage for the exact sequence.
+- **Item 5, AUTH-002 Stage A attempt 3:** creation of the restricted key `SLM-AUTH-002-STAGE-A-20261127-03` in "Spotlight Client Portal - Development" (`acct_1UexHZK5j4r4WkVP`) authorized; creation only. Entry, requests and execution wait for the attestation, the Gate A record and baseline, the acknowledgments and Main's activation notice.
+- **Stage A attempt 3 attestation (Owner, 2026-11-27):** points 1 to 8 received for `SLM-AUTH-002-STAGE-A-20261127-03` (recorded verbatim in CURRENT-STATE §13, "attempt 3 Gate A record", with evidence limitation (f) on the approximate creation time). Not active.
+- **Item 6:** AUTH-017's completion and OI-88's closure acknowledged. Independently authorized work continues with no global pause; only material deviations are escalated.
+
 ### OI-118 cause and AUTH-002 Stage A attempt 3 amendment (Owner, 2026-11-27)
 
 Owner evidence "OI-118 investigation". Documentation only; effective on the verified merge of this record (OM-1).
@@ -1700,6 +1712,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.53.0 | 2026-11-27 | **Consolidated Owner decisions:** AUTH-019 granted (OI-120 root-function correction); AUTH-010 Amendments 1 (OI-121, option A) and 2 (I-3, `financial_conflict.decision_refused`); AUTH-015 Amendment 1 (M-1, option B); AUTH-002 Stage A attempt 3 key creation authorized (creation only); **PR #53 merged, AUTH-017 completed, OI-88 closed**; OI-120 and OI-121 opened. 04 v0.10.4. AUTHORIZATIONS v1.34.0; CURRENT-STATE v1.38.0; OPEN-ISSUES v0.42.0. | Main session | Owner |
 
 ## 6. Change-control rules
 

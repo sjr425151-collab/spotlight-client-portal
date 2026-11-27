@@ -1093,6 +1093,7 @@ Owner decision "Consolidated Owner Decisions & Implementation Authorization". Do
 - **Item 3, AUTH-010 Amendment 2 (I-3): option A**, `financial_conflict.decision_refused` (04 v0.10.4, §15.2.1 rule 10), with no decision row, no attempt consumed, no ledger change and no sensitive payload.
 - **Item 4, AUTH-015 Amendment 1 (M-1): option B**, close the recovery bypass inside AUTH-015 before merge, with regression coverage for the exact sequence.
 - **Item 5, AUTH-002 Stage A attempt 3:** creation of the restricted key `SLM-AUTH-002-STAGE-A-20261127-03` in "Spotlight Client Portal - Development" (`acct_1UexHZK5j4r4WkVP`) authorized; creation only. Entry, requests and execution wait for the attestation, the Gate A record and baseline, the acknowledgments and Main's activation notice.
+- **Stage A attempt 3 attestation (Owner, 2026-11-27):** points 1 to 8 received for `SLM-AUTH-002-STAGE-A-20261127-03` (recorded verbatim in CURRENT-STATE §13, "attempt 3 Gate A record", with evidence limitation (f) on the approximate creation time). Not active.
 - **Item 6:** AUTH-017's completion and OI-88's closure acknowledged. Independently authorized work continues with no global pause; only material deviations are escalated.
 
 ### OI-118 cause and AUTH-002 Stage A attempt 3 amendment (Owner, 2026-11-27)

@@ -141,6 +141,10 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   b("reversal.holding_posted", "payment", "04 §15.2.1"),
   b("reversal.reconciled", "payment", "04 §15.2.1"),
   b("reversal.reconciliation_denied", "payment", "04 §15.2.1"),
+  // AUTH-010 U-1 (OI-93 conflict decisions; 04 §15.2.1 rule 10).
+  b("financial_conflict.decision_recorded", "payment", "04 §15.2.1"),
+  b("financial_conflict.attempt_recorded", "payment", "04 §15.2.1"),
+  b("financial_conflict.attempt_refused", "payment", "04 §15.2.1"),
   b("billing_job.started", "payment", "04 §13"),
   b("billing_job.completed", "payment", "04 §13"),
   b("billing_job.skipped", "payment", "04 §13"),

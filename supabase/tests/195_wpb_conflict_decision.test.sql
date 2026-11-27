@@ -13,7 +13,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(117);
+select plan(122);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false, p_otp_fresh boolean default false)
 returns void language plpgsql as $$
@@ -295,6 +295,7 @@ insert into ids select 'pf', pg_temp.paid_project('CFF', null)::text;
 insert into ids select 'pg', pg_temp.paid_project('CFG', null)::text;
 insert into ids select 'ph', pg_temp.paid_project('CFH', null)::text;
 insert into ids select 'pj', pg_temp.paid_project('CFJ', null)::text;
+insert into ids select 'pk', pg_temp.paid_project('CFK', null)::text;
 select pg_temp.initial_invoice(pg_temp.pid('pa'), 'CFA');
 select pg_temp.initial_invoice(pg_temp.pid('pc'), 'CFC');
 select pg_temp.initial_invoice(pg_temp.pid('pj'), 'CFJ');
@@ -306,7 +307,8 @@ insert into private.stripe_payment_links (stripe_ref, project_id, kind, domain_r
   ('pi_CFFfake0001', pg_temp.pid('pf'), 'renewal', null, 'in_CFFrenew01'),
   ('pi_CFGfake0001', pg_temp.pid('pg'), 'renewal', null, 'in_CFGrenew01'),
   ('pi_CFHfake0001', pg_temp.pid('ph'), 'renewal', null, 'in_CFHrenew01'),
-  ('ch_CFJfake0001', pg_temp.pid('pj'), 'renewal', null, 'in_CFJrenew01');
+  ('ch_CFJfake0001', pg_temp.pid('pj'), 'renewal', null, 'in_CFJrenew01'),
+  ('pi_CFKfake0001', pg_temp.pid('pk'), 'renewal', null, 'in_CFKrenew01');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
 insert into ids select 'dA', public.record_refund_decision(pg_temp.pid('pa'), 500, 'Partial refund of the deposit',
   jsonb_build_array(jsonb_build_object('obligation_id', pg_temp.ob(pg_temp.pid('pa'), 'development_deposit'), 'amount_cents', 500)))
@@ -401,12 +403,14 @@ select is(pg_temp.decide('evt_CFpost000001', pg_temp.pid('pc')) ->> 'error', 'no
   'a project that is not a recorded candidate cannot be chosen');
 select is(pg_temp.decide('evt_CFpost000001', pg_temp.pid('pb')) ->> 'error', 'conflict_unsupported',
   'a candidate that does not hold the obligations is refused (one decision per event)');
-select is((select count(*)::int from private.financial_conflict_decisions), 0, 'refusals record no decision');
+select is((select count(*)::int from private.financial_conflict_decisions where webhook_event_id = pg_temp.eid('evt_CFpost000001')), 0,
+  'refusals record no decision');
 select ok((pg_temp.decide('evt_CFpost000001', pg_temp.pid('pa')) ->> 'ok')::boolean, 'the Owner records the decision for A');
 select ok((select category = 'financial' and reason = 'Owner reviewed the provider evidence' and project_id = pg_temp.pid('pa')
              and summary ->> 'decision_id' = pg_temp.dec('evt_CFpost000001')::text
              and summary -> 'candidate_project_ids' ? pg_temp.pid('pb')::text
-           from public.audit_events where action = 'financial_conflict.decision_recorded'),
+           from public.audit_events where action = 'financial_conflict.decision_recorded'
+             and target_id = pg_temp.eid('evt_CFpost000001')::text),
   'U-1: financial_conflict.decision_recorded, financial, with the reason and every candidate');
 select is(pg_temp.decide('evt_CFpost000001', pg_temp.pid('pa')) ->> 'error', 'already_decided', 'one decision per event');
 select ok(pg_temp.g(pg_temp.pid('pa')) = '(f,f)' and pg_temp.blocking(pg_temp.pid('pb')) -> 'G2' ? 'quarantined_event'
@@ -670,6 +674,27 @@ select is(pg_temp.renewal(pg_temp.pid('pj'), 'CFJ', 'pi_CFJrenew01', 66) ->> 'st
 select is(pg_temp.attempt(pg_temp.dec('evt_CFawh000001'), pg_temp.req('q_awh')) #>> '{attempt,detail,objects,0,reason}',
   'obligations_other_project', 'the attempt re-classifies under the locks: the obligations are another project''s');
 select is(pg_temp.apps('evt_CFawh000001'), '1:permanently_unsupported', 'permanently_unsupported');
+
+-- K: an event that already carried a project (item 1 as well as item 7). Attributed to K and
+-- deferred (K's renewal not paid yet); a recorded charge of B then appears; the retry finds two
+-- projects and quarantines, keeping K's association.
+select is(pg_temp.refund_evt('evt_CFawk000001', 'refund.updated', 're_CFawk000001', 400, 'pi_CFKfake0001', 'ch_CFKbfake01',
+  null, 70) ->> 'status', 'deferred', 'K: attributed to K, charge not posted: deferred');
+insert into private.stripe_payment_links (stripe_ref, project_id, kind, domain_record_id, stripe_invoice_id)
+values ('ch_CFKbfake01', pg_temp.pid('pb'), 'renewal', null, 'in_CFKbrenew01');
+select pg_temp.svc($$ select public.run_billing_job('webhook_backfill') $$);
+select ok((pg_temp.evt_row('evt_CFawk000001')).quarantine_reason = 'attribution_conflict'
+  and (pg_temp.evt_row('evt_CFawk000001')).project_id = pg_temp.pid('pk')
+  and pg_temp.blocking(pg_temp.pid('pk'))::text like '%quarantined_event%',
+  'the event keeps K''s association and blocks K (items 1 and 7)');
+select pg_temp.decide('evt_CFawk000001', pg_temp.pid('pk'));
+select is(pg_temp.renewal(pg_temp.pid('pk'), 'CFK', 'pi_CFKfake0001', 71) ->> 'status', 'processed', 'K''s renewal is paid');
+select is(pg_temp.attempt(pg_temp.dec('evt_CFawk000001'), pg_temp.req('q_awk')) #>> '{attempt,outcome}', 'posted',
+  'K: posted under K''s renewal obligation');
+select ok(pg_temp.cleared('evt_CFawk000001')
+  and not coalesce(pg_temp.blocking(pg_temp.pid('pk'))::text like '%quarantined_event%', false)
+  and not coalesce(pg_temp.blocking(pg_temp.pid('pk'))::text like '%unposted_reversal%', false),
+  'block clearing covers item 1 (the event''s own project) as well as item 7');
 
 -- ---------------------------------------------------------------------------
 -- 8. oi93.fp.v1: canonical JSON, stability, sensitivity per input class (on D)

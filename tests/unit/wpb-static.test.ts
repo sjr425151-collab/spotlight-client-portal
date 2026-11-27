@@ -140,6 +140,125 @@ describe("WP-B static security checks", () => {
     ).toEqual([]);
   });
 
+  it("AUTH-010 (OI-93): the conflict migrations keep the payment invariants and the extraction is verbatim", () => {
+    const read = (f: string) => readFileSync(join(root, "supabase/migrations", f), "utf8");
+    const sql = [
+      "20261127130000_wpb_oi93_conflict_decisions.sql",
+      "20261127130100_wpb_oi93_conflict_attempts.sql",
+    ]
+      .map(read)
+      .join("\n");
+    // The same invariants as WP-H and AUTH-009 (CLAUDE.md §3-§4), and no provider call.
+    expect(sql).not.toMatch(/alter type public\.outbound_request_purpose/i);
+    expect(sql).not.toMatch(/mark_?as_?paid|force_?publish/i);
+    expect(sql).not.toMatch(
+      /api\.stripe\.com|\bhttp_(?:get|post)\(|net\.http_|outbound_stripe_requests \(/,
+    );
+    expect(sql).not.toMatch(/\b(drop|alter)\s+(table|function|policy|trigger)\b/i);
+    // Exactly the four replaced functions the grant names; the guard, apply_reversal, the
+    // ledger rules, process_stripe_event and resolve_quarantined_event are untouched.
+    expect(
+      [...sql.matchAll(/create or replace function ([a-z_]+\.[a-z_]+)/g)].map((m) => m[1]).sort(),
+    ).toEqual([
+      "private.handle_charge_refunded",
+      "private.handle_dispute",
+      "private.handle_refund",
+      "private.project_financial_anomalies",
+    ]);
+    expect(sql).not.toMatch(
+      /function private\.(?:webhook_events_guard|apply_reversal|mirror_reversal|post_reversal_entry|process_stripe_event|resolve_quarantined_event)\(/,
+    );
+    expect(sql).not.toMatch(/insert into public\.ledger_entries|update public\.ledger_entries/);
+    // The event is never transitioned: the only webhook_events writes are the handlers'
+    // unchanged project attribution.
+    expect([...sql.matchAll(/update public\.webhook_events ([^;]+);/g)].map((m) => m[1])).toEqual([
+      "set project_id = v_project where id = e.id and project_id is null",
+      "set project_id = v_project where id = e.id and project_id is null",
+    ]);
+    // The four tables are insert-only and grant nothing to an API role.
+    for (const table of [
+      "financial_conflict_decisions",
+      "financial_conflict_applications",
+      "financial_conflict_effects",
+      "financial_conflict_application_entries",
+    ]) {
+      expect(sql).toContain(`before update or delete on private.${table}`);
+      expect(sql).toContain(`before truncate on private.${table}`);
+    }
+    expect(sql).not.toMatch(/grant [^;]+ on (?:table )?private\.financial_conflict/i);
+    // Extraction equivalence: the per-project paths are the WP-H handler bodies verbatim, with
+    // v_project passed in as p_project_id.
+    const wph = read("20261126120200_wph_n1a_attribution.sql");
+    const between = (text: string, from: string, to: string) => {
+      const start = text.indexOf(from);
+      expect(start, from).toBeGreaterThan(0);
+      return text.slice(start, text.indexOf(to, start) + to.length);
+    };
+    const refundOld = between(
+      wph.slice(wph.indexOf("create or replace function private.handle_refund(")),
+      "  -- A refund decision counts only when it exists",
+      "  return v_outcome;\nend;",
+    );
+    const refundNew = between(
+      sql.slice(sql.indexOf("create function private.apply_refund_for_project(")),
+      "  -- A refund decision counts only when it exists",
+      "  return v_outcome;\nend;",
+    );
+    expect(refundNew).toBe(
+      refundOld.replace("project_id = v_project", "project_id = p_project_id"),
+    );
+    const disputeOld = between(
+      wph.slice(wph.indexOf("create or replace function private.handle_dispute(")),
+      "  select * into v_link from private.stripe_payment_links",
+      "  return 'processed';\nend;",
+    );
+    const disputeNew = between(
+      sql.slice(sql.indexOf("create function private.apply_dispute_for_project(")),
+      "  select * into v_link from private.stripe_payment_links",
+      "  return 'processed';\nend;",
+    );
+    expect(disputeNew).toBe(
+      disputeOld.replace("project_id = v_project", "project_id = p_project_id"),
+    );
+    // The charge.refunded expansion is the WP-H expression.
+    expect(sql).toContain(
+      "jsonb_strip_nulls(jsonb_build_object('charge', ch ->> 'id',\n           'payment_intent', coalesce(x.r ->> 'payment_intent', ch ->> 'payment_intent'), 'invoice', ch ->> 'invoice'))",
+    );
+    expect(wph).toContain(
+      "jsonb_strip_nulls(jsonb_build_object('charge', ch ->> 'id',\n      'payment_intent', coalesce(v_refund ->> 'payment_intent', ch ->> 'payment_intent'), 'invoice', ch ->> 'invoice'))",
+    );
+    // U-1: every audit action the AUTH-010 migrations write is registered as financial.
+    const actions = [...sql.matchAll(/audit_financial\('([a-z_.]+)'/g)].map((m) => m[1]);
+    for (const required of [
+      "financial_conflict.decision_recorded",
+      "financial_conflict.attempt_recorded",
+      "financial_conflict.attempt_refused",
+    ])
+      expect(actions).toContain(required);
+    for (const action of actions) {
+      const entry = AUDIT_ACTIONS.find((a) => a.action === action);
+      expect(entry, action).toBeDefined();
+      expect(entry!.category, action).toBe("financial");
+    }
+    // The Owner screen: guarded actions, the 45-second deadline, no provider call.
+    const conflicts = sources.filter(({ path }) =>
+      path.startsWith("src/app/staff/billing/conflicts/"),
+    );
+    expect(conflicts.map(({ path }) => path).sort()).toEqual([
+      "src/app/staff/billing/conflicts/actions.ts",
+      "src/app/staff/billing/conflicts/page.tsx",
+    ]);
+    for (const { text } of conflicts) {
+      expect(text).not.toMatch(/gateway|stripe\.com|createAdminClient/);
+      expect(text).toMatch(/requireOwner\(\{ fresh: true/);
+    }
+    const billing = sources.find((s) => s.path === "src/server/services/billing.ts")!.text;
+    expect(billing).toContain("export const CONFLICT_ACTION_DEADLINE_MS = 45_000;");
+    const conflictSection = billing.slice(billing.indexOf("// OI-93 conflict decisions"));
+    expect(conflictSection.length).toBeGreaterThan(1000);
+    expect(conflictSection).not.toMatch(/gateway|createAdminClient|console\./);
+  });
+
   it("T-ARC-08: no portal path issues a refund or responds to a dispute", () => {
     expect(offenders(/refunds\.create|disputes\.(?:update|close)|createRefund/)).toEqual([]);
   });

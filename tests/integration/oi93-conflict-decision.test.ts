@@ -362,7 +362,7 @@ describe("AUTH-010: the Owner's real session through PostgREST", () => {
       reason: "The refund belongs to project A's initial charge",
     });
     expect(decided.ok).toBe(true);
-    const decisionId = (decided as { decision_id: string }).decision_id;
+    const decisionId = (decided as unknown as { decision_id: string }).decision_id;
     const requestId = randomUUID();
     const input = { decisionId, attemptRequestId: requestId, reason: "Apply the decision" };
     const first = await applyFinancialConflictDecision(owner, input, {
@@ -522,6 +522,54 @@ describe("AUTH-010: the attempt against the same refund's webhook (both orders)"
       error: "retry_too_soon",
     });
     await done(c);
+  });
+});
+
+describe("AUTH-010: the re-check under the charge lock", () => {
+  it("a posting under another project that commits between classification and posting is refused (recognized_under_other_project)", async () => {
+    const f = await conflict();
+    // A concurrent transaction holds A's charge lock and records a reversal of this refund under
+    // B (a synthetic stand-in for a concurrent posting): classification cannot see it yet.
+    const other = await open("raw");
+    const c = await open("owner");
+    try {
+      await other.query(
+        `select pg_advisory_xact_lock(hashtextextended('wpb:charge:initial:' || id::text, 0))
+           from public.checkout_sessions where project_id = $1`,
+        [f.a],
+      );
+      await other.query(
+        `insert into public.ledger_entries (project_id, entry_type, amount_cents, source, webhook_event_id,
+           stripe_object_type, stripe_object_id, holding_charge_key, dedupe_key)
+         select $1, 'refund', -500, 'webhook', w.id, 'refund', $3, $4, $3 || ':refund:holding:concurrent'
+           from public.webhook_events w where w.stripe_event_id = $2`,
+        [f.b, `evt_${f.tag}bco`, f.refundId, `renewal:in_${f.tag}brenew`],
+      );
+      const pid = await pidOf(c);
+      const pending = attempt(c, f.decisionId, randomUUID());
+      expect(await waitsOn(pid)).toBe("Lock:advisory");
+      await other.query("commit");
+      const r = await pending;
+      expect(r.attempt as Json).toMatchObject({
+        outcome: "permanently_unsupported",
+        detail: { stage: "post_check", reason: "recognized_under_other_project" },
+      });
+      await c.query("commit");
+    } finally {
+      await other.end();
+      await c.end();
+    }
+    expect(await ledger(f.refundId)).toEqual({ n: 1, total: -500 });
+    const refunds = await withDb(
+      async (db) =>
+        (
+          await db.query(
+            "select count(*)::int as n from public.refunds where stripe_refund_id = $1",
+            [f.refundId],
+          )
+        ).rows[0].n as number,
+    );
+    expect(refunds).toBe(0);
   });
 });
 

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.54.0 |
+| Version | 0.55.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,13 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-002 Stage A attempt 3 closure and consolidated completions (Owner, 2026-11-27)
+
+Owner confirmation "AUTH-002 Stage A Attempt 3 Closure". Documentation only.
+
+- **Stage A attempt 3: PASSED; Stage A completed.** 25 GET requests, all HTTP 200, reconciled by the Owner in the Workbench of `acct_1UexHZK5j4r4WkVP`; the 11 Products and 11 Prices of 04 §6.5 re-verified. Cleanup confirmed by the Owner; its exact times were not recorded and are documented as an evidence limitation (none invented).
+- **Completed:** AUTH-015 (PR #54; OI-114 closed) and AUTH-010 (PR #59; OI-93 and OI-121 closed), each under OM-6(b) with post-merge CI verified.
+
 ### Consolidated Owner directive: Stage A attempt 3 prerequisites and AUTH-010 lock timeout (Owner, 2026-11-27)
 
 Owner "Consolidated Owner Directive". Documentation only; effective on the verified merge of this record (OM-1).
@@ -1720,6 +1727,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.55.0 | 2026-11-27 | **AUTH-002 Stage A attempt 3 PASSED; Stage A completed** (25 requests, Owner Workbench reconciliation, cleanup confirmed). **PR #54 and PR #59 merged:** AUTH-015 and AUTH-010 completed; OI-114, OI-93 and OI-121 closed. AUTHORIZATIONS v1.36.0; CURRENT-STATE v1.40.0; OPEN-ISSUES v0.43.0. | Main session | Owner |
 | 0.54.0 | 2026-11-27 | **Stage A attempt 3:** the Owner's no-other-operation statement and WP-B executor designation recorded (Gate A prerequisites now recorded; not active until Main's notice). **AUTH-010:** corrected I-1 conditions accepted; 191 unchanged. CURRENT-STATE v1.39.0; AUTHORIZATIONS v1.35.0. | Main session | Owner |
 | 0.53.0 | 2026-11-27 | **Consolidated Owner decisions:** AUTH-019 granted (OI-120 root-function correction); AUTH-010 Amendments 1 (OI-121, option A) and 2 (I-3, `financial_conflict.decision_refused`); AUTH-015 Amendment 1 (M-1, option B); AUTH-002 Stage A attempt 3 key creation authorized (creation only); **PR #53 merged, AUTH-017 completed, OI-88 closed**; OI-120 and OI-121 opened. 04 v0.10.4. AUTHORIZATIONS v1.34.0; CURRENT-STATE v1.38.0; OPEN-ISSUES v0.42.0. | Main session | Owner |
 | — | 2026-11-27 | **AUTH-015 (OI-114) implementation** (record line; no version bump, OM-5) (WP-C PR): Owner-only controlled recovery after a failed deployment or failed live verification (D1 to D4); **06 v0.5.5** (§8.1 "Controlled recovery", D6). T-E2E-08 assertion disposition (FD-14; Owner, 2026-11-27) recorded in CURRENT-STATE §22. OI-120 NULL-safe guards in the new function. M-1 and N-1 closed under option B (AUTH-015 Amendment 1, PR #56): no same-release re-authorization without a recovery while the release's latest deployment is unrecovered, whatever its outcome, including after a gate failure closed its authorization. OI-114 closes on the verified merge. | WP-C session | Owner (disposition); merge under OM-6(b) |

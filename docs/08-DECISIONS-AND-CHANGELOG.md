@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.53.0 |
+| Version | 0.54.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,14 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### Consolidated Owner directive: Stage A attempt 3 prerequisites and AUTH-010 lock timeout (Owner, 2026-11-27)
+
+Owner "Consolidated Owner Directive". Documentation only; effective on the verified merge of this record (OM-1).
+
+- **AUTH-002 Stage A attempt 3:** the Owner confirms no other Stripe operation is in progress under the Owner's control, and designates WP-B as the sole executor, subject to every Gate A prerequisite and activation requirement. Recorded in the CURRENT-STATE §13 attempt 3 Gate A record. Credential entry stays unauthorized until Main's activation notice.
+- **AUTH-010:** Main's corrected I-1 lock-timeout conditions and the reported evidence are accepted; the optional internal-function timeout is not pursued under this grant; test 191 stays unchanged. The OI-121 regression coverage includes both cross-event arrival orders.
+- **AUTH-018:** Main's review acknowledged; the distinction between the procedural restriction on commercial content loading and the technically enforced activation eligibility is preserved. Merge under the existing OM-6(b) authority.
+
 ### Consolidated Owner decisions (Owner, 2026-11-27)
 
 Owner decision "Consolidated Owner Decisions & Implementation Authorization". Documentation only; each item takes effect on the verified merge of this record (OM-1).
@@ -1712,6 +1720,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.54.0 | 2026-11-27 | **Stage A attempt 3:** the Owner's no-other-operation statement and WP-B executor designation recorded (Gate A prerequisites now recorded; not active until Main's notice). **AUTH-010:** corrected I-1 conditions accepted; 191 unchanged. CURRENT-STATE v1.39.0; AUTHORIZATIONS v1.35.0. | Main session | Owner |
 | 0.53.0 | 2026-11-27 | **Consolidated Owner decisions:** AUTH-019 granted (OI-120 root-function correction); AUTH-010 Amendments 1 (OI-121, option A) and 2 (I-3, `financial_conflict.decision_refused`); AUTH-015 Amendment 1 (M-1, option B); AUTH-002 Stage A attempt 3 key creation authorized (creation only); **PR #53 merged, AUTH-017 completed, OI-88 closed**; OI-120 and OI-121 opened. 04 v0.10.4. AUTHORIZATIONS v1.34.0; CURRENT-STATE v1.38.0; OPEN-ISSUES v0.42.0. | Main session | Owner |
 | — | 2026-11-27 | **AUTH-010 (OI-93) implementation** (record line; no version bump, OM-5) (WP-B PR): Owner conflict decisions and financial applications (migrations `20261127130000`, `20261127130100`; pgTAP 195; `tests/integration/oi93-conflict-decision.test.ts`; `src/app/staff/billing/conflicts/`). Amendment 1 (OI-121): the `payment.refund_recorded` key per refund for charge.refunded; Amendment 2: `financial_conflict.decision_refused`. OI-120 NULL-safe guards in all new functions. Main's OM-4 rulings I-1 to I-9 recorded in CURRENT-STATE §23. OI-93 and OI-121 close on the verified merge. | WP-B session | Owner (grant and amendments); merge under OM-6(b) |
 

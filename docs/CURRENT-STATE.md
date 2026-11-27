@@ -113,7 +113,7 @@ Former phases 3–5 map onto these work packages (01 §7). Phase numbers are no 
 | DEP-07 and DEP-12 verified vendor shortlist | **Done** (verified 2026-11-26 under a temporary documentation-host allowlist, added and removed with the Owner's approval; conditional selections 2026-11-27) |
 | PR #6 (AI operations proposal): header corrected to the current next unused ID; remains a draft outside the release path (OI-67) | Done in PR #6 |
 | Time tracking: each implementation PR description records AI session hours, Owner review hours, and admin hours (OI-67) | From WP-0 onward |
-| **R1 release-candidate blockers (mandatory before R1 acceptance)** | **Open:** N1(b) (Owner runs reconciliation before publication, OWNER-RUNBOOKS §5, until DEP-17) and N1(c), F7, F8 and DEP-15 (test mode under AUTH-002); DEP-07, DEP-12, DEP-17 (DEP-17 under AUTH-003); DEP-18 package scope content and its loading mechanism (FD-05); **OI-93** conflict resolution (AUTH-010, **mandatory**, Owner 2026-11-26); **OI-114** controlled recovery after a failed live verification (WP-C proposal); **OI-115** environment classification consistency (WP-D hosted provisioning); OI-88 user-experience reassessment (WP-S, in preparation); **OI-90** operator runbook (OWNER-RUNBOOKS §7, Owner review); DEP-03 wording, never presented as legally approved until approved (F10). **Delivered:** the integrated R1 browser suite T-E2E-01 to T-E2E-10 (PR #42 `48a8c04`); N1(a) (WP-H, PR #35 `30414c7`); OI-86 and OI-87 (PR #35); OI-91 (AUTH-009, PR #43 `3545d0a`); OI-113 (PR #38 `7226d6f`); OI-95 (PR #37 `e3a7508`); DEP-18 version sealing (PR #27 `05b32e9`). Test reliability: OI-116 (AUTH-014) |
+| **R1 release-candidate blockers (mandatory before R1 acceptance)** | **Open:** N1(b) (Owner runs reconciliation before publication, OWNER-RUNBOOKS §5, until DEP-17) and N1(c), F7, F8 and DEP-15 (test mode under AUTH-002); DEP-07, DEP-12, DEP-17 (DEP-17 under AUTH-003); DEP-18 package scope content and its loading mechanism (FD-05); **OI-93** conflict resolution (AUTH-010, **mandatory**, Owner 2026-11-26); **OI-114** controlled recovery after a failed live verification (AUTH-015 implementation in the WP-C PR, §22; closes on its verified merge); **OI-115** environment classification consistency (WP-D hosted provisioning); OI-88 user-experience reassessment (WP-S, in preparation); **OI-90** operator runbook (OWNER-RUNBOOKS §7, Owner review); DEP-03 wording, never presented as legally approved until approved (F10). **Delivered:** the integrated R1 browser suite T-E2E-01 to T-E2E-10 (PR #42 `48a8c04`); N1(a) (WP-H, PR #35 `30414c7`); OI-86 and OI-87 (PR #35); OI-91 (AUTH-009, PR #43 `3545d0a`); OI-113 (PR #38 `7226d6f`); OI-95 (PR #37 `e3a7508`); DEP-18 version sealing (PR #27 `05b32e9`). Test reliability: OI-116 (AUTH-014) |
 | **F2** (integration stream; **closed 2026-11-25** by the Owner's conditional decision after the PR #28 merge and its post-merge CI; §13, §14) | **Cause (reproduced):** after `supabase db reset`, PostgREST answers `503 PGRST001` while it reconnects from dead pooled connections (11 of 12 consecutive cold-reset runs failed before the readiness gate). **Resolution (PR #28, AUTH-008 I-1, Amendment 1, W-1, B-1):** real WP-B records replace the global `private.project_financial_status` fixture; WP-C RPC helpers report the PostgREST `error`; a deadline-bounded readiness gate per integration file (60 s overall, each request bounded and aborted, three consecutive successes required, every failure recorded, fail closed at the deadline; WPI-P1); a deterministic, deadline-bounded schema-cache sync with client-side database bounds and `ddl()` excluded from the budget. **Evidence:** 12/12 cold-reset runs at `c829fdb`, `99615e2`, `d45e624` and the combined candidate `cb541df` (no PGRST code in any test output; every 503 a gate probe); WP-C's independent 10/10 series and stall probes; exact-head CI 45671161028 and post-merge CI 45675171938, 7/7 with the full suite; reviews Main 7170555427, WP-B 7170586962, WP-C 7170778407. Main did not run the cold-reset series itself (no Docker daemon in its container). **Carried forward (not closed):** (1) right after a local stack restart the gate waited 19.9 s (187 × `503 PGRST002`, schema cache loading) before the first test, inside its 60 s deadline; a wait beyond 60 s fails closed and visibly; (2) N-1/N-2: the guarded use of pg 8.16.3's internal `connection.stream` must be re-verified on any pg upgrade; (3) O-1 (non-RPC reads in the WP-C files ignore `error`) and O-2 (the reload end signal) for I-2; (4) WP-C's optional N-1 (the close message does not name budget exhaustion); (5) WPI-P2 (informational); (6) O-3 (the `/sales` empty state) was OI-95, closed by PR #37 (`e3a7508`) |
 | Optional (nonblocking) | L1: atomic write of the OTP spacing file; L2: rate-limit refused upload requests |
 | Low notes (accepted) | N2–N4 (OWNER-RUNBOOKS §6) |
@@ -1857,21 +1857,150 @@ One local e2e run failed before any changed code ran (no sign-in email for the s
 
 **Effort (OI-67):** AI session about 0.8 h; Owner review: none; administrative about 0.1 h (a Docker recovery).
 
-## 22. WP-I AUTH-016 implementation record (OI-115 local part; OI-119 dispositions)
+## 22. WP-C OI-114 implementation record (AUTH-015)
+
+Implemented by the WP-C session on `wp-c/oi-114-publication-recovery`, from the verified `main` at `12601a65d7dd892840a7d74ff9de3a0073bd56ac` (the R1 execution grant record, PR #51).
+
+**Entry (verified read-only):**
+- AUTH-015 was granted in PR #51, merged at `12601a6` (OM-1); Main announced it active.
+- Migration `20261127140000` (reserved) and pgTAP file `240` were unused.
+
+**Change (files exactly as authorized):**
+
+| File | Change |
+|---|---|
+| `supabase/migrations/20261127140000_wpc_oi114_publication_recovery.sql` | **New** `private.reopen_failed_publication(uuid, text)` with its security-invoker `public` wrapper, granted only to `authenticated`. **Replaced** (`create or replace`) `private.authorize_publication` and `private.record_live_verification`, one hunk each; every other line of both is byte-identical to `20261124140200` (`diff` shows only those hunks). No table, column, index, policy or trigger change, and no DML. SHA-256 `8ebad3ac85bc4aa8f58f36d309937c4a25118e0e4a7165a01458fde85f70c05a` |
+| `src/app/staff/projects/[projectId]/fulfillment-actions.ts`, `fulfillment-panel.tsx` | The Owner's "Recover failed publication" card. It needs a reason and an explicit confirmation, and the action requires fresh MFA. "Start deployment" is offered only for an authorization without a deployment |
+| `src/domain/contracts/audit-actions.ts`, `src/lib/messages.ts` | `publication.recovery_opened` and `publication.recovery_rejected`; four messages |
+| `supabase/tests/220_wpc_publication_gates.test.sql` | Setup only: two Owner recoveries before the two existing re-authorizations. `plan(117)` and every assertion are unchanged |
+| `supabase/tests/050_security_events.test.sql` | One addition to the WP-C reviewed RPC list: `reopen_failed_publication` |
+| `supabase/tests/240_wpc_oi114_publication_recovery.test.sql` | **New**, 65 assertions (below) |
+| `tests/integration/wpc-oi114-recovery-race.test.ts` | **New**, 2 tests (below) |
+| `tests/e2e/r1.spec.ts` | T-E2E-08 reworked through the UI, under the Owner's disposition (below) |
+| `docs/06-PUBLISHING-AND-POST-LAUNCH.md` | v0.5.5: the §8.1 "Controlled recovery" rule (**[APPROVED OI-114]**, D6) |
+| This section and 08 | The record |
+
+**Behavior (D1 to D4):**
+- **D1 (with Amendment 1: M-1 and N-1, option B).** `authorize_publication` refuses a release when the project's latest deployment is of that release and has not been recovered, whatever its outcome (started, failed, or succeeded with an unverified, failed or passing verification). It returns `recovery_required`, writes an audit event and issues no authorization. This holds whether that deployment's authorization is still active or a gate failure has closed it (`gates_failed`, `gates_failed_at_start`). All gates are still evaluated first, as before. A deployment counts as recovered when it has its append-only `publication.recovery_opened` audit event. All three checks match the exact action, `target_type = 'publication_deployments'`, `target_id` = the deployment and the project, so they use the existing `(project_id, occurred_at)` index. No table or helper is added. The record is trustworthy: `audit_events` is append-only (triggers refuse update, delete and truncate), no API role can insert into it or execute `record_audit_event`, and only `reopen_failed_publication` emits that action. 240 asserts all of this from the catalog.
+- **D2.** `reopen_failed_publication` lets only the Owner (aal2, an active session, fresh MFA) recover a deployment, and requires a reason. Every guard is NULL-safe (`… is not true`; OI-120): `private.is_owner()` is NULL, not false, for a non-staff caller. It takes the per-project release lock, then the deployment row `FOR UPDATE`, then its authorization. The deployment must be the latest deployment of the current release, recorded as failed or with a failed latest verification. An authorization closed by a gate failure is still recoverable; any other closure is not. Otherwise the call returns `not_recoverable` with a detail (`authorization_closed`, `not_latest_deployment`, `release_not_current`, `deployment_in_progress`, `live_unverified` or `live_verified`) and audits the refusal. A stale-MFA refusal is also audited. A repeated recovery returns the existing one.
+- **D3.** A recovery only closes the authorization (`failed_publication_recovery`) and audits `publication.authorization_invalidated` and `publication.recovery_opened`. An authorization a gate failure already closed keeps that single invalidation, and only `publication.recovery_opened` is written, with `authorization_closed_by`. The latter records the reason, the failure and the open incident IDs. Re-authorization and deployment are the unchanged normal flow, which re-runs G1 to G8.
+- **D4.** A release whose latest verification passed can be neither recovered nor re-authorized.
+- **Late verification.** `record_live_verification` reads the deployment `FOR SHARE` and refuses a recovered deployment (`deployment_closed`), recording nothing. The check keys on the recovery event, not the authorization's invalidation reason. A succeeded deployment whose authorization a gate failure closed while it was `started` (N-1) is therefore covered too.
+
+**pgTAP 240 (65 assertions, one rolled-back transaction).** It uses 220's fixtures (the test-only WP-B financial interface fixture, so G2 and G4 can be flipped) and WP-C's real functions.
+
+| Case | Expectation verified |
+|---|---|
+| D1 | A same-release re-authorization after a failed deployment returns `recovery_required`. It is audited and issues no authorization |
+| Denials | The Admin, a client and the Owner at aal1 are refused (`forbidden`). **OI-120:** so are a client and a revoked former staff member, each at aal2 with a verified TOTP factor, fresh MFA and a live session. Stale MFA returns `reauthentication_required` and is audited. A blank reason and an unknown deployment are refused. No refused call closes the authorization |
+| M-1 | A gate failure after the failed deployment closes its authorization (`gates_failed`). With the gates passing again, re-authorization is still refused with `recovery_required` and issues nothing. The Owner recovers that deployment: the recovery is recorded with `authorization_closed_by: gates_failed`, the authorization keeps its single invalidation, and a repeat returns the existing recovery. Authorization then succeeds for the same release identity |
+| N-1 | A gate failure closes a `started` deployment's authorization (`gates_failed`). With the gates passing again, re-authorization is refused with `recovery_required` and issues nothing, and the running deployment cannot be recovered (`deployment_in_progress`). That deployment later succeeds and fails verification. Its recovery is recorded, a late verification of it is refused with `deployment_closed`, and authorization then succeeds |
+| Not recoverable | A deployment in progress; an unverified deployment; a superseded release; a deployment whose authorization was closed other than by a gate failure (SYNTHETIC: a withdrawal). Each refusal leaves the authorization unchanged |
+| D2, D3 | The recovery returns `existing: false`, closes the authorization and audits the reason, the failure and the open incident. It creates no authorization, deployment, verification, notification or domain event. A repeat returns `existing: true` and writes nothing. The incident stays open |
+| G2, G4 | After recovery, authorization fails on G2, then on G4; with both passing, a new authorization is issued for the same release identity, and `start_deployment` records a new deployment of the same commit |
+| Verification failure | It is recoverable (`verification_failed`). The late verification is refused with `deployment_closed`, recording nothing and announcing nothing. The new deployment does not inherit an earlier verification and needs its own |
+| D4 | After a passing verification, recovery returns `live_verified` and re-authorization returns `recovery_required` |
+| Isolation, catalog | Client B sees no Project A audit event, and every recovery audit of a Project A deployment belongs to Project A. Counts are scoped to Project A, so committed rows of other test files never interfere. Only `authenticated` can execute the functions (not `anon` or `service_role`). The recovery is security definer with an empty `search_path` |
+
+**Invariant, documented rather than manufactured:** `not_latest_deployment` is defensive. A newer deployment needs a new authorization, and a new authorization for the same release needs the latest deployment recovered first. A deployment that is not the latest has therefore been recovered (`existing`), or its authorization was closed other than by a gate failure (`authorization_closed`).
+
+**Race test (two real connections, 10 repetitions per order, each on a fresh project paid through the real WP-B workflow).** Release 1 comes from WP-C's real intake and `release_preview`. The authorization and succeeded deployment rows are inserted directly; this is **SYNTHETIC** setup, since the gates are covered by pgTAP. The first, failed verification goes through the real `record_live_verification`.
+- **Recovery first:** the Owner's recovery holds the row. The verifier's call is seen waiting on `Lock` in `pg_stat_activity`. Once the recovery commits, the verification returns `deployment_closed`, with no new verification, no `publication.live` and the state still `failed`.
+- **Verification first:** a passing verification holds the row, and the recovery is seen waiting. Once the verification commits, the recovery returns `not_recoverable` / `live_verified`, closes nothing and is audited. The state is `live_verified`.
+- In both orders: no 40P01 and no other database error.
+
+**T-E2E-08 assertion disposition (FD-14; Owner, 2026-11-27, relayed by Main).** The flow now runs through the page:
+1. authorize;
+2. deploy `SHA_OTHER`, which fails verification;
+3. recover (reason, confirmation, fresh MFA);
+4. authorize;
+5. deploy `SHA_2`, which is verified.
+
+The old database-level second authorization (test setup) is removed. Unchanged: :1071, :1072, :1131 and the `deployment.verification_recorded` count of 2; no other assertion in `r1.spec.ts` changed.
+
+| Field | Record |
+|---|---|
+| Original | :1084 `verified.rows` equals `[{true, true, SHA_2, SHA_2}]`, right after the first deployment. :1122 `all.rows` equals `[{true, true}, {false, false}]` |
+| Replacement | :1084 moves to after the `SHA_2` deployment and equals `[{false, false, SHA_OTHER, SHA_2}, {true, true, SHA_2, SHA_2}]`. :1122 becomes `[{false, false}, {true, true}]`. Added: `publication.recovery_opened` count 1, and two authorization rows for release 2, the first closed with `failed_publication_recovery` and the second active |
+| Original guarantee | The authorized commit's deployment verifies when the served build matches; a mismatched build fails verification and opens an incident; both verifications are recorded |
+| Replacement guarantee | The same, in the order D1 and D4 permit. A mismatched build fails verification and opens the incident. Only an explicit Owner recovery through the page lets the same release be authorized again. The redeployment then verifies with its own verification, against the authorized commit |
+| Exposure | Verification of a first deployment that passes immediately is no longer shown in T-E2E-08. It is covered by pgTAP 220 (unchanged) and 240 |
+| Compensating coverage | pgTAP 240 (D1, D4, recovery eligibility, late verification); the race test; pgTAP 220 unchanged |
+| Authorization | Owner, 2026-11-27 (AUTH-015 assertion disposition, relayed by Main) |
+| Evidence | Local e2e run below; exact-head CI in the pull request |
+
+**Mutations (26; each installed locally, the targeted tests run, the original restored). 25 caught:**
+
+| Mutation | Caught by |
+|---|---|
+| Authorize recovery check disabled | 240 (18 assertions) |
+| Authorize check ignores `started` deployments (N-1) | 240 (3) |
+| Authorize recovery marker ignores the deployment | 240 (6) |
+| `deployment_closed` check removed | 240 (2) and the race test (recovery first) |
+| `deployment_closed` keyed on the authorization's reason (the pre-N-1 form) | 240 (2) |
+| Verification `FOR SHARE` removed | The race test (recovery first); 240 is single-session |
+| Recovery `FOR UPDATE` on the deployment removed | The race test (both orders) |
+| **OI-120: the NULL-unsafe guard (`if not (…)`) restored** | 240 (9, including both OI-120 denials) |
+| Fresh-MFA check removed | 240 (9) |
+| Owner check widened | 240 (10) |
+| aal2 check removed | 240 (2) |
+| Reason check removed | 240 (8) |
+| `authorization_closed` check removed; every closed authorization made recoverable | 240 (1 each: the SYNTHETIC withdrawal) |
+| Gate-failure closures made unrecoverable | 240 (26) |
+| Recovery existing-marker never matches; ignores the deployment | 240 (3; 22) |
+| Current-release check removed | 240 (2) |
+| In-progress check removed | 240 (2) |
+| Unverified treated as recoverable | 240 (3) |
+| Passing verification treated as recoverable (D4) | 240 (5) |
+| Refusal audit removed; stale-MFA refusal audit removed | 240 (1 each) |
+| The recovery does not close an active authorization | 240 (2) |
+| `publication.recovery_opened` audit removed | 240 (26) |
+| Latest-deployment check removed | **Not caught, as expected:** the defensive invariant above |
+
+Every mutation was installed by `create or replace` from a mutated copy of the migration and restored from the migration file. The baseline passes after the restore.
+
+**Suites (local, fresh `supabase db reset`, Supabase CLI 3.2.0, CI order), on the branch synchronized with `main` at `2d5705e` (PR #56), with Amendment 1 (option B, M-1 and N-1):**
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 22 files, 380 passed |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `supabase db reset`; `./scripts/run-db-tests.sh` | 34 files, 1,924 assertions, 0 failed (240: 65/65; 220: 117/117 and 050: 24/24, plans unchanged; rerun on a fresh reset after the two catalog assertions were added) |
+| `pnpm test:integration` | 10 files, 124 passed (including the race file's 2) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 66 passed, including T-E2E-08 with its axe check |
+| Lighthouse | Not run locally; runs in CI |
+
+Before option B, the same suites passed on the head before the sync (`7af10b5`). An earlier local run showed two timing failures in WP-B's `oi91-dispatch-revocation` lock probes. That file passed 23/23 on its own and has not failed again in any full run. The sync with `8ebcced` (PR #53, AUTH-017) caused one documentation conflict, this section's number (§21 is WP-S's record). `src/lib/messages.ts` merged cleanly as an additions-only catch-up (OM-2).
+
+Remote CI for the exact head is recorded in the pull request.
+
+**M-1 (Main review 7227401266) and N-1 (WP-I review 7227508627): closed under option B (Owner, 2026-11-27; AUTH-015 Amendment 1, PR #56).** N-1: a gate failure also closes a `started` deployment's authorization, because `invalidate_authorizations` spares only `succeeded` deployments. The release could then be re-authorized and started while the first deployment was still running. The refusal condition is now stated on the release's latest deployment, whatever its outcome. For M-1: The path: a failed deployment, then a gate failure that closes its authorization (`gates_failed`), then a passing authorization. Previously this re-issued the same release with no recovery record, and the recovery refused that deployment as `authorization_closed`. Now the re-authorization is refused with `recovery_required` until the Owner records a recovery, and the recovery accepts a gate-closed authorization. The change stays within AUTH-015's two hunks, the new recovery function and 240. No existing assertion changes.
+
+**Reported to Main, outside AUTH-015 (not changed):** the OI-120 pattern also appears as `if not private.is_owner() or not …` in `private.set_staff_role` (`20261125120100`:468) and `private.revoke_staff` (`20261123060000`:715). A rolled-back local probe showed two privilege escalations. A client at aal2 with fresh MFA promoted the Admin's existing staff row to Owner. A revoked former Admin re-granted itself Owner. Existing functions are left to the separate fix grant (Main's OI-120 directive).
+
+**Shared files:** `050` and `audit-actions.ts` are shared with AUTH-010; whichever PR merges second makes an additions-only catch-up (OM-2). `messages.ts` is shared with AUTH-017, which merged first (PR #53, `8ebcced`): this PR's change to it is the additions-only catch-up (OM-2).
+
+**Reviews required (AUTH-015):** WP-I, WP-B and Main. Each is a durable non-approval record. WP-C does not merge. OI-114 closes only on the verified merge and its post-merge CI; OPEN-ISSUES is updated by Main.
+
+**Effort (OI-67):** AI session about 4.5 h; Owner review: the T-E2E-08 disposition and Amendment 1; administrative about 0.4 h (one escalation, one scope question, the OI-120 reports, the M-1 and N-1 coordination).
+
+## 23. WP-I AUTH-016 implementation record (OI-115 local part; OI-119 dispositions)
 
 Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) on `wp-i/oi-115-env-consistency`, branched from `12601a65d7dd892840a7d74ff9de3a0073bd56ac` (the verified merge of the R1 execution grant record). Local and CI only: no provider, hosted-environment or production access, no dependency or `package.json` change, no change to required checks.
 
-### 22.1 Scope delivered
+### 23.1 Scope delivered
 
 | Part | Delivered |
 |---|---|
 | Migration `20261127150000_wpd_oi115_environment_consistency.sql` (reserved) | `private.environment_consistent()`: true when `private.runtime_environment` (C2) is absent, or C2 and `private.environment_settings` (C1) hold the same value. **D1:** `private.app_environment()` raises 42501 `environment classification disagreement (OI-115)` otherwise, so every consumer (`is_production`, `stripe_mode`, `expected_livemode`, fixture guards, package-scope resolution, billing evidence stamps, termination paths) fails closed unedited. `private.scanner_permitted()` also requires agreement. `private.environment_classification()` (definer) and a security-invoker `public.environment_classification()` return the raw `{c1, c2}` without raising; execute for `service_role` only (T-TEN-06 holds). No table, trigger or constraint change; the seed and hosted provisioning are unaffected. **D2:** staging keeps no explicit row (both absent reads as `production`) |
 | Application check | `src/server/environment-consistency.ts`: strict parsing of the RPC response; the OI-119 point 1 rule; a per-process memo that caches a pass only (an OM-4 engineering choice; a failure is never cached, so every later use is checked again). Called first in `acceptUpload`, `retryUploadScan` and `verifyLiveDeployment` (`fulfillment.ts`), and in `getStripeGateway()` before the mock exists (point 2). The billing-job test runner checks before its mock |
-| OI-119 option A | Setup and restoration statements only, in the six approved files and sites (22.2) |
+| OI-119 option A | Setup and restoration statements only, in the six approved files and sites (23.2) |
 | New tests | pgTAP `410_wpi_oi115_environment_consistency.test.sql` (37); unit `wpi-environment-consistency.test.ts` (123) and `wpi-oi115-seams-fail-closed.test.ts` (10) |
 | Hosted part | Deferred to AUTH-003: record on staging that neither row exists (`public.environment_classification()` returns `{c1: null, c2: null}`) |
 
-### 22.2 OI-119 individual dispositions (FD-14 format; approved by the Owner, 2026-11-27)
+### 23.2 OI-119 individual dispositions (FD-14 format; approved by the Owner, 2026-11-27)
 
 **Option A: setup-only restores in six existing pgTAP files.** Line numbers are at the base `12601a6` (insertions only; `git diff` removes no line).
 - *Original:* each site moves C1 away from `development` (to `staging`, `preview`, `test` or absent) while the seeded C2 `development` row stays (210: C2 `test` while C1 stays `development`). Under D1 these are disagreements, so the first environment read raised and the remainder of each file aborted (6 of 33 files, 247 subtests).
@@ -1886,7 +2015,7 @@ Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) 
 - *Replacement guarantee:* identical. No assertion, expected value, description or plan count changes (plans 42, 142, 106, 81, 217, 33 unchanged), and the C2 row is absent exactly where C1 says non-development, which is the only state D1 allows.
 - *Exposure:* none. The guard aborts the file if a restore is missing, so no later assertion can run under contaminated state.
 - *Compensating coverage:* pgTAP 410 tests the disagreement cases directly.
-- *Evidence:* each file passes in isolation at its plan count and the full suite passes in sequence (22.3); mutation: deleting the 100 restore line makes the file fail with `OI-119: classifications not restored at 100`.
+- *Evidence:* each file passes in isolation at its plan count and the full suite passes in sequence (23.3); mutation: deleting the 100 restore line makes the file fail with `OI-119: classifications not restored at 100`.
 
 **Point 1: the application rule.**
 - *Rule (approved):* with `APP_ENV` development or test, both classifications must be present, agree, and be development or test. With staging, preview or production, C2 must be absent and C1 absent or equal to `APP_ENV`. Anything else, an unreadable classification or a malformed response is refused.
@@ -1902,7 +2031,7 @@ Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) 
 - *Guarantee:* a failed check rejects inside `getStripeGateway()`. The checkout and recovery actions rethrow before reaching `startInitialCheckoutAsCaller` or `beginPaymentMethodRecoveryAsCaller`, so no outbound row is claimed or confirmed and no provider request starts. The webhook route keeps verifying and storing the event, with a `null` gateway (card lookups wait for the job, as when no gateway is configured). Payment logic, authorization, idempotency, webhook verification and financial state transitions are unchanged (no change to `billing.ts`, `gateway.ts` or `mock-gateway.ts`).
 - *Evidence:* `wpi-oi115-seams-fail-closed.test.ts` shows that on a failed check the mock is never constructed and the global holder stays empty, neither billing service is called, and the webhook service receives `null`; with agreement the same mock is passed on unchanged.
 
-### 22.3 Verification (local; rerun after merging `main` at `8ebcced` with a merge commit)
+### 23.3 Verification (local; rerun after merging `main` at `8ebcced` with a merge commit)
 
 | Suite | Result |
 |---|---|

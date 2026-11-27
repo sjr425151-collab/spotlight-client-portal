@@ -308,6 +308,23 @@ export async function authorizePublicationAction(formData: FormData) {
   );
 }
 
+// Controlled recovery (06 §8.1; AUTH-015, OI-114). Owner only, fresh reauthentication and a
+// reason. It only closes the failed deployment's authorization: a new authorization still goes
+// through every gate, and nothing is redeployed automatically.
+export async function reopenFailedPublicationAction(formData: FormData) {
+  await requireOwner({ fresh: true, returnTo: projectPath(formData) });
+  if (text(formData, "confirm") !== "yes")
+    done(formData, { ok: false, error: "confirmation_required" });
+  done(
+    formData,
+    await call("reopen_failed_publication", {
+      p_deployment_id: text(formData, "deploymentId"),
+      p_reason: text(formData, "reason").slice(0, 1000),
+    }),
+    "publication_recovery_opened",
+  );
+}
+
 export async function startDeploymentAction(formData: FormData) {
   await requireStaff();
   done(

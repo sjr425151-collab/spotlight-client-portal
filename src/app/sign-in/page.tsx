@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AuthCard } from "@/components/app/auth-card";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { messageFor } from "@/lib/messages";
@@ -28,6 +28,12 @@ export default async function SignInPage({ searchParams }: { searchParams: Searc
     return (
       <AuthCard title="No portal access" intro="Your account has no area to open right now.">
         <Notice>{messageFor(params.notice)}</Notice>
+        {params.notice === "no_active_project" ? (
+          // OI-88 option A (AUTH-017): a former client who is invited again accepts here.
+          <ButtonLink href={"/invitations" as never} className="w-full">
+            Your invitations
+          </ButtonLink>
+        ) : null}
         <form action={signOutAction}>
           <Button type="submit" variant="secondary" className="w-full">
             Sign out

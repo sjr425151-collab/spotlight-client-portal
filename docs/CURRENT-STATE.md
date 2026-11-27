@@ -705,13 +705,21 @@ The execution window (credential entry to removal, UTC), the request evidence, t
 >
 > I authorize WP-B (session_01RCnsL4vnvrx7b11HRxeo8T) on spotlight-client-portal-dev as the sole executing session for AUTH-002 Stage A attempt 2, conditional on all remaining Gate A prerequisites.
 
+*Discrepancy and correction (point 8):* Main received the attestation before 04:00Z on 2026-11-27, so a creation time of 10:57 UTC was in the future. Main held Gate A and asked the Owner for the exact UTC time. *Owner correction, verbatim (second message, 2026-11-27):*
+
+> Corrected Owner attestation — Point 1:
+>
+> I personally created the new restricted test key directly in the Stripe Dashboard on 2026-11-27 at 03:57 UTC.
+>
+> All other attestation points remain unchanged.
+
 | Gate A prerequisite | State |
 |---|---|
 | (1) Amendment merged; (2) post-merge CI | **Met:** PR #48 at `18c4215f9d215f9d39b39631243d42c7f9d159da` (parents `9eb71cc`, `8e6e847`; tree equal to the reviewed head); post-merge CI run 45935443149 (#159) passed 7 of 7, including the full suite |
 | (3) Credential-permission verification | **Met** (option (a), 2026-11-25; unchanged). Per-key request logs: docs.stripe.com/keys, read 2026-11-27, SHA-256 `22ff383f2faa88dff821a7797d1a27ed43770d7e6cb0e7d6f6015c566136d46c` ("View API request logs for a key … click the overflow menu for any key, then select View request logs"; this opens Workbench). That is documentation, not a verified view of the Owner's Dashboard |
 | Runner | **Met:** revision 4, accepted by SHA-256 `5094817abbebd4f9c97144b8562f682cd3f5254ecabfa24e98b72eb16cc310ca` (§13 "attempt 2 remediation record"); frozen and held read-only by WP-B |
 | OI-117: reconciliation method under control (3) | **Decided: option A** (Owner, 2026-11-27). The Owner confirmed that the key's "View request logs" view is available and shows zero requests before entry. **Cleanup order for attempt 2:** (i) immediately after the run, remove the Network secret and its allow rule; (ii) open the key's "View request logs" and record the count, methods, paths and first and last request times (UTC); (iii) expire the key promptly. Any discrepancy, or a view that cannot be read, prevents successful closure (control (3), unchanged) |
-| (4) Credential attestation, points 1 to 8 (new key) | **Met for points 1 to 6** by the attestation above. The key is `SLM-AUTH-002-STAGE-A-20261127-02`, created 2026-11-27T10:57Z. Point 4's labels ("Balance: Read; Prices: Read; Products: Read") are identical to the labels the Owner confirmed word for word from this sandbox's Dashboard on 2026-11-26, so there is no naming or grouping difference to record. Point 7 (exactly one `api.stripe.com` credential, by names only) is verified by Main after entry. Point 8 stands. Before entry, Main verified by names that the environment has no Network secret and no `api.stripe.com` allowed host (2026-11-27) |
+| (4) Credential attestation, points 1 to 8 (new key) | **Met for points 1 to 6** by the attestation and the Owner's point 1 correction above. The key is `SLM-AUTH-002-STAGE-A-20261127-02`, created **2026-11-27T03:57Z** (corrected; the first attestation's 10:57 UTC was in the future when received). Point 4's labels ("Balance: Read; Prices: Read; Products: Read") are identical to the labels the Owner confirmed word for word from this sandbox's Dashboard on 2026-11-26, so there is no naming or grouping difference to record. Point 7 (exactly one `api.stripe.com` credential, by names only) is verified by Main after entry. Point 8 stands. Before entry, Main verified by names that the environment has no Network secret and no `api.stripe.com` allowed host (2026-11-27) |
 | (5) Execution baseline | **`main` at `18c4215f9d215f9d39b39631243d42c7f9d159da`**, post-merge CI 45935443149 7/7 (Owner accepted, 2026-11-27). Open PRs: #45 (one integration test) and #6 (draft proposal); neither changes the catalog migrations or 04 §6.1 or §6.5. At activation, Main re-verifies that `main` has gained no such change since `18c4215` |
 | (6) No other Stripe operation in progress | **Met** (Owner, above) |
 | (7) Secure credential entry | **Pending** Main's activation notice: Network secret on `spotlight-client-portal-dev`, host `api.stripe.com`, Bearer, path prefixes `/v1/balance`, `/v1/products`, `/v1/prices` |

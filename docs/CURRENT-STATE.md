@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.36.0 |
+| Version | 1.37.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-27, by the R1 execution grant record (AUTH-010 and AUTH-015 to AUTH-018 granted; D-a to D-c dispositions; DEP-07 and DEP-12 conditional selections; AUTH-003 executor). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 closure record (OI-118 opened) and the AUTH-014 completion record (PR #45; OI-116 closed). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 Gate A record (new key attestation; OI-117 option A; baseline `18c4215`; not active). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 1 termination and administrative closure record (Owner-approved evidence limitation), the attempt 2 remediation record (runner revision 4 accepted) and the attempt 2 amendment (not active). Earlier: 2026-11-26, by the AUTH-002 Stage A Gate A record (attestation and acknowledgments recorded; not active). Earlier: 2026-11-26, by the AUTH-002 Stage A credential mechanism amendment (no activation). Earlier: 2026-11-26, by the R1 completion and allocation record (PRs #40 to #43 merged; AUTH-008 I-2 and AUTH-009 completed; OI-91 closed; AUTH-010 mandatory for R1; AUTH-014 granted). Earlier: 2026-11-26, by the AUTH-009 and AUTH-008 I-2 grant record. Earlier: 2026-11-26, by the post-merge record for PRs #36, #27 and #38 (AUTH-013 activated and completed; AUTH-007 completed; OI-113 closed; D-1 ratified; Stage A attestation wording approved). Earlier: 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
+| Last updated | 2026-11-27, by the WP-I AUTH-016 PR (OI-115 local part implemented; OI-119 decided by the Owner, option A and points 1 and 2; §21). Earlier: 2026-11-27, by the R1 execution grant record (AUTH-010 and AUTH-015 to AUTH-018 granted; D-a to D-c dispositions; DEP-07 and DEP-12 conditional selections; AUTH-003 executor). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 closure record (OI-118 opened) and the AUTH-014 completion record (PR #45; OI-116 closed). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 Gate A record (new key attestation; OI-117 option A; baseline `18c4215`; not active). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 1 termination and administrative closure record (Owner-approved evidence limitation), the attempt 2 remediation record (runner revision 4 accepted) and the attempt 2 amendment (not active). Earlier: 2026-11-26, by the AUTH-002 Stage A Gate A record (attestation and acknowledgments recorded; not active). Earlier: 2026-11-26, by the AUTH-002 Stage A credential mechanism amendment (no activation). Earlier: 2026-11-26, by the R1 completion and allocation record (PRs #40 to #43 merged; AUTH-008 I-2 and AUTH-009 completed; OI-91 closed; AUTH-010 mandatory for R1; AUTH-014 granted). Earlier: 2026-11-26, by the AUTH-009 and AUTH-008 I-2 grant record. Earlier: 2026-11-26, by the post-merge record for PRs #36, #27 and #38 (AUTH-013 activated and completed; AUTH-007 completed; OI-113 closed; D-1 ratified; Stage A attestation wording approved). Earlier: 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -1777,3 +1777,63 @@ Exact-head CI is recorded in the pull request. At `43b4bee`, run 45738752135 was
 - Main: recorded at `43b4bee` (7180343349), with M-1 to be reconciled with S2 (done).
 
 Each is a durable non-approval record. OI-91 stays open until the merge and its post-merge CI.
+## 21. WP-I AUTH-016 implementation record (OI-115 local part; OI-119 dispositions)
+
+Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) on `wp-i/oi-115-env-consistency`, branched from `12601a65d7dd892840a7d74ff9de3a0073bd56ac` (the verified merge of the R1 execution grant record). Local and CI only: no provider, hosted-environment or production access, no dependency or `package.json` change, no change to required checks.
+
+### 21.1 Scope delivered
+
+| Part | Delivered |
+|---|---|
+| Migration `20261127150000_wpd_oi115_environment_consistency.sql` (reserved) | `private.environment_consistent()`: true when `private.runtime_environment` (C2) is absent, or C2 and `private.environment_settings` (C1) hold the same value. **D1:** `private.app_environment()` raises 42501 `environment classification disagreement (OI-115)` otherwise, so every consumer (`is_production`, `stripe_mode`, `expected_livemode`, fixture guards, package-scope resolution, billing evidence stamps, termination paths) fails closed unedited. `private.scanner_permitted()` also requires agreement. `private.environment_classification()` (definer) and a security-invoker `public.environment_classification()` return the raw `{c1, c2}` without raising; execute for `service_role` only (T-TEN-06 holds). No table, trigger or constraint change; the seed and hosted provisioning are unaffected. **D2:** staging keeps no explicit row (both absent reads as `production`) |
+| Application check | `src/server/environment-consistency.ts`: strict parsing of the RPC response; the OI-119 point 1 rule; a per-process memo that caches a pass only. Called first in `acceptUpload`, `retryUploadScan` and `verifyLiveDeployment` (`fulfillment.ts`), and in `getStripeGateway()` before the mock exists (point 2). The billing-job test runner checks before its mock |
+| OI-119 option A | Setup and restoration statements only, in the six approved files and sites (21.2) |
+| New tests | pgTAP `410_wpi_oi115_environment_consistency.test.sql` (37); unit `wpi-environment-consistency.test.ts` (123) and `wpi-oi115-seams-fail-closed.test.ts` (10) |
+| Hosted part | Deferred to AUTH-003: record on staging that neither row exists (`public.environment_classification()` returns `{c1: null, c2: null}`) |
+
+### 21.2 OI-119 individual dispositions (FD-14 format; approved by the Owner, 2026-11-27)
+
+**Option A: setup-only restores in six existing pgTAP files.** Line numbers are at the base `12601a6` (insertions only; `git diff` removes no line).
+- *Original:* each site moves C1 away from `development` (to `staging`, `preview`, `test` or absent) while the seeded C2 `development` row stays (210: C2 `test` while C1 stays `development`). Under D1 these are disagreements, so the first environment read raised and the remainder of each file aborted (6 of 33 files, 247 subtests).
+- *Replacement:* at each site the C2 row is saved to a per-site temporary table and removed with the C1 change, and restored from that table after C1's own restoration, followed by `pg_temp.oi119_assert_restored(<site>)`, a setup-only guard that raises unless both tables again hold exactly one `development` row (it adds no pgTAP assertion). Sites and inserted lines:
+  - 100: after l.138 (+15: guard function, save, remove) and after l.143 (+2: restore, guard);
+  - 110: after l.105 (+15) and after l.111 (+2);
+  - 120: after l.553 (+15) and after l.559 (+2);
+  - 210: after l.311 (+2: `update private.environment_settings set app_env = 'test'`, so C1 agrees with the runtime `test` row it inserts; the file never restored C2 and the transaction rolls back);
+  - 310: after l.618 (+15), l.649 (+1: `insert … runtime_environment ('test')` beside C1 `test`), l.653 (+3: remove, restore, guard), l.761 (+3), l.768 (+2), l.802 (+3), l.827 (+2);
+  - 400: after l.298 (+15) and after l.307 (+2).
+- *Original guarantee:* each block's assertions about staging, preview, test, missing (production) and development classifications.
+- *Replacement guarantee:* identical. No assertion, expected value, description or plan count changes (plans 42, 142, 106, 81, 217, 33 unchanged), and the C2 row is absent exactly where C1 says non-development, which is the only state D1 allows.
+- *Exposure:* none. The guard aborts the file if a restore is missing, so no later assertion can run under contaminated state.
+- *Compensating coverage:* pgTAP 410 tests the disagreement cases directly.
+- *Evidence:* each file passes in isolation at its plan count and the full suite passes in sequence (21.3); mutation: deleting the 100 restore line makes the file fail with `OI-119: classifications not restored at 100`.
+
+**Point 1: the application rule.**
+- *Rule (approved):* with `APP_ENV` development or test, both classifications must be present, agree, and be development or test. With staging, preview or production, C2 must be absent and C1 absent or equal to `APP_ENV`. Anything else, an unreadable classification or a malformed response is refused.
+- *Guarantee:* no mock scanner, mock verifier or mock gateway activates on disagreement, and none activates in staging, preview or production. AUTH-003's hosted-staging requirements (migrations only, no seed, no row) are preserved.
+- *Evidence:* `wpi-environment-consistency.test.ts` enumerates all 105 `APP_ENV` × C1 × C2 combinations (9 pass), covering missing, unknown, conflicting and disallowed values, plus strict-parse refusals, read and RPC errors, and pass-only memoization. `wpi-oi115-seams-fail-closed.test.ts` shows that in preview, staging and production the scanner is null, the verifier is the real one, and the environment schema refuses `STRIPE_GATEWAY=mock`.
+
+**Point 2: async gateway acquisition.**
+- *Change (approved):* `getStripeGateway()` becomes `async` and awaits the environment check before the mock is created, with an `await` at the three call sites: `src/app/api/stripe/webhook/route.ts` and `src/app/portal/projects/[projectId]/billing/actions.ts` (×2).
+- *Consumer inventory:*
+  - direct: those three sites only;
+  - indirect (receive the gateway as a parameter, unchanged): `startInitialCheckoutAsCaller`, `beginPaymentMethodRecoveryAsCaller` and `receiveStripeWebhook` → `executeOutboundRequest`, `verifyPrices`, `runPaymentMethodLookups`, `runBillingJobs`, `runReconciliation` (`src/server/services/billing.ts`);
+  - tests and harness construct `MockStripeGateway` directly (`wpb-billing`, `oi91-dispatch-revocation`, `wpb-billing-service`, `wpc-fixtures`, the billing-job runner, which now checks first).
+- *Guarantee:* a failed check rejects inside `getStripeGateway()`. The checkout and recovery actions rethrow before reaching `startInitialCheckoutAsCaller` or `beginPaymentMethodRecoveryAsCaller`, so no outbound row is claimed or confirmed and no provider request starts. The webhook route keeps verifying and storing the event, with a `null` gateway (card lookups wait for the job, as when no gateway is configured). Payment logic, authorization, idempotency, webhook verification and financial state transitions are unchanged (no change to `billing.ts`, `gateway.ts` or `mock-gateway.ts`).
+- *Evidence:* `wpi-oi115-seams-fail-closed.test.ts` shows that on a failed check the mock is never constructed and the global holder stays empty, neither billing service is called, and the webhook service receives `null`; with agreement the same mock is passed on unchanged.
+
+### 21.3 Verification (local, exact branch state)
+
+| Suite | Result |
+|---|---|
+| `supabase db reset` (every migration plus the seed) | Pass |
+| `supabase test db` | 34 files, 1,896 tests, all pass |
+| The six edited files in isolation | 42, 142, 106, 81, 217, 33: all pass |
+| pgTAP 410 mutations | M1 (no raise): 9 failures; M2 (scanner without the consistency term): 3; M3 (reader granted to `authenticated`): 3 |
+| `pnpm test` | 23 files, 500 tests, all pass |
+| `pnpm test:integration` | 9 files, 122 tests, all pass |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Clean |
+| `pnpm build`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e` | **Not run locally:** the pinned Playwright expects a Chromium build that is not installed in this container (`browserType.launch: Executable doesn't exist`); no test executed. The exact-head CI run is the evidence |
+
+Exact-head CI and the WP-C (security) and Main reviews are recorded in the PR. Merge is Main's under OM-6(b) once every condition holds.

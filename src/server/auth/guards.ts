@@ -49,6 +49,30 @@ export async function requireClient(): Promise<ActiveContext> {
 }
 
 /**
+ * OI-88 option A (AUTH-017): sends any staff role elsewhere, exactly as `requireClient` does
+ * before its membership check. Owner and Admin go to the staff area, Sales Representatives to
+ * the sales area, and any other staff role value is refused (fail closed).
+ */
+export function rejectStaff(ctx: ActiveContext): void {
+  if (ctx.staffRole) redirect("/staff");
+  if (ctx.sales) redirect("/sales");
+  if (ctx.anyStaffRole) redirect("/sign-in?notice=inactive");
+}
+
+/**
+ * An invitee (OI-88 option A, AUTH-017): a signed-in, active user with no staff role of any
+ * kind, with or without an active membership. Only for /invitations, which lists the
+ * caller's own pending invitations (RLS: pending, unexpired, the caller's verified email) and
+ * accepts one through `accept_invitation` bound to that email. It grants no client access:
+ * every client page and action keeps the strict `requireClient`.
+ */
+export async function requireInvitee(): Promise<ActiveContext> {
+  const ctx = await requireUser();
+  rejectStaff(ctx);
+  return ctx;
+}
+
+/**
  * A Sales Representative (03 §4.1) at aal2 in a live staff session. Like staff, the
  * representative must enroll and verify an authenticator first (forced MFA). Every Sales
  * database function re-checks the role, aal2, the live session, and the assignment at each

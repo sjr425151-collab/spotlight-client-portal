@@ -13,7 +13,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(151);
+select plan(154);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false, p_otp_fresh boolean default false)
 returns void language plpgsql as $$
@@ -684,6 +684,19 @@ select ok((select count(*) = 2 from public.audit_events a where a.action = 'fina
   and (select count(*) = 1 from public.audit_events a where a.action = 'financial_conflict.decision_refused'
          and a.target_id = pg_temp.eid('evt_CFpost000001')::text and a.summary ->> 'refusal' = 'not_a_candidate'),
   'Amendment 2: unsupported and non-candidate choices are audited as refused decisions too');
+
+-- The refusal audit stays bounded (WP-C U-3 I-1): a charge.refunded event carrying 100 refunds
+-- on a charge two projects hold is refused, and the audit records the first 20 reasons and the total.
+select is(pg_temp.charge_refunded('evt_CFbig000001', 'ch_CFAbig000001', 'pi_CFAinit01', 'in_CFC00000',
+  (select jsonb_agg(pg_temp.re('re_CFbig' || lpad(i::text, 7, '0'), 10) order by i) from generate_series(1, 100) i), 58)
+  ->> 'reason', 'attribution_conflict', 'a charge.refunded conflict with 100 refunds');
+select is(pg_temp.decide('evt_CFbig000001', pg_temp.pid('pa')) ->> 'error', 'conflict_unsupported',
+  'its decision is refused (obligations under several projects)');
+select ok((select count(*) = 1 and bool_and(jsonb_array_length(a.summary -> 'object_reasons') = 20
+             and (a.summary ->> 'object_count')::int = 100 and octet_length(a.summary::text) <= 8192)
+           from public.audit_events a where a.action = 'financial_conflict.decision_refused'
+            and a.target_id = pg_temp.eid('evt_CFbig000001')::text),
+  'the refusal is audited durably with a bounded summary (20 reasons, the total 100)');
 
 -- D: D's checkout invoice (D holds the obligations) and B's recorded charge; D's payment is not
 -- linked yet, so the application has an evidence gap at attempt time.

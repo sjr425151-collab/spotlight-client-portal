@@ -208,9 +208,13 @@ begin
         'classifier_reason', coalesce(nullif(v_class ->> 'reason', 'object'),
           (select o ->> 'reason' from jsonb_array_elements(coalesce(v_class -> 'objects', '[]'::jsonb)) o
             where o ->> 'reason' is not null order by (o ->> 'ord')::int limit 1), v_refusal),
+        -- Bounded (WP-C U-3 I-1): the first 20 object reasons and the total, so the summary stays
+        -- within the 8 KiB audit limit however many refunds the event carries.
         'object_reasons', (select coalesce(jsonb_agg(jsonb_build_object('object_id', o ->> 'object_id', 'reason', o ->> 'reason')
                                             order by (o ->> 'ord')::int), '[]'::jsonb)
-                             from jsonb_array_elements(coalesce(v_class -> 'objects', '[]'::jsonb)) o)),
+                             from jsonb_array_elements(coalesce(v_class -> 'objects', '[]'::jsonb)) o
+                            where (o ->> 'ord')::int <= 20),
+        'object_count', jsonb_array_length(coalesce(v_class -> 'objects', '[]'::jsonb))),
       btrim(p_reason));
     return private.fail(v_refusal)
       || case when v_class is not null then jsonb_build_object('classification', v_class) else '{}'::jsonb end;

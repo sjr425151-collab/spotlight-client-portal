@@ -33,9 +33,9 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 allowlist="$here/supabase/tests-isolated/wpd18-restore-allowlist.txt"
 parity_sql="$here/supabase/tests-isolated/wpd18_parity.sql"
 race_sql="$here/supabase/tests-isolated/wpd18_commit_race.test.sql"
-expected_entries=37
-expected_fingerprint_lines=67
-expected_plan=25
+expected_entries=43
+expected_fingerprint_lines=84
+expected_plan=27
 
 run_id="${GITHUB_RUN_ID:-local}"
 db="wpd18_iso_${run_id}_$$"

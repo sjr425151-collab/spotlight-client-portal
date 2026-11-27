@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.39.0 |
+| Version | 1.40.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-27, by the Stage A attempt 3 prerequisite record (the Owner's no-other-operation statement and WP-B designation; not active) and the AUTH-010 I-1 correction. Earlier: 2026-11-27, by the consolidated Owner decisions record (AUTH-019 granted; AUTH-010 Amendments 1 and 2; AUTH-015 Amendment 1; Stage A attempt 3 key creation authorized, creation only) and the AUTH-017 completion record (PR #53; OI-88 closed), and the AUTH-002 Stage A attempt 3 Gate A record (attestation received; not active). Earlier: 2026-11-27, by the OI-118 closure (cause H1, sandbox mismatch) and the AUTH-002 Stage A attempt 3 amendment (not active). Earlier: 2026-11-27, by the R1 execution grant record (AUTH-010 and AUTH-015 to AUTH-018 granted; D-a to D-c dispositions; DEP-07 and DEP-12 conditional selections; AUTH-003 executor). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 closure record (OI-118 opened) and the AUTH-014 completion record (PR #45; OI-116 closed). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 Gate A record (new key attestation; OI-117 option A; baseline `18c4215`; not active). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 1 termination and administrative closure record (Owner-approved evidence limitation), the attempt 2 remediation record (runner revision 4 accepted) and the attempt 2 amendment (not active). Earlier: 2026-11-26, by the AUTH-002 Stage A Gate A record (attestation and acknowledgments recorded; not active). Earlier: 2026-11-26, by the AUTH-002 Stage A credential mechanism amendment (no activation). Earlier: 2026-11-26, by the R1 completion and allocation record (PRs #40 to #43 merged; AUTH-008 I-2 and AUTH-009 completed; OI-91 closed; AUTH-010 mandatory for R1; AUTH-014 granted). Earlier: 2026-11-26, by the AUTH-009 and AUTH-008 I-2 grant record. Earlier: 2026-11-26, by the post-merge record for PRs #36, #27 and #38 (AUTH-013 activated and completed; AUTH-007 completed; OI-113 closed; D-1 ratified; Stage A attestation wording approved). Earlier: 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
+| Last updated | 2026-11-27, by the consolidated completion record (AUTH-002 Stage A attempt 3 passed and Stage A completed; AUTH-010 and AUTH-015 completed; OI-93, OI-114 and OI-121 closed). Earlier: 2026-11-27, by the Stage A attempt 3 prerequisite record (the Owner's no-other-operation statement and WP-B designation; not active) and the AUTH-010 I-1 correction. Earlier: 2026-11-27, by the consolidated Owner decisions record (AUTH-019 granted; AUTH-010 Amendments 1 and 2; AUTH-015 Amendment 1; Stage A attempt 3 key creation authorized, creation only) and the AUTH-017 completion record (PR #53; OI-88 closed), and the AUTH-002 Stage A attempt 3 Gate A record (attestation received; not active). Earlier: 2026-11-27, by the OI-118 closure (cause H1, sandbox mismatch) and the AUTH-002 Stage A attempt 3 amendment (not active). Earlier: 2026-11-27, by the R1 execution grant record (AUTH-010 and AUTH-015 to AUTH-018 granted; D-a to D-c dispositions; DEP-07 and DEP-12 conditional selections; AUTH-003 executor). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 closure record (OI-118 opened) and the AUTH-014 completion record (PR #45; OI-116 closed). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 Gate A record (new key attestation; OI-117 option A; baseline `18c4215`; not active). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 1 termination and administrative closure record (Owner-approved evidence limitation), the attempt 2 remediation record (runner revision 4 accepted) and the attempt 2 amendment (not active). Earlier: 2026-11-26, by the AUTH-002 Stage A Gate A record (attestation and acknowledgments recorded; not active). Earlier: 2026-11-26, by the AUTH-002 Stage A credential mechanism amendment (no activation). Earlier: 2026-11-26, by the R1 completion and allocation record (PRs #40 to #43 merged; AUTH-008 I-2 and AUTH-009 completed; OI-91 closed; AUTH-010 mandatory for R1; AUTH-014 granted). Earlier: 2026-11-26, by the AUTH-009 and AUTH-008 I-2 grant record. Earlier: 2026-11-26, by the post-merge record for PRs #36, #27 and #38 (AUTH-013 activated and completed; AUTH-007 completed; OI-113 closed; D-1 ratified; Stage A attestation wording approved). Earlier: 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -16,8 +16,8 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
-| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-010** (WP-B, OI-93), **AUTH-015** (WP-C, OI-114), **AUTH-016** (WP-I, OI-115 local) and **AUTH-018** (DEP-18 session, interim scope loading and activation): granted 2026-11-27, effective on the verified merge of the R1 execution grant record (OM-1), each local and CI only with a pre-authorized OM-6(b) merge; AUTH-010 amended (Amendments 1 and 2) and AUTH-015 amended (Amendment 1) on 2026-11-27; **AUTH-019** (DEP-18 session, OI-120 root-function correction): granted 2026-11-27, effective on the verified merge of the consolidated Owner decisions record, OM-6(b); **Completed:** **AUTH-017** (OI-88, PR #53 `8ebcced`, post-merge CI 46062083448), **AUTH-014** (OI-116, PR #45 `eacc8b5`, post-merge CI 46054458273), AUTH-006 (WP-H, PR #35 `30414c7`), AUTH-007 (WP-D18, PR #27 `05b32e9`), **AUTH-008** (I-1 PR #28 `b027e41`; I-2 PR #42 `48a8c04`), **AUTH-009** (OI-91, PR #43 `3545d0a`), AUTH-012 (OI-95, PR #37 `e3a7508`), AUTH-013 (OI-113, PR #38 `7226d6f`). **Expired:** AUTH-005 (WP-S). **Recorded, not active:** AUTH-002 Stage A (attempt 1 terminated and administratively closed under the Owner-approved evidence limitation of 2026-11-27, §13 "Stage A attempt 1 termination record"; attempt 2 amendment recorded, not active; corrected runner revision 4 accepted by SHA-256 after independent review, §13 "attempt 2 remediation record"; attempt 2 Gate A record, §13; **attempt 2 executed and closed (STOPPED: http_404, 2 requests, cleanup and reconciliation complete; §13 "attempt 2 execution and closure record"); catalog re-verification not achieved; cause OI-118**; no further attempt without a new Owner decision). AUTH-003 executor: WP-I after AUTH-016, from the dedicated `spotlight-staging-ops` environment (not active until the Owner's accounts and credentials) |
-| Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
+| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-016** (WP-I, OI-115 local) and **AUTH-018** (DEP-18 session, interim scope loading and activation): granted 2026-11-27, effective on the verified merge of the R1 execution grant record (OM-1), each local and CI only with a pre-authorized OM-6(b) merge; **AUTH-019** (DEP-18 session, OI-120 root-function correction): granted 2026-11-27, effective on the verified merge of the consolidated Owner decisions record, OM-6(b); **Completed:** **AUTH-010** (OI-93 and OI-121, PR #59 `30ee417`, post-merge CI 46080015419), **AUTH-015** (OI-114, PR #54 `b5d8078`, post-merge CI 46077031048), **AUTH-017** (OI-88, PR #53 `8ebcced`, post-merge CI 46062083448), **AUTH-014** (OI-116, PR #45 `eacc8b5`, post-merge CI 46054458273), AUTH-006 (WP-H, PR #35 `30414c7`), AUTH-007 (WP-D18, PR #27 `05b32e9`), **AUTH-008** (I-1 PR #28 `b027e41`; I-2 PR #42 `48a8c04`), **AUTH-009** (OI-91, PR #43 `3545d0a`), AUTH-012 (OI-95, PR #37 `e3a7508`), AUTH-013 (OI-113, PR #38 `7226d6f`). **Expired:** AUTH-005 (WP-S). **Recorded, not active:** AUTH-002 Stage A (attempt 1 terminated and administratively closed under the Owner-approved evidence limitation of 2026-11-27, §13 "Stage A attempt 1 termination record"; attempt 2 amendment recorded, not active; corrected runner revision 4 accepted by SHA-256 after independent review, §13 "attempt 2 remediation record"; attempt 2 Gate A record, §13; **attempt 2 executed and closed (STOPPED: http_404, 2 requests, cleanup and reconciliation complete; §13 "attempt 2 execution and closure record"); catalog re-verification not achieved; cause OI-118**; no further attempt without a new Owner decision). AUTH-003 executor: WP-I after AUTH-016, from the dedicated `spotlight-staging-ops` environment (not active until the Owner's accounts and credentials) |
+| Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions; **Stage A completed 2026-11-27: attempt 3 passed**, the rest of AUTH-002 not active), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
 
@@ -833,6 +833,40 @@ The execution window (credential entry to removal, UTC), the request evidence, t
 | Execution go-ahead naming the session and environment | **Given** (Owner, same message): "I designate WP-B as the sole authorized executor of Stage A attempt 3, subject to all established Gate A prerequisites and activation requirements." WP-B is `session_01RCnsL4vnvrx7b11HRxeo8T`; the environment is `spotlight-client-portal-dev`, fixed by the carried-forward credential mechanism (the only environment holding the Network secret). The Owner also directed that the frozen runner, the verified sandbox identity, the read-only restrictions, the request ceiling, the single-execution limit, independent reconciliation and credential cleanup be preserved |
 | Acknowledgments from every other active session (control 1) | **Collected by Main immediately before the activation notice**, recorded with session IDs and UTC times |
 | Secure credential entry | **Pending** Main's activation notice: Network secret on `spotlight-client-portal-dev`, host `api.stripe.com`, Bearer, path prefixes `/v1/balance`, `/v1/products`, `/v1/prices` |
+
+**AUTH-002 Stage A attempt 3 execution and closure record (2026-11-27; Main): PASSED; Stage A completed.**
+
+| Item | Record |
+|---|---|
+| Activation and credential | Activation notice (secure entry authorized) at 20:53Z; Owner "credential entered"; at 20:56:28Z Main verified by names exactly one Network secret (host `api.stripe.com`, header `Authorization`, label "api.stripe.com/v1/balance") and unchanged allowed hosts (point 7). Execution go-ahead to WP-B at 20:56Z on baseline `208d7e7` |
+| Delay before execution | WP-B's session reached the account usage limit at 20:59:10Z, before issuing the run (Main confirmed from its transcript: no `--execute`). The limit reset at 22:20Z; Main re-verified the baseline and the single credential at 22:29Z and WP-B resumed. The credential stayed on the environment, unused, in the interval; the control-1 acknowledgments remained in force |
+| Execution | One run, unchanged (accepted revision 4, `5094817a…`): `python3 -I stage_a_runner.py --execute --baseline 208d7e7475ddbb5d81ac87453bff53cf2e42396c --out <outside any Git work tree>`. Runner fields: run ID `stageA-20261127T223034Z-44a150dd`; `mode` EXECUTE; `overall` **PASS**; `stop_condition`, `internal_error` and `signal` null; exit status 0; `request_count` **25** (ceiling 30); `start_utc` 22:30:34Z; `end_utc` 22:30:38Z; `api_version` `2026-09-30.endive`; `execution_baseline` `208d7e7`; no-write confirmation ("GET only: the request function refuses every other method before it is counted or sent; no request body, no idempotency key and no write endpoint was sent") |
+| Baseline note | Main merged PR #54 (AUTH-015, publication recovery only) at 22:31Z, while the run was pending. It has no catalog migration and no 04 §6.1 or §6.5 change, so the baseline stayed `208d7e7` (as in attempt 2) |
+| Requests (runner) | 1: `GET /v1/balance` (`livemode` false); 2–12: `GET /v1/prices/<id>` (11); 13–23: `GET /v1/products/<id>` (11); 24: `GET /v1/prices?active=true&limit=100`; 25: `GET /v1/products?limit=100` |
+| Evidence file | `stage-a-attempt3-evidence.json`, 15,805 bytes, SHA-256 `50db31c035046b966afc7e5d3b67ca5c52c9b9b55f52b5d83bb815a533b7602d`, mode 0444, held by WP-B outside Git; contains no headers, key material or customer data |
+| Owner cleanup | Owner confirmation (2026-11-27): the `api.stripe.com` Network secret removed; its allow rule removed; the key `SLM-AUTH-002-STAGE-A-20261127-03` expired. Main verified by names at 23:22:11Z: no Network secret; allowed hosts exactly `github.com`, `api.github.com`, `registry.npmjs.org`, `nodejs.org`, `docs.stripe.com`, `pkg-containers.githubusercontent.com`; no `api.stripe.com` |
+| Workbench reconciliation (Owner, account `acct_1UexHZK5j4r4WkVP`) | 25 key-specific requests, all GET, 25 HTTP 200; balance 1, price retrievals 11, product retrievals 11, price list 1, product list 1; writes 0; failures 0; first 22:30:35Z, last 22:30:38Z; API version `2026-09-30.endive`. **Reconciles with the runner** (count, methods, paths by class, window 22:30:34–22:30:38Z, API version) and with amendment (4) (the dedicated sandbox's account): no discrepancy |
+| Duplicate detection (runner, pass) | Prices: `COMPLETE`, 11 listed; for each of the 11 catalog keys exactly one active price, equal to the only active price on its product, with the ID below (`unique` true). Products: `COMPLETE`, 11 listed; for each key exactly one active product with the ID below, `inactive_products` empty (`unique` true) |
+| Evidence limitations | (a) The cleanup times (secret removal, allow-rule removal, key expiry) were not recorded by the Owner; none is invented here. (b) The Network secret's path prefixes are not visible to Main (labels only, as in attempts 1 and 2). (c) The runner records most checks as booleans, not observed values (except `unit_amount` and the `recorded` flags). (d) Limitation (f) of the Gate A record (approximate creation time) stands. (e) The proxy's internal allow rule is not directly visible to Main; its removal is Owner-reported and the allowed-host list is verified |
+| Closure | **Stage A completed: PASSED.** The 11 test-mode Products and 11 test-mode Prices recorded in 04 §6.5 are re-verified against 04 §6.1 in the dedicated sandbox: every object `livemode` false, every runner check true, every ID and unit amount equal to 04 §6.5 (Main cross-checked all 22 IDs and the 11 amounts against 04 §6.5 and the catalog migration). Stage A is not reactivated without a new amendment. Main announces closure to every acknowledging session; WP-B keeps the evidence unchanged. The rest of AUTH-002 (the broader sandbox scope) stays **not active** |
+
+*Per-object results (runner fields; no headers, key material or customer data).* Every price row: `livemode` false; checks `product`, `currency`, `unit_amount`, `active`, `type` and `recurring_interval` true; `tax_behavior` `unspecified`; `lookup_key_matches` true. Every product row: `livemode` false; `active` true; `name_matches` and `metadata_catalog_key_matches` true.
+
+| Catalog key | Price ID | `unit_amount` (recorded = expected) | Product ID | Result |
+|---|---|---|---|---|
+| `essential.deposit` | `price_1Uf5HxK5j4r4WkVPkRUJ4gnZ` | 16000 | `prod_VgKrmaWefVnWy1` | pass (price and product) |
+| `essential.balance` | `price_1Uf5HyK5j4r4WkVPfrkvOv7h` | 64000 | `prod_VgSCAxhfEGdaad` | pass (price and product) |
+| `professional.deposit` | `price_1Uf5HyK5j4r4WkVPOtk24lGw` | 29900 | `prod_VgSCeNeWEAgD5n` | pass (price and product) |
+| `professional.balance` | `price_1Uf5HzK5j4r4WkVPRH6Wkz6D` | 119600 | `prod_VgSCfdhERuVy2D` | pass (price and product) |
+| `advanced.deposit` | `price_1Uf5HzK5j4r4WkVP35jgGOiy` | 49900 | `prod_VgSC96cbyhUzC9` | pass (price and product) |
+| `advanced.balance` | `price_1Uf5I0K5j4r4WkVPZLs7eS9w` | 199600 | `prod_VgSC3IZmhX2qpb` | pass (price and product) |
+| `signature.deposit` | `price_1Uf5I0K5j4r4WkVPW6smdGo2` | 69900 | `prod_VgSCeFVATAQD5p` | pass (price and product) |
+| `signature.balance` | `price_1Uf5I1K5j4r4WkVPB0lY2MgL` | 279600 | `prod_VgSCqRM6FGup6G` | pass (price and product) |
+| `prestige.deposit` | `price_1Uf5I1K5j4r4WkVPyCBIiYGP` | 99900 | `prod_VgSCyf8mCcu9mc` | pass (price and product) |
+| `prestige.balance` | `price_1Uf5I1K5j4r4WkVPDvIUmRD9` | 399600 | `prod_VgSCGIcK8EA2g5` | pass (price and product) |
+| `maintenance.monthly` | `price_1Uf5I2K5j4r4WkVPJodSnaBe` | 9900 | `prod_VgSCHvgDEvac7A` | pass (price and product) |
+
+**Consolidated completion record (2026-11-27; Main):** AUTH-015 completed (PR #54 at `b5d8078`; post-merge CI 46077031048; OI-114 closed); AUTH-010 completed (PR #59 at `30ee417`; post-merge CI 46080015419; OI-93 and OI-121 closed); AUTH-002 Stage A completed (record above). Details in AUTHORIZATIONS "Completion" rows and §5. Open at this record: PR #55 (AUTH-016, the Owner's allowlist decision), PR #57 (AUTH-018, synchronization and the integration re-runs), AUTH-019 (DEP-18 session, awaiting a push branch).
 
 ## 14. WP-I I-1 implementation record (AUTH-008, I-1 only)
 
@@ -1986,21 +2020,219 @@ Remote CI for the exact head is recorded in the pull request.
 
 **Effort (OI-67):** AI session about 4.5 h; Owner review: the T-E2E-08 disposition and Amendment 1; administrative about 0.4 h (one escalation, one scope question, the OI-120 reports, the M-1 and N-1 coordination).
 
-## 23. WP-I AUTH-016 implementation record (OI-115 local part; OI-119 dispositions)
+## 23. WP-B AUTH-010 implementation record (OI-93; Amendments 1 and 2; OI-120, OI-121)
+
+Implemented by the WP-B session on branch `claude/wp-b-client-portal-xjftil`. It started from `main` at `12601a6` (the PR #51 grant merge; post-merge CI run 46058960366 `success`) and is merged up to `2d5705e` (PR #56: Amendments 1 and 2 active). Local and CI only, synthetic data; no provider, hosted or production access; no dependency, `package.json` or required-check change.
+
+**Delivered (grant scope):**
+
+| Area | Change |
+|---|---|
+| Records (`20261127130000`) | Four private, insert-only tables with no API privilege (update, delete and truncate refused by trigger): `financial_conflict_decisions` (one per event, immutable), `financial_conflict_applications` (durable attempts 1 to 10, unique `(decision_id, attempt_no)` and `attempt_request_id`, at most one success, `terminal_reason = 'exhausted'` exactly on a tenth non-success row), `financial_conflict_effects` (one recognition per effect key: provider object, effect type, amount) and `financial_conflict_application_entries` (the exact ledger entries posted, `new`, or cited, `cited`, with their recorded values; a ledger entry is `new` in at most one application). |
+| Extraction | `apply_refund_for_project` and `apply_dispute_for_project` are the WP-H handler bodies verbatim, with `v_project` passed as `p_project_id` (static proof in `wpb-static`). `handle_refund`, `handle_dispute` and `handle_charge_refunded` keep the attribution step unchanged and delegate. `charge_refunded_objects` is the WP-H refund expansion, byte-identical and shared by the handler and the attempt (I-8). Equivalence: pgTAP 140, 160, 180, 190 and 191 pass unchanged. |
+| Amendment 1 (OI-121) | The only behavior change to those handlers: the `payment.refund_recorded` key is passed in by the caller. refund.* events keep `'payment.refund_recorded:' || stripe_event_id`. A charge.refunded event uses `… || ':' || <refund id>`, so a charge.refunded with several refunds now posts each refund once instead of failing with 23505. Across refund.* and charge.refunded events each refund is recognized financially once in either arrival order (the counted-once rule); the domain event and audit stay once per event, as before. |
+| Classifier and fingerprint | `financial_conflict_classify` (S1 refunds, S2 disputes; every unsupported class; the expected money effect per object, I-5) over `financial_conflict_scope`; `oi93.fp.v1` = SHA-256 of canonical JSON (`oi93_canonical_json`: keys by code point, no whitespace, explicit nulls) over the decision, the event and its raw-body hash, the candidates, the payment links, the obligations and balances, the relevant ledger entries, the refund and dispute rows, the refund decisions and lines, and the effect recognitions. |
+| Owner functions (`20261127130100`, U-2) | `record_financial_conflict_decision(bigint, uuid, jsonb, text)`, `retry_financial_conflict_application(uuid, uuid, text)`, `financial_conflict_attempt_status(uuid)` (VOLATILE: a shared try-lock, then a fresh read), `financial_conflict_events()`. Each private function is SECURITY DEFINER with `search_path=''` and a NULL-safe guard (OI-120): `(is_owner() and is_aal2() and mfa_is_fresh() and session_is_active()) is not true`, plus the reason. Each INVOKER wrapper is granted to `authenticated` only and carries `lock_timeout` 5 s (I-1). Added to the `050` list as a new group (additions only). |
+| Decision rules | Refused with no row, returned (never raised) and audited as `financial_conflict.decision_refused` with the event, the chosen project and the classifier reason (Amendment 2): already decided, not eligible, not a candidate, unsupported (`conflict_unsupported`) and, when no project holds the obligations yet, `not_yet_resolvable` (I-4: decide again once the charge is posted). |
+| Attempt | Lock order: the attempt-request advisory lock, the decision row, the event row, then the merged reversal order (refund or dispute row, the charge advisory lock, `refund_decisions`); no AUTH-009 lock. Refusals with no row, audited as `attempt_refused`: already applied, permanently unsupported, 10 attempts, within 60 s, and `awaiting_evidence` with an unchanged fingerprint. One protected step: classification; the extracted path per object; the re-check under the charge lock (nothing under another project); recognition by exact match (project, object, type, amount, exact entry IDs; entries of another recognition never re-recognized, I-6); the expected money effect present (I-5); the entries and the attempt row. Any unsupported or awaiting object or failed proof rolls the whole step back; the outcome is the most severe; detail per object. An exception is `operational_failure` (SQLSTATE only). |
+| Clearing | `financial_conflict_cleared`: only a `posted` or `represented` application that `financial_conflict_application_verified` re-verifies against the ledger as it is then. `project_financial_anomalies` items 1 and 7 exclude a cleared event; items 2 to 6 and 8 are byte-identical to `20261127120000`. A decision alone, or a failed or interrupted attempt, never clears. |
+| Application | `src/app/staff/billing/conflicts/` (Owner, fresh MFA): the list, the decision form and the apply form. After `outcome_unknown` only a status read or a resubmission of the same `attempt_request_id` is offered. `src/server/services/billing.ts`: the 45 s deadline (`CONFLICT_ACTION_DEADLINE_MS`), starting immediately after the action's guard (the 03 §10 guard-first rule), with a client-side abort; recorded, refused, rolled back (`attempt_rolled_back`) and `outcome_unknown` are kept apart. `messages.ts` and `audit-actions.ts` (U-1 and Amendment 2: four financial actions). No provider call. |
+
+**Main's OM-4 rulings on I-1 to I-9 (2026-11-27), dispositions:**
+- **I-1:** wrapper placement, with Main's corrected condition (c):
+  - (a) 55P03 at about 5 s through PostgREST: the decision call on the event row, the attempt on the event row, on the decision row, and on its `attempt_request_id` lock;
+  - 57014 at about 8 s as a separate case;
+  - (b) and (c) shape and ACL assertions in 195: the wrappers INVOKER with `lock_timeout=5s`; the private functions SECURITY DEFINER, executable by `authenticated` only (never anon, service_role or PUBLIC); the helpers by no API role;
+  - (c) `private` is not an exposed API schema (`wpb-static`, `supabase/config.toml`);
+  - (d) removing either wrapper's SET is caught;
+  - 191 is unchanged.
+- **I-2:** every attempt, the first included, goes through `retry_financial_conflict_application`.
+- **I-3:** Amendment 2 (above).
+- **I-4:** `not_yet_resolvable` (above); `awaiting_evidence` is only an attempt-time evidence gap.
+- **I-5:** the expected effect is derived from the event; zero-entry `posted` is accepted only where no effect is expected; a fault-injected succeeded refund that posts nothing fails closed.
+- **I-6:** exact match, no re-recognition of another recognition's entries, the check against another project before and after posting under the charge lock; provenance (the cited entries' source event) shown in 195.
+- **I-7:** `195_wpb_conflict_decision.test.sql`.
+- **I-8:** the helpers stay in the two migrations and are revoked from every API role; no other existing assertion changed.
+- **I-9:** the status read is VOLATILE and non-blocking; concurrent attempts with different ids (one money effect, the other refused, no 40P01), a resubmission of the same id while the first runs (it waits, then returns the recorded attempt, one row), and `in_progress` during a running attempt (integration).
+
+**Migration hashes (SHA-256):** `20261127130000_wpb_oi93_conflict_decisions.sql` `fd06c52bb8c0d33800555b80cd140c8c3b772b100d3ab3378c87ec47d415f267`; `20261127130100_wpb_oi93_conflict_attempts.sql` `747c33857f8dc861c64d6acd1b377c2bf4ee0439703ac19825b3be757250acac`.
+
+**Existing assertions:** only the `050` additions (U-2). Every other assertion in every existing suite is unchanged.
+
+**New tests:**
+- `supabase/tests/195_wpb_conflict_decision.test.sql`, 157 assertions: records and privileges; OI-120 denials on all four functions (a fresh-MFA client, a revoked former Owner, Admin, Sales, an Owner without fresh MFA); decisions and refusals with their durable, bounded audit (WP-C U-3 I-1: the first 20 object reasons and the total); every outcome; a refusal whose only reason is obligations held under another candidate (WP-S F-1); S0, S1 and S2 (dispute opened, then won: cited and new); overlapping events; recognition under another project; mixed charge.refunded (new and cited) and the whole-step rollback; idempotency; the 60 s interval, the fingerprint rule and the tenth attempt; a second holder appearing after the decision; item-1 and item-7 clearing; fingerprint stability and sensitivity per input class; fabricated and corrupted clearance never clearing; OI-121 normal-path regressions in both arrival orders; the I-5 fault injection.
+- `tests/integration/oi93-conflict-decision.test.ts`, 15 tests: the Owner's real session through PostgREST (Admin refused); two attempts and one `attempt_request_id` raced on one decision; the attempt against the same refund's webhook in both orders; the attempt against `invoice.paid` on the same project in both orders, with no AUTH-009 lock held; the re-check under the charge lock; U-4 (55P03 at about 5 s on four locks; 57014 at about 8 s); the 45 s deadline (fake clock), a client abort, the inconclusive status read and recovery by the same id.
+- `tests/unit/wpb-static.test.ts` (one case): the payment invariants, exactly four replaced functions, no guard or ledger change, the verbatim extraction with only the Amendment 1 key change, the key rule in both callers, NULL-safe guards, registered financial audit actions, `private` not exposed, and the Owner screen's guards and deadline.
+- `tests/e2e/wpb.spec.ts` (one test): the signed webhook quarantines a conflict; Admin is redirected; the Owner decides and applies it; axe on each state; the database agrees.
+
+**Mutation checks:** 43 of 43 caught (the 42nd, an unbounded refusal summary, added after WP-C's U-3 note I-1; the 43rd, the classifier's obligations-other-project branch removed, added after WP-S's F-1). They cover:
+- the Owner checks and the OI-120 `if not (…)` form;
+- each refusal rule;
+- the cap and `exhausted`;
+- classification ignored; the whole-step rollback; the post-check; the S0 exact match;
+- clearing (always true; a success row alone);
+- items 1 and 7;
+- canonical key order; the candidates and ledger classes of the fingerprint;
+- idempotency; the in-progress status;
+- each wrapper's `lock_timeout`;
+- the classifier's livemode, refund-decision, other-project, several-holder and event-type checks;
+- OI-121's shared key; I-4; Amendment 2's audit; I-5; I-6;
+- the extracted refund-row lock (static).
+
+Two misses during development were real gaps and were closed by new tests: item-1 clearing on a renewal charge (item 1 gives a renewal charge no gate) and an unisolated ledger-sensitivity case. One unreachable in-attempt check was removed; clearing re-verifies.
+
+**Shared files:** AUTH-015 (PR #54) also adds to `050`, `audit-actions.ts` and `messages.ts`. A trial merge with its head `2b59ef3` is clean and both sets of additions coexist (WP-B review comment 7227962518).
+
+**Suites** (local, fresh `supabase db reset`, CI order, at `c15ec68`):
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 22 files, 383 passed |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `./scripts/run-db-tests.sh` | 2,081 assertions, 0 files failed (195: 157), after the `b5d8078` sync |
+| `pnpm test:integration` | 10 files, 137 passed (oi93: 15) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 67 passed |
+| Lighthouse | Not run locally; runs in CI |
+
+Exact-head CI is recorded in the pull request.
+
+## 24. DEP-18 AUTH-018 implementation record (R1 interim scope loading and activation)
+
+Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `claude/magical-mendel-glggv7`, from `main` at `12601a6` (PR #51, the R1 execution grant record). Grant: AUTH-018 (Decision 8a; 04 §4A "R1 interim scope loading and activation"; FD-05). Local and CI only, synthetic data only. No real content, no real approval evidence, no activation outside tests, no hosted operation and no production eligibility. Renumbered to 24 under OM-2 (§21 AUTH-017, §22 AUTH-015 and §23 WP-I PR #55 were taken first).
+
+**Delivered:**
+- Migration `20261127160000_dep18_scope_loader_activation.sql`, infrastructure only:
+  - **Tables.** `private.billing_package_scope_approvals` has PK (package_key, scope_version) and an FK to `billing_packages`. `private.billing_package_scope_eligibility` has PK (package_key, scope_version, event, classification), FK `billing_package_scope_eligibility_version_fkey` to the sealed versions only, and a CHECK that `activated` rows are `development` or `test` only. Both tables are append-only, cannot be truncated and carry no API privileges.
+  - **Owner functions.** Four Owner-only functions, each requiring fresh MFA and a live session: `record_package_scope_approval`, `load_package_scope_version`, `activate_package_scope_version` and `withdraw_package_scope_version`. Each has a security-invoker `public.` wrapper granted to `authenticated`, following the `create_agreement_version` pattern.
+  - **Resolver.** A new body for `private.current_package_scope(text)`. Its name, arguments and return type are unchanged.
+- Tests:
+  - new pgTAP `supabase/tests/330_dep18_scope_loader_activation.test.sql` (137 assertions, including the F-1 review fix);
+  - new integration `tests/integration/dep18-scope-loader-race.test.ts`: 5 concurrency scenarios, 5 repetitions each, real parallel connections;
+  - the dispositions D-a to D-c and B-1 to B-4b below.
+
+**Design decisions (Main rulings and Owner acceptance, 2026-11-27):**
+- **C-1, serialization.**
+  - **Locks.** Every governance function takes `dep18-scope-eligibility:<pkg>` exclusively, then the AUTH-007 sealing key `wpd18-scope-version:<pkg>` exclusively, always in that order. The resolver takes only the eligibility key, shared, held until commit. Plain AUTH-007 sealing still takes only the sealing key.
+  - **Volatility.** The resolver changes from STABLE to VOLATILE, so that it reads only after its lock is granted. A STABLE function would read the calling query's earlier snapshot and miss a withdrawal committed while it waited.
+  - **Reader guarantee.** Readers never wait on standalone AUTH-007 sealing: the existing race-test cases pass unchanged. Readers do wait on governance operations (approve, load, activate, withdraw), which hold the eligibility lock until they commit.
+  - **Lock order.** Issuance takes the project row, then the shared eligibility lock. Governance takes eligibility, then sealing. There is no cycle.
+- **C-2, the expected hash.** The expected hash comes only from the recorded approval for the exact (package, scope_version). The canonical hash already includes the version. The load request has no hash parameter, so it cannot supply or override it. A load without an approval, with different content, or for a version other than the next one fails closed and is audited.
+- **OM-4 choices (accepted by Main):**
+  - Refusals are returned as `{"ok": false, "error": code}` after an audit event committed with the call; they are never raised.
+  - The constructor call runs inside a sub-block, so any sealing error rolls back only the partial version. It is audited by code and SQLSTATE only, because a constraint message could echo item text.
+  - The eligibility table has no identity, index or comment, so the D-b closure stays at exactly six descriptors.
+  - Fixtures resolve only in `development` and `test`, and can never be approved or activated. Any withdrawal makes a version unresolvable in every classification.
+  - The Owner guards are NULL-safe (`… is not true`; OI-120). The tests cover a signed-in user with no staff role and an Owner whose role is revoked.
+- The test choice for D11: synthetic non-legal strings (`PGTAP SYNTHETIC …`, `IT SYNTHETIC …`). The integration race uses only `prestige`, which no other integration or e2e test uses, because its records are append-only.
+
+**Individual assertion dispositions (FD-14 format; Owner, 2026-11-27, relayed by Main):**
+
+**B-1: D-1 stricter lexical rule (`tests/unit/wps-sales.test.ts`, `SCOPE_TABLE_MIGRATIONS`).**
+- *Original:* the exemption covers exactly three migration files that may name the package-scope tables.
+- *Replacement:* four exact names, adding `20261127160000_dep18_scope_loader_activation.sql`, plus one synthetic case showing that `20270101000000_dep18_scope_loader_activation_v2.sql` is still caught.
+- *Original guarantee:* no other migration names the package-scope tables in any lexical form.
+- *Replacement guarantee:* the same, except the exact loader file, which must define the new tables and the resolver body.
+- *Exposure:* the loader file may name the tables. The D-a constructor, marker and label controls stay enforced on it. Runtime controls (no API privileges, construction guard, Owner gating, the approval-supplied hash) are unchanged.
+- *Compensating coverage:* the similarly named case, and the existing loop over every migration.
+- *Authorization:* Owner, 2026-11-27, exactly as proposed.
+- *Evidence:* unit suite, 22/22 in `wps-sales.test.ts`.
+
+**B-2: public RPC surface (`supabase/tests/050_security_events.test.sql`, test 8).**
+- *Original:* the reviewed list of `public` functions executable by `authenticated`.
+- *Replacement:* adds a "DEP-18 (AUTH-018 …)" group with exactly `activate_package_scope_version`, `load_package_scope_version`, `record_package_scope_approval` and `withdraw_package_scope_version`.
+- *Original guarantee:* the signed-in RPC surface is exactly the reviewed list, with no audit writers.
+- *Replacement guarantee:* the same, for the list including the four granted wrappers.
+- *Exposure:* four new entry points, each re-authorizing inside its definer function.
+- *Compensating coverage (required):* in 330, all four functions return `forbidden` for:
+  - a signed-in user without a staff role;
+  - a client, Sales, Admin and a revoked Owner;
+  - the Owner at aal1, with a stale MFA verification, and with an ended session.
+  Each of those is fresh MFA unless stated. anon cannot execute any wrapper (42501), so nothing runs. All 32 refusals are audited with the caller.
+- *Authorization:* Owner, 2026-11-27, exactly as proposed.
+- *Evidence:* 050 24/24 and 330 137/137.
+
+**B-3: T-SALES-36 (`supabase/tests/310_wps_sales_commercial.test.sql`, test 165).**
+- *Original:* "non-fixture rows are not affected by the allowlist"; a non-fixture version resolved under a missing classification.
+- *Replacement:* the same setup, asserting that `scope_rows('signature') = 0`, titled "a non-fixture version without activation does not resolve, and never under a missing classification".
+- *Original guarantee:* the fixture allowlist does not affect non-fixture rows.
+- *Replacement guarantee:* the fixture allowlist is unchanged. Eligibility (04 §4A items 4 and 7) is a new, stricter gate.
+- *Exposure:* none; behavior is stricter.
+- *Compensating coverage (required), in 330:*
+  - Positive: a non-fixture version that is independently approved, loaded and explicitly activated resolves in `development` and in `test`.
+  - Negative: it does not resolve with no activation, under a missing classification (shown to read as `production`), under `staging`, when withdrawn (including withdrawal after activation), or when tampered.
+- *Authorization:* Owner, 2026-11-27, exactly as proposed.
+- *Evidence:* 310 217/217 and 330 137/137.
+
+**B-4: header truncation (`supabase/tests/310_wps_sales_commercial.test.sql`, test 180).**
+- *Original:* `truncate private.billing_package_scope_versions` fails with 42501.
+- *Replacement:* it fails with 0A000, because the D-b eligibility foreign key refuses it before the trigger runs.
+- *Original guarantee:* sealed headers cannot be truncated.
+- *Replacement guarantee:* unchanged; truncation is still refused.
+- *Exposure:* none.
+- *Compensating coverage (required), in 330:* `truncate … cascade` is refused by the no-truncate triggers (42501). Row counts and content hashes of the headers and the eligibility events are equal before and after both attempts.
+- *Authorization:* Owner, 2026-11-27, exactly as proposed.
+- *Evidence:* 310 217/217 and 330 137/137.
+
+**B-4b: header truncation in the isolated race (`supabase/tests-isolated/wpd18_commit_race.test.sql:168-169`, test 21).**
+- *Original:* `like '42501 %'`.
+- *Replacement:* `like '0A000 %'`, plus a CASCADE case expecting 42501 and a data-preservation case (row counts and content hashes). The file's plan and recorded count go from 25 to 27, as does `expected_plan` in `scripts/wpd18-isolated-commit-test.sh`. The immutability range comment is renumbered from 18-23 to 18-25, and the bounded-failure comment from 24-25 to 26-27.
+- *Original guarantee:* sealed headers cannot be truncated.
+- *Replacement guarantee:* unchanged.
+- *Exposure:* none. Every concurrency assertion (tests 6-13) and every other assertion is unchanged.
+- *Compensating coverage:* the two added cases.
+- *Authorization:* Owner, 2026-11-27, on the same terms as B-4.
+- *Evidence:* the isolated test PASS 27/27.
+
+**D-a, D-b and D-c (approved in §13 "R1 execution grant record") as implemented:**
+- **D-a:** the exact approved replacement. The real loader migration passes. The seven negative cases each fail: two calls; the call with `true`; the call outside the function; dynamic concatenation; the marker; the label; a similarly named file. No existing `expect(` changed.
+- **D-b:** exactly the six approved lines; `expected_entries` changes from 37 to 43. Two allowlist comment lines now read "5 tables" and "43". Measured: "selected 43 of 719 dump entries", and the restore completed with no errors.
+- **D-c:** the eligibility table is in the table set, its select and insert privileges are in the privilege row, and an eligibility `state` row is added. The measured fingerprint is **84 lines**, against a projection of 83. `expected_fingerprint_lines` changes from 67 to 84, and the parity comment reads "exactly 84 lines". Parity is identical: 84 fingerprint lines and 26 state lines. Main verifies each added line.
+
+**Owner acceptance requirements, and where each is shown:**
+- **Durable refusal auditing.** All refusals are returned with a committed audit event: 330 section 2, and the reasons in sections 3 to 7.
+- **Serialization of load, activate, withdraw and issue, with no reactivation after withdrawal.** The integration race shows:
+  - a withdrawal committed while issuance waits is seen, and issuance fails closed;
+  - an issuance committed first stays valid while the withdrawal waits;
+  - a load committed while issuance waits suspends issuance;
+  - a withdrawal first makes a waiting activation fail with `withdrawn`;
+  - concurrent identical activations and loads produce one record and one event.
+  Both commit orders are covered, with no deadlock. The waits are observed in `pg_locks`.
+- **Idempotent replay.** Approval, load, activation and withdrawal replays return `replayed: true`, with no new version or event: 330 and the integration race.
+- **No item text.** None in audit events, refusal results or errors: 330 section 8, and the load error is reported by SQLSTATE only.
+- **Approval binding.** The approval binds the exact package, version and content hash. The approval is the expected hash for loading (C-2), and activation requires it to equal the sealed hash, re-verified from the items.
+- **No ineligible version issuable.** Sales issuance returns `scope_definition_missing` for inactive and withdrawn versions, and a newer loaded version suspends issuance. There is no fallback, and fixtures resolve only in `development` and `test`.
+
+**Verification (local stack: Supabase CLI 3.2.0, checksum verified; a fresh `supabase db reset` before each suite; CI order; re-run on the merge with `main` at `2d5705e`):**
+- `pnpm lint`, `pnpm typecheck` and `pnpm format:check`: pass.
+- `pnpm test` (unit): 22 files, 381 tests, pass on the merged tree.
+- `supabase test db`: 34 files, 1996 tests, PASS (on the F-1 head merged with `main` at `208d7e7`; 1988 before F-1).
+- `./scripts/wpd18-isolated-commit-test.sh`: PASS 27/27.
+- `pnpm test:integration`: 10 files, 127 tests, pass.
+- `pnpm build`, `pnpm check:bundle` and `pnpm build:production-check`: pass.
+- `pnpm test:e2e --trace off`: 66 passed on the merged tree (65 before the merge). The local run used the container's preinstalled Chromium build 1243, not the 1255 build pinned by Playwright 1.65.1; CI uses its own install.
+- Not run locally: the Lighthouse job, the dependency audit and the secret scan. Exact-head CI is authoritative.
+
+**Review fix F-1 (WP-C security review, confirmed by Main; OM-4 within the grant):** the four governance functions build the audit `target_id` only from a package key validated against `private.billing_packages` (otherwise `invalid`) and the integer version (otherwise `invalid`), so no refusal can write caller-supplied or unbounded text into the immutable audit log. 330 section 9: a 200,000-character key from a client and from the Owner yields exactly one refusal row per call with a bounded target, and no row carries the key. Mutation (raw key restored in all four functions): 3 of the 8 F-1 assertions fail. The migration header also records that the C-1 reader guarantee assumes READ COMMITTED (the PostgREST default).
+
+**Not changed:** `private.is_owner()` and every other existing function and migration outside AUTH-018 (OI-120 is separate); `issue_order_summary`; AUTH-007 sealing objects; `seed.sql`; dependencies; CI workflows and required checks.
+
+## 25. WP-I AUTH-016 implementation record (OI-115 local part; OI-119 dispositions)
 
 Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) on `wp-i/oi-115-env-consistency`, branched from `12601a65d7dd892840a7d74ff9de3a0073bd56ac` (the verified merge of the R1 execution grant record). Local and CI only: no provider, hosted-environment or production access, no dependency or `package.json` change, no change to required checks.
 
-### 23.1 Scope delivered
+### 25.1 Scope delivered
 
 | Part | Delivered |
 |---|---|
 | Migration `20261127150000_wpd_oi115_environment_consistency.sql` (reserved) | `private.environment_consistent()`: true when `private.runtime_environment` (C2) is absent, or C2 and `private.environment_settings` (C1) hold the same value. **D1:** `private.app_environment()` raises 42501 `environment classification disagreement (OI-115)` otherwise, so every consumer (`is_production`, `stripe_mode`, `expected_livemode`, fixture guards, package-scope resolution, billing evidence stamps, termination paths) fails closed unedited. `private.scanner_permitted()` also requires agreement. `private.environment_classification()` (definer) and a security-invoker `public.environment_classification()` return the raw `{c1, c2}` without raising; execute for `service_role` only (T-TEN-06 holds). No table, trigger or constraint change; the seed and hosted provisioning are unaffected. **D2:** staging keeps no explicit row (both absent reads as `production`) |
 | Application check | `src/server/environment-consistency.ts`: strict parsing of the RPC response; the OI-119 point 1 rule; a per-process memo that caches a pass only (an OM-4 engineering choice; a failure is never cached, so every later use is checked again). Called first in `acceptUpload`, `retryUploadScan` and `verifyLiveDeployment` (`fulfillment.ts`), and in `getStripeGateway()` before the mock exists (point 2). The billing-job test runner checks before its mock |
-| OI-119 option A | Setup and restoration statements only, in the six approved files and sites (23.2) |
+| OI-119 option A | Setup and restoration statements only, in the six approved files and sites (25.2) |
 | New tests | pgTAP `410_wpi_oi115_environment_consistency.test.sql` (37); unit `wpi-environment-consistency.test.ts` (123) and `wpi-oi115-seams-fail-closed.test.ts` (10) |
 | Hosted part | Deferred to AUTH-003: record on staging that neither row exists (`public.environment_classification()` returns `{c1: null, c2: null}`) |
 
-### 23.2 OI-119 individual dispositions (FD-14 format; approved by the Owner, 2026-11-27)
+### 25.2 OI-119 individual dispositions (FD-14 format; approved by the Owner, 2026-11-27)
 
 **Option A: setup-only restores in six existing pgTAP files.** Line numbers are at the base `12601a6` (insertions only; `git diff` removes no line).
 - *Original:* each site moves C1 away from `development` (to `staging`, `preview`, `test` or absent) while the seeded C2 `development` row stays (210: C2 `test` while C1 stays `development`). Under D1 these are disagreements, so the first environment read raised and the remainder of each file aborted (6 of 33 files, 247 subtests).
@@ -2015,7 +2247,7 @@ Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) 
 - *Replacement guarantee:* identical. No assertion, expected value, description or plan count changes (plans 42, 142, 106, 81, 217, 33 unchanged), and the C2 row is absent exactly where C1 says non-development, which is the only state D1 allows.
 - *Exposure:* none. The guard aborts the file if a restore is missing, so no later assertion can run under contaminated state.
 - *Compensating coverage:* pgTAP 410 tests the disagreement cases directly.
-- *Evidence:* each file passes in isolation at its plan count and the full suite passes in sequence (23.3); mutation: deleting the 100 restore line makes the file fail with `OI-119: classifications not restored at 100`.
+- *Evidence:* each file passes in isolation at its plan count and the full suite passes in sequence (25.3); mutation: deleting the 100 restore line makes the file fail with `OI-119: classifications not restored at 100`.
 
 **Point 1: the application rule.**
 - *Rule (approved):* with `APP_ENV` development or test, both classifications must be present, agree, and be development or test. With staging, preview or production, C2 must be absent and C1 absent or equal to `APP_ENV`. Anything else, an unreadable classification or a malformed response is refused.
@@ -2031,7 +2263,7 @@ Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) 
 - *Guarantee:* a failed check rejects inside `getStripeGateway()`. The checkout and recovery actions rethrow before reaching `startInitialCheckoutAsCaller` or `beginPaymentMethodRecoveryAsCaller`, so no outbound row is claimed or confirmed and no provider request starts. The webhook route keeps verifying and storing the event, with a `null` gateway (card lookups wait for the job, as when no gateway is configured). Payment logic, authorization, idempotency, webhook verification and financial state transitions are unchanged (no change to `billing.ts`, `gateway.ts` or `mock-gateway.ts`).
 - *Evidence:* `wpi-oi115-seams-fail-closed.test.ts` shows that on a failed check the mock is never constructed and the global holder stays empty, neither billing service is called, and the webhook service receives `null`; with agreement the same mock is passed on unchanged.
 
-### 23.3 Verification (local; rerun after merging `main` at `8ebcced` with a merge commit)
+### 25.3 Verification (local; rerun after merging `main` at `8ebcced` with a merge commit)
 
 | Suite | Result |
 |---|---|

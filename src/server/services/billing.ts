@@ -821,3 +821,195 @@ export async function beginPaymentMethodRecoveryAsCaller(
 ): Promise<ServiceResult<{ url: string }>> {
   return beginPaymentMethodRecovery(db, await createAdminClient(), gateway, projectId, urls);
 }
+
+// ---------------------------------------------------------------------------
+// OI-93 conflict decisions and financial applications (AUTH-010)
+// ---------------------------------------------------------------------------
+// Owner only. The database re-authorizes every call (Owner, aal2, fresh MFA, a live session, a
+// reason) and owns every rule; these functions only validate input shapes and report outcomes.
+// Nothing here makes a provider request: an application works on recorded events and ledger.
+
+/** The server action deadline (Owner, 2026-11-25): from the action's entry, before its checks. */
+export const CONFLICT_ACTION_DEADLINE_MS = 45_000;
+
+export interface ConflictDeadline {
+  /** Monotonic time (ms) at the action's entry. */
+  startedAt: number;
+  clock?: DispatchClock;
+  deadlineMs?: number;
+}
+
+export function conflictDeadlineFrom(clock: DispatchClock = monotonicClock): ConflictDeadline {
+  return { startedAt: clock.now(), clock };
+}
+
+const conflictReason = z.string().trim().min(1).max(1000);
+
+export const conflictDecisionSchema = z.object({
+  webhookEventId: z.coerce.number().int().positive(),
+  projectId: uuid,
+  evidence: z.string().trim().min(1).max(4000),
+  reason: conflictReason,
+});
+
+/** Records the Owner's immutable decision for one attribution-conflict event (one per event). */
+export async function recordFinancialConflictDecision(
+  db: SupabaseClient,
+  input: unknown,
+): Promise<ServiceResult> {
+  const parsed = conflictDecisionSchema.safeParse(input);
+  if (!parsed.success) {
+    const field = parsed.error.issues[0]?.path[0];
+    return {
+      ok: false,
+      error:
+        field === "reason"
+          ? "reason_required"
+          : field === "evidence"
+            ? "evidence_invalid"
+            : "not_found",
+    };
+  }
+  const v = parsed.data;
+  const { data, error } = await db.rpc("record_financial_conflict_decision", {
+    p_webhook_event_id: v.webhookEventId,
+    p_project_id: v.projectId,
+    p_evidence: { references: v.evidence },
+    p_reason: v.reason,
+  });
+  return rpcResult(data, error);
+}
+
+export const conflictAttemptSchema = z.object({
+  decisionId: uuid,
+  attemptRequestId: uuid,
+  reason: conflictReason,
+});
+
+export interface ConflictAttempt {
+  id: string;
+  attempt_no: number;
+  attempt_request_id: string;
+  outcome:
+    | "posted"
+    | "represented"
+    | "awaiting_evidence"
+    | "operational_failure"
+    | "permanently_unsupported";
+  terminal_reason: "exhausted" | null;
+  cleared: boolean;
+}
+
+/**
+ * Outcomes are kept apart (AUTH-010 "Unknown outcomes"):
+ * - recorded: the database answered; `attempt` is the durable row (existing for a repeat);
+ * - refused or rolled back: the database answered with an error, so nothing was recorded;
+ * - outcome_unknown: no answer before the deadline, or the connection was lost. This is never
+ *   treated as proof that nothing committed. The caller must read the attempt's status (or
+ *   resubmit the same attemptRequestId, which is idempotent) before any new attempt.
+ */
+export type ConflictAttemptResult =
+  | { ok: true; existing: boolean; attempt: ConflictAttempt }
+  | { ok: false; error: string; attemptRequestId?: string };
+
+export async function applyFinancialConflictDecision(
+  db: SupabaseClient,
+  input: unknown,
+  deadline: ConflictDeadline,
+): Promise<ConflictAttemptResult> {
+  const parsed = conflictAttemptSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.path[0] === "reason" ? "reason_required" : "not_found",
+    };
+  }
+  const v = parsed.data;
+  const clock = deadline.clock ?? monotonicClock;
+  const remaining =
+    (deadline.deadlineMs ?? CONFLICT_ACTION_DEADLINE_MS) - (clock.now() - deadline.startedAt);
+  if (remaining <= 0) {
+    // The deadline passed before the request was sent: nothing was sent, so nothing committed.
+    return { ok: false, error: "deadline_exceeded" };
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), remaining);
+  try {
+    const { data, error, status } = await db
+      .rpc("retry_financial_conflict_application", {
+        p_decision_id: v.decisionId,
+        p_attempt_request_id: v.attemptRequestId,
+        p_reason: v.reason,
+      })
+      .abortSignal(controller.signal);
+    if (controller.signal.aborted || (error && (!error.code || status === 0))) {
+      return { ok: false, error: "outcome_unknown", attemptRequestId: v.attemptRequestId };
+    }
+    if (error) {
+      // A database error (lock or statement timeout, among others) rolled the call back.
+      return { ok: false, error: "attempt_rolled_back", attemptRequestId: v.attemptRequestId };
+    }
+    const row = data as { ok?: boolean; error?: string; existing?: boolean; attempt?: unknown };
+    if (!row || typeof row !== "object") {
+      return { ok: false, error: "outcome_unknown", attemptRequestId: v.attemptRequestId };
+    }
+    if (!row.ok || !row.attempt) return { ok: false, error: row.error ?? "unavailable" };
+    return { ok: true, existing: Boolean(row.existing), attempt: row.attempt as ConflictAttempt };
+  } catch {
+    return { ok: false, error: "outcome_unknown", attemptRequestId: v.attemptRequestId };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export type ConflictAttemptStatus =
+  | { ok: true; status: "recorded"; conclusive: true; attempt: ConflictAttempt }
+  | { ok: true; status: "in_progress" | "not_recorded"; conclusive: false }
+  | { ok: false; error: string };
+
+/** Read-only. Only "recorded" is conclusive; a missing record alone is not a rollback. */
+export async function readFinancialConflictAttemptStatus(
+  db: SupabaseClient,
+  attemptRequestId: unknown,
+): Promise<ConflictAttemptStatus> {
+  const parsed = uuid.safeParse(attemptRequestId);
+  if (!parsed.success) return { ok: false, error: "not_found" };
+  const { data, error } = await db.rpc("financial_conflict_attempt_status", {
+    p_attempt_request_id: parsed.data,
+  });
+  return rpcResult(data, error) as ConflictAttemptStatus;
+}
+
+export interface ConflictEvent {
+  webhook_event_id: number;
+  stripe_event_id: string;
+  event_type: string;
+  object_id: string | null;
+  stripe_created_at: string;
+  processing_status: string;
+  quarantine_reason: string | null;
+  candidates: {
+    project_id: string;
+    project_name: string;
+    sources: string[];
+    classification: { category: string | null; outcome: string | null; reason: string | null };
+  }[];
+  decision: { id: string; project_id: string; reason: string; decided_at: string } | null;
+  attempts: {
+    attempt_no: number;
+    attempt_request_id: string;
+    outcome: ConflictAttempt["outcome"];
+    terminal_reason: string | null;
+    created_at: string;
+  }[];
+  retry_after: string | null;
+  cleared: boolean;
+}
+
+/** Every event with recorded conflict candidates (Owner only). */
+export async function listFinancialConflicts(
+  db: SupabaseClient,
+): Promise<ServiceResult<{ events: ConflictEvent[] }>> {
+  const { data, error } = await db.rpc("financial_conflict_events");
+  return rpcResult(data, error) as ServiceResult<{ events: ConflictEvent[] }>;
+}

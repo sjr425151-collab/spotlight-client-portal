@@ -1986,6 +1986,84 @@ Remote CI for the exact head is recorded in the pull request.
 
 **Effort (OI-67):** AI session about 4.5 h; Owner review: the T-E2E-08 disposition and Amendment 1; administrative about 0.4 h (one escalation, one scope question, the OI-120 reports, the M-1 and N-1 coordination).
 
+## 23. WP-B AUTH-010 implementation record (OI-93; Amendments 1 and 2; OI-120, OI-121)
+
+Implemented by the WP-B session on branch `claude/wp-b-client-portal-xjftil`. It started from `main` at `12601a6` (the PR #51 grant merge; post-merge CI run 46058960366 `success`) and is merged up to `2d5705e` (PR #56: Amendments 1 and 2 active). Local and CI only, synthetic data; no provider, hosted or production access; no dependency, `package.json` or required-check change.
+
+**Delivered (grant scope):**
+
+| Area | Change |
+|---|---|
+| Records (`20261127130000`) | Four private, insert-only tables with no API privilege (update, delete and truncate refused by trigger): `financial_conflict_decisions` (one per event, immutable), `financial_conflict_applications` (durable attempts 1 to 10, unique `(decision_id, attempt_no)` and `attempt_request_id`, at most one success, `terminal_reason = 'exhausted'` exactly on a tenth non-success row), `financial_conflict_effects` (one recognition per effect key: provider object, effect type, amount) and `financial_conflict_application_entries` (the exact ledger entries posted, `new`, or cited, `cited`, with their recorded values; a ledger entry is `new` in at most one application). |
+| Extraction | `apply_refund_for_project` and `apply_dispute_for_project` are the WP-H handler bodies verbatim, with `v_project` passed as `p_project_id` (static proof in `wpb-static`). `handle_refund`, `handle_dispute` and `handle_charge_refunded` keep the attribution step unchanged and delegate. `charge_refunded_objects` is the WP-H refund expansion, byte-identical and shared by the handler and the attempt (I-8). Equivalence: pgTAP 140, 160, 180, 190 and 191 pass unchanged. |
+| Amendment 1 (OI-121) | The only behavior change to those handlers: the `payment.refund_recorded` key is passed in by the caller. refund.* events keep `'payment.refund_recorded:' || stripe_event_id`. A charge.refunded event uses `… || ':' || <refund id>`, so a charge.refunded with several refunds now posts each refund once instead of failing with 23505. Across refund.* and charge.refunded events each refund is recognized financially once in either arrival order (the counted-once rule); the domain event and audit stay once per event, as before. |
+| Classifier and fingerprint | `financial_conflict_classify` (S1 refunds, S2 disputes; every unsupported class; the expected money effect per object, I-5) over `financial_conflict_scope`; `oi93.fp.v1` = SHA-256 of canonical JSON (`oi93_canonical_json`: keys by code point, no whitespace, explicit nulls) over the decision, the event and its raw-body hash, the candidates, the payment links, the obligations and balances, the relevant ledger entries, the refund and dispute rows, the refund decisions and lines, and the effect recognitions. |
+| Owner functions (`20261127130100`, U-2) | `record_financial_conflict_decision(bigint, uuid, jsonb, text)`, `retry_financial_conflict_application(uuid, uuid, text)`, `financial_conflict_attempt_status(uuid)` (VOLATILE: a shared try-lock, then a fresh read), `financial_conflict_events()`. Each private function is SECURITY DEFINER with `search_path=''` and a NULL-safe guard (OI-120): `(is_owner() and is_aal2() and mfa_is_fresh() and session_is_active()) is not true`, plus the reason. Each INVOKER wrapper is granted to `authenticated` only and carries `lock_timeout` 5 s (I-1). Added to the `050` list as a new group (additions only). |
+| Decision rules | Refused with no row, returned (never raised) and audited as `financial_conflict.decision_refused` with the event, the chosen project and the classifier reason (Amendment 2): already decided, not eligible, not a candidate, unsupported (`conflict_unsupported`) and, when no project holds the obligations yet, `not_yet_resolvable` (I-4: decide again once the charge is posted). |
+| Attempt | Lock order: the attempt-request advisory lock, the decision row, the event row, then the merged reversal order (refund or dispute row, the charge advisory lock, `refund_decisions`); no AUTH-009 lock. Refusals with no row, audited as `attempt_refused`: already applied, permanently unsupported, 10 attempts, within 60 s, and `awaiting_evidence` with an unchanged fingerprint. One protected step: classification; the extracted path per object; the re-check under the charge lock (nothing under another project); recognition by exact match (project, object, type, amount, exact entry IDs; entries of another recognition never re-recognized, I-6); the expected money effect present (I-5); the entries and the attempt row. Any unsupported or awaiting object or failed proof rolls the whole step back; the outcome is the most severe; detail per object. An exception is `operational_failure` (SQLSTATE only). |
+| Clearing | `financial_conflict_cleared`: only a `posted` or `represented` application that `financial_conflict_application_verified` re-verifies against the ledger as it is then. `project_financial_anomalies` items 1 and 7 exclude a cleared event; items 2 to 6 and 8 are byte-identical to `20261127120000`. A decision alone, or a failed or interrupted attempt, never clears. |
+| Application | `src/app/staff/billing/conflicts/` (Owner, fresh MFA): the list, the decision form and the apply form. After `outcome_unknown` only a status read or a resubmission of the same `attempt_request_id` is offered. `src/server/services/billing.ts`: the 45 s deadline (`CONFLICT_ACTION_DEADLINE_MS`), starting immediately after the action's guard (the 03 §10 guard-first rule), with a client-side abort; recorded, refused, rolled back (`attempt_rolled_back`) and `outcome_unknown` are kept apart. `messages.ts` and `audit-actions.ts` (U-1 and Amendment 2: four financial actions). No provider call. |
+
+**Main's OM-4 rulings on I-1 to I-9 (2026-11-27), dispositions:**
+- **I-1:** wrapper placement, with Main's corrected condition (c):
+  - (a) 55P03 at about 5 s through PostgREST: the decision call on the event row, the attempt on the event row, on the decision row, and on its `attempt_request_id` lock;
+  - 57014 at about 8 s as a separate case;
+  - (b) and (c) shape and ACL assertions in 195: the wrappers INVOKER with `lock_timeout=5s`; the private functions SECURITY DEFINER, executable by `authenticated` only (never anon, service_role or PUBLIC); the helpers by no API role;
+  - (c) `private` is not an exposed API schema (`wpb-static`, `supabase/config.toml`);
+  - (d) removing either wrapper's SET is caught;
+  - 191 is unchanged.
+- **I-2:** every attempt, the first included, goes through `retry_financial_conflict_application`.
+- **I-3:** Amendment 2 (above).
+- **I-4:** `not_yet_resolvable` (above); `awaiting_evidence` is only an attempt-time evidence gap.
+- **I-5:** the expected effect is derived from the event; zero-entry `posted` is accepted only where no effect is expected; a fault-injected succeeded refund that posts nothing fails closed.
+- **I-6:** exact match, no re-recognition of another recognition's entries, the check against another project before and after posting under the charge lock; provenance (the cited entries' source event) shown in 195.
+- **I-7:** `195_wpb_conflict_decision.test.sql`.
+- **I-8:** the helpers stay in the two migrations and are revoked from every API role; no other existing assertion changed.
+- **I-9:** the status read is VOLATILE and non-blocking; concurrent attempts with different ids (one money effect, the other refused, no 40P01), a resubmission of the same id while the first runs (it waits, then returns the recorded attempt, one row), and `in_progress` during a running attempt (integration).
+
+**Migration hashes (SHA-256):** `20261127130000_wpb_oi93_conflict_decisions.sql` `fd06c52bb8c0d33800555b80cd140c8c3b772b100d3ab3378c87ec47d415f267`; `20261127130100_wpb_oi93_conflict_attempts.sql` `747c33857f8dc861c64d6acd1b377c2bf4ee0439703ac19825b3be757250acac`.
+
+**Existing assertions:** only the `050` additions (U-2). Every other assertion in every existing suite is unchanged.
+
+**New tests:**
+- `supabase/tests/195_wpb_conflict_decision.test.sql`, 157 assertions: records and privileges; OI-120 denials on all four functions (a fresh-MFA client, a revoked former Owner, Admin, Sales, an Owner without fresh MFA); decisions and refusals with their durable, bounded audit (WP-C U-3 I-1: the first 20 object reasons and the total); every outcome; a refusal whose only reason is obligations held under another candidate (WP-S F-1); S0, S1 and S2 (dispute opened, then won: cited and new); overlapping events; recognition under another project; mixed charge.refunded (new and cited) and the whole-step rollback; idempotency; the 60 s interval, the fingerprint rule and the tenth attempt; a second holder appearing after the decision; item-1 and item-7 clearing; fingerprint stability and sensitivity per input class; fabricated and corrupted clearance never clearing; OI-121 normal-path regressions in both arrival orders; the I-5 fault injection.
+- `tests/integration/oi93-conflict-decision.test.ts`, 15 tests: the Owner's real session through PostgREST (Admin refused); two attempts and one `attempt_request_id` raced on one decision; the attempt against the same refund's webhook in both orders; the attempt against `invoice.paid` on the same project in both orders, with no AUTH-009 lock held; the re-check under the charge lock; U-4 (55P03 at about 5 s on four locks; 57014 at about 8 s); the 45 s deadline (fake clock), a client abort, the inconclusive status read and recovery by the same id.
+- `tests/unit/wpb-static.test.ts` (one case): the payment invariants, exactly four replaced functions, no guard or ledger change, the verbatim extraction with only the Amendment 1 key change, the key rule in both callers, NULL-safe guards, registered financial audit actions, `private` not exposed, and the Owner screen's guards and deadline.
+- `tests/e2e/wpb.spec.ts` (one test): the signed webhook quarantines a conflict; Admin is redirected; the Owner decides and applies it; axe on each state; the database agrees.
+
+**Mutation checks:** 43 of 43 caught (the 42nd, an unbounded refusal summary, added after WP-C's U-3 note I-1; the 43rd, the classifier's obligations-other-project branch removed, added after WP-S's F-1). They cover:
+- the Owner checks and the OI-120 `if not (…)` form;
+- each refusal rule;
+- the cap and `exhausted`;
+- classification ignored; the whole-step rollback; the post-check; the S0 exact match;
+- clearing (always true; a success row alone);
+- items 1 and 7;
+- canonical key order; the candidates and ledger classes of the fingerprint;
+- idempotency; the in-progress status;
+- each wrapper's `lock_timeout`;
+- the classifier's livemode, refund-decision, other-project, several-holder and event-type checks;
+- OI-121's shared key; I-4; Amendment 2's audit; I-5; I-6;
+- the extracted refund-row lock (static).
+
+Two misses during development were real gaps and were closed by new tests: item-1 clearing on a renewal charge (item 1 gives a renewal charge no gate) and an unisolated ledger-sensitivity case. One unreachable in-attempt check was removed; clearing re-verifies.
+
+**Shared files:** AUTH-015 (PR #54) also adds to `050`, `audit-actions.ts` and `messages.ts`. A trial merge with its head `2b59ef3` is clean and both sets of additions coexist (WP-B review comment 7227962518).
+
+**Suites** (local, fresh `supabase db reset`, CI order, at `c15ec68`):
+
+| Command | Result |
+|---|---|
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Pass |
+| `pnpm test` | 22 files, 383 passed |
+| `pnpm audit --audit-level=high`; `./scripts/check-migrations.sh origin/main` | No known vulnerabilities; no merged migration changed |
+| `./scripts/run-db-tests.sh` | 2,081 assertions, 0 files failed (195: 157), after the `b5d8078` sync |
+| `pnpm test:integration` | 10 files, 137 passed (oi93: 15) |
+| `pnpm build`, `pnpm check:bundle`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e --trace off` | 67 passed |
+| Lighthouse | Not run locally; runs in CI |
+
+Exact-head CI is recorded in the pull request.
+
 ## 24. DEP-18 AUTH-018 implementation record (R1 interim scope loading and activation)
 
 Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `claude/magical-mendel-glggv7`, from `main` at `12601a6` (PR #51, the R1 execution grant record). Grant: AUTH-018 (Decision 8a; 04 §4A "R1 interim scope loading and activation"; FD-05). Local and CI only, synthetic data only. No real content, no real approval evidence, no activation outside tests, no hosted operation and no production eligibility. Renumbered to 24 under OM-2 (§21 AUTH-017, §22 AUTH-015 and §23 WP-I PR #55 were taken first).

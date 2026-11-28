@@ -4,7 +4,7 @@
 -- project state built here (to_jsonb byte for byte; one row per distinct id, null and unknown ids
 -- included), per-project failure parity, and the per-project fallback when the set pass raises.
 -- The suite-wide equivalence (every state the other suites reach) and the performance evidence
--- are in supabase/tests/perf/. Synthetic data only; everything is rolled back.
+-- are in tests/perf/ (outside the pgTAP path). Synthetic data only; everything is rolled back.
 begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;

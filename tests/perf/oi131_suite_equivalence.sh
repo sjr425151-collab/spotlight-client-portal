@@ -6,11 +6,11 @@
 # private.project_financial_status (to_jsonb byte for byte, plus failure parity), and records the
 # anomaly kind x gate pairs present, so the coverage of the matrix is visible. Nothing persists.
 #
-# usage: supabase/tests/perf/oi131_suite_equivalence.sh   (after a fresh `supabase db reset`)
+# usage: tests/perf/oi131_suite_equivalence.sh   (after a fresh `supabase db reset`)
 set -euo pipefail
 DB_URL="${SUPABASE_DB_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}"
 case "$DB_URL" in *@127.0.0.1:*|*@localhost:*) ;; *) echo "local only" >&2; exit 2 ;; esac
-cd "$(dirname "$0")/../../.."
+cd "$(dirname "$0")/../.."
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 check="$(cat <<'SQL'

@@ -1,9 +1,10 @@
 -- AUTH-026 (OI-131): test-only synthetic population harness for the staff operational queue.
--- Not a pgTAP file (it is not run by scripts/run-db-tests.sh). Load it with psql inside a
+-- Not a pgTAP file: it lives outside supabase/tests, so neither `supabase test db` nor
+-- scripts/run-db-tests.sh collects it. Load it with psql inside a
 -- transaction that the caller rolls back; it only defines pg_temp functions:
 --
 --   begin;
---   \i supabase/tests/perf/oi131_synthetic_projects.sql
+--   \i tests/perf/oi131_synthetic_projects.sql
 --   select pg_temp.oi131_populate(1000);                  -- representative mix (default)
 --   select pg_temp.oi131_populate(1000, 'heavy');         -- worst case: every project state-heavy
 --   ... measure (see pg_temp.oi131_measure below) ...

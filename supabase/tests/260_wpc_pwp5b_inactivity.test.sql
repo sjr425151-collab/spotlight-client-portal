@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(83);
+select plan(85);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1') returns void language plpgsql as $$
 declare
@@ -191,6 +191,14 @@ select is(pg_temp.queue(pg_temp.id('a')),
   array['approval_outreach_due:admin_notified', 'approval_outreach_due:courtesy_reminder', 'approval_outreach_due:reminder',
         'awaiting_client_approval', 'inactivity_formal_notice_due', 'inactivity_review_due'],
   'the revised queue at day 61: day 3, 7, 14 and 60 items due; no earlier-schedule item; no suspension eligibility yet');
+set local role anon;
+select throws_ok(format($$select public.record_inactivity_milestone(%L, 'courtesy_reminder', 'email', current_date, 'x')$$,
+  pg_temp.id('ra1')), '42501', null, 'anon cannot call record_inactivity_milestone');
+reset role;
+set local role service_role;
+select throws_ok(format($$select public.record_inactivity_milestone(%L, 'courtesy_reminder', 'email', current_date, 'x')$$,
+  pg_temp.id('ra1')), '42501', null, 'service_role cannot call record_inactivity_milestone');
+reset role;
 select is(pg_temp.milestone(pg_temp.id('sales'), 'aal2', pg_temp.id('ra1'), 'courtesy_reminder', current_date) ->> 'error',
   'forbidden', 'Sales cannot record a milestone');
 select is(pg_temp.milestone(pg_temp.id('ca'), 'aal1', pg_temp.id('ra1'), 'courtesy_reminder', current_date) ->> 'error',

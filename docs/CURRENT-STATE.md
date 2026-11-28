@@ -3037,6 +3037,192 @@ The functions the helper calls rather than copies follow any change automaticall
 
 There is no Stripe request, credential or hosted operation.
 
+## 33. WP-C AUTH-026 PR 2 implementation record (OI-131: queue rewiring and page states)
+
+Implemented by WP-C (`session_01RCnsL4zY9edGTBFKQUbXM6`) from `main` at `285a583`, for AUTH-026 PR 2. It follows WP-B's PR 1 (§32). Section number assigned by Main. Local and CI only, synthetic data only. No provider request and no hosted operation.
+
+**Delivered:**
+- **Migration** `20261128140100_wpc_oi131_queue_states.sql`, at the reserved timestamp.
+  - **New private variants.** `wpc_intake_unlocked_from(uuid, jsonb)`, `intake_state_from(uuid, jsonb)`, `project_fulfillment_status_from(uuid, jsonb)` and `evaluate_publication_gates_from(uuid, uuid, jsonb, boolean)` take the caller's precomputed financial status.
+    - `project_fulfillment_status_from` is the latest `project_fulfillment_status` body (20261127110000) with only `intake_state_of` replaced; its intake state is the only financial input it reads.
+    - Without it, the gate variant would still have reached `project_financial_status` through `project_fulfillment_status`, `intake_state_of` and `wpc_intake_unlocked`, for any project with a release and no submitted intake. Found by the count test in CI order; accepted by Main. That is `to_jsonb(private.project_financial_status(p))`, or null with a failure flag where that evaluation raised.
+    - Each is the existing helper's body with only its own financial evaluation replaced by the parameter, keeping its exception path.
+    - Each is SECURITY DEFINER, STABLE, with an empty `search_path`, and no API role can execute it.
+    - The existing helpers keep their signatures, bodies and callers.
+  - **`private.operational_queue`** (create or replace). It calls WP-B's `private.financial_evaluation_for_projects` once per call, over the active project ids, and then uses the variants above. Every other line is byte-identical to its 20261128130000 definition.
+    - Still SECURITY DEFINER, STABLE, with an empty `search_path` and its grants.
+    - No lock.
+    - No content change.
+- **Staff queue page** (`src/app/staff/queue`):
+  - **loading:** the route-level `loading.tsx` (`role="status"`, with no "Work queue" heading, so it is never mistaken for a result);
+  - **failed:** whenever the call returns an error or no array, an explicit `role="alert"` notice with a "Try again" link, never "Nothing needs attention.";
+    - logged server-side with the error code only: the PostgREST error code (for example 57014), never a parameter or a result;
+    - the value is computed outside the `console.error` call, because the existing static-security guard is lexical (it flags the word `code` inside `console.*()`), and the guard is unchanged;
+  - **empty:** "Nothing needs attention." only after a successful, empty result;
+  - **populated:** unchanged.
+- **Not changed:**
+  - every financial function and calculation;
+  - roles, RLS and OI-72 visibility;
+  - staff authorization and tenant isolation;
+  - every timeout;
+  - dependencies.
+
+  No new public RPC; test 050 is unchanged.
+
+**Acceptance (AUTH-026, the WP-C part):**
+- **(1) Equivalence.** `tests/integration/wpc-oi131-queue.test.ts` loads the previous queue definition from the 20261128130000 migration file itself, as a `pg_temp` function. It compares that with the new queue in one rolled-back transaction, item for item and in order, by full output text. The data is the suites' state plus a generated matrix from WP-B's harness: 100 representative and 50 heavy projects.
+  - pgTAP 270 (18 assertions) proves each of the four variants equals its existing helper for every project, and that each failure path is preserved.
+  - The performance runs below compared old and new output at every size and found it identical.
+- **(2) Evaluation counts.** One queue call evaluates WP-B's helper once. It evaluates each of `project_financial_status`, `project_financial_anomalies`, `gate_anomalies`, `wpc_intake_unlocked`, `intake_state_of` and `project_fulfillment_status` zero times. This is read from `pg_stat_xact_user_functions` on a local-only `supabase_admin` connection, in a rolled-back transaction (FD-14 Site 3). It is asserted after the other integration files have run, in CI order with the Vitest cache cleared.
+- **(3) Performance** (WP-B's harness at fda70d6 or later). Each size ran in its own rolled-back transaction, strictly one after another, with nothing else using the database:
+  - `pg_temp.oi131_populate(n, mix)`, then ANALYZE;
+  - the old queue (the 20261128130000 definition) and the new queue, both as the Admin at aal2;
+  - a full-text identity check;
+  - `EXPLAIN (ANALYZE, BUFFERS)` on the new queue.
+
+  | Mix | Active | G2-blocked | Old queue (wall) | New queue (wall) | New, EXPLAIN ANALYZE | Buffers (new) | Identical |
+  |---|---|---|---|---|---|---|---|
+  | representative | 302 | 48 | 3.18 s | 92 ms | 55 ms | shared hit 9,640 | yes |
+  | representative | 1,002 | 160 | 14.14 s | 194 ms | 224 ms | shared hit 37,138 | yes |
+  | heavy | 1,002 | 1,000 | 26.01 s | 244 ms | 242 ms | shared hit 49,896 | yes |
+  | representative | 5,002 | 800 | 179.4 s | 1.49 s | 1.17 s | shared hit 199,287 | yes |
+  | heavy | 5,002 | 5,000 | 609.3 s | 3.43 s | 2.52 s | shared hit 274,598; temp read and written 324 | yes |
+
+  At 5,000 projects, the worst case (heavy) is 3.43 s, a 57% margin under the 8 s `statement_timeout`, against the required 50% (at most 4.0 s). The representative mix takes 1.49 s, an 81% margin. The heavy temp spill comes from WP-B's set pass (§32, N-3). The PR 1 migration at its merged head differs from the copy measured only in the exception path, which these runs never take.
+- **(4) States.** `tests/e2e/queue-states.spec.ts`, in the new Playwright project `queue-states`, checks loading then populated, failed with retry, and empty, each with axe checks. It uses the test-only mechanisms recorded below.
+- **(5) Regression.** T-E2E-07 and every existing test pass, on a database with at least 300 active projects (evidence below). No existing assertion is changed.
+- **(6) Authorization and isolation.** `operational_queue` keeps its layers, grants and STABLE volatility. The new helpers have no API-role execute. Both are covered by pgTAP 270. Staff-only access, the client and Sales refusals and the OI-72 tests are unchanged.
+- **(7) Requirement A.** No lock is added, and the queue is STABLE. 270 asserts that the queue source has no per-project financial call and no lock clause.
+
+**Requirement C (migrations out of timestamp order: 20261128140100 lands after 20261128150000).**
+- **Incremental:** with 140100 withheld, `supabase db reset` gives 30 migrations, the last two `20261128140000` and `20261128150000`. With it restored, the exact command `supabase migration up --include-all` applied only `20261128140100`, for 31. Full pgTAP on that database: 2,851 assertions, 0 files failed.
+- **Clean:** `supabase db reset` gives the identical 31-migration list, diffed.
+- No overlap with 150000, which replaces only the two contract readers.
+
+**Test-mechanism records (verbatim).** These are Main's FD-14 record (5,255 bytes, SHA-256 prefix `86a5a7d52c5119d4`) and addendum 1 (3,278 bytes, SHA-256 prefix `9d90df843051677c`):
+
+# FD-14 record: AUTH-026 (OI-131), WP-C PR 2 test mechanisms (Main, 2026-11-28 ~09:40Z)
+
+- **Source:** WP-C, local branch based on main `285a583`. Not pushed.
+- **Authority:**
+  - AUTH-026 acceptance (4): "a forced RPC failure is made only through an authorized test-only mechanism recorded in FD-14 format";
+  - acceptance (2): the deterministic evaluation-count test;
+  - the remediation common conditions (test controls).
+
+## Site 1: `playwright.config.ts` (existing file; numstat +11/−2)
+Exact change:
+```
+@@ -72,12 +72,21 @@ export default defineConfig({
+       use: { ...devices["Desktop Chrome"], launchOptions },
+     },
++    {
++      // AUTH-026 (OI-131): the staff work queue's four states. Its test-only mechanisms (a
++      // held lock on public.projects; archiving every active project) affect the whole
++      // database, so it runs after every project that visits the queue (FD-14, Main).
++      name: "queue-states",
++      testMatch: /queue-states\.spec\.ts/,
++      dependencies: ["r1"],
++      use: { ...devices["Desktop Chrome"], launchOptions },
++    },
+     {
+       name: "desktop-chromium",
+-      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\./,
++      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\.|queue-states\./,
+       use: { ...devices["Desktop Chrome"], launchOptions },
+     },
+     {
+       name: "mobile-chromium",
+-      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\./,
++      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\.|queue-states\./,
+       use: { ...devices["Pixel 7"], launchOptions },
+     },
+```
+The two `testIgnore` lines only append `|queue-states\.`. No other change to the file.
+
+## Site 2: the mechanisms in the new `tests/e2e/queue-states.spec.ts` (new file)
+
+| State | Mechanism |
+|---|---|
+| loading | A test connection holds `lock table public.projects in access exclusive mode` while the staff page loads, then releases it |
+| failed | The same lock is held past the EXISTING 8 s `statement_timeout` of `authenticated`. The RPC fails for real (57014). There is no grant, timeout, role, RLS or code change |
+| empty | One committed transaction sets `archived_at` on every active project. The exact ids are restored in `finally`. The test then asserts that the restored set equals the archived set and that the active count is unchanged. Only `archived_at` is touched |
+| populated | Unchanged |
+
+- **Ordering:** the chain is `auth-setup → auth → wpc → wpb → wps → r1 → queue-states`, and nothing depends on `queue-states`. The independent projects (`desktop-chromium`, `mobile-chromium`, `production-gating`) neither visit `/staff/queue` nor read `public.projects`.
+- **Lock connection:** `lock_timeout 15s`, `statement_timeout 20s`, `idle_in_transaction_session_timeout 60s`; an idempotent release that runs `rollback` and `end()` in `finally`.
+- **Audit rows: ruling (A).** The `audit_projects` trigger writes append-only `project.updated` rows for the archive and the restore. This is accepted as the correct record of a synthetic test action. No existing audit row is modified or deleted. The test asserts that the only new audit rows since its mark are `project.updated` rows for exactly the archived ids, two per id. Option (B) (`session_replication_role = replica`) is REJECTED, because it bypasses every trigger, auditing included.
+
+## Site 3: the evaluation-count mechanism (acceptance 2)
+- One integration test opens a **local-only** connection as `supabase_admin`, the local stack's superuser with the CLI default credentials and the same localhost guard as `withDb`. These are never hosted or production credentials.
+- In one transaction, which is then rolled back, it runs: `set track_functions = 'all'`, the staff JWT claims, one `private.operational_queue()` call, and a read of `pg_stat_xact_user_functions`.
+- It asserts: `project_financial_anomalies` 0 calls; `project_financial_status` 0 calls from the queue; WP-B's helper exactly once.
+- The superuser connection is used only to enable statistics and read them. It changes no grant, role, timeout, RLS or function, and nothing persists.
+- WP-B may use the same mechanism, recorded here.
+
+## Eight fields (common)
+1. **Original:** existing tests unchanged; the config as above.
+2. **Replacement:** additions only, plus the two regex appends. No `expect`, assertion, plan or description in any existing file changes.
+3. **Original guarantee:** the generic projects run the smoke and other tests; the queue is covered by T-E2E-07 and wpc.
+4. **Replacement guarantee:** the same, plus the four queue states, each with an axe check, and deterministic evaluation counts.
+5. **Exposure:** local and CI database only, synthetic data. A transient lock, transient archiving with an exact restore, append-only audit rows, and a rolled-back statistics transaction.
+6. **Compensating coverage:** the restore and audit assertions; T-E2E-07 unchanged.
+7. **Authorization:** AUTH-026, recorded by Main before the push.
+8. **Evidence (WP-C, local):** loading passes; failed passes against the real condition (server log `operational_queue failed 57014`); populated awaits the rewired queue. **After the push:** Main verifies these exact lines; WP-I verifies independently.
+
+# FD-14 addendum 1: AUTH-026 (OI-131), WP-C PR 2 (Main, 2026-11-28 ~10:02Z)
+
+Supplements record `FD14-AUTH-026-wpc` (5,255 bytes, SHA-256 prefix 86a5a7d52c5119d4).
+
+## Site 4: `supabase/tests/220_wpc_publication_gates.test.sql` (existing file; additions only, +7/−0)
+- **Insertion point:** immediately after 220's existing replacement of `private.project_financial_status` with its test fixture (after line 77).
+- **Exact added lines:**
+```sql
+-- AUTH-026 (setup only, OD-11(ii)): the queue now reads the WP-B interface through the set-based
+-- helper; route it through this test's fixture of that interface, as the queue once did.
+create or replace function private.financial_evaluation_for_projects(p_project_ids uuid[])
+returns table (project_id uuid, status private.project_financial_status, failed boolean)
+language sql stable security definer set search_path = '' as $$
+  select i.id, private.project_financial_status(i.id), false from unnest(p_project_ids) as i(id);
+$$;
+```
+
+## Eight fields
+1. **Original:** 220 is unchanged. No existing line is modified or removed.
+2. **Replacement:** the seven lines above only. No `expect`, pgTAP assertion, plan, description or expected value is added or changed.
+3. **Original guarantee:** 220 tests 15 ("Ready for publication review shows eligibility only (OI-72)") and 68 ("OI-72: Admin sees the derived billing hold state in the queue") prove the queue's OI-72 rendering of the fixture financial state that 220 substitutes through its WP-B-interface fixture (`private.test_financial_fixture`).
+4. **Replacement guarantee:** the same assertions, byte-identical. With AUTH-026 the queue reads financial status through the set-based helper instead of `project_financial_status`, so 220's substitution must also cover the helper for the queue to see the fixture state again. This restores the test's intended state, as in Q3(c).
+5. **Exposure:**
+   - a `create or replace` of the new helper inside 220's rolled-back transaction, as 220 already does for `project_financial_status`;
+   - no committed change, no grant or role change, and no effect outside 220.
+6. **Compensating coverage:**
+   - production equivalence: the new and old queue give identical output item by item, and the helper equals `project_financial_status` for every project, without any substitution (`wpc-oi131-queue.test.ts`; WP-B pgTAP 199 and the suite-equivalence runner);
+   - 215 and 225 call the queue without depending on financial fields, so they pass unchanged and need no addition;
+   - 210 and 240 likewise need none.
+7. **Authorization:** OD-11(ii) under AUTH-026, recorded by Main before the push. The stop condition "any difference in queue output" is not triggered: the difference exists only under a test substitution of the WP-B interface, and production output is proven identical.
+8. **Evidence (WP-C, scratch copy):** 220 passes 117/117. **After the push:** Main verifies these exact lines; WP-I verifies independently.
+
+## Site 3 clarification (evaluation-count test)
+On a fresh database the count test's transaction also inserts a verified MFA factor for the Admin (`it-oi131`) to establish the staff session. It is part of the rolled-back transaction and never persists, so it doesn't fall within OI-130. Site 3 is otherwise unchanged.
+
+**Erratum to addendum 1 (Main, 2026-11-28 ~10:03Z):** the parenthetical "(after line 77)" reads "(after line 74)"; the hunk is `@@ -74,0 +75,7 @@`. The record's operative wording ("immediately after 220's existing replacement of `private.project_financial_status`") governs, and the placement matches it. The record above is unchanged, so its hash holds.
+
+**Evidence at head `0c8ffda` (local, CI order; main `50c1e79` merged in; fresh `supabase db reset` before each database run; Vitest cache cleared):**
+
+| Item | Result |
+|---|---|
+| Lint, typecheck, format | Pass |
+| Unit | 25 files, 528 passed |
+| pgTAP (incremental and clean) | 2,851 assertions, 0 files failed each. 270 18/18; 220 117/117 with addendum 1; WP-B's 199 30/30 |
+| Integration | 18 files, 173 passed, including `wpc-oi131-queue.test.ts`: equivalence over the harness matrix, and zero per-project financial evaluations, asserted after the other files |
+| Active projects before e2e | 295 after integration, topped up to 305 with WP-B's harness (committed, synthetic, and its `oi131-perf` factors removed) |
+| Build, bundle check, production-check build | Pass |
+| E2E | 70 passed, including `wpc.spec.ts:254` "the staff work queue renders derived items" (the test that fails on `main` without PR 2), T-E2E-07, and the four queue states (`queue-states`: loading then populated, failed with retry, empty) |
+| Exact-head CI | Recorded in the PR |
+
+**Independent review given:** WP-C reviewed PR 1 (PR #84) at `3de0870`, with no blocking finding and notes N-1 to N-3, all applied, and did a delta check at `14d7d5c`.
+
+**Effort (OI-67):** AI session about 6 h for PR 2, plus about 1 h for the PR 1 review and delta check. Owner review and administrative hours are recorded by Main.
+
 ## 34. PWP-1 AUTH-027 implementation record (OI-133: contract reader integrity, fail-closed)
 
 Implemented by the DEP-18 session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `main` through `285a583` (the AUTH-026 and AUTH-027 grant record). Numbered §34, as assigned by Main (§32 and §33 are reserved for the two AUTH-026 PRs; OM-2). Local and CI only; synthetic and fixture data only.

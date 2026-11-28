@@ -494,6 +494,11 @@ async function settle() {
   }
 }
 
+// AUTH-025 (OI-130): remove the MFA factors this file creates, and only those, whatever the outcome.
+afterAll(() =>
+  withDb((db) => db.query("delete from auth.mfa_factors where friendly_name = 'it-oi91'")),
+);
+
 describe("AUTH-009: the lock hierarchy against revocation (two connections, both commit orders)", () => {
   afterAll(settle);
 

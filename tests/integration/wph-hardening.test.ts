@@ -29,6 +29,11 @@ async function clearLimits() {
 beforeEach(clearLimits);
 afterAll(clearLimits);
 
+// AUTH-025 (OI-130): remove the MFA factors this file creates, and only those, whatever the outcome.
+afterAll(() =>
+  withDb((db) => db.query("delete from auth.mfa_factors where friendly_name = 'it-wph'")),
+);
+
 async function dbSession(userId: string, aal: "aal1" | "aal2" = "aal2"): Promise<string> {
   const sid = randomUUID();
   await withDb(async (db) => {

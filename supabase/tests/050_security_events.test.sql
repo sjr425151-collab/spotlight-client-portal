@@ -70,6 +70,8 @@ select is((
         'retry_object_deletion', 'review_intake', 'save_intake_draft', 'start_deployment', 'submit_intake', 'withdraw_preview',
         -- WP-C, AUTH-023 (reviewed in 250_wpc_pwp5a_scope_confirmation.test.sql; each re-authorizes inside its definer function)
         'acknowledge_scope_confirmation', 'record_operational_note', 'record_scope_confirmation', 'scope_confirmation_status',
+        -- WP-C, AUTH-024 (reviewed in 260_wpc_pwp5b_inactivity.test.sql; re-authorizes inside its definer function)
+        'record_inactivity_milestone',
         -- WP-B (each re-authorizes the caller inside its definer function; none writes audit rows directly)
         'accept_agreement', 'approve_agreement_version', 'authorize_service_termination', 'begin_initial_checkout',
         'clear_billing_hold', 'confirm_cancellation', 'create_agreement_version', 'decide_billing_hold_review',

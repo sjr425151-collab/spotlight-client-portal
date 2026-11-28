@@ -153,8 +153,7 @@ async function salesProject(label: string) {
 }
 
 const salesIssue = "public.issue_order_summary($1, 'essential', '[]'::jsonb, null, 'oi86')";
-const ownerIssue =
-  "public.issue_order_summary($1, 'professional', '[\"Scope\"]'::jsonb, null, 'oi86')";
+const ownerIssue = "public.issue_order_summary($1, 'professional', '[]'::jsonb, null, 'oi86')";
 const acceptSql = "public.accept_agreement($1, true, true, 'Client Signer', $2, 'Owner', true)";
 
 const presented = (projectId: string) =>

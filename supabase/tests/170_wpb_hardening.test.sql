@@ -87,7 +87,7 @@ select is((select array_agg(polname::text order by polname) from pg_policy where
 -- A summary issued with a change reason (Owner), on Project A, whose client is client A.
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
 insert into ids select 'os1', public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'essential',
-  '["Website"]'::jsonb, null, 'Internal note: discount discussed by phone') ->> 'order_summary_id';
+  '[]'::jsonb, null, 'Internal note: discount discussed by phone') ->> 'order_summary_id';
 reset role;
 select ok((select v from ids where k = 'os1') is not null, 'the Owner issues a summary with a change reason');
 select is((select change_reason from public.order_summaries where id = (select v::uuid from ids where k = 'os1')),
@@ -97,7 +97,7 @@ select is((select change_reason from public.order_summaries where id = (select v
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
 select results_eq($$ select id::text, package_key, package_total_cents, deposit_cents, balance_cents, scope_items::text,
     business_legal_name, status::text from public.order_summaries where id = (select v::uuid from ids where k = 'os1') $$,
-  $$ select v, 'essential', 80000, 16000, 64000, '["Website"]', 'Synthetic Business A LLC', 'presented'
+  $$ select v, 'essential', 80000, 16000, 64000, '["TEST FIXTURE — NOT A DELIVERABLE (essential item 1)", "TEST FIXTURE — NOT A DELIVERABLE (essential item 2)", "TEST FIXTURE — NOT A DELIVERABLE (essential item 3)"]', 'Synthetic Business A LLC', 'presented'
        from ids where k = 'os1' $$,
   'OI-87: the client reads its summary and every contractual column');
 select throws_ok($$ select change_reason from public.order_summaries $$, '42501', null,

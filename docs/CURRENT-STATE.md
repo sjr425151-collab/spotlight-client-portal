@@ -2744,3 +2744,95 @@ insert into private.inactivity_legacy_releases (release_id) values ('33000000-00
 | Exact-head CI | Recorded in the PR |
 
 **Effort (OI-67):** AI session about 3 h. Owner review and administrative hours are recorded by Main.
+
+## 31. WP-B AUTH-022 implementation record (PWP-2: standardized issuance and order snapshot v2)
+
+Implemented by WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) on `main` through `07e2d37` (AUTH-021 at `459e66c`, AUTH-023 at `360e026`, AUTH-025 at `07e2d37`). Numbered §31 (§30 is AUTH-024, merged first; OM-2).
+
+**Migration `20261128120000_pwp2_standardized_issuance.sql`** (reserved; D-1 exemption pre-approved). The replaced functions are derived from their merged bodies by anchored insertions only.
+- **Snapshot v2:** twelve nullable columns on `order_summaries` (`snapshot_version`, the bundle id, sha and canonicalization, each instrument's id and sha, `scope_version`, `scope_content_sha256`), a shape CHECK, explicit OI-87 column grants, and `private.order_summary_snapshot_v2` (`spotlight.order_summary.v2`: every v1 contractual field except the notes, plus every F5 identifier). `private.order_summary_snapshot` keeps the merged v1 expression verbatim and returns v2 only for `snapshot_version = 2`. **v1 is frozen:** no backfill and no rehash (golden vectors 196; requirement C evidence below).
+- **Standardized issuance (OD-13):** the signature is kept. Scope and notes inputs are rejected for every role with the existing codes (`scope_not_allowed`, `notes_not_allowed`; an empty note included) and audited (Sales: `sales.order_summary_rejected`, unchanged; Owner and Admin: `order_summary.input_rejected`). The scope comes from the bundle; the governing agreement version is the bundle's.
+- **Eligibility (OD-7, R-05, OI-132 option (a)):** issuance requires the newest sealed eligible bundle (F1, re-verified under the lock with F2 and F3) **and** the AUTH-018 interim gate: `current_package_scope(pkg)` must resolve at the bundle's pinned scope version. Otherwise `scope_definition_missing`, audited (`order_summary.bundle_unavailable`, or the Sales action), with no fallback.
+- **Acceptance (OD-3):** reads the package key without a lock, takes the per-package lock shared, locks the summary row `FOR UPDATE` and re-checks the key; for v2, the bundle row `FOR SHARE`, then a withdrawn bundle refuses (`bundle_withdrawn`) and an integrity failure refuses (`hash_mismatch`), both audited (`agreement.bundle_rejected`). An existing acceptance is permanent. v1 acceptance is unchanged.
+- **T-CON-11 positive read path:** `public.order_summary_instruments(uuid)` (INVOKER wrapper; the private SECURITY DEFINER implementation is executable by `authenticated` only). A client member reads the instruments of its own project's presented or accepted v2 summary; Owner and Admin at aal2 read the same; Sales, other tenants and anon read nothing.
+
+**Lock order (requirement A, OD-3).** Issuance: project row `FOR NO KEY UPDATE` (OI-86) → the merged agreement-version and price checks (error precedence unchanged) → the per-package lock shared (F1; Sales resolves at the merged Sales-scope position, Owner and Admin after the price checks) → presented summary row `FOR UPDATE` → bundle row `FOR SHARE`. `current_package_scope` re-enters the same shared key (`20261127160000`:437) and adds no lock. Acceptance: per-package lock shared → summary row → bundle row → project row `FOR KEY SHARE`, implicitly, through the acceptance insert's foreign key. No payment, invoice, release or Sales lock is added.
+
+**Dispositions applied:** Owner B-1b (050: `order_summary_instruments`) and B-2 D-1 to D-9, with clarifications 1, 2 and 4 (D-4 through the seed constructors only; D-8 cleared with WP-C). OI-132 (a) setup-only restores (OD-11(ii), Main's FD-14 records): 310 (6 lines), 330 (62 lines), `dep18-scope-loader-race` (75 lines); `pwp1-contract-race` needed no change. Staff UI: the scope textarea is removed and the issued summary's bundle scope is shown read-only; the service sends no scope or notes.
+
+**New tests:** pgTAP 196 (v1 golden vectors, 11), 197 (T-CON-09 per-role scope-only and notes-only refusals, T-CON-10, T-CON-03, T-CON-06, T-CON-11, the OD-3 order, OI-87 and I-1, 43), 198 (the OI-132 decision table, bundle state × scope state, 21); integration `pwp2-acceptance-race` (6 scenarios, each 5 repetitions in both orders: T-CON-07 acceptance against withdrawal, acceptance against replacement issuance and against sealing a newer bundle, issuance against scope withdrawal and against scope activation; every wait observed in `pg_locks`; no 40P01 or timeout).
+
+**Mutations (scratch, all caught):** M1 staff scope re-admitted (197: 14 failures; 310 D-1: 2); M2 acceptance without the withdrawal check (197 #34, #36); M3 without the integrity check (197 #28, #29); M4 the OI-132 gate removed (198: eligible × newer-inactive and eligible × withdrawn).
+
+**Verification (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4; synthetic and fixture data only):**
+- Requirement C: a clean `supabase db reset` passes; incremental application with only `20261128120000` withheld, then `supabase migration up`, passes. A v1 summary issued and accepted before the migration is byte-identical afterwards (row digest, `snapshot_sha256` and the acceptance hash; `snapshot_version` 1; its hash reproduces).
+- pgTAP: 2650 assertions, 0 files failed (310:215, 330:70 and 330:109 byte-identical; 330 at 137/137).
+- Integration: 15 files, 165 passed.
+- Unit 527 passed; lint, typecheck and format clean; build passes.
+- e2e and Lighthouse: see the PR (e2e locally with the preinstalled Chromium 1243 and the CI `NEXT_PUBLIC_SITE_URL`).
+- No Stripe request, credential or hosted operation.
+
+**Integration timeout diagnosis under OI-132 (a) (accepted by Main, 2026-11-28; not a STOP).** Before the setup-only restores, `dep18-scope-loader-race` "issuance first: the withdrawal waits for it; the committed issuance stays valid" failed at :210 with `scope_definition_missing`, as (a) requires: no bundle pinned the activated scope version. The test threw before its rollback, leaving that issuance connection `idle in transaction` (`Client/ClientRead`) and holding `advisory ShareLock` on `dep18-scope-eligibility:<pkg>` (objid 2286681138). The three following cases then timed out after 60 s, because each governance call (`record_package_scope_approval`) waited for `advisory ExclusiveLock` on the same key. The `pg_stat_activity` and `pg_locks` sampler, run every 5 s, showed no other wait (no tuple, transactionid or relation lock). That is the documented OD-3 serialization behind an uncleaned transaction, not a cycle. The FD-14-3 setup removes the case-1 failure, and with it the cascade. The sampler log is kept with the session evidence.
+
+**FD-14 record (Main, verbatim; 5,224 bytes, SHA-256 prefix `9129432b6d811879`):**
+
+````markdown
+# FD-14 records: AUTH-022, OI-132 option (a) setup-only restores (Main, 2026-11-28 ~08:08Z)
+
+- **Source:** WP-B branch `claude/wp-b-client-portal-xjftil`, local HEAD `e894b9d`, base main `07e2d37` (merged in as `08ee5d2`). Not pushed.
+- **Authority:**
+  - OD-11(ii), the pre-approved setup-only class;
+  - the Owner's OI-132 decision, option (a), 2026-11-28, with verification of consistent eligibility decisions, the OD-3 lock order, fail-closed behavior and preserved governance guarantees;
+  - verification requirement E;
+  - CLAUDE.md §5 (no invented legal text).
+- **Reproduction** (from the repository root, per hunk):
+  `git diff -U0 07e2d37 HEAD -- <file> | awk -v H='<hunk header>' 'index($0,H)==1{f=1;next} /^@@/{f=0} f' | sed 's/^+//' | sha256sum | cut -c1-16`
+
+| Record | File | Hunk | Added / deleted | Added-text SHA-256 (16) |
+|---|---|---|---|---|
+| FD-14-1 | supabase/tests/310_wps_sales_commercial.test.sql | `@@ -265,0 +266,6 @@` | 6 / 0 | aa888bfa94488bf8 |
+| FD-14-2 | supabase/tests/330_dep18_scope_loader_activation.test.sql | `@@ -400,0 +401,62 @@` | 62 / 0 | 7485d9d7262c6c96 |
+| FD-14-3a | tests/integration/dep18-scope-loader-race.test.ts | `@@ -131,0 +132,2 @@` | 2 / 0 | 1ddd9a3b4397575c |
+| FD-14-3b | tests/integration/dep18-scope-loader-race.test.ts | `@@ -134,0 +137,73 @@` | 73 / 0 | efd5da8d69b80468 |
+
+The exact added text is as WP-B sent it to Main at 08:05Z, verbatim. Main verifies it after the push against these hashes and against WP-B's message.
+
+## Common fields
+1. **Original:** each existing test is unchanged. No existing line is modified or removed in these hunks.
+2. **Replacement:** additions only. No `expect`, pgTAP assertion, plan, description or expected value is added or changed. Setup refusals raise or throw.
+3. **Original guarantees:**
+   - 310:52–54 (with the cascade 73, 94–97): Sales issuance copies a new scope version before acceptance (T-SALES-31, A5).
+   - 330:88–89: the issued summary carries exactly the activated scope.
+   - dep18-scope-loader-race (5 tests): AUTH-018 activation, withdrawal and load serialization.
+4. **Replacement guarantees:** the same assertions, byte-identical. Under OI-132 (a), each now runs against a bundle that pins that scope version, so both the AUTH-018 gate and bundle verification hold.
+5. **Exposure:**
+   - **FD-14-1:** a fixture bundle built by `private.construct_contract_bundle` (the seed constructor, `supabase/seed.sql:103`) with `p_is_test_fixture = true`. The constructor enforces the OD-9 fixture label and the development/test-only fixture guard (`20261128100000`:188–207). It runs inside 310's rolled-back transaction.
+   - **FD-14-2:**
+     - synthetic instruments, a synthetic agreement (heading `PGTAP SYNTHETIC AGREEMENT (330, OI-132)` plus `private.final_payment_clause()` only), sealing, an approval record with the synthetic identifier `PGTAP-330-OI132` and hash `repeat('e', 64)`, and activation;
+     - all through the AUTH-021 and WP-B Owner functions as the Owner with fresh MFA;
+     - inside 330's rolled-back transaction;
+     - never `approved_for_production`; activation is CHECK-limited to development and test.
+   - **FD-14-3:**
+     - the same construction through the file's existing `owner()` helper and `public.*` Owner functions, with the agreement `IT SYNTHETIC AGREEMENT <marker>` plus `private.final_payment_clause()` only (the pwp1-contract-race precedent, effective 2026-11-01, before the seeded fixture agreement);
+     - committed to the local or CI database (append-only), for package `prestige` only;
+     - among integration and e2e tests, only this file uses `prestige`. pgTAP runs first in CI on a fresh reset;
+     - no MFA factors are inserted, so AUTH-025's cleanup at lines 179–189 (shifted) is unaffected;
+     - there is no direct insert into any contractual or financial table.
+6. **Compensating coverage:**
+   - 197_wpb_standardized_issuance;
+   - the OI-132 decision table (bundle state × scope state; to come);
+   - the scope withdrawal and activation races in pwp2-acceptance-race (to come);
+   - 310:215, 330:70 and 330:109 passing unchanged (the AUTH-018 gate preserved).
+7. **Authorization:** OD-11(ii), plus the Owner's OI-132 decision. Main records it here before the push. No individual Owner approval is needed, because no assertion changes.
+8. **Evidence (WP-B, local at `e894b9d`):**
+   - pgTAP 2,629 assertions with 0 files failed: 310 217/217; 330 137/137; 310:215, 330:70 and 330:109 byte-identical.
+   - dep18-scope-loader-race plus pwp1-contract-race 11/11, with pwp1-contract-race unchanged.
+   - **After the push:**
+     - Main re-verifies the hashes, 0 deletions in these files outside the approved B-2 sites, and the assertion lines byte-identical;
+     - WP-I verifies the same independently.
+
+## Conditions
+1. Every synthetic text is exactly the precedent form above. Nothing else may enter an agreement or instrument body.
+2. No assertion change. Any later need for one goes to the Owner individually (OI-105).
+3. The timeout diagnosis (case-1 expected failure leaving a transaction open; the documented OD-3 serialization, not a cycle; pg_locks sampler log) goes in WP-B's CURRENT-STATE record, together with this record verbatim.
+````

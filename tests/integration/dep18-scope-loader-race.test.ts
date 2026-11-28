@@ -129,7 +129,82 @@ async function prepareVersion(activate: boolean): Promise<number> {
     const act = await owner("select public.activate_package_scope_version($1, $2) v", [PKG, v]);
     expect(act.ok, JSON.stringify(act)).toBe(true);
   }
+  // AUTH-022 (OI-132 option (a); setup only, OD-11(ii)): a bundle pins each activated version.
+  if (activate) await pinBundle(v);
   return v;
+}
+
+// AUTH-022 (OI-132 option (a); setup only, OD-11(ii)): issuance also needs a sealed, approved and
+// activated bundle pinning the activated scope version. Built only through the AUTH-021 Owner
+// functions in development, with synthetic content: an agreement holding only a synthetic heading
+// and the approved 04 §3.1 clause (the 340, 420 and pwp1-contract-race precedent; never
+// production-approved), and synthetic instruments. Any refusal throws (no assertion is added).
+const pinned: Record<string, string> = {};
+async function pinOk(sql: string, params: unknown[]): Promise<Record<string, unknown>> {
+  const r = await owner(sql, params);
+  if (r.ok !== true) throw new Error(`setup: ${sql}: ${JSON.stringify(r)}`);
+  return r;
+}
+async function pinInstrument(kind: string, pkg: string | null): Promise<string> {
+  const ver = Number(
+    (
+      await admin.query(
+        `select coalesce(max(instrument_version), 0) + 1 n from private.contract_instrument_versions
+          where kind = $1 and package_key is not distinct from $2`,
+        [kind, pkg],
+      )
+    ).rows[0].n,
+  );
+  const body = `IT SYNTHETIC ${kind} ${marker}`;
+  const sha = (
+    await admin.query(
+      "select private.contract_instrument_sha256($1, $2, $3, 'IT SYNTHETIC', $4, array['S1', 'S2']) s",
+      [kind, pkg, ver, body],
+    )
+  ).rows[0].s as string;
+  const r = await pinOk(
+    "select public.create_contract_instrument_version($1, $2, $3, 'IT SYNTHETIC', $4, array['S1', 'S2'], $5) v",
+    [kind, pkg, ver, body, sha],
+  );
+  return r.instrument_id as string;
+}
+async function pinBundle(v: number): Promise<void> {
+  if (!pinned.agreement) {
+    const text = (
+      await admin.query(
+        `select 'IT SYNTHETIC AGREEMENT ${marker}' || E'\\n\\n' || private.final_payment_clause() t`,
+      )
+    ).rows[0].t as string;
+    const ag = await pinOk(
+      "select public.create_agreement_version($1, $2, date '2026-11-01', $3) v",
+      [`it-dep18-pwp2-${marker}`, text, "IT-AGR"],
+    );
+    pinned.agreement = ag.agreement_version_id as string;
+    await pinOk("select public.approve_agreement_version($1) v", [pinned.agreement]);
+    pinned.package = await pinInstrument("package_specification", PKG);
+    pinned.maintenance = await pinInstrument("maintenance_specification", null);
+    pinned.shared = await pinInstrument("shared_terms", null);
+  }
+  const sealed = await pinOk(
+    "select public.seal_contract_bundle($1, $2, $3, $4, $5, $6, $7, $8) v",
+    [
+      PKG,
+      `IT SYNTHETIC BUNDLE ${marker} V${v}`,
+      pinned.agreement,
+      pinned.package,
+      pinned.maintenance,
+      pinned.shared,
+      v,
+      JSON.stringify(["S1", "S2"]),
+    ],
+  );
+  await pinOk("select public.record_contract_bundle_approval($1, $2, $3, $4) v", [
+    sealed.bundle_id,
+    sealed.bundle_sha256,
+    `IT-LEGAL-${marker}-${v}`,
+    "e".repeat(64),
+  ]);
+  await pinOk("select public.activate_contract_bundle($1) v", [sealed.bundle_id]);
 }
 
 async function waitsOnAdvisoryLock(pid: number): Promise<boolean> {

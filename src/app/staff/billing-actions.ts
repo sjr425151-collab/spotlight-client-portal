@@ -31,11 +31,6 @@ export async function issueOrderSummaryAction(formData: FormData) {
   const result = await issueOrderSummary(await createUserClient(), {
     projectId,
     packageKey: text(formData, "packageKey"),
-    scopeItems: text(formData, "scopeItems")
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean),
-    projectNotes: text(formData, "projectNotes") || undefined,
     changeReason: text(formData, "changeReason") || undefined,
   });
   back(projectId, result, "order_summary_issued");

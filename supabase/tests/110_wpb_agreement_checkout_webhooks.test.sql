@@ -139,8 +139,8 @@ select is(public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'es
   'staff below aal2 cannot prepare an order summary');
 reset role;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
-insert into ids select 'os1', public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'essential',
-  '["Five-page website"]'::jsonb) ->> 'order_summary_id';
+insert into ids select 'os1', public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'essential')
+  ->> 'order_summary_id';
 select isnt((select v from ids where k = 'os1'), null, 'an Admin at aal2 prepares an order summary');
 select is(public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'nonexistent') ->> 'error', 'catalog_mismatch',
   'an unknown package resolves no verified prices');
@@ -149,7 +149,7 @@ select is(public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'pr
 reset role;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
 insert into ids select 'os2', public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'professional',
-  '["Ten-page website", "Booking integration"]'::jsonb, null, 'Client chose Professional') ->> 'order_summary_id';
+  '[]'::jsonb, null, 'Client chose Professional') ->> 'order_summary_id';
 reset role;
 select results_eq($$ select status::text, revision from public.order_summaries
                      where project_id = '20000000-0000-4000-8000-0000000000a0' order by revision $$,

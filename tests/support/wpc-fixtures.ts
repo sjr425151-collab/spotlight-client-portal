@@ -145,7 +145,7 @@ export async function createPaidProject(input: {
 
   expectOk(
     "issueOrderSummary",
-    await issueOrderSummary(owner, { projectId, packageKey: "advanced", scopeItems: ["Website"] }),
+    await issueOrderSummary(owner, { projectId, packageKey: "advanced" }),
   );
   const summary = await client
     .from("order_summaries")

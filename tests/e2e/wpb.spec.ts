@@ -148,10 +148,15 @@ test.afterAll(async () => {
 test("Admin issues the order summary and sees only derived states and agreed pricing (OI-72, OI-83)", async () => {
   await staffPage.goto(`/staff/projects/${projectId}`);
   await staffPage.getByLabel("Package").selectOption("essential");
-  await staffPage.getByLabel("Included scope (one item per line)").fill("Five-page website");
   await staffPage.getByRole("button", { name: "Issue order summary" }).click();
   await expect(staffPage.locator("main").getByRole("status").first()).toContainText(
     "Order summary issued.",
+  );
+  // AUTH-022 (OD-13; Owner disposition D-9): no freeform scope input exists; the issued summary
+  // shows the package bundle's scope, read-only.
+  await expect(staffPage.locator('textarea[name="scopeItems"]')).toHaveCount(0);
+  await expect(staffPage.getByRole("list", { name: "Included scope" })).toContainText(
+    "TEST FIXTURE — NOT A DELIVERABLE (essential item 1)",
   );
   await expect(
     staffPage.getByText(/Total \$800\.00, deposit \$160\.00, balance \$640\.00/),

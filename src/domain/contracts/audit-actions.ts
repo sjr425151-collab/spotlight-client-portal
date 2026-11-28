@@ -227,6 +227,10 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   b("contract_bundle.activation_rejected", "agreement", "04 §4A"),
   b("contract_bundle.withdrawn", "agreement", "04 §4A"),
   b("contract_bundle.withdrawal_rejected", "agreement", "04 §4A"),
+  // PWP-2 (AUTH-022; 04 §4A, OD-13): standardized issuance and v2 acceptance. Reason codes only.
+  b("order_summary.input_rejected", "agreement", "04 §4A"),
+  b("order_summary.bundle_unavailable", "agreement", "04 §4A"),
+  b("agreement.bundle_rejected", "agreement", "04 §4A"),
   // AUTH-023 (OI-111, OD-14, OD-15): scope confirmation, acknowledgment, notes and the release gate.
   c("scope_confirmation.recorded", "fulfillment", "05 §3A"),
   c("scope_confirmation.rejected", "fulfillment", "05 §3A"),

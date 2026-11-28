@@ -87,6 +87,8 @@ select is((
         -- WP-B, AUTH-010 U-2 (OI-93 conflict decisions; Owner, fresh MFA and a live session checked inside)
         'financial_conflict_attempt_status', 'financial_conflict_events', 'record_financial_conflict_decision',
         'retry_financial_conflict_application',
+        -- WP-B, AUTH-022 (PWP-2; the positive client reader under the T-CON-11 split; re-authorizes inside its definer function)
+        'order_summary_instruments',
         -- WP-S (AUTH-005; reviewed in 300_wps_sales_*.test.sql; each re-authorizes inside its definer function)
         'assign_sales_representative', 'end_sales_assignment', 'sales_create_customer_project',
         'sales_list_customers', 'sales_project_progress',

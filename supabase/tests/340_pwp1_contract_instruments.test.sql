@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(172);
+select plan(174);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal2', p_fresh boolean default true)
 returns uuid language plpgsql as $$
@@ -483,6 +483,9 @@ select is(public.activate_contract_bundle(pg_temp.id('b2')) ->> 'error', 'classi
 reset role;
 select pg_temp.classify('preview');
 select is(pg_temp.resolved('advanced'), '', 'nothing resolves under preview');
+select pg_temp.owner();
+select is(public.activate_contract_bundle(pg_temp.id('b2')) ->> 'error', 'classification_not_allowed', 'no activation under preview');
+reset role;
 select pg_temp.classify('production');
 select is(private.app_environment(), 'production', 'setup: no classification reads as production');
 select is(pg_temp.resolved('advanced'), '', 'OD-6: nothing resolves in production');
@@ -586,6 +589,10 @@ select pg_temp.classify('staging');
 select is(pg_temp.error_of($$ select private.construct_contract_instrument('shared_terms', null, 'TEST FIXTURE x',
   'TEST FIXTURE — NOT A CONTRACT INSTRUMENT (staging probe)', array['X'], true) $$),
   '42501 contract fixtures are allowed only in development and test databases', 'nor under staging');
+select pg_temp.classify('preview');
+select is(pg_temp.error_of($$ select private.construct_contract_instrument('shared_terms', null, 'TEST FIXTURE x',
+  'TEST FIXTURE — NOT A CONTRACT INSTRUMENT (preview probe)', array['X'], true) $$),
+  '42501 contract fixtures are allowed only in development and test databases', 'nor under preview');
 select pg_temp.classify('inconsistent');
 select is(pg_temp.resolved('essential'), '', 'requirement F: never under an inconsistent classification');
 select is(pg_temp.error_of($$ select private.construct_contract_instrument('shared_terms', null, 'TEST FIXTURE x',

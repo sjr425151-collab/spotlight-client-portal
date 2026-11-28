@@ -279,237 +279,282 @@ afterAll(async () => {
   await Promise.all([admin?.end(), a?.end(), b?.end()]);
 });
 
+/**
+ * N-3: per-scenario failure cleanup. Both connections are rolled back concurrently whether the
+ * scenario passed or failed, so one failed check cannot leave a transaction (and its advisory
+ * locks) open into later scenarios. A rollback queued behind a waiting query runs once the other
+ * connection's rollback releases the lock it waits on. Only cleanup errors are swallowed; the
+ * original failure still propagates.
+ */
+function scenario(fn: () => Promise<void>): () => Promise<void> {
+  return async () => {
+    try {
+      await fn();
+    } finally {
+      await Promise.allSettled([a.query("rollback"), b.query("rollback")]);
+    }
+  };
+}
+
 describe("AUTH-021 serialization (local stack, parallel connections)", () => {
-  it("T-CON-02: two sessions creating instrument versions yield consecutive versions", async () => {
-    for (let i = 0; i < REPETITIONS; i += 1) {
-      const before = await nextInstrumentVersion("shared_terms", null);
-      await a.query("begin");
-      await b.query("begin");
-      await a.query(
-        "select private.construct_contract_instrument('shared_terms', null, $1, $2, array['IT-S1'], false)",
-        [`IT SYNTHETIC race ${marker}`, `IT SYNTHETIC race A ${marker} ${i}`],
-      );
-      const bPid = await pidOf(b);
-      const pending = b.query(
-        "select private.construct_contract_instrument('shared_terms', null, $1, $2, array['IT-S1'], false) r",
-        [`IT SYNTHETIC race ${marker}`, `IT SYNTHETIC race B ${marker} ${i}`],
-      );
-      expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
-      await a.query("commit");
-      await pending;
-      await b.query("commit");
-      const v = await one<{ s: string }>(
-        `select string_agg(instrument_version::text, ',' order by instrument_version) s
+  it(
+    "T-CON-02: two sessions creating instrument versions yield consecutive versions",
+    scenario(async () => {
+      for (let i = 0; i < REPETITIONS; i += 1) {
+        const before = await nextInstrumentVersion("shared_terms", null);
+        await a.query("begin");
+        await b.query("begin");
+        await a.query(
+          "select private.construct_contract_instrument('shared_terms', null, $1, $2, array['IT-S1'], false)",
+          [`IT SYNTHETIC race ${marker}`, `IT SYNTHETIC race A ${marker} ${i}`],
+        );
+        const bPid = await pidOf(b);
+        const pending = b.query(
+          "select private.construct_contract_instrument('shared_terms', null, $1, $2, array['IT-S1'], false) r",
+          [`IT SYNTHETIC race ${marker}`, `IT SYNTHETIC race B ${marker} ${i}`],
+        );
+        expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
+        await a.query("commit");
+        await pending;
+        await b.query("commit");
+        const v = await one<{ s: string }>(
+          `select string_agg(instrument_version::text, ',' order by instrument_version) s
            from private.contract_instrument_versions where kind = 'shared_terms' and instrument_version >= $1`,
-        [before],
-      );
-      expect(v.s).toBe(`${before},${before + 1}`);
-    }
-  });
+          [before],
+        );
+        expect(v.s).toBe(`${before},${before + 1}`);
+      }
+    }),
+  );
 
-  it("T-CON-02: two sessions sealing bundles for one package yield consecutive versions", async () => {
-    for (let i = 0; i < REPETITIONS; i += 1) {
-      const before = Number(
-        (
-          await one<{ n: number }>(
-            "select coalesce(max(bundle_version), 0) + 1 n from private.contract_bundles where package_key = $1",
-            [PKG],
-          )
-        ).n,
-      );
-      await a.query("begin");
-      await b.query("begin");
-      const first = await ownerCall(a, SEAL_SQL, sealParams(`IT SYNTHETIC BUNDLE ${marker} A${i}`));
-      expect(first.ok, JSON.stringify(first)).toBe(true);
-      const bPid = await pidOf(b);
-      const pending = ownerCall(b, SEAL_SQL, sealParams(`IT SYNTHETIC BUNDLE ${marker} B${i}`));
-      expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
-      await a.query("commit");
-      const second = await pending;
-      await b.query("commit");
-      expect(second.ok, JSON.stringify(second)).toBe(true);
-      expect([first.bundle_version, second.bundle_version]).toEqual([before, before + 1]);
-    }
-  });
+  it(
+    "T-CON-02: two sessions sealing bundles for one package yield consecutive versions",
+    scenario(async () => {
+      for (let i = 0; i < REPETITIONS; i += 1) {
+        const before = Number(
+          (
+            await one<{ n: number }>(
+              "select coalesce(max(bundle_version), 0) + 1 n from private.contract_bundles where package_key = $1",
+              [PKG],
+            )
+          ).n,
+        );
+        await a.query("begin");
+        await b.query("begin");
+        const first = await ownerCall(
+          a,
+          SEAL_SQL,
+          sealParams(`IT SYNTHETIC BUNDLE ${marker} A${i}`),
+        );
+        expect(first.ok, JSON.stringify(first)).toBe(true);
+        const bPid = await pidOf(b);
+        const pending = ownerCall(b, SEAL_SQL, sealParams(`IT SYNTHETIC BUNDLE ${marker} B${i}`));
+        expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
+        await a.query("commit");
+        const second = await pending;
+        await b.query("commit");
+        expect(second.ok, JSON.stringify(second)).toBe(true);
+        expect([first.bundle_version, second.bundle_version]).toEqual([before, before + 1]);
+      }
+    }),
+  );
 
-  it("sealing against withdrawal, both orders: each waits for the other; the outcomes are consistent", async () => {
-    for (let i = 0; i < REPETITIONS; i += 1) {
-      // Withdrawal first; the seal waits, then seals the next version.
-      const w1 = await sealFresh(true);
-      await a.query("begin");
-      const wd = await ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
-        w1.id,
-        "IT race",
-        "IT-WD",
-      ]);
-      expect(wd.ok, JSON.stringify(wd)).toBe(true);
-      await b.query("begin");
-      const bPid = await pidOf(b);
-      const pendingSeal = ownerCall(b, SEAL_SQL, sealParams(`IT SYNTHETIC BUNDLE ${marker} S${i}`));
-      expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
-      await a.query("commit");
-      const sealed = await pendingSeal;
-      await b.query("commit");
-      expect(sealed.ok, JSON.stringify(sealed)).toBe(true);
-      // Seal first; the withdrawal of the previous bundle waits, then succeeds.
-      const w2 = await sealFresh(true);
-      await b.query("begin");
-      const s2 = await ownerCall(b, SEAL_SQL, sealParams(`IT SYNTHETIC BUNDLE ${marker} T${i}`));
-      expect(s2.ok, JSON.stringify(s2)).toBe(true);
-      await a.query("begin");
-      const aPid = await pidOf(a);
-      const pendingWd = ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
-        w2.id,
-        "IT race",
-        "IT-WD",
-      ]);
-      expect(await waitsOnAdvisoryLock(aPid)).toBe(true);
-      await b.query("commit");
-      const wd2 = await pendingWd;
-      await a.query("commit");
-      expect(wd2.ok, JSON.stringify(wd2)).toBe(true);
-    }
-  });
+  it(
+    "sealing against withdrawal, both orders: each waits for the other; the outcomes are consistent",
+    scenario(async () => {
+      for (let i = 0; i < REPETITIONS; i += 1) {
+        // Withdrawal first; the seal waits, then seals the next version.
+        const w1 = await sealFresh(true);
+        await a.query("begin");
+        const wd = await ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
+          w1.id,
+          "IT race",
+          "IT-WD",
+        ]);
+        expect(wd.ok, JSON.stringify(wd)).toBe(true);
+        await b.query("begin");
+        const bPid = await pidOf(b);
+        const pendingSeal = ownerCall(
+          b,
+          SEAL_SQL,
+          sealParams(`IT SYNTHETIC BUNDLE ${marker} S${i}`),
+        );
+        expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
+        await a.query("commit");
+        const sealed = await pendingSeal;
+        await b.query("commit");
+        expect(sealed.ok, JSON.stringify(sealed)).toBe(true);
+        // Seal first; the withdrawal of the previous bundle waits, then succeeds.
+        const w2 = await sealFresh(true);
+        await b.query("begin");
+        const s2 = await ownerCall(b, SEAL_SQL, sealParams(`IT SYNTHETIC BUNDLE ${marker} T${i}`));
+        expect(s2.ok, JSON.stringify(s2)).toBe(true);
+        await a.query("begin");
+        const aPid = await pidOf(a);
+        const pendingWd = ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
+          w2.id,
+          "IT race",
+          "IT-WD",
+        ]);
+        expect(await waitsOnAdvisoryLock(aPid)).toBe(true);
+        await b.query("commit");
+        const wd2 = await pendingWd;
+        await a.query("commit");
+        expect(wd2.ok, JSON.stringify(wd2)).toBe(true);
+      }
+    }),
+  );
 
-  it("activation against withdrawal, both orders: no reactivation after a committed withdrawal", async () => {
-    for (let i = 0; i < REPETITIONS; i += 1) {
-      // Withdrawal first: the waiting activation is refused as withdrawn.
-      const x = await sealFresh(false);
-      expect(
-        (
-          await owner("select public.record_contract_bundle_approval($1, $2, $3, $4) v", [
-            x.id,
-            x.sha,
-            `IT-LEGAL-${marker}`,
-            "e".repeat(64),
-          ])
-        ).ok,
-      ).toBe(true);
-      await a.query("begin");
-      await ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
-        x.id,
-        "IT race",
-        "IT-WD",
-      ]);
-      await b.query("begin");
-      const bPid = await pidOf(b);
-      const pending = ownerCall(b, "select public.activate_contract_bundle($1) v", [x.id]);
-      expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
-      await a.query("commit");
-      const act = await pending;
-      await b.query("commit");
-      expect(act.error).toBe("withdrawn");
-      // Activation first: the withdrawal waits, then succeeds; the bundle ends withdrawn.
-      const y = await sealFresh(false);
-      expect(
-        (
-          await owner("select public.record_contract_bundle_approval($1, $2, $3, $4) v", [
-            y.id,
-            y.sha,
-            `IT-LEGAL-${marker}`,
-            "e".repeat(64),
-          ])
-        ).ok,
-      ).toBe(true);
-      await b.query("begin");
-      expect((await ownerCall(b, "select public.activate_contract_bundle($1) v", [y.id])).ok).toBe(
-        true,
-      );
-      await a.query("begin");
-      const aPid = await pidOf(a);
-      const pendingWd = ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
-        y.id,
-        "IT race",
-        "IT-WD",
-      ]);
-      expect(await waitsOnAdvisoryLock(aPid)).toBe(true);
-      await b.query("commit");
-      expect((await pendingWd).ok).toBe(true);
-      await a.query("commit");
-      const events = await one<{ e: string }>(
-        "select string_agg(event, ',' order by event) e from private.contract_bundle_eligibility where bundle_id = $1",
-        [y.id],
-      );
-      expect(events.e).toBe("activated,withdrawn");
-      expect(await resolvedId(admin)).toBeNull();
-    }
-  });
+  it(
+    "activation against withdrawal, both orders: no reactivation after a committed withdrawal",
+    scenario(async () => {
+      for (let i = 0; i < REPETITIONS; i += 1) {
+        // Withdrawal first: the waiting activation is refused as withdrawn.
+        const x = await sealFresh(false);
+        expect(
+          (
+            await owner("select public.record_contract_bundle_approval($1, $2, $3, $4) v", [
+              x.id,
+              x.sha,
+              `IT-LEGAL-${marker}`,
+              "e".repeat(64),
+            ])
+          ).ok,
+        ).toBe(true);
+        await a.query("begin");
+        await ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
+          x.id,
+          "IT race",
+          "IT-WD",
+        ]);
+        await b.query("begin");
+        const bPid = await pidOf(b);
+        const pending = ownerCall(b, "select public.activate_contract_bundle($1) v", [x.id]);
+        expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
+        await a.query("commit");
+        const act = await pending;
+        await b.query("commit");
+        expect(act.error).toBe("withdrawn");
+        // Activation first: the withdrawal waits, then succeeds; the bundle ends withdrawn.
+        const y = await sealFresh(false);
+        expect(
+          (
+            await owner("select public.record_contract_bundle_approval($1, $2, $3, $4) v", [
+              y.id,
+              y.sha,
+              `IT-LEGAL-${marker}`,
+              "e".repeat(64),
+            ])
+          ).ok,
+        ).toBe(true);
+        await b.query("begin");
+        expect(
+          (await ownerCall(b, "select public.activate_contract_bundle($1) v", [y.id])).ok,
+        ).toBe(true);
+        await a.query("begin");
+        const aPid = await pidOf(a);
+        const pendingWd = ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
+          y.id,
+          "IT race",
+          "IT-WD",
+        ]);
+        expect(await waitsOnAdvisoryLock(aPid)).toBe(true);
+        await b.query("commit");
+        expect((await pendingWd).ok).toBe(true);
+        await a.query("commit");
+        const events = await one<{ e: string }>(
+          "select string_agg(event, ',' order by event) e from private.contract_bundle_eligibility where bundle_id = $1",
+          [y.id],
+        );
+        expect(events.e).toBe("activated,withdrawn");
+        expect(await resolvedId(admin)).toBeNull();
+      }
+    }),
+  );
 
-  it("resolution against withdrawal, both orders: a committed withdrawal is seen after the wait", async () => {
-    for (let i = 0; i < REPETITIONS; i += 1) {
-      // Withdrawal first: the waiting resolver then sees the withdrawal and returns nothing.
-      const x = await sealFresh(true);
-      expect(await resolvedId(admin)).toBe(x.id);
-      await a.query("begin");
-      await ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
-        x.id,
-        "IT race",
-        "IT-WD",
-      ]);
-      await b.query("begin");
-      const bPid = await pidOf(b);
-      const pending = resolvedId(b);
-      expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
-      await a.query("commit");
-      expect(await pending).toBeNull();
-      await b.query("commit");
-      // Resolution first (shared lock held to commit): the withdrawal waits for it.
-      const y = await sealFresh(true);
-      await b.query("begin");
-      expect(await resolvedId(b)).toBe(y.id);
-      await a.query("begin");
-      const aPid = await pidOf(a);
-      const pendingWd = ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
-        y.id,
-        "IT race",
-        "IT-WD",
-      ]);
-      expect(await waitsOnAdvisoryLock(aPid)).toBe(true);
-      await b.query("commit");
-      expect((await pendingWd).ok).toBe(true);
-      await a.query("commit");
-      expect(await resolvedId(admin)).toBeNull();
-    }
-  });
+  it(
+    "resolution against withdrawal, both orders: a committed withdrawal is seen after the wait",
+    scenario(async () => {
+      for (let i = 0; i < REPETITIONS; i += 1) {
+        // Withdrawal first: the waiting resolver then sees the withdrawal and returns nothing.
+        const x = await sealFresh(true);
+        expect(await resolvedId(admin)).toBe(x.id);
+        await a.query("begin");
+        await ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
+          x.id,
+          "IT race",
+          "IT-WD",
+        ]);
+        await b.query("begin");
+        const bPid = await pidOf(b);
+        const pending = resolvedId(b);
+        expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
+        await a.query("commit");
+        expect(await pending).toBeNull();
+        await b.query("commit");
+        // Resolution first (shared lock held to commit): the withdrawal waits for it.
+        const y = await sealFresh(true);
+        await b.query("begin");
+        expect(await resolvedId(b)).toBe(y.id);
+        await a.query("begin");
+        const aPid = await pidOf(a);
+        const pendingWd = ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
+          y.id,
+          "IT race",
+          "IT-WD",
+        ]);
+        expect(await waitsOnAdvisoryLock(aPid)).toBe(true);
+        await b.query("commit");
+        expect((await pendingWd).ok).toBe(true);
+        await a.query("commit");
+        expect(await resolvedId(admin)).toBeNull();
+      }
+    }),
+  );
 
-  it("requirement A: issuance against bundle governance, both orders: it waits, with no lock cycle", async () => {
-    const issue =
-      "select public.issue_order_summary($1, $2, '[]'::jsonb, null, 'Synthetic race order') v";
-    for (let i = 0; i < REPETITIONS; i += 1) {
-      // Governance first (per-package lock exclusive); issuance holds the project row and waits on it.
-      const x = await sealFresh(true);
-      await a.query("begin");
-      await ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
-        x.id,
-        "IT race",
-        "IT-WD",
-      ]);
-      await b.query("begin");
-      await asSales(b);
-      const bPid = await pidOf(b);
-      const pending = b.query(issue, [projectId, PKG]);
-      expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
-      await a.query("commit");
-      const r1 = (await pending).rows[0].v as Record<string, unknown>;
-      await b.query("rollback");
-      expect(r1.error ?? "ok").toMatch(/^(ok|scope_definition_missing)$/);
-      // Issuance first (shared lock held to commit); governance waits for it.
-      const y = await sealFresh(true);
-      await b.query("begin");
-      await asSales(b);
-      const r2 = (await b.query(issue, [projectId, PKG])).rows[0].v as Record<string, unknown>;
-      expect(r2.error ?? "ok").toMatch(/^(ok|scope_definition_missing)$/);
-      await a.query("begin");
-      const aPid = await pidOf(a);
-      const pendingWd = ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
-        y.id,
-        "IT race",
-        "IT-WD",
-      ]);
-      expect(await waitsOnAdvisoryLock(aPid)).toBe(true);
-      await b.query("rollback");
-      expect((await pendingWd).ok).toBe(true);
-      await a.query("commit");
-    }
-  });
+  it(
+    "requirement A: issuance against bundle governance, both orders: it waits, with no lock cycle",
+    scenario(async () => {
+      // The setup loads the synthetic scope version but never activates it, so issuance has no active
+      // scope definition in either order: anything other than scope_definition_missing fails.
+      const issue =
+        "select public.issue_order_summary($1, $2, '[]'::jsonb, null, 'Synthetic race order') v";
+      for (let i = 0; i < REPETITIONS; i += 1) {
+        // Governance first (per-package lock exclusive); issuance holds the project row and waits on it.
+        const x = await sealFresh(true);
+        await a.query("begin");
+        await ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
+          x.id,
+          "IT race",
+          "IT-WD",
+        ]);
+        await b.query("begin");
+        await asSales(b);
+        const bPid = await pidOf(b);
+        const pending = b.query(issue, [projectId, PKG]);
+        expect(await waitsOnAdvisoryLock(bPid)).toBe(true);
+        await a.query("commit");
+        const r1 = (await pending).rows[0].v as Record<string, unknown>;
+        await b.query("rollback");
+        expect(r1.error).toBe("scope_definition_missing");
+        // Issuance first (shared lock held to commit); governance waits for it.
+        const y = await sealFresh(true);
+        await b.query("begin");
+        await asSales(b);
+        const r2 = (await b.query(issue, [projectId, PKG])).rows[0].v as Record<string, unknown>;
+        expect(r2.error).toBe("scope_definition_missing");
+        await a.query("begin");
+        const aPid = await pidOf(a);
+        const pendingWd = ownerCall(a, "select public.withdraw_contract_bundle($1, $2, $3) v", [
+          y.id,
+          "IT race",
+          "IT-WD",
+        ]);
+        expect(await waitsOnAdvisoryLock(aPid)).toBe(true);
+        await b.query("rollback");
+        expect((await pendingWd).ok).toBe(true);
+        await a.query("commit");
+      }
+    }),
+  );
 });

@@ -34,10 +34,17 @@ test.describe.configure({ mode: "serial" });
 async function holdProjectsLock() {
   const c = new Client({ connectionString: DB_URL });
   await c.connect();
+  // WP-I N-1: bounded waits; and if this process dies, the server ends the idle transaction.
+  await c.query(
+    "set lock_timeout = '15s'; set statement_timeout = '20s'; set idle_in_transaction_session_timeout = '60s'",
+  );
   await c.query("begin");
   await c.query("lock table public.projects in access exclusive mode");
+  let released = false;
   return {
     release: async () => {
+      if (released) return;
+      released = true;
       try {
         await c.query("rollback");
       } finally {
@@ -59,7 +66,7 @@ test("AUTH-026: loading, then populated", async ({ browser }) => {
     await lock.release();
     await navigation;
   } finally {
-    await lock.release().catch(() => undefined);
+    await lock.release();
   }
   await expect(page.getByRole("heading", { name: "Work queue" })).toBeVisible();
   await expect(page.locator("main section[aria-labelledby^='q-']").first()).toBeVisible();
@@ -90,13 +97,23 @@ test("AUTH-026: a failed call is shown as a failure with a retry, never as an em
 
 test("AUTH-026: a successful, empty result shows Nothing needs attention", async ({ browser }) => {
   const { page } = await staffPageAtAal2(browser, ADMIN, ADMIN_ID);
+  const activeCount = () =>
+    withDb(
+      async (db) =>
+        (await db.query("select count(*)::int as n from public.projects where archived_at is null"))
+          .rows[0].n as number,
+    );
+  const before = await activeCount();
   const archived = await withDb(async (db) =>
     (
       await db.query(
         "update public.projects set archived_at = now() where archived_at is null returning id::text",
       )
-    ).rows.map((r) => r.id as string),
+    ).rows
+      .map((r) => r.id as string)
+      .sort(),
   );
+  let restored: string[] = [];
   try {
     await page.goto("/staff/queue");
     await expect(page.getByRole("heading", { name: "Work queue" })).toBeVisible();
@@ -104,10 +121,19 @@ test("AUTH-026: a successful, empty result shows Nothing needs attention", async
     await expect(page.getByRole("alert")).toHaveCount(0);
     await expectAccessible(page);
   } finally {
-    await withDb((db) =>
-      db.query("update public.projects set archived_at = null where id = any($1::uuid[])", [
-        archived,
-      ]),
+    restored = await withDb(async (db) =>
+      (
+        await db.query(
+          "update public.projects set archived_at = null where id = any($1::uuid[]) returning id::text",
+          [archived],
+        )
+      ).rows
+        .map((r) => r.id as string)
+        .sort(),
     );
   }
+  // FD-14 condition 2: exactly the archived projects are restored, and nothing else changed.
+  expect(archived.length).toBe(before);
+  expect(restored).toEqual(archived);
+  expect(await activeCount()).toBe(before);
 });

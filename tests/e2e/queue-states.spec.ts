@@ -104,6 +104,11 @@ test("AUTH-026: a successful, empty result shows Nothing needs attention", async
           .rows[0].n as number,
     );
   const before = await activeCount();
+  const auditMark = await withDb(
+    async (db) =>
+      (await db.query("select coalesce(max(id), 0)::text as id from public.audit_events")).rows[0]
+        .id as string,
+  );
   const archived = await withDb(async (db) =>
     (
       await db.query(
@@ -136,4 +141,22 @@ test("AUTH-026: a successful, empty result shows Nothing needs attention", async
   expect(archived.length).toBe(before);
   expect(restored).toEqual(archived);
   expect(await activeCount()).toBe(before);
+  // FD-14 audit ruling (A): the only audit rows written are the append-only project.updated
+  // rows of the archive and the restore, exactly two for each archived project.
+  const audits = await withDb(
+    async (db) =>
+      (
+        await db.query(
+          `select action, project_id::text as project from public.audit_events
+            where id > $1::bigint order by id`,
+          [auditMark],
+        )
+      ).rows as { action: string; project: string }[],
+  );
+  expect([...new Set(audits.map((a) => a.action))]).toEqual(["project.updated"]);
+  expect(audits.length).toBe(2 * archived.length);
+  const perProject = new Map<string, number>();
+  for (const a of audits) perProject.set(a.project, (perProject.get(a.project) ?? 0) + 1);
+  expect([...perProject.keys()].sort()).toEqual(archived);
+  expect([...perProject.values()].every((n) => n === 2)).toBe(true);
 });

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.56.0 |
+| Version | 0.57.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,14 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-016 decision and AUTH-020 grant (Owner, 2026-11-28)
+
+Owner decisions "Consolidated Owner Directive" and "Final Owner Authorization — AUTH-020 / OI-122". Documentation only.
+
+- **AUTH-016 (PR #55):** both FD-14 changes approved (allowlist 43 → 48; OI-123 setup-only additions to test 330); applied in one push, verified byte-identical, merged under OM-6(b). OI-115 (local part), OI-119 and OI-123 closed.
+- **AUTH-020 (OI-122):** granted exactly as proposed, including deterministic failure cleanup; approved diff `3675e8f8…`, expected file `27d324b0…`; acceptance A1 to A6 plus A7 (the complete cleanup sequence is bounded, never commits, leaves no residual session or lock, and never suppresses the original failure); WP-I review; OM-6(b).
+- **Milestone checkpoint:** a comprehensive milestone assessment follows the verified completion of AUTH-016 and AUTH-020; no further major implementation wave starts before it.
+
 ### AUTH-002 Stage A attempt 3 closure and consolidated completions (Owner, 2026-11-27)
 
 Owner confirmation "AUTH-002 Stage A Attempt 3 Closure". Documentation only.
@@ -1727,6 +1735,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.57.0 | 2026-11-28 | **PR #55 merged: AUTH-016 completed**; OI-115 (local part), OI-119 and OI-123 closed. **AUTH-020 granted** (OI-122, test-only). AUTHORIZATIONS v1.38.0; CURRENT-STATE v1.42.0; OPEN-ISSUES v0.45.0. | Main session | Owner |
 | 0.56.0 | 2026-11-28 | **PR #57 and PR #61 merged:** AUTH-018 and AUTH-019 completed; **OI-120 closed**. OI-122 and OI-123 opened (awaiting the Owner). AUTH-003 migration-order note. 04 v0.10.5 (status only). AUTHORIZATIONS v1.37.0; CURRENT-STATE v1.41.0; OPEN-ISSUES v0.44.0. | Main session | Owner |
 | 0.55.0 | 2026-11-27 | **AUTH-002 Stage A attempt 3 PASSED; Stage A completed** (25 requests, Owner Workbench reconciliation, cleanup confirmed). **PR #54 and PR #59 merged:** AUTH-015 and AUTH-010 completed; OI-114, OI-93 and OI-121 closed. AUTHORIZATIONS v1.36.0; CURRENT-STATE v1.40.0; OPEN-ISSUES v0.43.0. | Main session | Owner |
 | 0.54.0 | 2026-11-27 | **Stage A attempt 3:** the Owner's no-other-operation statement and WP-B executor designation recorded (Gate A prerequisites now recorded; not active until Main's notice). **AUTH-010:** corrected I-1 conditions accepted; 191 unchanged. CURRENT-STATE v1.39.0; AUTHORIZATIONS v1.35.0. | Main session | Owner |

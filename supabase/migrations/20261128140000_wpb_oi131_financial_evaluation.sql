@@ -8,14 +8,19 @@
 -- for every project evaluated, so the conflict functions run (events x evaluations) times.
 --
 -- This migration adds one private helper. It returns, for each requested project, exactly the row
--- private.project_financial_status returns, computed from ONE set-based anomaly pass:
---   - financial_conflict_cleared is evaluated once per distinct relevant event (it is a STABLE
---     function of the event id alone), not once per event per project per gate;
---   - each project's status is assembled from the same sub-functions project_financial_status uses,
---     in the same order, with the G2 and G4 anomaly kinds that gate_anomalies would return.
+-- private.project_financial_status returns (to_jsonb byte for byte), computed in ONE set-based pass
+-- over every requested project:
+--   - the eight branches of project_financial_anomalies, with financial_conflict_cleared evaluated
+--     once per distinct relevant event (a STABLE function of the event id alone), not once per
+--     event per project per gate, reduced to the G2 and G4 kind arrays gate_anomalies returns;
+--   - the components project_financial_status reads (agreement, deposit and final-balance states and
+--     their verification, active billing holds, payment authorization state, ledger digest), each a
+--     set-based copy of the per-project function's own expression;
+--   - each project's row is then assembled in the same field order as project_financial_status.
 -- Per-project failure never fails the call: a project whose evaluation would raise gets
--- failed = true and a null status. If the set-based anomaly pass itself raises, the helper falls
--- back, for that call, to the existing per-project function with the same per-project handling.
+-- failed = true and a null status. If the set pass itself raises, the helper falls back, for that
+-- call, to the existing per-project function with that same per-project handling, so the results
+-- and failure flags are those of the per-project function exactly. A null id always takes that path.
 --
 -- Unchanged (byte-identical, keeping every caller): project_financial_status, gate_anomalies,
 -- project_financial_anomalies, the financial conflict functions and every other WP-B function. No
@@ -283,7 +288,7 @@ begin
       continue;
     end if;
     begin
-      -- The same sub-functions, in the same order, as private.project_financial_status; G2 and G4
+      -- The fields of private.project_financial_status, in its order, from the set pass; G2 and G4
       -- are the kinds gate_anomalies returns for this project (empty when it has none).
       v_c := v_comp -> v_id::text;
       v_deposit := (v_dep -> v_id::text ->> 'state')::public.deposit_state;

@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.54.0 |
+| Version | 1.55.0 |
 | Status | **Canonical status record** (OI-67). Every pull request that changes status updates this file in the same pull request. |
-| Last updated | 2026-11-28, by the remediation grant record (the Owner accepted the wave completion; AUTH-026 and AUTH-027 granted for OI-131 and OI-133). Earlier: 2026-11-28, by the AUTH-022 completion record (PR #79; the contractual architecture wave is complete; DEP-19 complete; OI-124, OI-129 and OI-132 closed; OI-133 opened; 04 v0.11.1). Earlier: 2026-11-28, by the AUTH-024 and AUTH-025 completion record (PR #75 and PR #77; OI-130 and OI-129 (h) closed; 05 v0.5.4). Earlier: 2026-11-28, by the OI-132 decision record (option (a); OI-131 grant preparation authorized). Earlier: 2026-11-28, by the AUTH-025 activation record (OI-131 and OI-132 opened; Main's provisional OI-132 ruling). Earlier: 2026-11-28, by the AUTH-024 dispositions and AUTH-025 grant record (Q5 option (a), the day-30 confirmation, B-1d; OI-130 decided). Earlier: 2026-11-28, by the AUTH-021 and AUTH-023 completion record (PR #69 and PR #71; OI-129 (a)–(g) and (i) closed; OI-130 opened; the B-1c wording erratum; 05 v0.5.3). Earlier: 2026-11-28, by the test-disposition batch record (B-1a to B-1c, B-2, B-3). Earlier: 2026-11-28, by the contractual architecture wave grant record (OD-1 to OD-19; AUTH-021 to AUTH-024 granted). Earlier: 2026-11-28, by the PWP investigation record (OI-124 to OI-129 opened; 04 v0.10.6 and DEP-18 status corrected). Earlier: 2026-11-28, by the milestone acceptance record (Owner directive; §3, §6 and §7 corrected under Tier 0; AUTH-020 diff-hash limitation). Earlier: 2026-11-28, by the AUTH-020 completion record (OI-122 closed). Earlier: 2026-11-28, by the AUTH-016 completion and AUTH-020 grant record (OI-115 local part, OI-119 and OI-123 closed). Earlier: 2026-11-28, by the AUTH-018 and AUTH-019 completion record (OI-120 closed; OI-122 and OI-123 opened). Earlier: 2026-11-27, by the consolidated completion record (AUTH-002 Stage A attempt 3 passed and Stage A completed; AUTH-010 and AUTH-015 completed; OI-93, OI-114 and OI-121 closed). Earlier: 2026-11-27, by the Stage A attempt 3 prerequisite record (the Owner's no-other-operation statement and WP-B designation; not active) and the AUTH-010 I-1 correction. Earlier: 2026-11-27, by the consolidated Owner decisions record (AUTH-019 granted; AUTH-010 Amendments 1 and 2; AUTH-015 Amendment 1; Stage A attempt 3 key creation authorized, creation only) and the AUTH-017 completion record (PR #53; OI-88 closed), and the AUTH-002 Stage A attempt 3 Gate A record (attestation received; not active). Earlier: 2026-11-27, by the OI-118 closure (cause H1, sandbox mismatch) and the AUTH-002 Stage A attempt 3 amendment (not active). Earlier: 2026-11-27, by the R1 execution grant record (AUTH-010 and AUTH-015 to AUTH-018 granted; D-a to D-c dispositions; DEP-07 and DEP-12 conditional selections; AUTH-003 executor). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 closure record (OI-118 opened) and the AUTH-014 completion record (PR #45; OI-116 closed). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 Gate A record (new key attestation; OI-117 option A; baseline `18c4215`; not active). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 1 termination and administrative closure record (Owner-approved evidence limitation), the attempt 2 remediation record (runner revision 4 accepted) and the attempt 2 amendment (not active). Earlier: 2026-11-26, by the AUTH-002 Stage A Gate A record (attestation and acknowledgments recorded; not active). Earlier: 2026-11-26, by the AUTH-002 Stage A credential mechanism amendment (no activation). Earlier: 2026-11-26, by the R1 completion and allocation record (PRs #40 to #43 merged; AUTH-008 I-2 and AUTH-009 completed; OI-91 closed; AUTH-010 mandatory for R1; AUTH-014 granted). Earlier: 2026-11-26, by the AUTH-009 and AUTH-008 I-2 grant record. Earlier: 2026-11-26, by the post-merge record for PRs #36, #27 and #38 (AUTH-013 activated and completed; AUTH-007 completed; OI-113 closed; D-1 ratified; Stage A attestation wording approved). Earlier: 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
+| Last updated | 2026-11-28, by the AUTH-027 completion record (PR #82; OI-133 closed). Earlier: 2026-11-28, by the remediation grant record (the Owner accepted the wave completion; AUTH-026 and AUTH-027 granted for OI-131 and OI-133). Earlier: 2026-11-28, by the AUTH-022 completion record (PR #79; the contractual architecture wave is complete; DEP-19 complete; OI-124, OI-129 and OI-132 closed; OI-133 opened; 04 v0.11.1). Earlier: 2026-11-28, by the AUTH-024 and AUTH-025 completion record (PR #75 and PR #77; OI-130 and OI-129 (h) closed; 05 v0.5.4). Earlier: 2026-11-28, by the OI-132 decision record (option (a); OI-131 grant preparation authorized). Earlier: 2026-11-28, by the AUTH-025 activation record (OI-131 and OI-132 opened; Main's provisional OI-132 ruling). Earlier: 2026-11-28, by the AUTH-024 dispositions and AUTH-025 grant record (Q5 option (a), the day-30 confirmation, B-1d; OI-130 decided). Earlier: 2026-11-28, by the AUTH-021 and AUTH-023 completion record (PR #69 and PR #71; OI-129 (a)–(g) and (i) closed; OI-130 opened; the B-1c wording erratum; 05 v0.5.3). Earlier: 2026-11-28, by the test-disposition batch record (B-1a to B-1c, B-2, B-3). Earlier: 2026-11-28, by the contractual architecture wave grant record (OD-1 to OD-19; AUTH-021 to AUTH-024 granted). Earlier: 2026-11-28, by the PWP investigation record (OI-124 to OI-129 opened; 04 v0.10.6 and DEP-18 status corrected). Earlier: 2026-11-28, by the milestone acceptance record (Owner directive; §3, §6 and §7 corrected under Tier 0; AUTH-020 diff-hash limitation). Earlier: 2026-11-28, by the AUTH-020 completion record (OI-122 closed). Earlier: 2026-11-28, by the AUTH-016 completion and AUTH-020 grant record (OI-115 local part, OI-119 and OI-123 closed). Earlier: 2026-11-28, by the AUTH-018 and AUTH-019 completion record (OI-120 closed; OI-122 and OI-123 opened). Earlier: 2026-11-27, by the consolidated completion record (AUTH-002 Stage A attempt 3 passed and Stage A completed; AUTH-010 and AUTH-015 completed; OI-93, OI-114 and OI-121 closed). Earlier: 2026-11-27, by the Stage A attempt 3 prerequisite record (the Owner's no-other-operation statement and WP-B designation; not active) and the AUTH-010 I-1 correction. Earlier: 2026-11-27, by the consolidated Owner decisions record (AUTH-019 granted; AUTH-010 Amendments 1 and 2; AUTH-015 Amendment 1; Stage A attempt 3 key creation authorized, creation only) and the AUTH-017 completion record (PR #53; OI-88 closed), and the AUTH-002 Stage A attempt 3 Gate A record (attestation received; not active). Earlier: 2026-11-27, by the OI-118 closure (cause H1, sandbox mismatch) and the AUTH-002 Stage A attempt 3 amendment (not active). Earlier: 2026-11-27, by the R1 execution grant record (AUTH-010 and AUTH-015 to AUTH-018 granted; D-a to D-c dispositions; DEP-07 and DEP-12 conditional selections; AUTH-003 executor). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 closure record (OI-118 opened) and the AUTH-014 completion record (PR #45; OI-116 closed). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 2 Gate A record (new key attestation; OI-117 option A; baseline `18c4215`; not active). Earlier: 2026-11-27, by the AUTH-002 Stage A attempt 1 termination and administrative closure record (Owner-approved evidence limitation), the attempt 2 remediation record (runner revision 4 accepted) and the attempt 2 amendment (not active). Earlier: 2026-11-26, by the AUTH-002 Stage A Gate A record (attestation and acknowledgments recorded; not active). Earlier: 2026-11-26, by the AUTH-002 Stage A credential mechanism amendment (no activation). Earlier: 2026-11-26, by the R1 completion and allocation record (PRs #40 to #43 merged; AUTH-008 I-2 and AUTH-009 completed; OI-91 closed; AUTH-010 mandatory for R1; AUTH-014 granted). Earlier: 2026-11-26, by the AUTH-009 and AUTH-008 I-2 grant record. Earlier: 2026-11-26, by the post-merge record for PRs #36, #27 and #38 (AUTH-013 activated and completed; AUTH-007 completed; OI-113 closed; D-1 ratified; Stage A attestation wording approved). Earlier: 2026-11-25, by the WP-C OI-113 PR (AUTH-013 active; implementation record §18), synchronized with `main` at `05b32e9` (after PR #27). Earlier: the WP-D18 PR (AUTH-007 and Amendments 1 to 3; §17), synchronized with `main` at `19f6103` (after PR #36); D-1 ratified (§17E). Earlier: the post-merge record for PRs #33, #34, #28, #37 and #35 (activations reconciled; F2 and OI-95 closed; AUTH-012 completed; WP-H merged; AUTH-013 granted, activation pending) |
 
 This file replaces the status tables that were previously repeated in CLAUDE.md §1, README, 01 §8, 08 §4, OPEN-ISSUES headers, and 04 §6. Those places now link here. **What is authorized** is in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). **What was decided** is in [08](08-DECISIONS-AND-CHANGELOG.md). Detailed dependency records are in [OPEN-ISSUES.md](../OPEN-ISSUES.md).
 
@@ -16,7 +16,7 @@ Evidence labels: **Verified** (checked from repository or provider evidence, wit
 |---|---|
 | Architecture | Approved |
 | Specifications | All approved, with scope limits in §3 |
-| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-026** (OI-131 queue performance and states; WP-B and WP-C) and **AUTH-027** (OI-133 contract reader integrity; DEP-18 session), Tier 1, granted 2026-11-28 and effective on the verified merge of their grant record; **Completed:** **AUTH-022** (PWP-2, PR #79 `aba898f`, post-merge CI 46127903913), **AUTH-025** (OI-130, PR #77 `07e2d37`, post-merge CI 46123641395), **AUTH-024** (PWP-5b, PR #75 `49c33c3`, post-merge CI 46124340803), **AUTH-023** (PWP-5a, PR #71 `360e026`, post-merge CI 46117890947), **AUTH-021** (PWP-1, PR #69 `459e66c`, post-merge CI 46114832520), **AUTH-020** (OI-122, PR #64 `2ae3639`, post-merge CI 46103910059), **AUTH-016** (OI-115 local, OI-119, OI-123; PR #55 `b294d33`, post-merge CI 46089426391), **AUTH-019** (OI-120, PR #61 `19b173b`, post-merge CI 46086549947), **AUTH-018** (PR #57 `23346ef`, post-merge CI 46085126236), **AUTH-010** (OI-93 and OI-121, PR #59 `30ee417`, post-merge CI 46080015419), **AUTH-015** (OI-114, PR #54 `b5d8078`, post-merge CI 46077031048), **AUTH-017** (OI-88, PR #53 `8ebcced`, post-merge CI 46062083448), **AUTH-014** (OI-116, PR #45 `eacc8b5`, post-merge CI 46054458273), AUTH-006 (WP-H, PR #35 `30414c7`), AUTH-007 (WP-D18, PR #27 `05b32e9`), **AUTH-008** (I-1 PR #28 `b027e41`; I-2 PR #42 `48a8c04`), **AUTH-009** (OI-91, PR #43 `3545d0a`), AUTH-012 (OI-95, PR #37 `e3a7508`), AUTH-013 (OI-113, PR #38 `7226d6f`). **Expired:** AUTH-005 (WP-S). **Recorded, not active:** AUTH-002 Stage A (attempt 1 terminated and administratively closed under the Owner-approved evidence limitation of 2026-11-27, §13 "Stage A attempt 1 termination record"; attempt 2 amendment recorded, not active; corrected runner revision 4 accepted by SHA-256 after independent review, §13 "attempt 2 remediation record"; attempt 2 Gate A record, §13; **attempt 2 executed and closed (STOPPED: http_404, 2 requests, cleanup and reconciliation complete; §13 "attempt 2 execution and closure record"); catalog re-verification not achieved; cause OI-118**; no further attempt without a new Owner decision). AUTH-003 executor: WP-I after AUTH-016, from the dedicated `spotlight-staging-ops` environment (not active until the Owner's accounts and credentials) |
+| Active authorizations | AUTH-000 (Tier 0, standing); **AUTH-001** (Tier 1: WP-A, WP-0, WP-B and WP-C on local and CI); **AUTH-004** (scoped Tier 2: WP-C storage policies, local and CI); **AUTH-026** (OI-131 queue performance and states; WP-B and WP-C), Tier 1, granted 2026-11-28 and active since the PR #81 merge (`285a583`, post-merge CI 46129200887); **Completed:** **AUTH-027** (OI-133, PR #82 `7d44988`, post-merge CI 46134439456); **Completed:** **AUTH-022** (PWP-2, PR #79 `aba898f`, post-merge CI 46127903913), **AUTH-025** (OI-130, PR #77 `07e2d37`, post-merge CI 46123641395), **AUTH-024** (PWP-5b, PR #75 `49c33c3`, post-merge CI 46124340803), **AUTH-023** (PWP-5a, PR #71 `360e026`, post-merge CI 46117890947), **AUTH-021** (PWP-1, PR #69 `459e66c`, post-merge CI 46114832520), **AUTH-020** (OI-122, PR #64 `2ae3639`, post-merge CI 46103910059), **AUTH-016** (OI-115 local, OI-119, OI-123; PR #55 `b294d33`, post-merge CI 46089426391), **AUTH-019** (OI-120, PR #61 `19b173b`, post-merge CI 46086549947), **AUTH-018** (PR #57 `23346ef`, post-merge CI 46085126236), **AUTH-010** (OI-93 and OI-121, PR #59 `30ee417`, post-merge CI 46080015419), **AUTH-015** (OI-114, PR #54 `b5d8078`, post-merge CI 46077031048), **AUTH-017** (OI-88, PR #53 `8ebcced`, post-merge CI 46062083448), **AUTH-014** (OI-116, PR #45 `eacc8b5`, post-merge CI 46054458273), AUTH-006 (WP-H, PR #35 `30414c7`), AUTH-007 (WP-D18, PR #27 `05b32e9`), **AUTH-008** (I-1 PR #28 `b027e41`; I-2 PR #42 `48a8c04`), **AUTH-009** (OI-91, PR #43 `3545d0a`), AUTH-012 (OI-95, PR #37 `e3a7508`), AUTH-013 (OI-113, PR #38 `7226d6f`). **Expired:** AUTH-005 (WP-S). **Recorded, not active:** AUTH-002 Stage A (attempt 1 terminated and administratively closed under the Owner-approved evidence limitation of 2026-11-27, §13 "Stage A attempt 1 termination record"; attempt 2 amendment recorded, not active; corrected runner revision 4 accepted by SHA-256 after independent review, §13 "attempt 2 remediation record"; attempt 2 Gate A record, §13; **attempt 2 executed and closed (STOPPED: http_404, 2 requests, cleanup and reconciliation complete; §13 "attempt 2 execution and closure record"); catalog re-verification not achieved; cause OI-118**; no further attempt without a new Owner decision). AUTH-003 executor: WP-I after AUTH-016, from the dedicated `spotlight-staging-ops` environment (not active until the Owner's accounts and credentials) |
 | Granted, not yet active | **AUTH-002** (Stripe sandbox; scope amended 2026-11-24 to include setup-mode recovery sessions; **Stage A completed 2026-11-27: attempt 3 passed**, the rest of AUTH-002 not active), **AUTH-003** (hosted non-production). Activation conditions are in [AUTHORIZATIONS.md](AUTHORIZATIONS.md). |
 | Production launch | **Not authorized.** No real client payment may be accepted until production launch authorization (Tier 3) is granted. |
 | Deployments | None. Nothing is deployed. |
@@ -950,6 +950,11 @@ The execution window (credential entry to removal, UTC), the request evidence, t
 - **Main's interpretation for AUTH-026 performance:** at about 6.4 ms per anomaly evaluation, a once-per-project queue would still take about 32 s at 5,000 projects. So the financial component must be set-based, with exact equivalence proven. Main set the acceptance target at the 5,000-project measurement the Owner required: within the 8 s `statement_timeout` with at least 50% margin. Missing it within these boundaries is a material deviation for the Owner.
 - **Not changed:** the dynamic product and service catalog stays deferred, and no R1 scope is added. No hosted, provider, production or real-content operation is authorized.
 - **Effective:** on the verified merge of this record and its post-merge CI (OM-1). Main then dispatches both workstreams concurrently.
+
+**AUTH-027 completion record (2026-11-28; Main):**
+- **Merged:** PR #82 under OM-6(b) at `7d44988` (head `64c4606`, base `285a583`; tree identical). Exact-head CI 46133747418 passed 7/7 (pgTAP 2,803, integration 169/169, e2e 67/67). Post-merge CI 46134439456 passed with the full suite. Details are in AUTHORIZATIONS, AUTH-027 Completion, and the record in §34.
+- **Result:** the staff and client contract readers re-verify instrument and binding integrity before returning text, and fail closed with `not_found`. Withdrawn bundles stay readable for existing acceptances. Permissions and tenant isolation are unchanged, and no text appears in errors, audit events or logs. **OI-133 closed.**
+- **Ordering note:** the AUTH-026 migrations (`20261128140000`, `20261128140100`) now merge after `20261128150000`. Both PRs verify requirement C both ways and record the exact `--include-all` command.
 
 ## 14. WP-I I-1 implementation record (AUTH-008, I-1 only)
 
@@ -2851,3 +2856,208 @@ The exact added text is as WP-B sent it to Main at 08:05Z, verbatim. Main verifi
 2. No assertion change. Any later need for one goes to the Owner individually (OI-105).
 3. The timeout diagnosis (case-1 expected failure leaving a transaction open; the documented OD-3 serialization, not a cycle; pg_locks sampler log) goes in WP-B's CURRENT-STATE record, together with this record verbatim.
 ````
+
+## 32. WP-B AUTH-026 implementation record (OI-131 PR 1: set-based financial evaluation)
+
+Implemented by WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) on `main` `285a583` (the AUTH-026 grant, PR #81; post-merge CI 46129200887 verified), with `main` `7d44988` (AUTH-027) merged in. This is PR 1 of 2. WP-C's PR 2 (`20261128140100`) switches `operational_queue` to this helper and adds the page states; the end-to-end queue figures are recorded in §33. Section number assigned by Main.
+
+**Root cause (measured; 295 active projects after the integration suite; `track_functions = all`, `pg_stat_xact_user_functions`).** One `operational_queue` call took 8,660.85 ms:
+
+| Function | Calls | Total |
+|---|---|---|
+| `project_financial_status` | 542 | 8,331 ms |
+| `gate_anomalies` | 1,084 | 7,683 ms |
+| `project_financial_anomalies` | 1,084 | 7,606 ms |
+| `financial_conflict_cleared` | 15,176 | 5,925 ms |
+| `financial_conflict_application_verified` | 7,588 | 5,709 ms |
+| `financial_conflict_scope` | 7,588 | 3,222 ms |
+
+Two effects multiply:
+- Branch 7 of `project_financial_anomalies` tests every candidate conflict event on every evaluation, so the conflict functions run (events × evaluations) times.
+- The queue evaluates each project's anomalies four times: twice through `project_financial_status`, and once more per publication gate.
+
+**Migration `20261128140000_wpb_oi131_financial_evaluation.sql`** (reserved; SHA-256 `a11ed2c68c7545ce5b099392e0a75b1032dfa8d1d6768f04ac3d3f7ba5f1d807`). It creates five indexes and one function, and revokes; it replaces nothing.
+
+`private.financial_evaluation_for_projects(p_project_ids uuid[]) returns table (project_id uuid, status private.project_financial_status, failed boolean)`:
+- STABLE, SECURITY DEFINER, `search_path = ''`. No lock. No execute for PUBLIC, anon, authenticated or service_role.
+- The signature is frozen; Main's FD-14 addendum 1 to 220 depends on it.
+
+One set pass covers every requested project:
+- **The anomaly branches.** All eight branches, with `financial_conflict_cleared` evaluated once per distinct relevant event (it is a STABLE function of the event id). The result is reduced to the G2 and G4 kind arrays `gate_anomalies` returns.
+- **Set-based copies of the components `project_financial_status` reads:**
+  - the reversal observations and unposted reversals;
+  - the deposit state and its verification;
+  - the agreement state, including the ever-verified flag;
+  - the final-balance state and its verification;
+  - active holds;
+  - the payment-authorization state;
+  - the ledger digest.
+
+  Each copies the per-project function's own expression.
+- **Assembly.** Each row is assembled in `project_financial_status`'s field order, one row per distinct input id, null included.
+
+**Failure handling:**
+- If one project's row assembly raises, the helper falls back to `project_financial_status` for that project alone, in its own failure scope (WP-I N-1).
+- If the set pass raises, the helper falls back, for that call, to `project_financial_status` per project.
+- In either fallback, a project gets `failed = true` and a null status only when `project_financial_status` itself raises for it.
+- A null id always takes the per-project path.
+
+**Unchanged.** Every existing function body is byte-identical. The md5 of `prosrc` is the same on `main` and after a clean reset or incremental application:
+
+| Function | md5 |
+|---|---|
+| `project_financial_status` | `ee4e4342…` |
+| `project_financial_anomalies` | `c13caa4d…` |
+| `gate_anomalies` | `9cbf0faf…` |
+| `financial_conflict_cleared` | `23348342…` |
+| `project_agreement_state` | `ea07f771…` |
+| `project_deposit_state` | `c532a027…` |
+| `project_final_balance_state` | `a70633de…` |
+| `project_owner_intervention_required` | `89147dcd…` |
+| `unposted_reversals` | `c8f426a0…` |
+
+Every caller is kept. There is no grant, RLS, role, timeout, queue or app change.
+
+**Indexes.** Main confirmed them in bounds: additive, and they change no result. The evidence is `pg_stat_xact_user_tables` at 1,000 synthetic projects after ANALYZE:
+- `checkout_sessions` was scanned sequentially 1,104 times (717,600 rows) by the deposit-state lookup. The only project index is partial, on open initial sessions. Added `(project_id, kind, created_at desc, attempt desc)`.
+- `reconciliation_mismatches`, `billing_holds`, `payment_authorizations` and `final_balance_invoices` were each scanned once or twice per project. Added `(project_id)` on each.
+
+**Harness (test-only, no dependency).** `tests/perf/oi131_synthetic_projects.sql` sits outside `supabase/tests`, so neither `supabase test db` nor `scripts/run-db-tests.sh` collects it (Main's check).
+- It defines only `pg_temp` functions, and is loaded inside a transaction the caller rolls back.
+- Every state is built through the real functions, in the 190 pattern:
+  - Owner issuance;
+  - client acceptance and Checkout;
+  - claimed, confirmed and recorded mock outbound results;
+  - synthetic events through `ingest_stripe_event` and `process_stripe_event`.
+- There is no Stripe request and no direct financial insert.
+
+**Representative mix** (per 100 active projects; accepted by Main):
+
+| Share | State | Rationale |
+|---|---|---|
+| 20 | lead or intake only | the early pipeline |
+| 15 | order summary presented | proposals awaiting acceptance |
+| 10 | accepted, deposit pending | Checkout started |
+| 45 | deposit verified | the bulk of a running portfolio |
+| 10 | paid, then an attribution conflict | the exceptions an Owner must clear |
+
+**The anomaly path.** The initial invoice is recorded. Then a refund arrives whose payment intent is the project's own and whose invoice belongs to a distinct earlier paid project. Processing quarantines it as an N1(a) attribution conflict, which blocks G2 and G4 for both candidates and runs the conflict functions (the root cause's path). About 16% of active projects are blocked in the representative mix.
+
+**Heavy** (the worst case): all paid; half raise a conflict naming the other half, so every project is blocked.
+
+**Two corrections made during the work** (binding per Main):
+1. **The anomaly path.** The first harness used a mismatched-amount quarantine. That event is not attributed to a project and blocked no gate, so the figures taken with it are withdrawn and superseded by the table below.
+2. **Statistics.** A single-transaction population is never seen by autovacuum, and its plans degraded quadratically at 5,000. The harness now runs ANALYZE every 250 projects, and the measurement runs ANALYZE after population.
+
+**Measurements** (`tests/perf` harness at `fda70d6`, helper unchanged; local stack, PostgreSQL 17.4; local `supabase_admin`; each run one rolled-back transaction, with ANALYZE then `track_functions = all`).
+- **Old queue:** the existing `operational_queue` as the Owner.
+- **Helper:** one call over every active project.
+- **Mismatches:** `to_jsonb(status)` compared byte for byte with `project_financial_status` for every project, with failure parity.
+
+Call counts are in the order `pfs` / anomalies / `gate_anomalies` / `conflict_cleared`.
+
+| Size | Mix | Blocked (G2) | Old queue | Old: calls | Helper (EXPLAIN execution; shared hit) | Helper: calls | Mismatches |
+|---|---|---|---|---|---|---|---|
+| 302 | representative | 48 | 3.00 s | 604 / 1,208 / 1,208 / 36,240 | 40 ms (35 ms; 7,124) | 0 / 0 / 0 / 30 | 0 |
+| 1,002 | representative | 160 | 13.35 s | 2,004 / 4,008 / 4,008 / 400,800 | 73 ms (70 ms; 24,190) | 0 / 0 / 0 / 100 | 0 |
+| 5,002 | representative | 800 | 291.1 s | 10,004 / 20,008 / 20,008 / 10,004,000 | 505–630 ms (603–632 ms; 170,330–170,617) | 0 / 0 / 0 / 500 | 0 |
+| 302 | heavy | 300 | 4.38 s | 604 / 1,208 / 1,208 / 181,200 | 49 ms (34 ms; 12,914) | 0 / 0 / 0 / 150 | 0 |
+| 1,002 | heavy | 1,000 | 30.64 s | 2,004 / 4,008 / 4,008 / 2,004,000 | 211 ms (136 ms; 40,580) | 0 / 0 / 0 / 500 | 0 |
+| 5,002 | heavy | 5,000 | not run | not run | 2.49 s (1.48 s; 249,014, temp 324) | 0 / 0 / 0 / 2,500 | 0 |
+| 295 (after integration) | real suite states | 26 (G2 or G4) | 8.66 s (before) | above | 60 ms | 0 / 0 / 0 / 14 | 0 of 335 |
+
+**Notes on the table:**
+- The helper runs exactly once per call in every row.
+- Each synthetic size includes the 2 seed projects.
+- In the helper, `financial_conflict_cleared` runs once per distinct conflict event.
+- At 5,000 representative, the financial component takes about 0.6 s of the 4 s end-to-end target.
+- The old queue at 5,000 heavy was not run, because 5,000 representative already takes 291 s.
+- The heavy figures are informational (Main's ruling 1). At 5,002 heavy the plan spills 324 temp blocks (2.6 MB at the local default `work_mem` of 4 MB) for the per-event and per-project aggregation. This is a known characteristic of the worst case, not a deviation (WP-C N-3). It does not occur in the representative mix.
+
+**Equivalence.**
+- **The measurements:** the table above, 0 mismatches at every size and mix.
+- **Suite-wide (`tests/perf/oi131_suite_equivalence.sh`):** each of the 46 pgTAP files runs unchanged. Just before its final ROLLBACK, the runner restores the merged `project_financial_status` (210, 215, 220, 225 and 240 replace it with a fixture inside their own transaction), then compares every project the file reached, with failure parity. **Result: 46 files, 0 mismatches.** In 199 the deliberately failed project is failed on both sides.
+- **Anomaly coverage:** the kind × gate pairs the suites reach are every pair the kinds can produce:
+  - `quarantined_event`, `reconciliation_mismatch`, `unposted_reversal` and `ambiguous_request` under both G2 and G4;
+  - `charged_after_halt`, `automatic_stop_failed` and `automatic_stop_unresolved` under G4, their only gate.
+- **pgTAP 199:**
+  - the harness-style states, plus null, unknown, duplicate and empty inputs;
+  - the per-gate kinds;
+  - the forced set-pass raise.
+
+**Fallback parity (Main's ruling 3).** pgTAP 199 wraps `private.holding_balance_cents` inside its rolled-back transaction. The wrapper is installed before any financial call, because a call site that has already resolved a function keeps it for the whole transaction. It raises for one verified deposit's charge key once a transaction setting names it. The set pass, which evaluates every verified deposit, then raises. In the fallback:
+- exactly that project is `failed` with a null status, because the per-project function raises for it too;
+- every other project equals the per-project function exactly.
+
+**Per-project assembly fallback (WP-I N-1).** pgTAP 199 also wraps `private.calendar_version`, which the row assembly calls once per project, in the same way. A counting run gives C calls for P projects: C − P in the set pass, then one per project in the assembly. The next run raises on call C + (C − P) + 1, the first assembly call, so the set pass completes and exactly one project's assembly raises. That project falls back to `project_financial_status` and is evaluated once more, giving 2C + 1 calls in total. No project is failed, and every row equals the per-project function exactly.
+
+Proof that the test bites: against the previous handler, which marked such a project failed, both assertions fail. That run gave 2C calls and one failed project.
+
+**Evaluation counts.** `tests/integration/oi131-evaluation-counts.test.ts` (local `supabase_admin`, localhost guard, rolled back) asserts that one call over every active project returns one row per project with none failed, and the deltas helper 1, `project_financial_status` 0, `project_financial_anomalies` 0, `gate_anomalies` 0. It also checks equivalence over every project the suites left. The queue-level counts belong to WP-C (§33).
+
+**Drift guard (WP-C N-1).** The helper reimplements the bodies of 16 per-project functions set-based:
+- `gate_anomalies`, `obligation_disputed`, `obligation_net_cents`, `payment_authorization_state`;
+- `project_active_billing_holds`, `project_agreement_state`, `project_balance_verified`, `project_deposit_ever_verified`;
+- `project_deposit_obligation`, `project_deposit_state`, `project_deposit_verified`, `project_final_balance_state`;
+- `project_financial_anomalies`, `project_financial_status`, `reversal_observations`, `unposted_reversals`.
+
+pgTAP 199 pins `md5(prosrc)` of each, one assertion per function, each described "if this changes, update private.financial_evaluation_for_projects in the same change". A future change to any of them therefore fails CI until the helper and its equivalence evidence are updated with it. Mutation check (scratch): one mirrored body altered inside the transaction fails exactly its assertion.
+
+The functions the helper calls rather than copies follow any change automatically, so they are not pinned:
+- `financial_conflict_cleared`, `holding_balance_cents`, `dispute_is_open`;
+- `event_charge_kinds`, `object_charge_kinds`, `charge_kind_gates`, `charge_key_gates`;
+- `sha256_hex`, `calendar_version`.
+
+**Which equivalence evidence runs in CI, and which ran once (WP-C N-2).**
+- **In CI, on every change that is not documentation-only:**
+  - pgTAP 199: states, inputs, fallback parity and the drift guard;
+  - `tests/integration/oi131-evaluation-counts.test.ts`: the counts, plus equivalence over every project the suites left;
+  - once PR 2 lands, WP-C's queue-level identity and count tests (§33).
+- **Run once, for this record, and not in CI:**
+  - the harness matrix at 300, 1,000 and 5,000;
+  - the suite-wide runner `tests/perf/oi131_suite_equivalence.sh`.
+
+  Either can be rerun locally with the commands in the files' headers. The drift guard is what keeps the one-off evidence valid: any change to a mirrored function fails CI and requires rerunning it.
+
+**Requirement C (migrations out of timestamp order).** 140000 precedes `main`'s 150000.
+- **Clean reset:** `supabase db reset` passes; the last migrations are 150000, 140000 and 130000.
+- **Incremental:** the reset with 140000 withheld passes, and the helper is absent. Plain `supabase migration up` refuses with `MigrationMissingRemoteError`. `supabase migration up --include-all` applies 140000, and the helper is then owned by `postgres`. On that database, pgTAP passes with 2,815 assertions and 0 files failed (before the drift guard was added), and the md5s above are unchanged. Repeated at the final migration content (`a11ed2c6…`): plain `up` refuses with the same error, `--include-all` applies only 140000, and 199 passes 30/30.
+
+**Verification** (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4; CI order with the CI job's `APP_ENV=test` and `NEXT_PUBLIC_SITE_URL`; synthetic data only):
+
+| Check | Result |
+|---|---|
+| Fresh reset | passes |
+| pgTAP | 2,833 assertions, 0 files failed (199 30/30, with the drift guard and the assembly fallback) |
+| WP-D18 isolated commit | passes |
+| Integration | 17 files, 171 passed |
+| Unit | 527 passed |
+| Lint, typecheck, format, check-migrations | pass |
+| e2e, Lighthouse, dependency audit, secret scan | not run locally; exact-head CI |
+
+There is no Stripe request, credential or hosted operation.
+
+## 34. PWP-1 AUTH-027 implementation record (OI-133: contract reader integrity, fail-closed)
+
+Implemented by the DEP-18 session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `main` through `285a583` (the AUTH-026 and AUTH-027 grant record). Numbered §34, as assigned by Main (§32 and §33 are reserved for the two AUTH-026 PRs; OM-2). Local and CI only; synthetic and fixture data only.
+
+**Delivered:** the reserved migration `20261128150000_pwp1_oi133_reader_integrity.sql` (SHA-256 recorded in the PR) and pgTAP `345_pwp1_oi133_reader_integrity.test.sql` (68 assertions). No existing test, assertion, plan or description is changed, and no setup-only addition is made to an existing file, so no FD-14 record is needed. No new public RPC, so 050 is unchanged.
+
+**The change:** two new private integrity helpers, SECURITY DEFINER with an empty `search_path` and no API-role execute:
+- `private.contract_bundle_content_intact(uuid)`: the bundle hash recomputes from its stored fields, and each of the three instruments exists with the expected kind and package, recomputes to its stored content hash (`contract_instrument_verifies`), equals the component hash sealed into the bundle, and carries the bundle's fixture flag;
+- `private.order_summary_bundle_binding_intact(uuid)`: a v2 summary's snapshot hash recomputes, and its governing agreement (id and text hash) and every bundle and component identifier and hash it carries (F5) equal the bundle it names. The agreement terms were added on WP-B's review note N-1.
+
+Both readers are replaced by their merged bodies with only the check inserted before the return, so any failure returns `not_found` for the whole request: no partial bodies, no fallback. Signatures, the SECURITY DEFINER implementations behind the unchanged SECURITY INVOKER wrappers, STABLE volatility, the empty `search_path`, grants and every authorization check are unchanged. The readers write no audit event (they stay STABLE), so no failure path can carry text into an audit row; the grant permits but does not require one.
+
+**Historical access:** the helpers deliberately do not consult withdrawal, activation, the agreement's usability or the scope version's state (so F2 `contract_bundle_verifies`, which does, is not used). A withdrawn bundle's instruments stay readable for an accepted summary, and by staff, exactly as before (T-CON-06).
+
+**Acceptance evidence (local, Supabase CLI 3.2.0, fresh reset):**
+- **positive:** intact staff and client reads return exactly the stored instruments; after withdrawal, both reads are byte-identical to the reads before it; a presented summary reads as before;
+- **negative:** Sales, cross-tenant, aal1 and client-on-staff-reader callers get `not_found`, anon gets 42501, as before;
+- **tampering:** 32 cases, each giving exactly `{"ok": false, "error": "not_found"}` with no audit row. For each reader: a tampered body, title and provision list; a tampered, a self-consistently re-hashed and a missing stored instrument hash; a missing component; a tampered bundle component hash, bundle hash, and a bundle rebound to another package's intact instrument. For the client reader also: a tampered summary bundle hash and snapshot hash, a summary rebound to another intact instrument or bundle, and a summary with an altered agreement id or agreement text hash, and a summary rebound to another intact maintenance or shared-terms instrument, each with its snapshot re-hashed. Each reader also has re-hashed maintenance and shared-terms instrument cases (WP-I N-1);
+- **leakage:** no failure result and no audit row contains any instrument title or body;
+- **mutation:** inside the test, with both helpers replaced by `true`, the same tampering returns text. Separately, with the two merged (pre-AUTH-027) reader bodies installed, all 24 original tampering assertions and the leakage assertion fail; with the binding helper lacking the two agreement terms, both agreement cases and the leakage assertion fail. Inside the test, targeted mutants built from the live definitions (each removing exactly one guard: the maintenance or shared-terms component-hash check, or the maintenance or shared-terms binding pair) each make their own new case return text (WP-I N-1);
+- **non-fixture bundle (WP-I N-2):** an Owner-built non-fixture synthetic bundle (scope loaded and activated through AUTH-018, a synthetic agreement in the precedent form, the AUTH-021 loader, sealing, legal-approval record and activation) is issued to Project B, and both readers return its three intact instruments;
+- **suite:** lint, typecheck, format and check-migrations pass; unit 527/527; pgTAP 0 files failed, 2,803 assertions (050 24/24, 197 43/43, 340 174/174, 345 68/68); integration 169/169; e2e 67/67 on a fresh reset.
+
+**Pre-existing, not caused by this change:** in CI order (integration, then e2e), the e2e test "the staff work queue renders derived items (05 §9)" fails locally with about 295 active projects. It fails identically on `main` `285a583` without this change (reproduced with the same build). That is OI-131, assigned to AUTH-026.

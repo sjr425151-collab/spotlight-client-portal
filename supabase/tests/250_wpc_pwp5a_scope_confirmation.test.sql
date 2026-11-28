@@ -534,8 +534,10 @@ select ok((select bool_and(p.prosecdef and p.proconfig = array['search_path=""']
              from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'private' and p.proname in ('record_scope_confirmation', 'acknowledge_scope_confirmation',
               'record_operational_note', 'scope_confirmation_status')),
-  'the four entry points are security definer with an empty search_path');
--- Owner verification clarification 3 (B-1c): both layers.
+  'each private implementation is security definer with an empty search_path');
+-- Owner verification clarification 3 (B-1c), as ruled by Main: both layers. Re-authorization with NULL-safe
+-- guards inside each private implementation is proven by the refusal tests above; the private schema is not an
+-- exposed API schema (tests/unit/wpb-static.test.ts, AUTH-010 I-1 (c)).
 select ok((select count(*) = 4 and bool_and(not p.prosecdef and p.proconfig = array['search_path=""'])
              from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname in ('record_scope_confirmation', 'acknowledge_scope_confirmation',
@@ -547,13 +549,14 @@ select ok((select count(*) = 4 and bool_and(has_function_privilege('authenticate
              from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname in ('record_scope_confirmation', 'acknowledge_scope_confirmation',
               'record_operational_note', 'scope_confirmation_status')),
-  'each public wrapper is executable by authenticated only');
-select ok((select count(*) = 4 and bool_and(not has_function_privilege('anon', p.oid, 'execute')
+  'each public wrapper is executable by authenticated only (no anon, service_role or PUBLIC)');
+select ok((select count(*) = 4 and bool_and(has_function_privilege('authenticated', p.oid, 'execute')
+                     and not has_function_privilege('anon', p.oid, 'execute')
                      and not has_function_privilege('service_role', p.oid, 'execute'))
              from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'private' and p.proname in ('record_scope_confirmation', 'acknowledge_scope_confirmation',
               'record_operational_note', 'scope_confirmation_status')),
-  'no private implementation is executable by anon, service_role or PUBLIC');
+  'each private implementation is executable by authenticated only (no anon, service_role or PUBLIC)');
 
 select * from finish();
 rollback;

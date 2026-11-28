@@ -2566,4 +2566,25 @@ Implemented by WP-C (`session_01RCnsL4zY9edGTBFKQUbXM6`) from `main` at `5c47d16
 | E2E (full) | 67 passed (T-E2E-01 to T-E2E-10 and the WP-C specs, past the gate, with sites 11 and 12) |
 | Exact-head CI | Recorded in the PR |
 
-**Effort (OI-67):** AI session about 4.5 h. Owner review and administrative hours are recorded by Main.
+**Effort (OI-67):** AI session about 5 h. Owner review and administrative hours are recorded by Main.
+
+**Merge with `main` after PR #69 (AUTH-021, `459e66c`; OM-2, additions-only catch-up).** `main` was merged into the branch with a merge commit, with no rebase or force-push. The two conflicts were resolved by keeping both sides:
+- `src/domain/contracts/audit-actions.ts`: AUTH-021's entries, then AUTH-023's.
+- This file: AUTH-021 keeps §28, and this record is renumbered §29.
+
+050 now carries AUTH-021's B-1a group (before the AUTH-018 group) and AUTH-023's B-1c lines. Its diff against `main` is +2/−0, the plan is still 24, and the description is unchanged.
+
+**Requirement C (migration ordering).** `20261128110000` sorts after the merged `20261128100000`.
+- (a) **Incremental:** `supabase db reset` at `459e66c` gave 25 migrations, the last `20261128100000`. At the merged head, `supabase migration up` applied only `20261128110000_wpc_pwp5a_scope_confirmation.sql`, for 26 in total. Full pgTAP on that database: 2,575 assertions, 0 files failed (050 24/24, 250 86/86, 340 174/174).
+- (b) **Clean:** `supabase db reset` at the merged head gave the same 26-migration list. Full pgTAP: 2,575 assertions, 0 files failed.
+
+Nothing was renumbered, rewritten or skipped, and no reset workaround was used.
+
+**Evidence at the merged head (local; fresh reset before each database run):**
+- lint, typecheck and format: pass;
+- unit: 25 files, 527 passed;
+- integration: 14 files, 159 passed;
+- build, bundle check and production-check build: pass;
+- e2e: 67 passed.
+
+Requirement D: AUTH-022 is not merged, so the combined v2 lifecycle verification stays with AUTH-022 when it merges (Main, 2026-11-28).

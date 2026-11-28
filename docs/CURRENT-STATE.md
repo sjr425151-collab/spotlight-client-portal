@@ -2447,3 +2447,152 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 **Test-order correction:** the integration race test first approved its synthetic agreement effective `current_date`, so in CI order it became the newest usable agreement and the e2e T-AGR-01/T-AGR-08 test failed. It is now effective 2026-11-01, before the fixture agreement; test-only, no product change. Local CI order after the fix: integration 150/150, e2e 67/67.
 
 **WP-I non-blocking notes (applied with Main's approval, own new files only):** N-1, the race test pins the issuance-versus-governance outcome to `scope_definition_missing` in both orders, because the synthetic scope version is loaded but never activated. N-2, 340 adds activation and fixture-instrument creation refusals under `preview` (172 → 174 assertions). N-3, every race scenario rolls back both connections in a `finally`, so one failed check cannot hold locks into later scenarios.
+
+## 29. WP-C AUTH-023 implementation record (PWP-5a: scope confirmation, signer acknowledgment, operational notes, release gate)
+
+Implemented by WP-C (`session_01RCnsL4zY9edGTBFKQUbXM6`) from `main` at `5c47d16`, under AUTH-023 with Main's rulings Q1 to Q4 and the Owner's B-1c disposition. Numbered §29, the next free section (renumbered from §28 under OM-2 after PR #69 merged at `459e66c`; main merged into this branch with a merge commit). Local and CI only, synthetic data only. No provider request and no hosted operation.
+
+**Delivered (05 §3A, OI-111; OD-14, OD-15):**
+- **Migration** `20261128110000_wpc_pwp5a_scope_confirmation.sql`, at the reserved timestamp (OD-12). It adds three insert-only tables, each with a non-null `project_id`, RLS and the restrictive `_staff_aal2` and `_active_user` policies:
+  - `scope_confirmations`: immutable versions, numbered per project. Each one carries:
+    - the client requirements, the fulfillment selections and the separately authorized amendment references;
+    - the bound effective order summary, by id and `order_summary_sha256`;
+    - the accepted intake submission;
+    - a `spotlight.scope_confirmation.v1` SHA-256 content hash.
+  - `scope_confirmation_acknowledgments`: one per version. Each one records:
+    - the authorized signer (`agreement_acceptances.signer_user_id` of the effective summary, ruling Q1) and the signer's verified email;
+    - two checks, `acknowledged` and `checkbox_unchecked_by_default`, both forced true by CHECK;
+    - the IP address, user agent and request id.
+  - `project_operational_notes`: staff-only and append-only, outside the contractual snapshot (OI-100).
+- **Entry points** (each private implementation re-authorizes the caller with NULL-safe guards, OI-120):
+  - `record_scope_confirmation`: Owner or Admin, at aal2. Intake must be `accepted_by_staff` and the agreement `effective`. An unchanged confirmation is refused.
+  - `acknowledge_scope_confirmation`: the authorized signer only, for the exact current version. It requires a verified email and both explicit flags, and it is refused for a superseded, stale or changed version.
+  - `record_operational_note`: Owner or Admin, at aal2.
+  - `scope_confirmation_status`: staff, or a member of the project.
+
+  Every success and every business refusal is audited. No audit event contains confirmation or note text.
+- **Gate.** One hunk in `release_preview`, placed after the `release:` lock. It refuses every actor (`scope_confirmation_required`, `scope_confirmation_stale` or `scope_acknowledgment_required`) unless the latest version is bound to the current effective summary, by id and hash, and acknowledged (ruling Q2).
+  - Confirmation and acknowledgment take the same lock, so the three operations serialize.
+  - Any new version needs a renewed acknowledgment (OD-14).
+  - No bypass, override or on-behalf path exists (T-LC-19).
+- **Queue.** One hunk in `operational_queue` adds `awaiting_scope_acknowledgment`. The earlier `scope_confirmation_needed` item was dropped; Main accepted that, since the gate refuses either way and no queue assertion changes.
+- **Privileges** (Owner verification clarification 3, as ruled by Main):
+  - public wrapper: SECURITY INVOKER, `search_path=''`, execute by `authenticated` only;
+  - private implementation: SECURITY DEFINER, `search_path=''`, execute by `authenticated` only (no anon, service_role or PUBLIC), re-authorizing with NULL-safe guards;
+  - internal helpers: no API-role execute. The one accepted exception is `private.current_scope_confirmation_id`, granted to `authenticated` for the RLS policy. It returns nothing for a caller without `can_access_project`.
+- **Read access (OD-15):**
+  - Staff (Owner and Admin) read every version.
+  - Client members read the current version.
+  - Notes are staff-only.
+  - Sales read nothing.
+- **UI:**
+  - staff project page: "Scope confirmation" and "Operational notes (staff only)";
+  - client project page: "Your project scope confirmation", with an acknowledgment checkbox that is unchecked by default. A non-signer member sees that only the person who accepted the agreement can acknowledge.
+  - Notices, errors and audit-action entries were added to match.
+- **Not changed:**
+  - the order summary, its hash, the price, the ledger and every financial table (T-LC-20);
+  - every AUTH-021 and AUTH-022 object;
+  - dependencies.
+
+  Entitlement checks are not implemented: they wait for SLM-CPS-002. No contractual text was added. 05 §3A status labels are left for Main's status record.
+
+**Requirement A (lock hierarchy).** AUTH-023's paths take no row lock before the release lock. Their inserts take `FOR KEY SHARE` on the project and order-summary rows, through foreign keys, after it. Neither the financial nor the contractual row-lock paths take the release lock, so no cycle can form. The race test proves it with real connections, in both orders.
+
+**OD-11(ii) setup-only dispositions (verified by Main before push)**
+
+# FD-14 record: AUTH-023 OD-11(ii) setup-only additions (Main, 2026-11-28 ~05:41Z)
+
+- **Source:** WP-C branch `wp-c/pwp5a-scope-confirmation`, local commits 9889c9b and 8e2fe95 on 77eb9cd.
+- **Authority:** OD-11(ii) as approved by the Owner on 2026-11-28, plus Main's Q3 ruling. Verification requirement E and the Owner's disposition-control clarification apply: existing assertions, expected values, plans and descriptions stay byte-identical, and WP-I re-verifies independently.
+
+## Common fields for all 12 sites
+1. **Original:** the existing test, unchanged. No existing line is modified or removed (`git diff --numstat` shows 0 deletions in every file).
+2. **Replacement:** additions only, as below. No `expect`, pgTAP assertion, plan, description or expected value is added or changed. Setup failures raise or throw.
+3. **Original guarantee:** whatever each test asserts today.
+4. **Replacement guarantee:** identical assertions, now run past the AUTH-023 release gate, which requires an acknowledged current scope confirmation.
+5. **Exposure:** the setup creates synthetic confirmations and acknowledgments. Paths B and F also reach the effective agreement through the real WP-B path:
+   - Owner `issue_order_summary`; client `accept_agreement` and `begin_initial_checkout`;
+   - as `service_role`, `outbound_request_for_execution`, `confirm_outbound_dispatch` and `record_outbound_result`;
+   - a synthetic `checkout.session.completed`, through `ingest_stripe_event` and `process_stripe_event` (B), or posted to `/api/stripe/webhook` signed with the run's test-only `E2E_STRIPE_WEBHOOK_SECRET` (F, OI-63).
+
+   There is no direct INSERT or UPDATE to the ledger, `deposit_charge`, payment, invoice or any other financial table. The only direct inserts are `auth.sessions` and `auth.mfa_factors` (the existing act_as pattern), plus `public.project_memberships` in wpc.spec only (Q3(b)).
+6. **Compensating coverage:**
+   - the Q3(c) intended-state probe for 215, 220 and 240: identical fixture financial status and identical G1–G8 results and eligibility; only the agreement and scope inputs change;
+   - 225 is unchanged (its T-LC-16 refusals come before the gate).
+7. **Authorization:** OD-11(ii), pre-approved by the Owner. Main verified and recorded it here before the push.
+8. **Evidence (WP-C, local):** pgTAP passes apart from 050, which waits on B-1c, now approved. 250 83/83; 190 47/47; 215 63/63; 220 117/117; 235 67/67; 240 65/65; 400 33/33; integration 150/150; e2e 67/67.
+
+## Sites
+| # | File | Hunks | Lines | Path | Added-text SHA-256 (16 chars, from WP-C) |
+|---|---|---|---|---|---|
+| 1 | supabase/tests/190_wpb_release_crosscheck.test.sql | -181,0 +182,29; -185,0 +215 | +30 | A | d61a9e3183e2ed48 |
+| 2 | supabase/tests/235_wpc_oi113_approval_identity.test.sql | -169,0 +170,29; -173,0 +203 | +30 | A | d61a9e3183e2ed48 |
+| 3 | supabase/tests/400_wpi_r1_fail_closed.test.sql | -154,0 +155,29; -158,0 +188 | +30 | A | d61a9e3183e2ed48 |
+| 4 | supabase/tests/215_wpc_approvals_holds.test.sql | -89,0 +90,105 | +105 | B (S5A215) | 1447d9e571245182 |
+| 5 | supabase/tests/220_wpc_publication_gates.test.sql | -481/-483,0 +484,104 | +104 | B (S5A220) | f1e8f572116b1abe |
+| 6 | supabase/tests/240_wpc_oi114_publication_recovery.test.sql | -380/-382,0 +383,104 | +104 | B (S5A240) | 3a5cfab2c7fb5c44 |
+| 7 | tests/integration/oi91-dispatch-revocation.test.ts | -113,0 +114,11 | +11 | C | f2def6028e623b20 (before condition 1) |
+| 8 | tests/integration/wph-hardening.test.ts | -481,0 +482,11 | +11 | C | f2def6028e623b20 (before condition 1) |
+| 9 | tests/integration/wpc-oi113-approval-race.test.ts | -83,0 +84,11 | +11 | D | c761ec0c754db7bd (before condition 1) |
+| 10 | tests/integration/wpc-oi114-recovery-race.test.ts | -82,0 +83,11 | +11 | D | c761ec0c754db7bd (before condition 1) |
+| 11 | tests/e2e/r1.spec.ts | -727,0 +728,13 | +13 | E | e47fa5f8357f7464 |
+| 12 | tests/e2e/wpc.spec.ts | -0,0 +1,2; -293,0 +296,127 | +129 | F | b356cec34e68339e |
+
+## Conditions (Main)
+1. **Paths C and D (sites 7 to 10) must check their results like A and B.** For example, wrap each call: `if not coalesce((public.record_scope_confirmation(...) ->> 'ok')::boolean, false) then raise exception 'fixture: ...'; end if;`, and the same for `acknowledge_scope_confirmation`. This keeps "setup failures raise" consistent. It is still additions only, so the line counts and hashes for 7 to 10 change. Report the new numstat and hashes after the push.
+2. **After the push, Main re-verifies mechanically:** 0 deletions in every listed file; no other existing test file touched; the additions match this record. WP-I verifies the same independently.
+3. **Clarification 3 terminology (corrected 05:43Z):**
+   - public wrapper: SECURITY INVOKER, search_path '', execute by authenticated only;
+   - private implementation: SECURITY DEFINER, search_path '', execute by authenticated only (no anon, service_role or PUBLIC), with NULL-safe re-authorization;
+   - internal helpers: no API-role execute, except private.current_scope_confirmation_id (an RLS helper granted to authenticated, which returns nothing without can_access_project).
+4. **050 (B-1c):** apply exactly the approved two lines, mid-array, keeping every existing entry and any AUTH-021 group already on main (clarification 4).
+5. **D-8 (tests/support/wpc-fixtures.ts):** resolved at 05:43Z. AUTH-023 does not touch the file, so WP-B applies D-8 independently.
+
+**Condition 1 applied (WP-C, after Main's record):** sites 7 to 10 now check both results and raise. They are still additions only, with 0 deletions. Sites 7 and 8: hunk -113,0 +114,16 and -481,0 +482,16, +16, added-text SHA-256 `d4779fbe4cd671cd`. Sites 9 and 10: hunk -83,0 +84,16 and -82,0 +83,16, +16, `30ff9138f7e4ff7b`. Method: the added lines without their `+` prefix, newline-terminated, through SHA-256. Sites 1 to 3, 5, 6, 11 and 12 reproduce the recorded hashes by this method. Site 4 (215) is unchanged since the setup commit. Its recorded `1447d9e571245182` excludes the final newline of its last added line, which is blank; the newline-terminated method gives `c79191b84f205602` for the same content. The other recorded evidence (250 and integration) is updated in the table below.
+
+**B-1c (Owner, 2026-11-28).** Test 050 gains the two approved lines, immediately after the existing WP-C group. No existing line, plan or description changed. At the base `5c47d16`, neither AUTH-021's group nor AUTH-022's is on `main`; a later rebase keeps every merged group (clarification 4). 050 passes 24/24.
+
+**Acceptance evidence (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4, synthetic data; fresh `supabase db reset` before each database run):**
+
+| Item | Result |
+|---|---|
+| Lint, typecheck, format | Pass |
+| Unit | 24 files, 517 passed |
+| pgTAP (full) | 2,401 assertions, 0 files failed (050 24/24 included) |
+| Test 250 (new) | 86/86. It covers:<br>• T-LC-16, T-LC-19 and T-LC-20 (a fingerprint over the project's order summaries, with their hash and price, its acceptances, ledger entries and payment obligations, identical before and after);<br>• OD-14 and OD-15;<br>• refusals for Sales, a client, a non-signer member and a revoked Admin;<br>• an integrity tamper (stale);<br>• immutability, the notes, isolation across two projects and two clients, and the catalog and privilege layers |
+| Race test (new, `wpc-pwp5a-scope-race`) | 9 cases × 5 repetitions on real connections, each on a fresh project paid through the real WP-B flow. Every waiter was seen on a heavyweight Lock before the holder committed. No 40P01, timeout or unexpected refusal.<br>• A to F: acknowledgment, a new version and release, in both orders.<br>• G to J: payment-method recovery (project row `FOR UPDATE`) against a new version and against the acknowledgment.<br>• K, L: an acceptance replay (order-summary row `FOR UPDATE`) against both |
+| Integration (full) | 13 files, 153 passed (the race file adds 9) |
+| Build, bundle check, production-check build | Pass (the bundle check scanned 13 files and found no secrets) |
+| E2E (full) | 67 passed (T-E2E-01 to T-E2E-10 and the WP-C specs, past the gate, with sites 11 and 12) |
+| Exact-head CI | Recorded in the PR |
+
+**Effort (OI-67):** AI session about 5 h. Owner review and administrative hours are recorded by Main.
+
+**Merge with `main` after PR #69 (AUTH-021, `459e66c`; OM-2, additions-only catch-up).** `main` was merged into the branch with a merge commit, with no rebase or force-push. The two conflicts were resolved by keeping both sides:
+- `src/domain/contracts/audit-actions.ts`: AUTH-021's entries, then AUTH-023's.
+- This file: AUTH-021 keeps §28, and this record is renumbered §29.
+
+050 now carries AUTH-021's B-1a group (before the AUTH-018 group) and AUTH-023's B-1c lines. Its diff against `main` is +2/−0, the plan is still 24, and the description is unchanged.
+
+**Requirement C (migration ordering).** `20261128110000` sorts after the merged `20261128100000`.
+- (a) **Incremental:** `supabase db reset` at `459e66c` gave 25 migrations, the last `20261128100000`. At the merged head, `supabase migration up` applied only `20261128110000_wpc_pwp5a_scope_confirmation.sql`, for 26 in total. Full pgTAP on that database: 2,575 assertions, 0 files failed (050 24/24, 250 86/86, 340 174/174).
+- (b) **Clean:** `supabase db reset` at the merged head gave the same 26-migration list. Full pgTAP: 2,575 assertions, 0 files failed.
+
+Nothing was renumbered, rewritten or skipped, and no reset workaround was used.
+
+**Evidence at the merged head (local; fresh reset before each database run):**
+- lint, typecheck and format: pass;
+- unit: 25 files, 527 passed;
+- integration: 14 files, 159 passed;
+- build, bundle check and production-check build: pass;
+- e2e: 67 passed.
+
+Requirement D: AUTH-022 is not merged, so the combined v2 lifecycle verification stays with AUTH-022 when it merges (Main, 2026-11-28).
+
+**CI correction after the merge (run 46115533838, `a35c647`).** The race test failed at setup with `signInWithOtp failed: undefined`, so its 9 cases were skipped.
+
+**Root cause.** Supabase Auth returned 500 `Database error finding user` for `owner@example.test`. The Auth log reads `Scan error on column "secret": converting NULL to string is unsupported`. `tests/integration/pwp1-contract-race.test.ts`, merged with AUTH-021, inserts a verified TOTP factor for the Owner without a secret and does not remove it. In CI's file order, this file runs right after that one, and it signed in the Owner without first removing such factors. The local runs passed only because Vitest's cached order ran this file earlier. With the cache cleared, the failure reproduces locally.
+
+**Fix (this file only, setup only; no assertion, case or repetition changed).** As the other files that sign in the Owner do (wpc-oi113, wpc-oi114, wpc-uploads, wpc-delivery), `beforeAll` now deletes the Owner's factors before signing in. `afterAll` also deletes this file's own `it-pwp5a` factors.
+
+**Evidence.** Two full integration runs in CI order (Vitest cache cleared, fresh `supabase db reset` before each): 14 files, 159 passed each time.

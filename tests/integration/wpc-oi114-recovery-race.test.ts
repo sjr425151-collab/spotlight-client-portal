@@ -80,6 +80,22 @@ begin
   if not coalesce((public.review_intake(v_sub, 'accepted', 'Accepted') ->> 'ok')::boolean, false) then
     raise exception 'fixture: intake for % was not accepted', p_project;
   end if;
+  -- AUTH-023 (setup only, OD-11(ii)): the scope confirmation (the Admin) and its acknowledgment by the
+  -- authorized signer (client A, who accepted the agreement), before the release.
+  if not coalesce((public.record_scope_confirmation(p_project, 'Synthetic client requirements', array['Synthetic selection'],
+      '{}') ->> 'ok')::boolean, false) then
+    raise exception 'fixture: record_scope_confirmation failed';
+  end if;
+  reset role;
+  perform pg_temp.act_as('${CLIENT_A_ID}', 'aal1');
+  if not coalesce((public.acknowledge_scope_confirmation(
+      (select c.id from public.scope_confirmations c where c.project_id = p_project order by c.version desc limit 1),
+      (select c.content_sha256 from public.scope_confirmations c where c.project_id = p_project order by c.version desc limit 1),
+      true, true) ->> 'ok')::boolean, false) then
+    raise exception 'fixture: acknowledge_scope_confirmation failed';
+  end if;
+  reset role;
+  perform pg_temp.act_as('${ADMIN_ID}', 'aal2');
   v := public.release_preview(p_project, p_sha, 'dpl_oi114_' || left(p_sha, 12), 'https://preview.example.test/oi114', '{}');
   reset role;
   if not coalesce((v ->> 'ok')::boolean, false) then

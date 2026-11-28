@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.43.0 |
+| Version | 1.44.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
-| Next unused ID | **AUTH-025** (AUTH-021 and AUTH-023 completed 2026-11-28 on the PR #69 and PR #71 merges; AUTH-021 to AUTH-024 granted 2026-11-28, the contractual architecture wave; AUTH-020 completed 2026-11-28; AUTH-016 completed; AUTH-019 granted 2026-11-27; AUTH-017 completed; AUTH-015 to AUTH-018 granted 2026-11-27 with AUTH-010; AUTH-014 completed) |
+| Next unused ID | **AUTH-026** (AUTH-025 granted 2026-11-28 for OI-130; AUTH-021 and AUTH-023 completed 2026-11-28 on the PR #69 and PR #71 merges; AUTH-021 to AUTH-024 granted 2026-11-28, the contractual architecture wave; AUTH-020 completed 2026-11-28; AUTH-016 completed; AUTH-019 granted 2026-11-27; AUTH-017 completed; AUTH-015 to AUTH-018 granted 2026-11-27 with AUTH-010; AUTH-014 completed) |
 
 This file is the single source of truth for **what work is authorized**. It replaces per-phase authorization statements elsewhere. Approving a document or decision never authorizes work by itself; only an active record below does. If this file and any other document disagree about authorization, the more restrictive reading applies and the conflict is escalated (CLAUDE.md §2).
 
@@ -588,9 +588,29 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Prohibited | Any automatic approval, charge, publication, forfeiture, subscription cancellation or effect on a published site (OI-45; 05 §5); contractual consequence text; changes to releases created before the merge; financial objects |
 | Acceptance | **Tests:** T-LC-18; a calendar-day test across a daylight-saving transition; the OI-45 protections proven. **Plus:** verification requirements A to F; full suites; exact-head CI 7/7 |
 | Dispositions | **Individual (Owner approves before merge):** the day-21-hold assertion replacements and T-LC-10, which T-LC-18 replaces. **Pre-approved:** the OD-11(ii) setup-only class applies |
+| Owner dispositions (2026-11-28) | **Day 30 (Q6), confirmed:** day 30 means administrative suspension or rescheduling eligibility only, within this grant and OD-16; no automatic financial or contractual consequence is authorized. Administrative suspension is the existing `approval_nonresponsive_hold` with every OI-45 protection, available only at day 30 or later after a recorded day-14 formal notice; the rescheduling decision is a staff record with no financial, contractual, scheduling or publication effect. **Test 215 (Q5): option (a).** No day-21-hold assertion is replaced. Three setup-only lines in `supabase/tests/215_wpc_approvals_holds.test.sql` (hunk `-319,0 +320,3`) mark the §4 release as an earlier-schedule release, so its 18 dependent assertions stay byte-identical and prove that releases created before the merge keep the day-21 rules (OD-16). Main recorded the FD-14 record before the push (3,112 bytes, SHA-256 prefix `3263579a`; carried verbatim in WP-C's CURRENT-STATE record). The compensating coverage in test 260 is binding: the v2 schedule (T-LC-18), the day-30 hold only after the formal notice, the rescheduling decision without effect, the OI-45 protections, the ACL and insert-only trigger of `private.inactivity_legacy_releases`, and v2 classification of releases created after the migration. **B-1d (050 test 8): approved exactly as presented.** Two lines inserted in the middle of the array, immediately after the AUTH-023 group and before the WP-B group: the comment `-- WP-C, AUTH-024 (reviewed in 260_wpc_pwp5b_inactivity.test.sql; re-authorizes inside its definer function)` and `'record_inactivity_milestone',`. No existing line, plan or description changes; clarification 4 applies. Permission boundaries: the public wrapper is SECURITY INVOKER and the private implementation SECURITY DEFINER, each with an empty `search_path` and execute granted to `authenticated` only (revoked from `public`, `anon`, `authenticated` and `service_role` first); the implementation first refuses unless `private.wpc_is_staff_aal2()` is true (NULL-safe); the helpers have no API-role execute. Test 260 covers both layers and every refused caller class (anon, service_role, Sales, client, staff at aal1) and case (not current, earlier schedule, after a client response, before the day). **T-LC-10 (Main, OM-4):** no test asserts T-LC-10, which 05 already marks as replaced by T-LC-18 on PWP-5 implementation, so no assertion replacement exists to approve; Main updates the 05 test table in the completion record |
 | Stop conditions | Any automatic consequence; any contractual text; any assertion change outside the approved dispositions |
 | Reviews | WP-B (no financial effect); Main (final) |
 | Merge and expiry | As in the common conditions |
+
+### AUTH-025 — Tier 1: OI-130 integration-test MFA factor cleanup (test-only; WP-I) — GRANTED
+
+| Field | Value |
+|---|---|
+| Tier | 1 (local and CI) |
+| Status | **Granted by the Owner, 2026-11-28** (option A, with every proposed restriction), effective on the verified merge of this record (OM-1) |
+| Decision | OI-130 |
+| Implementer | WP-I (`session_01RCnsL7k3rDKjjpTicExTsF`) |
+| Environments | Local and CI only, with synthetic data |
+| Permitted | Exactly four files: `tests/integration/dep18-scope-loader-race.test.ts`, `oi91-dispatch-revocation.test.ts`, `pwp1-contract-race.test.ts` and `wph-hardening.test.ts`. In each, additions only: a cleanup that deletes from `auth.mfa_factors` only the factors that file creates, identified by its own friendly name (`it-dep18`, `it-oi91`, `it-pwp1`, `it-wph`) |
+| Prohibited | Production code, migrations, `seed.sql`, any configuration or workflow (option B is not granted), any other test file, dependencies, and any assertion, expected value, test count, plan or description change |
+| Owner verification requirements (2026-11-28) | (1) The cleanup runs on both successful and failed test paths, through the appropriate test lifecycle mechanism (for example `afterAll`, which runs whatever the outcome of the file's tests). (2) It is limited strictly to records created by its own file, in the synthetic local and CI environment only. (3) Unrelated MFA records are shown to remain untouched. (4) The overlap with AUTH-022 D-7 in `wph-hardening.test.ts` (lines 151–152) is coordinated by Main so that both approved changes are preserved: whichever PR merges second merges the first in and keeps both |
+| Acceptance | (1) Mechanical: `git diff --numstat` shows additions only in the four files and nothing else; the `expect(` and `it(` counts stay 26/5, 70/23, 41/6 and 78/15; the added lines match the reviewed text. (2) Defect proof (scratch, not committed): on a fresh reset, `it-%` factors remain after each file without the change and none with it, including after a forced test failure. (3) Unrelated records: a sentinel factor with a different friendly name, created before each file runs, is still present afterwards. (4) Order proof: after each file, an OTP sign-in for the Owner, Admin and Sales succeeds (no Auth 500). (5) The full integration suite passes in 3 consecutive clean runs on fresh resets; no failure counts as a pass. (6) Exact-head CI 7/7 with the full suite; post-merge CI verified |
+| Stop conditions | A need to touch any other file or change any assertion; a cleanup that removes a factor a test in the same file still needs; any effect outside the four files. Stop and report to Main, with no workaround |
+| Reviews | WP-C (independent; found the defect); Main (final) |
+| Sequencing | Runs concurrently with AUTH-022 and AUTH-024; its merge is prioritized before theirs where practicable, without suspending them |
+| Merge | OM-6(b), pre-authorized by the Owner: exact-head CI 7/7 with the full suite, the independent review with no unresolved blocking finding, pinned head and base SHAs, post-merge CI verified. Any deviation goes to the Owner |
+| Expiry | Its merge, or 2027-01-31 |
 
 ## 4. Dependency security patch exception (standing, Tier 1)
 

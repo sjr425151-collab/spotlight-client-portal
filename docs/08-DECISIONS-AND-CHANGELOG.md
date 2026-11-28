@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.61.0 |
+| Version | 0.62.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,23 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### Test-disposition batch for the contractual wave (Owner, 2026-11-28)
+
+The Owner approved the whole batch exactly as recommended:
+- **B-1a, B-1b, B-1c:** additions to the reviewed RPC list in test 050 (AUTH-021: six names; AUTH-022: one; AUTH-023: four).
+- **B-2:** the AUTH-022 freeform-scope dispositions D-1 to D-9, with D-4 conditional and D-8 coordinated.
+- **B-3:** the AUTH-022 record correction. T-SALES-31 is replaced under D-1; it was not "unchanged".
+
+Each item is in OI-105 eight-field format, and the details are recorded in the AUTHORIZATIONS dispositions rows.
+
+**Verification clarifications (Owner):**
+1. **D-1:** T-CON-09 needs separate scope-only and notes-only injection refusals for Owner, Admin and Sales, each with audit evidence and no unauthorized state change.
+2. **D-4:** the original scenario is preserved (same package, same price, material change, verified deposit, re-acceptance). The replacement fixture uses only authorized mechanisms, and the stop condition is kept.
+3. **B-1c:** public wrappers stay SECURITY INVOKER and private implementations SECURITY DEFINER, with the approved search-path and permission boundaries. Both layers are verified.
+4. **Test 050:** every existing entry, the plan and the description are preserved, and the additions are cumulative across concurrent merges.
+
+**Still binding:** exact-head full-suite CI, independent review, mutation and concurrency verification, and the OM-6(b) conditions. CI stages that have not run are not treated as verified. No added scope, provider access or hosted operation is authorized.
+
 ### Contractual architecture implementation wave (Owner, 2026-11-28)
 
 Owner directive "Contractual Architecture Implementation Wave". **All nineteen dispositions are approved exactly as Main recommended.** The full options, rationale, risks and consequences are in the Main review material presented to the Owner on 2026-11-28; the dispositions are summarized here.
@@ -1783,6 +1800,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.62.0 | 2026-11-28 | **Test-disposition batch** (Owner): B-1a to B-1c (050 additions), B-2 (D-1 to D-9) and B-3 (AUTH-022 T-SALES-31 correction) approved, with four verification clarifications. AUTHORIZATIONS v1.42.0; CURRENT-STATE v1.47.0. | Main session | Owner |
 | 0.61.0 | 2026-11-28 | **Contractual architecture implementation wave** (Owner): OD-1 to OD-19 approved as recommended; AUTH-021 to AUTH-024 granted (Tier 1) with verification requirements A to F; 04 v0.11.0 (§4A canonical lock hierarchy, OD-3); OI-125 and OI-126 closed as decided; OI-124 and OI-129 decided, open until implemented. AUTHORIZATIONS v1.41.0; CURRENT-STATE v1.46.0; OPEN-ISSUES v0.49.0. | Main session | Owner |
 | 0.60.0 | 2026-11-28 | **PWP investigation record** (Main, read-only): OI-124 to OI-129 opened (awaiting the Owner); 04 v0.10.6 and the DEP-18 status corrected (status only). AUTHORIZATIONS unchanged; CURRENT-STATE v1.45.0; OPEN-ISSUES v0.48.0. | Main session | Owner |
 | 0.59.0 | 2026-11-28 | **Milestone acceptance** (Owner): baseline `59b9aac` (CI 46104833504); CURRENT-STATE §3, §6 and §7 corrected (Tier 0); AUTH-020 diff-hash limitation recorded; read-only PWP-1, PWP-2 and PWP-5 package preparation authorized (no implementation). AUTHORIZATIONS v1.40.0; CURRENT-STATE v1.44.0; OPEN-ISSUES v0.47.0. | Main session | Owner |

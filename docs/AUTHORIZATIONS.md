@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.38.0 |
+| Version | 1.39.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
-| Next unused ID | **AUTH-021** (AUTH-020 granted 2026-11-28; AUTH-016 completed; AUTH-019 granted 2026-11-27; AUTH-017 completed; AUTH-015 to AUTH-018 granted 2026-11-27 with AUTH-010; AUTH-014 completed) |
+| Next unused ID | **AUTH-021** (AUTH-020 completed 2026-11-28; AUTH-016 completed; AUTH-019 granted 2026-11-27; AUTH-017 completed; AUTH-015 to AUTH-018 granted 2026-11-27 with AUTH-010; AUTH-014 completed) |
 
 This file is the single source of truth for **what work is authorized**. It replaces per-phase authorization statements elsewhere. Approving a document or decision never authorizes work by itself; only an active record below does. If this file and any other document disagree about authorization, the more restrictive reading applies and the conflict is escalated (CLAUDE.md §2).
 
@@ -477,7 +477,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Completion | PR #61 merged by Main under OM-6(b) at `19b173b42931e8c6d7aba624d786af88b60894dd` (head `4cd2c41`, base `23346ef`; tree identical; exact-head CI 46085906358 7/7 with the full suite). Reviews: Main 7230635285; WP-C security 7230700538; WP-B financial authorization 7230667499; none blocking. Root-function correction only (migration `20261127125000`, SHA-256 `61ddf167…a4e283`); 420 (60 assertions) covers the three reproduced escalations, every non-Owner caller class with no state change, the genuine Owner and the unchanged attributes and ACL; the original body fails 30 of 60. The inventory (CURRENT-STATE §26) adds site (a′) `20261127140000`:137 and nine already NULL-safe (f) sites. Also closed: a non-member client could read another project's billing status (`20261124160100`:4709). Post-merge CI 46086549947 with the full suite. **OI-120 closed**; it no longer blocks hosted migration deployment or R1 release-candidate acceptance. Informational (WP-B, pre-existing, Owner-only, no write): at `20261124160100`:3712 a NULL `p_decision` with stale MFA passes `owner_ok(NULL)` and then fails at the `decision not null` insert |
 | Expiry | Merge, or 2027-01-31 |
 
-### AUTH-020 — Tier 1: OI-122 deterministic AUTH-009 integration test (test-only; WP-B) — GRANTED
+### AUTH-020 — Tier 1: OI-122 deterministic AUTH-009 integration test (test-only; WP-B) — COMPLETED (expired on the PR #64 merge; OI-122 closed)
 
 | Field | Value |
 |---|---|
@@ -492,6 +492,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Reviews | WP-I (independent test-infrastructure review), Main (final) |
 | Merge | **Merge (OM-6(b), pre-authorized by the Owner, 2026-11-28):** Main merges without another Owner round trip once every condition is objectively satisfied: A1 to A7 met; the patched file hashes to `27d324b0…`; exact-head CI passes 7/7 with the full suite; WP-I's review has no unresolved blocking finding; the merge is pinned to the full head and base SHAs; post-merge CI is verified. OI-122 closes on that post-merge verification. Any deviation, unresolved blocking finding or unmet condition goes to the Owner |
 | Expiry | Merge, or 2027-01-31 |
+| Completion | Activated on the verified merge of the grant record (PR #63 `8107841`; post-merge CI 46091035098). PR #64 merged by Main under OM-6(b) at `2ae3639a1135736089384815537c28d91363e5eb` (head `d2b986a`, base `8107841`; tree identical; exact-head CI 46094951319 7/7 with the full suite). The test file on `main` hashes to `27d324b0…` from the base `bd596cff…`, so the change is exactly the approved one. The diff hash `3675e8f8…` depends on patch formatting and is not reproduced by `git diff`; the base and result hashes determine the change. The 70 `expect(` assertions are unchanged; two are re-indented inside `try`, identical apart from leading whitespace. A1 to A7 met (CURRENT-STATE §27). Reviews: WP-I independent review (no blocking); Main final review (no blocking). Post-merge CI PMRUN with the full suite. **OI-122 closed.** Recorded non-blocking notes: (1) the §27 and PR wording "byte-identical" means identical apart from indentation for the two re-indented assertions; (2) when a foreign connection blocks an unsettled runner, its server backend outlives `end()` until that blocker releases. This cannot arise within the file or in CI, because every in-file blocker is rolled back first and files do not run in parallel. A future option outside AUTH-020 is `pg_terminate_backend` for an unsettled runner, which would need its own authorization |
 
 ## 4. Dependency security patch exception (standing, Tier 1)
 
@@ -522,3 +523,4 @@ Applies when `pnpm audit` reports a **high or critical** advisory against a pinn
 | AUTH-018 (2026-11-27) | DEP-18 R1 interim scope loading and activation (DEP-18 session) | Completed and expired on the PR #57 merge (`23346ef`; head `87e6c22`, base `7d3bc42`; exact-head CI 46084394471 7/7; post-merge CI 46085126236) |
 | AUTH-019 (2026-11-27) | OI-120 root-function correction of `private.is_owner()` (DEP-18 session) | Completed and expired on the PR #61 merge (`19b173b`; head `4cd2c41`, base `23346ef`; exact-head CI 46085906358 7/7; post-merge CI 46086549947); OI-120 closed |
 | AUTH-016 (2026-11-27) | OI-115 environment classification consistency, local part (WP-I), with OI-119 and OI-123 | Completed and expired on the PR #55 merge (`b294d33`; head `21f6ae1`, base `df39d14`; exact-head CI 46088750091 7/7; post-merge CI 46089426391); OI-119 and OI-123 closed |
+| AUTH-020 (2026-11-28) | OI-122 deterministic AUTH-009 integration test (WP-B, test-only) | Completed and expired on the PR #64 merge (`2ae3639`; head `d2b986a`, base `8107841`; exact-head CI 46094951319 7/7; post-merge CI PMRUN); OI-122 closed |

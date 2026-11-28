@@ -2366,7 +2366,7 @@ Implemented by WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) from `main` at `8107841
 | A4 (i) | `private.confirm_outbound_dispatch` locally redefined to lock the outbound row first: "the confirmation" fails with `deadlock detected` (40P01); the other 5 pass. The original body was restored (source MD5 `248795b3…` and ACL match the pre-control values) |
 | A4 (ii), (iii) | An advisory-lock wait (never a tuple lock) returns `"unknown"` and the probe fails with `expected 'unknown' to be 'payment_authorizations'`; a never-blocked call returns `null` and fails with `expected null to be 'payment_authorizations'` |
 | A5 | A deliberately wrong expected table in `probe()` on a real fixture, and an unidentified wait in `race()`, each fail with the original assertion; afterwards `pg_stat_activity` shows no idle-in-transaction or lock-waiting session and `pg_locks` no advisory or row lock on the tables involved. In that same file run, every later suite (the file's 23 tests) passed with no 55P03 (31 of 31) |
-| A6 | See below |
+| A6 | After a fresh `supabase db reset`: the full file twice, 23 of 23 each time; the full `pnpm test:integration`, 12 files, 144 passed, no 55P03. Exact-head CI is recorded in the PR |
 
 **A7 (cleanup is bounded, never commits, leaves nothing and never hides the original error):**
 - **Mechanism:**

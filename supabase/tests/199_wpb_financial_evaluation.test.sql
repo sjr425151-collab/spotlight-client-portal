@@ -11,6 +11,20 @@ grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
 select plan(12);
 
+-- Test-only, inside this rolled-back transaction, installed before any financial function runs here
+-- (an already-resolved call site keeps the function it first resolved): holding_balance_cents is
+-- wrapped so that it raises for one charge key, but only once the oi131.fail_charge setting names it.
+alter function private.holding_balance_cents(text) rename to holding_balance_cents_oi131;
+create function private.holding_balance_cents(p_charge_key text) returns bigint
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if p_charge_key = nullif(current_setting('oi131.fail_charge', true), '') then
+    raise exception 'forced failure (AUTH-026 test)';
+  end if;
+  return private.holding_balance_cents_oi131(p_charge_key);
+end;
+$$;
+
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1') returns void language plpgsql as $$
 declare
   v_sid uuid := gen_random_uuid();
@@ -34,7 +48,8 @@ begin
 end;
 $$;
 -- A project in a given state, through the real WP-B functions (the 190 pattern).
-create function pg_temp.project(p_tag text, p_state text) returns uuid language plpgsql as $$
+create function pg_temp.project(p_tag text, p_state text, p_other text default null) returns uuid
+language plpgsql as $$
 declare
   v_business uuid;
   v_project uuid;
@@ -78,16 +93,39 @@ begin
     reset role;
     return v_project;
   end if;
-  -- Paid (a verified deposit), or an anomaly: a mismatched amount, which processing quarantines.
+  -- Paid: a verified deposit.
   v_ingest := public.ingest_stripe_event(jsonb_build_object('id', 'evt_' || p_tag || 'chk', 'object', 'event',
     'type', 'checkout.session.completed', 'api_version', '2026-09-30.endive', 'livemode', false,
     'created', extract(epoch from now())::bigint, 'data', jsonb_build_object('object', jsonb_build_object(
       'id', 'cs_test_' || p_tag, 'object', 'checkout.session', 'mode', 'subscription', 'currency', 'usd',
-      'amount_total', case when p_state = 'anomaly' then 12345 else 25900 end, 'payment_status', 'paid',
+      'amount_total', 25900, 'payment_status', 'paid',
       'customer', 'cus_T' || p_tag, 'subscription', 'sub_' || p_tag, 'invoice', 'in_' || p_tag,
       'total_details', jsonb_build_object('amount_discount', 0, 'amount_tax', 0),
       'metadata', jsonb_build_object('project_id', v_project, 'order_summary_id', v_os, 'acceptance_id', v_acc,
         'checkout_record_id', v_cs)))), repeat('c', 64));
+  perform public.process_stripe_event((v_ingest ->> 'webhook_event_id')::bigint);
+  if p_state = 'anomaly' then
+    -- The 190 pattern: the initial invoice records the payment intent; a refund naming this
+    -- project's payment intent and another project's invoice is quarantined (attribution conflict).
+    v_ingest := public.ingest_stripe_event(jsonb_build_object('id', 'evt_' || p_tag || 'inv', 'object', 'event',
+      'type', 'invoice.paid', 'api_version', '2026-09-30.endive', 'livemode', false,
+      'created', extract(epoch from now())::bigint, 'data', jsonb_build_object('object', jsonb_build_object(
+        'id', 'in_' || p_tag, 'object', 'invoice', 'billing_reason', 'subscription_create', 'currency', 'usd',
+        'amount_paid', 25900, 'customer', 'cus_T' || p_tag, 'payment_intent', 'pi_' || p_tag || 'init',
+        'parent', jsonb_build_object('subscription_details', jsonb_build_object('subscription', 'sub_' || p_tag,
+          'metadata', jsonb_build_object('project_id', v_project, 'checkout_record_id', v_cs))),
+        'lines', jsonb_build_object('data', jsonb_build_array(
+          jsonb_build_object('quantity', 1, 'price', jsonb_build_object('id', 'price_1Uf5HxK5j4r4WkVPkRUJ4gnZ')),
+          jsonb_build_object('quantity', 1, 'price', jsonb_build_object('id', 'price_1Uf5I2K5j4r4WkVPJodSnaBe'))))))),
+      repeat('c', 64));
+    perform public.process_stripe_event((v_ingest ->> 'webhook_event_id')::bigint);
+    v_ingest := public.ingest_stripe_event(jsonb_build_object('id', 'evt_' || p_tag || 'conf', 'object', 'event',
+      'type', 'refund.updated', 'api_version', '2026-09-30.endive', 'livemode', false,
+      'created', extract(epoch from now())::bigint + 10, 'data', jsonb_build_object('object', jsonb_build_object(
+        'id', 're_' || p_tag || 'conf', 'object', 'refund', 'amount', 1200, 'currency', 'usd', 'status', 'succeeded',
+        'payment_intent', 'pi_' || p_tag || 'init', 'invoice', 'in_' || p_other, 'metadata', '{}'::jsonb))),
+      repeat('c', 64));
+  end if;
   perform public.process_stripe_event((v_ingest ->> 'webhook_event_id')::bigint);
   reset role;
   return v_project;
@@ -100,7 +138,7 @@ insert into ids values
   ('accepted', pg_temp.project('EvA0001', 'accepted')),
   ('paid1', pg_temp.project('EvD0001', 'paid')),
   ('paid2', pg_temp.project('EvD0002', 'paid')),
-  ('anomaly', pg_temp.project('EvQ0001', 'anomaly'));
+  ('anomaly', pg_temp.project('EvQ0001', 'anomaly', 'EvD0002'));
 create function pg_temp.all_ids() returns uuid[] language sql as $$
   select array_agg(id) || array[null::uuid, gen_random_uuid()] from public.projects
 $$;
@@ -127,11 +165,14 @@ reset role;
 -- ---- The states built through the real functions ----
 select is((select array_agg((s).agreement_state::text || '/' || (s).deposit_state::text order by k)
              from (select k, private.project_financial_status(v) s from ids) x),
-  array['accepted_pending_payment/pending', 'accepted_pending_payment/pending', 'not_presented/not_started',
+  array['accepted_pending_payment/pending', 'effective/verified', 'not_presented/not_started',
         'effective/verified', 'effective/verified', 'presented/not_started'],
   'setup: lead, presented, accepted, two paid and one anomaly project');
-select ok((select cardinality(private.gate_anomalies(v, 'G2')) > 0 from ids where k = 'anomaly'),
-  'setup: the anomaly project carries an unresolved G2 anomaly (a quarantined event)');
+select ok((select bool_and(private.gate_anomalies(v, 'G2') = array['quarantined_event']
+                     and private.gate_anomalies(v, 'G4') = array['quarantined_event'])
+             from ids where k in ('anomaly', 'paid2'))
+  and (select cardinality(private.gate_anomalies(v, 'G2')) = 0 from ids where k = 'paid1'),
+  'setup: the attribution conflict blocks G2 and G4 for both candidate projects, and no other');
 
 -- ---- Exact equivalence, one row per distinct id ----
 select is(pg_temp.mismatches(pg_temp.all_ids()), 0,
@@ -147,21 +188,13 @@ select is((select to_jsonb(e.status) -> 'evidence' -> 'blocking_anomalies'
   'AUTH-026: the anomaly kinds per gate are those gate_anomalies returns');
 
 -- ---- Failure parity and the fallback when the set pass raises ----
--- Test-only, inside this rolled-back transaction: holding_balance_cents is wrapped so that it raises
--- for one paid project's charge only. The set pass evaluates every verified deposit, so it raises
--- and the helper falls back to the per-project function, where only that project raises.
-alter function private.holding_balance_cents(text) rename to holding_balance_cents_oi131;
-create function private.holding_balance_cents(p_charge_key text) returns bigint
-language plpgsql stable security definer set search_path = '' as $$
-begin
-  if p_charge_key = (select o.charge_key from public.payment_obligations o
-                      where o.project_id = (select v from pg_temp.ids where k = 'paid1')
-                        and o.kind = 'development_deposit') then
-    raise exception 'forced failure (AUTH-026 test)';
-  end if;
-  return private.holding_balance_cents_oi131(p_charge_key);
-end;
-$$;
+-- The wrapper (installed above) now raises for one paid project's deposit charge only. The set pass
+-- evaluates every verified deposit, so it raises and the helper falls back to the per-project
+-- function, where only that project raises.
+do $$ begin
+  perform set_config('oi131.fail_charge', (select o.charge_key from public.payment_obligations o
+    where o.project_id = (select v from pg_temp.ids where k = 'paid1') and o.kind = 'development_deposit'), true);
+end $$;
 select throws_ok(format('select private.project_financial_status(%L)', (select v from ids where k = 'paid1')),
   'P0001', 'forced failure (AUTH-026 test)', 'setup: the per-project function raises for that one project');
 select ok((select bool_and(case when e.project_id = (select v from ids where k = 'paid1')

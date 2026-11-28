@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.68.0 |
+| Version | 0.69.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,17 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### Wave completion acceptance and remediation grants (Owner, 2026-11-28)
+
+- **Accepted:** the completion of AUTH-021 to AUTH-025 and of the DEP-19 implementation, as reported (PR #80).
+- **OI-131: direction approved; AUTH-026 granted.**
+  - Requirements: preserve all existing financial calculations, classifications, authorization boundaries and function behavior; prove exact result equivalence between the existing and optimized anomaly evaluation; eliminate redundant per-project evaluations; measure the queue on synthetic datasets of 300, 1,000 and 5,000 projects and record times and evaluation counts before and after; provide distinct loading, empty, failed and populated states; never show a failed retrieval as an empty queue; preserve tenant isolation, staff authorization and operational visibility; include T-E2E-07 and performance and regression coverage.
+  - WP-B and WP-C each implement their component and review the other's. Main does final verification.
+- **OI-133: direction approved; AUTH-027 granted.**
+  - Requirements: verify integrity before returning contract text, in both the client and the staff reader; refuse missing, inconsistent or invalid integrity evidence; preserve legitimate historical access, including previously accepted contracts whose bundles were later withdrawn; preserve permissions and tenant isolation; let no text leak through errors, audit events or logs; include positive, negative and tampering tests.
+  - Main assigns the implementer (the DEP-18 session) and the independent reviewers.
+- **Execution:** both workstreams run concurrently under OM-6(b), with no further Owner acknowledgment for conforming grants, and only material deviations are escalated. The dynamic product and service catalog stays deferred, and R1 scope does not expand. No hosted, provider, production or real contractual content operation is authorized.
+
 ### OI-132 decision and OI-131 grant preparation (Owner, 2026-11-28)
 
 - **OI-132: option (a) approved.** AUTH-022 issuance keeps the AUTH-018 scope eligibility check (04 §4A "R1 interim scope loading" rule 7) alongside contract bundle verification. It fails closed unless the current scope version resolves and equals the bundle's pinned scope version. Verification requires consistent eligibility decisions, the canonical OD-3 lock order, fail-closed behavior and preservation of the existing contractual governance guarantees. Any assertion change that remains goes to the Owner individually.
@@ -1814,6 +1825,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.69.0 | 2026-11-28 | **Wave completion accepted; remediation grants** (Owner): AUTH-026 (OI-131, WP-B and WP-C) and AUTH-027 (OI-133, DEP-18 session) granted, Tier 1, with common conditions; the dynamic catalog stays deferred. AUTHORIZATIONS v1.47.0; CURRENT-STATE v1.54.0; OPEN-ISSUES v0.56.0. | Main session | Owner |
 | 0.68.0 | 2026-11-28 | **PR #79 merged: AUTH-022 (PWP-2) completed; the contractual architecture wave is complete** (`aba898f`; exact-head CI 46125353753; post-merge CI 46127903913); DEP-19 complete (implementation, synthetic and fixture content); OI-124, OI-129 and OI-132 closed; OI-133 opened (awaiting the Owner); `--include-all` deployment fact recorded for AUTH-003; 04 v0.11.1 (status labels only). AUTHORIZATIONS v1.46.0; CURRENT-STATE v1.53.0; OPEN-ISSUES v0.55.0. | Main session | Owner |
 | 0.67.0 | 2026-11-28 | **PRs #77 and #75 merged: AUTH-025 and AUTH-024 (PWP-5b) completed** (`07e2d37`, exact-head CI 46122966186, post-merge CI 46123641395; `49c33c3`, exact-head CI 46123718375, post-merge CI 46124340803); OI-130 and OI-129 (h) closed; OI-110 implemented; 05 v0.5.4 (status labels only). AUTHORIZATIONS v1.45.0; CURRENT-STATE v1.52.0; OPEN-ISSUES v0.54.0. | Main session | Owner |
 | 0.66.0 | 2026-11-28 | **OI-132 decided (option (a))**; OI-131 grant preparation authorized (not implementation); PR #75 bounded CI re-run. CURRENT-STATE v1.51.0; OPEN-ISSUES v0.53.0. | Main session | Owner |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.36.0 |
+| Version | 1.37.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
 | Next unused ID | **AUTH-020** (AUTH-019 granted 2026-11-27; AUTH-017 completed; AUTH-015 to AUTH-018 granted 2026-11-27 with AUTH-010; AUTH-014 completed) |
@@ -122,6 +122,7 @@ Owner decision "governance streamlining amendment approved, subject to the follo
 | Executor (Owner, 2026-11-27, Decision 5) | **WP-I** (`session_01RCnsL7k3rDKjjpTicExTsF`) is the WP-D executor, starting after AUTH-016's verified completion. Scope: DEP-14, DEP-17 and the hosted part of OI-115, within this record only |
 | Environment isolation (Owner, 2026-11-27) | Hosted operations run only from a **separate cloud environment, `spotlight-staging-ops`**, dedicated exclusively to authorized hosted-staging work and used by no other session. Before activation, Main confirms its technical isolation from other sessions and WP-I identifies the exact least-privilege provider permissions (each provider token and scope), recorded for the Owner. Network secrets are entered only by the Owner through the secure form, on that environment only. Creating the environment is an Owner approval |
 | Unchanged | Every restriction, Owner-only action and stop condition above; no production credential, live Stripe credential, unrelated provider access, seed, reset, real client data or DNS change; actual hosted execution only after the activation prerequisites, the Owner's account creation and secure credential entry |
+| Migration-order note (Main, 2026-11-27; WP-C, AUTH-019 review) | `20261127125000` (AUTH-019) sorts before migrations merged earlier (`20261127130000` to `20261127160000`). A fresh database applies every migration in filename order and is correct; a database already migrated past `20261127125000` would see an out-of-order file. Hosted projects under AUTH-003 are created fresh and receive reviewed migrations only (no seed, no reset, A3), so the hosted runbook must record that each hosted database is created after the migrations it receives are final, or apply any out-of-order file explicitly and verify the result |
 
 ### AUTH-004 — Tier 2: WP-C storage security policies (local and CI)
 
@@ -439,7 +440,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Completion | PR #53 merged by Main under OM-6(b) at `8ebccedbadc40e5e9d6997810225ec2b159e69cc` (head `186d728`, base `e67bddd`; tree identical; exact-head CI 46060779579 7/7 with the full suite; an earlier run on the superseded head `80a7786` was cancelled by the synchronization). Reviews: Main 7227098117, WP-C (security) 7227207833; none blocking. Post-merge CI 46062083448 7/7 with the full suite. **OI-88 closed.** Non-blocking follow-up (WP-C): whether `invite_existing_user` should also mention the in-portal "Pending invitations" list for an active client; not authorized here |
 | Expiry | Merge, R1 release-candidate acceptance, or 2027-01-31 |
 
-### AUTH-018 — Tier 1 (with AUTH-001 Tier 2 database security controls): DEP-18 R1 interim scope loading and activation (DEP-18 session) — GRANTED
+### AUTH-018 — Tier 1 (with AUTH-001 Tier 2 database security controls): DEP-18 R1 interim scope loading and activation (DEP-18 session) — COMPLETED (expired on the PR #57 merge)
 
 | Field | Value |
 |---|---|
@@ -452,9 +453,10 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Reviews | WP-C (security), Main |
 | Not authorized | Loading actual commercial content; entering real approval evidence; commercial activation; hosted database operations; production eligibility or access |
 | Merge | **Merge (OM-6(b), pre-authorized by the Owner, 2026-11-27):** Main merges without another Owner round trip once every condition is objectively satisfied: the stated acceptance criteria are met; exact-head CI passes 7/7 with the full suite; the named independent reviews are complete with no unresolved blocking finding; Main has verified the scope (files, reserved migration names, no change to an existing assertion except those individually authorized here); the merge is executed pinned to the full head and base SHAs; post-merge CI is verified. Additions-only catch-up in shared files is reviewed under OM-2. Any material deviation, unresolved blocking finding or unmet condition invalidates the conditional authority and goes to the Owner D-a, D-b and D-c must match the approved text and values exactly; the D-c fingerprint count is the value Main measures and verifies, not the projection |
+| Completion | PR #57 merged by Main under OM-6(b) at `23346ef69e19fc8b36cb51c24e44cfcdbb948e2a` (head `87e6c22`, base `7d3bc42`; tree identical; exact-head CI 46084394471 7/7 with the full suite). Reviews: Main 7227736193 (D-a, D-b, D-c 84 = 67 + 17 and B-1 to B-4b verified against their approved texts); WP-C security, with F-1 (caller text in refusal audit targets) fixed before merge and re-reviewed. Migration SHA-256 `053911d2b5761ad63b57ad47dc803ba9e6a32bb596cbed7ce2e489c078f12869`. Integration 5/5 clean runs; the one earlier failure is the pre-existing OI-122 helper race. Post-merge CI 46085126236 with the full suite. The procedural restriction on loading actual commercial content and entering real approval evidence is unchanged; activation eligibility is technically limited to development and test |
 | Expiry | Merge, R1 release-candidate acceptance, or 2027-01-31 |
 
-### AUTH-019 — Tier 2: OI-120 Owner authorization hardening, root-function correction (DEP-18 session) — GRANTED
+### AUTH-019 — Tier 2: OI-120 Owner authorization hardening, root-function correction (DEP-18 session) — COMPLETED (expired on the PR #61 merge; OI-120 closed)
 
 | Field | Value |
 |---|---|
@@ -470,6 +472,7 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Stop conditions | Any other function, call site or policy would need to change; any existing assertion would change; any legitimate Owner action is refused |
 | Reviews | WP-C (independent security), WP-B (financial authorization), Main (final) |
 | Merge | **Merge (OM-6(b), pre-authorized by the Owner, 2026-11-27):** Main merges without another Owner round trip once every condition is objectively satisfied: the stated acceptance criteria are met; exact-head CI passes 7/7 with the full suite; the named independent reviews are complete with no unresolved blocking finding; Main has verified the scope (files, reserved migration names, no change to an existing assertion); the merge is executed pinned to the full head and base SHAs; post-merge CI is verified. Any material deviation, unresolved blocking finding or unmet condition invalidates the conditional authority and goes to the Owner |
+| Completion | PR #61 merged by Main under OM-6(b) at `19b173b42931e8c6d7aba624d786af88b60894dd` (head `4cd2c41`, base `23346ef`; tree identical; exact-head CI 46085906358 7/7 with the full suite). Reviews: Main 7230635285; WP-C security 7230700538; WP-B financial authorization 7230667499; none blocking. Root-function correction only (migration `20261127125000`, SHA-256 `61ddf167…a4e283`); 420 (60 assertions) covers the three reproduced escalations, every non-Owner caller class with no state change, the genuine Owner and the unchanged attributes and ACL; the original body fails 30 of 60. The inventory (CURRENT-STATE §26) adds site (a′) `20261127140000`:137 and nine already NULL-safe (f) sites. Also closed: a non-member client could read another project's billing status (`20261124160100`:4709). Post-merge CI 46086549947 with the full suite. **OI-120 closed**; it no longer blocks hosted migration deployment or R1 release-candidate acceptance. Informational (WP-B, pre-existing, Owner-only, no write): at `20261124160100`:3712 a NULL `p_decision` with stale MFA passes `owner_ok(NULL)` and then fails at the `decision not null` insert |
 | Expiry | Merge, or 2027-01-31 |
 
 ## 4. Dependency security patch exception (standing, Tier 1)
@@ -498,3 +501,5 @@ Applies when `pnpm audit` reports a **high or critical** advisory against a pinn
 | AUTH-017 (2026-11-27) | OI-88 option A, invitee path (WP-S) | Completed and expired on the PR #53 merge (`8ebcced`; head `186d728`, base `e67bddd`; exact-head CI 46060779579 7/7; post-merge CI 46062083448 7/7); OI-88 closed |
 | AUTH-015 (2026-11-27) | OI-114 controlled publication recovery (WP-C), with Amendment 1 | Completed and expired on the PR #54 merge (`b5d8078`; head `87a1ffb`, base `208d7e7`; exact-head CI 46066978313 7/7; post-merge CI 46077031048); OI-114 closed |
 | AUTH-010 (2026-11-27) | OI-93 conflict decisions and financial applications (WP-B), with Amendments 1 and 2 | Completed and expired on the PR #59 merge (`30ee417`; head `a816e58`, base `b5d8078`; exact-head CI 46079160317 7/7; post-merge CI 46080015419); OI-93 and OI-121 closed |
+| AUTH-018 (2026-11-27) | DEP-18 R1 interim scope loading and activation (DEP-18 session) | Completed and expired on the PR #57 merge (`23346ef`; head `87e6c22`, base `7d3bc42`; exact-head CI 46084394471 7/7; post-merge CI 46085126236) |
+| AUTH-019 (2026-11-27) | OI-120 root-function correction of `private.is_owner()` (DEP-18 session) | Completed and expired on the PR #61 merge (`19b173b`; head `4cd2c41`, base `23346ef`; exact-head CI 46085906358 7/7; post-merge CI 46086549947); OI-120 closed |

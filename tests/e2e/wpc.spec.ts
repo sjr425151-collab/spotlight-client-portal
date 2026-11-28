@@ -372,7 +372,7 @@ test("staff record a preview release with SHA, deployment ID, and preview URL (T
     };
   });
   const s5Secret = process.env.E2E_STRIPE_WEBHOOK_SECRET ?? "";
-  expect(s5Secret).toMatch(/^whsec_[A-Za-z0-9]+$/);
+  if (!/^whsec_[A-Za-z0-9]+$/.test(s5Secret)) throw new Error("setup: no test-only webhook secret");
   const s5Now = Math.floor(Date.now() / 1000);
   const s5Body = JSON.stringify({
     id: `evt_wpc${RUN}checkout`,
@@ -407,22 +407,19 @@ test("staff record a preview release with SHA, deployment ID, and preview URL (T
     data: s5Body,
     headers: { "content-type": "application/json", "stripe-signature": `t=${s5Now},v1=${s5Sig}` },
   });
-  expect(s5Response.status()).toBe(200);
+  if (s5Response.status() !== 200)
+    throw new Error(`setup: webhook delivery ${s5Response.status()}`);
   await staffPage.goto(`/staff/projects/${releaseProjectId}`);
   await staffPage.getByLabel("Client requirements").fill("Synthetic client requirements");
   await staffPage
     .getByLabel("Confirmed fulfillment selections (one per line)")
     .fill("Synthetic selection");
   await staffPage.getByRole("button", { name: "Record scope confirmation" }).click();
-  await expect(staffPage.locator("main").getByRole("status").first()).toContainText(
-    "Scope confirmation recorded.",
-  );
+  await staffPage.waitForURL(/notice=scope_confirmation_recorded/);
   await clientPage.goto(`/portal/projects/${releaseProjectId}`);
   await clientPage.getByLabel(/scope confirmation version 1 and acknowledge it/).check();
   await clientPage.getByRole("button", { name: "Acknowledge scope confirmation" }).click();
-  await expect(clientPage.locator("main").getByRole("status").first()).toContainText(
-    "Your acknowledgment of the scope confirmation was recorded.",
-  );
+  await clientPage.waitForURL(/notice=scope_acknowledged/);
   const before = await lastAuditId();
   await staffPage.goto(`/staff/projects/${releaseProjectId}`);
   await staffPage.getByLabel("Commit SHA (40 characters)").fill("a".repeat(40));

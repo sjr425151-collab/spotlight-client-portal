@@ -733,13 +733,11 @@ test("T-E2E-05: staff release; a superseded release cannot be approved; a double
     .getByLabel("Confirmed fulfillment selections (one per line)")
     .fill("Synthetic selection");
   await admin.getByRole("button", { name: "Record scope confirmation" }).click();
-  await expect(status(admin)).toContainText("Scope confirmation recorded.");
+  await admin.waitForURL(/notice=scope_confirmation_recorded/);
   await client.goto(`/portal/projects/${projectId}`);
   await client.getByLabel(/scope confirmation version 1 and acknowledge it/).check();
   await client.getByRole("button", { name: "Acknowledge scope confirmation" }).click();
-  await expect(status(client)).toContainText(
-    "Your acknowledgment of the scope confirmation was recorded.",
-  );
+  await client.waitForURL(/notice=scope_acknowledged/);
   await releaseAs(SHA_1, 1);
   await client.goto(`/portal/projects/${projectId}`);
   await expect(client.getByTestId("project-status")).toContainText(

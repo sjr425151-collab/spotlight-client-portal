@@ -207,6 +207,18 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   // AUTH-015 (OI-114): controlled recovery after a failed deployment or live verification.
   c("publication.recovery_opened", "deployment", "06 §8.1"),
   c("publication.recovery_rejected", "deployment", "06 §8.1"),
+  // PWP-1 (AUTH-021; 04 §4A): contractual instruments, bundles and their governance records.
+  // Owner-only; every refusal is audited with a reason code only (never content). Additive.
+  b("contract_instrument.created", "agreement", "04 §4A"),
+  b("contract_instrument.load_rejected", "agreement", "04 §4A"),
+  b("contract_bundle.sealed", "agreement", "04 §4A"),
+  b("contract_bundle.seal_rejected", "agreement", "04 §4A"),
+  b("contract_bundle.approval_recorded", "agreement", "04 §4A"),
+  b("contract_bundle.approval_rejected", "agreement", "04 §4A"),
+  b("contract_bundle.activated", "agreement", "04 §4A"),
+  b("contract_bundle.activation_rejected", "agreement", "04 §4A"),
+  b("contract_bundle.withdrawn", "agreement", "04 §4A"),
+  b("contract_bundle.withdrawal_rejected", "agreement", "04 §4A"),
 ];
 
 export function auditAction(name: string): AuditAction {

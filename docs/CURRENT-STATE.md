@@ -2713,13 +2713,15 @@ insert into private.inactivity_legacy_releases (release_id) values ('33000000-00
    - Main re-verifies mechanically: 0 deletions in 215, these exact lines, and no other existing test file touched apart from 050 under B-1d once approved;
    - WP-B, the independent reviewer, verifies the same.
 
+**B-1d (Owner, 2026-11-28; PR #73 `c804da5`).** Test 050 gains the two approved lines, inserted mid-array immediately after the AUTH-023 group and before `-- WP-B (...)`. They add `record_inactivity_milestone`. No existing line, plan or description changed, and every existing group is kept. 050 passes 24/24.
+
 **Acceptance evidence (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4, synthetic data; fresh `supabase db reset` before the database run; integration in CI order with the Vitest cache cleared):**
 
 | Item | Result |
 |---|---|
 | Lint, typecheck, format | Pass |
 | Unit | 25 files, 527 passed |
-| pgTAP (full) | 215 63/63 (with the three recorded lines); 260 85/85; 050 test 8 awaits the B-1d ruling |
+| pgTAP (full) | @@DB@@ |
 | Test 260 (new) | 85/85. It covers:<br>• T-LC-18: every step on days 3, 7, 14, 30 and 60, with an effects fingerprint over approvals, publication, the ledger, payments, subscriptions, terminations, refunds and releases, identical before and after;<br>• the day-30 suspension, only with day ≥ 30 and a recorded formal notice;<br>• the rescheduling decision, with no effect and read by no code;<br>• OI-45: client access, the pause label, an approval during the suspension is a valid G3 input, and a fulfillment hold, never a billing hold;<br>• America/Detroit calendar days across 2027-03-14 and 2026-11-01, plus a release at 23:59 that is day 3 in under 72 hours;<br>• the earlier-schedule path unchanged;<br>• the snapshot: ACL, no writer, insert-only;<br>• refusals for anon, service_role, Sales, a client, staff at aal1, a non-current release, an earlier-schedule release, after a client response, and before the step's day;<br>• isolation (staff only) and the privilege layers |
 | Race test (new, `wpc-pwp5b-inactivity-race`) | 4 tests (cases A to H, both orders, 5 repetitions each, real connections). Every waiter was seen on a heavyweight Lock. No 40P01, timeout or unexpected refusal.<br>• A milestone against an approval, a revision request and a withdrawal.<br>• The day-30 suspension against an approval.<br>Each connection has lock and statement timeouts (WP-I N-1), with `finally` cleanup (N-2). It does no OTP sign-in, removes its own factor and archives its synthetic projects (OI-130) |
 | Integration (full) | 15 files, 163 passed |

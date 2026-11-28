@@ -2966,7 +2966,7 @@ Call counts are in the order `pfs` / anomalies / `gate_anomalies` / `conflict_cl
 - In the helper, `financial_conflict_cleared` runs once per distinct conflict event.
 - At 5,000 representative, the financial component takes about 0.6 s of the 4 s end-to-end target.
 - The old queue at 5,000 heavy was not run, because 5,000 representative already takes 291 s.
-- The heavy figures are informational (Main's ruling 1).
+- The heavy figures are informational (Main's ruling 1). At 5,002 heavy the plan spills 324 temp blocks (2.6 MB at the local default `work_mem` of 4 MB) for the per-event and per-project aggregation. This is a known characteristic of the worst case, not a deviation (WP-C N-3). It does not occur in the representative mix.
 
 **Equivalence.**
 - **The measurements:** the table above, 0 mismatches at every size and mix.
@@ -2985,16 +2985,40 @@ Call counts are in the order `pfs` / anomalies / `gate_anomalies` / `conflict_cl
 
 **Evaluation counts.** `tests/integration/oi131-evaluation-counts.test.ts` (local `supabase_admin`, localhost guard, rolled back) asserts that one call over every active project returns one row per project with none failed, and the deltas helper 1, `project_financial_status` 0, `project_financial_anomalies` 0, `gate_anomalies` 0. It also checks equivalence over every project the suites left. The queue-level counts belong to WP-C (§33).
 
+**Drift guard (WP-C N-1).** The helper reimplements the bodies of 16 per-project functions set-based:
+- `gate_anomalies`, `obligation_disputed`, `obligation_net_cents`, `payment_authorization_state`;
+- `project_active_billing_holds`, `project_agreement_state`, `project_balance_verified`, `project_deposit_ever_verified`;
+- `project_deposit_obligation`, `project_deposit_state`, `project_deposit_verified`, `project_final_balance_state`;
+- `project_financial_anomalies`, `project_financial_status`, `reversal_observations`, `unposted_reversals`.
+
+pgTAP 199 pins `md5(prosrc)` of each, one assertion per function, each described "if this changes, update private.financial_evaluation_for_projects in the same change". A future change to any of them therefore fails CI until the helper and its equivalence evidence are updated with it. Mutation check (scratch): one mirrored body altered inside the transaction fails exactly its assertion.
+
+The functions the helper calls rather than copies follow any change automatically, so they are not pinned:
+- `financial_conflict_cleared`, `holding_balance_cents`, `dispute_is_open`;
+- `event_charge_kinds`, `object_charge_kinds`, `charge_kind_gates`, `charge_key_gates`;
+- `sha256_hex`, `calendar_version`.
+
+**Which equivalence evidence runs in CI, and which ran once (WP-C N-2).**
+- **In CI, on every change that is not documentation-only:**
+  - pgTAP 199: states, inputs, fallback parity and the drift guard;
+  - `tests/integration/oi131-evaluation-counts.test.ts`: the counts, plus equivalence over every project the suites left;
+  - once PR 2 lands, WP-C's queue-level identity and count tests (§33).
+- **Run once, for this record, and not in CI:**
+  - the harness matrix at 300, 1,000 and 5,000;
+  - the suite-wide runner `tests/perf/oi131_suite_equivalence.sh`.
+
+  Either can be rerun locally with the commands in the files' headers. The drift guard is what keeps the one-off evidence valid: any change to a mirrored function fails CI and requires rerunning it.
+
 **Requirement C (migrations out of timestamp order).** 140000 precedes `main`'s 150000.
 - **Clean reset:** `supabase db reset` passes; the last migrations are 150000, 140000 and 130000.
-- **Incremental:** the reset with 140000 withheld passes, and the helper is absent. Plain `supabase migration up` refuses with `MigrationMissingRemoteError`. `supabase migration up --include-all` applies 140000, and the helper is then owned by `postgres`. On that database, pgTAP passes with 2,815 assertions and 0 files failed, and the md5s above are unchanged.
+- **Incremental:** the reset with 140000 withheld passes, and the helper is absent. Plain `supabase migration up` refuses with `MigrationMissingRemoteError`. `supabase migration up --include-all` applies 140000, and the helper is then owned by `postgres`. On that database, pgTAP passes with 2,815 assertions and 0 files failed (before the drift guard was added), and the md5s above are unchanged.
 
 **Verification** (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4; CI order with the CI job's `APP_ENV=test` and `NEXT_PUBLIC_SITE_URL`; synthetic data only):
 
 | Check | Result |
 |---|---|
 | Fresh reset | passes |
-| pgTAP | 2,815 assertions, 0 files failed (199 12/12) |
+| pgTAP | 2,831 assertions, 0 files failed (199 28/28, with the drift guard) |
 | WP-D18 isolated commit | passes |
 | Integration | 17 files, 171 passed |
 | Unit | 527 passed |

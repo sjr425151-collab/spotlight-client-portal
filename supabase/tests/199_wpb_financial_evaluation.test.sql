@@ -9,7 +9,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(12);
+select plan(28);
 
 -- Test-only, inside this rolled-back transaction, installed before any financial function runs here
 -- (an already-resolved call site keeps the function it first resolved): holding_balance_cents is
@@ -161,6 +161,31 @@ select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
 select throws_ok($$ select * from private.financial_evaluation_for_projects(array[gen_random_uuid()]) $$, '42501', null,
   'AUTH-026: even the Owner, as authenticated, cannot call the helper');
 reset role;
+
+-- ---- Drift guard (WP-C N-1): the per-project functions the helper mirrors set-based ----
+-- The helper reimplements these bodies; a change to any of them must change the helper in the same
+-- change (and its equivalence evidence). md5 of the merged prosrc; one assertion each.
+select is(md5(p.prosrc), v.md5,
+  format('drift guard: %s is unchanged; if this changes, update private.financial_evaluation_for_projects in the same change', v.sig))
+  from (values
+    ('private.gate_anomalies(uuid,text)', '9cbf0faf7f1fa460bd07686829b87e16'),
+    ('private.obligation_disputed(uuid)', '770d51db38c019c922cb4b8e0cbb1f92'),
+    ('private.obligation_net_cents(uuid)', 'e318d61a3fd9c44a00e601801868c93e'),
+    ('private.payment_authorization_state(uuid)', '3590526e6a893a815df651a3e472950d'),
+    ('private.project_active_billing_holds(uuid)', '4474fba2507a4c4919b9fcebdd24d9fe'),
+    ('private.project_agreement_state(uuid)', 'ea07f771ee19c442d26b1707e9071e54'),
+    ('private.project_balance_verified(uuid)', 'a6366dca74491ef736696a8e34057ab0'),
+    ('private.project_deposit_ever_verified(uuid)', '8d34bfa3a710c01cc62886c62c6612c8'),
+    ('private.project_deposit_obligation(uuid)', 'baaa0c9c1821b9d6b86a10b69376b594'),
+    ('private.project_deposit_state(uuid)', 'c532a027d11518434ca700fd9f43717e'),
+    ('private.project_deposit_verified(uuid)', 'd6ba50f0ce969d08137cac6faa39bdd3'),
+    ('private.project_final_balance_state(uuid)', 'a70633debea04d59addd88401bc17195'),
+    ('private.project_financial_anomalies(uuid)', 'c13caa4d5e64299549d0b5817efab62a'),
+    ('private.project_financial_status(uuid)', 'ee4e4342fe8ce7b0e808d7e88375f392'),
+    ('private.reversal_observations(uuid)', '7e513d97bb688a608040eb27ef14ab06'),
+    ('private.unposted_reversals(uuid)', 'c8f426a0f8b16b1c7cbb71521f7ef3d9')) v (sig, md5)
+  join pg_proc p on p.oid = v.sig::regprocedure
+ order by v.sig;
 
 -- ---- The states built through the real functions ----
 select is((select array_agg((s).agreement_state::text || '/' || (s).deposit_state::text order by k)

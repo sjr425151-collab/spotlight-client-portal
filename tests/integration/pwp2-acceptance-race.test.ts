@@ -14,10 +14,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
  *            bundle, in both orders: each waits on the documented lock and completes, with no lock
  *            cycle. A deadlock (40P01), a lock timeout or any unexpected refusal fails the test.
  *
- * Every wait is observed in pg_locks (an ungranted lock). Each repetition gets a fresh fixture
- * bundle built by the seed constructors and its own project, because withdrawal is irreversible.
- * The suite ends by sealing a clean, newest fixture bundle, so later suites resolve an eligible one.
- * Synthetic and fixture data only; local and CI only.
+ *   OI-132 (option (a)): issuance against AUTH-018 scope withdrawal and scope activation, in both
+ *            orders: the per-package lock serializes them; a withdrawn or inactive newest version
+ *            refuses issuance (scope_definition_missing), with no fallback.
+ *
+ * Every wait is observed in pg_locks (an ungranted lock). Each repetition gets a fresh synthetic
+ * bundle (Owner functions only; see the helpers) and its own project, because withdrawal is
+ * irreversible. The suite ends by sealing a clean, newest bundle over the current scope version, so
+ * later suites resolve an eligible one. Synthetic data only; local and CI only.
  */
 
 const DB_URL =
@@ -68,31 +72,131 @@ async function waiting(pid: number): Promise<boolean> {
   }
   return false;
 }
-/** A newer fixture bundle for PKG, through the seed constructors only (the OD-9 labels apply). */
-async function freshBundle(c: Client = admin): Promise<string> {
+// OI-132 (a): issuance needs an eligible bundle AND the AUTH-018 scope gate at the bundle's pinned
+// version. This suite therefore builds synthetic, non-fixture content through the Owner functions
+// only (AUTH-018 scope loader; AUTH-021 instruments, sealing, approval and activation; an agreement
+// holding only a synthetic heading and the approved 04 §3.1 clause, as in pwp1-contract-race).
+const syn: Record<string, string> = {};
+let scopeV = 0;
+/** One Owner call on `c` (inside its transaction when one is open), refusing any non-ok result. */
+async function ownerOn(
+  c: Client,
+  sql: string,
+  params: unknown[],
+): Promise<Record<string, unknown>> {
+  await as(c, OWNER_ID, "aal2", true);
+  const v = (await c.query(sql, params)).rows[0].v as Record<string, unknown>;
+  if (v.ok !== true) throw new Error(`setup: ${sql}: ${JSON.stringify(v)}`);
+  return v;
+}
+async function ownerTx(sql: string, params: unknown[]): Promise<Record<string, unknown>> {
+  await admin.query("begin");
+  try {
+    const v = await ownerOn(admin, sql, params);
+    await admin.query("commit");
+    return v;
+  } catch (e) {
+    await admin.query("rollback");
+    throw e;
+  }
+}
+const scopeItems = (v: number) => [
+  `IT PWP2 SCOPE ${marker} V${v}-A`,
+  `IT PWP2 SCOPE ${marker} V${v}-B`,
+];
+/** Approve and load the next synthetic scope version of PKG; optionally activate it. */
+async function newScope(activate: boolean): Promise<number> {
+  const v = Number(
+    (
+      await q<{ n: number }>(
+        admin,
+        `select coalesce(max(v), 0) + 1 n from (
+           select max(scope_version) v from private.billing_package_scope where package_key = $1
+           union all select max(scope_version) from private.billing_package_scope_versions where package_key = $1) x`,
+        [PKG],
+      )
+    ).n,
+  );
+  const items = scopeItems(v);
+  const sha = (
+    await q<{ s: string }>(
+      admin,
+      `select encode(extensions.digest(convert_to('spotlight.package_scope.v1|k' || octet_length($1::text) || ':'
+         || $1 || '|v' || $2 || '|n' || cardinality($3::text[]) || (select string_agg('|p' || o || ':'
+         || octet_length(t) || ':' || t, '' order by o) from unnest($3::text[]) with ordinality u (t, o)),
+         'UTF8'), 'sha256'), 'hex') s`,
+      [PKG, v, items],
+    )
+  ).s;
+  await ownerTx("select public.record_package_scope_approval($1, $2, $3, $4, $5) v", [
+    PKG,
+    v,
+    sha,
+    `IT-PWP2-SCOPE-${marker}-${v}`,
+    "e".repeat(64),
+  ]);
+  await ownerTx("select public.load_package_scope_version($1, $2, $3) v", [PKG, v, items]);
+  if (activate) await ownerTx("select public.activate_package_scope_version($1, $2) v", [PKG, v]);
+  return v;
+}
+async function synInstrument(kind: string, pkg: string | null): Promise<string> {
+  const ver = Number(
+    (
+      await q<{ n: number }>(
+        admin,
+        `select coalesce(max(instrument_version), 0) + 1 n from private.contract_instrument_versions
+          where kind = $1 and package_key is not distinct from $2`,
+        [kind, pkg],
+      )
+    ).n,
+  );
+  const body = `IT PWP2 SYNTHETIC ${kind} ${marker}`;
+  const sha = (
+    await q<{ s: string }>(
+      admin,
+      "select private.contract_instrument_sha256($1, $2, $3, 'IT SYNTHETIC', $4, array['S1', 'S2']) s",
+      [kind, pkg, ver, body],
+    )
+  ).s;
+  const r = await ownerTx(
+    "select public.create_contract_instrument_version($1, $2, $3, 'IT SYNTHETIC', $4, array['S1', 'S2'], $5) v",
+    [kind, pkg, ver, body, sha],
+  );
+  return r.instrument_id as string;
+}
+/** Seal, approve and activate a bundle for PKG pinning scope version `v` (default: the current one). */
+async function freshBundle(c: Client = admin, v: number = scopeV): Promise<string> {
   counter += 1;
-  const tag = `IT pwp2 ${marker} ${counter}`;
-  await c.query(
-    "select private.construct_contract_instrument('shared_terms', null, $1, $2, array['FX-S1'], true)",
-    [
-      `TEST FIXTURE shared terms (${tag})`,
-      `TEST FIXTURE — NOT A CONTRACT INSTRUMENT (shared terms, ${tag})`,
-    ],
-  );
-  const r = await q<{ v: { bundle_id: string } }>(
-    c,
-    `select private.construct_contract_bundle($1, $2,
-       (select id from public.agreement_versions where version_label = 'test-fixture-1'),
-       (select id from private.contract_instrument_versions where kind = 'package_specification'
-          and package_key = $1 and is_test_fixture and instrument_version = 1),
-       (select id from private.contract_instrument_versions where kind = 'maintenance_specification'
-          and is_test_fixture and instrument_version = 1),
-       (select id from private.contract_instrument_versions where kind = 'shared_terms'
-          order by instrument_version desc limit 1),
-       1, '["FX-P1", "FX-P2", "FX-P3"]'::jsonb, true) v`,
-    [PKG, `TEST FIXTURE — NOT A CONTRACT BUNDLE (${tag})`],
-  );
-  return r.v.bundle_id;
+  const own = c === admin;
+  if (own) await admin.query("begin");
+  try {
+    const sealed = await ownerOn(
+      c,
+      "select public.seal_contract_bundle($1, $2, $3, $4, $5, $6, $7, $8) v",
+      [
+        PKG,
+        `IT PWP2 SYNTHETIC BUNDLE ${marker} ${counter}`,
+        syn.agreement,
+        syn.package,
+        syn.maintenance,
+        syn.shared,
+        v,
+        JSON.stringify(["S1", "S2"]),
+      ],
+    );
+    await ownerOn(c, "select public.record_contract_bundle_approval($1, $2, $3, $4) v", [
+      sealed.bundle_id,
+      sealed.bundle_sha256,
+      `IT-PWP2-LEGAL-${marker}-${counter}`,
+      "e".repeat(64),
+    ]);
+    await ownerOn(c, "select public.activate_contract_bundle($1) v", [sealed.bundle_id]);
+    if (own) await admin.query("commit");
+    return sealed.bundle_id as string;
+  } catch (e) {
+    if (own) await admin.query("rollback");
+    throw e;
+  }
 }
 /** A fresh project of client A, and an Admin-issued v2 order summary on it. */
 async function presentedSummary(): Promise<{
@@ -183,6 +287,22 @@ beforeAll(async () => {
       );
     }
   }
+  const text = (
+    await q<{ t: string }>(
+      admin,
+      `select 'IT PWP2 SYNTHETIC AGREEMENT ${marker}' || E'\\n\\n' || private.final_payment_clause() t`,
+    )
+  ).t;
+  const ag = await ownerTx(
+    "select public.create_agreement_version($1, $2, date '2026-11-01', $3) v",
+    [`it-pwp2-${marker}`, text, "IT-PWP2-AGR"],
+  );
+  syn.agreement = ag.agreement_version_id as string;
+  await ownerTx("select public.approve_agreement_version($1) v", [syn.agreement]);
+  syn.package = await synInstrument("package_specification", PKG);
+  syn.maintenance = await synInstrument("maintenance_specification", null);
+  syn.shared = await synInstrument("shared_terms", null);
+  scopeV = await newScope(true);
 });
 
 afterAll(async () => {
@@ -325,4 +445,113 @@ describe("AUTH-022: v2 acceptance under real concurrency (T-CON-07, requirement 
       }
     }
   }, 300_000);
+
+  it(`OI-132 requirement A: issuance against scope withdrawal, both orders (${REPETITIONS}x)`, async () => {
+    const replace = "select public.issue_order_summary($1, $2, '[]'::jsonb, null, 'IT race') v";
+    for (let i = 0; i < REPETITIONS; i += 1) {
+      for (const withdrawalFirst of [true, false]) {
+        await freshBundle();
+        const s = await presentedSummary();
+        if (withdrawalFirst) {
+          await a.query("begin");
+          await ownerOn(a, "select public.withdraw_package_scope_version($1, $2) v", [PKG, scopeV]);
+          await b.query("begin");
+          await as(b, ADMIN_ID, "aal2");
+          const bPid = await pidOf(b);
+          const pending = b.query(replace, [s.projectId, PKG]);
+          expect(await waiting(bPid)).toBe(true);
+          await a.query("commit");
+          const r = (await pending).rows[0].v as Record<string, unknown>;
+          await b.query("commit");
+          expect(r.error, JSON.stringify(r)).toBe("scope_definition_missing");
+        } else {
+          await b.query("begin");
+          await as(b, ADMIN_ID, "aal2");
+          const r = (await b.query(replace, [s.projectId, PKG])).rows[0].v as Record<
+            string,
+            unknown
+          >;
+          expect(r.ok, JSON.stringify(r)).toBe(true);
+          await a.query("begin");
+          const aPid = await pidOf(a);
+          const pending = ownerOn(a, "select public.withdraw_package_scope_version($1, $2) v", [
+            PKG,
+            scopeV,
+          ]);
+          expect(await waiting(aPid)).toBe(true);
+          await b.query("commit");
+          await pending;
+          await a.query("commit");
+          const kept = await q<{ n: number }>(
+            admin,
+            "select count(*)::int n from public.order_summaries where id = $1 and status = 'presented'",
+            [r.order_summary_id],
+          );
+          expect(kept.n).toBe(1);
+        }
+        // The withdrawn version never resolves again (no fallback to an older version).
+        await b.query("begin");
+        await as(b, ADMIN_ID, "aal2");
+        const after = (await b.query(replace, [s.projectId, PKG])).rows[0].v as Record<
+          string,
+          unknown
+        >;
+        await b.query("rollback");
+        expect(after.error, JSON.stringify(after)).toBe("scope_definition_missing");
+        scopeV = await newScope(true);
+      }
+    }
+  }, 600_000);
+
+  it(`OI-132 requirement A: issuance against scope activation, both orders (${REPETITIONS}x)`, async () => {
+    const replace = "select public.issue_order_summary($1, $2, '[]'::jsonb, null, 'IT race') v";
+    for (let i = 0; i < REPETITIONS; i += 1) {
+      for (const activationFirst of [true, false]) {
+        await freshBundle();
+        const s = await presentedSummary();
+        // A newer loaded but inactive version, already pinned by an eligible bundle: issuance is
+        // suspended until the version is activated (04 §4A rule 7).
+        const v = await newScope(false);
+        await freshBundle(admin, v);
+        if (activationFirst) {
+          await a.query("begin");
+          await ownerOn(a, "select public.activate_package_scope_version($1, $2) v", [PKG, v]);
+          await b.query("begin");
+          await as(b, ADMIN_ID, "aal2");
+          const bPid = await pidOf(b);
+          const pending = b.query(replace, [s.projectId, PKG]);
+          expect(await waiting(bPid)).toBe(true);
+          await a.query("commit");
+          const r = (await pending).rows[0].v as Record<string, unknown>;
+          await b.query("commit");
+          expect(r.ok, JSON.stringify(r)).toBe(true);
+          const pinnedV = await q<{ v: number }>(
+            admin,
+            "select scope_version v from public.order_summaries where id = $1",
+            [r.order_summary_id],
+          );
+          expect(Number(pinnedV.v)).toBe(v);
+        } else {
+          await b.query("begin");
+          await as(b, ADMIN_ID, "aal2");
+          const r = (await b.query(replace, [s.projectId, PKG])).rows[0].v as Record<
+            string,
+            unknown
+          >;
+          expect(r.error, JSON.stringify(r)).toBe("scope_definition_missing");
+          await a.query("begin");
+          const aPid = await pidOf(a);
+          const pending = ownerOn(a, "select public.activate_package_scope_version($1, $2) v", [
+            PKG,
+            v,
+          ]);
+          expect(await waiting(aPid)).toBe(true);
+          await b.query("commit");
+          await pending;
+          await a.query("commit");
+        }
+        scopeV = v;
+      }
+    }
+  }, 600_000);
 });

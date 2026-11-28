@@ -2647,3 +2647,68 @@ Implemented by WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) on `main` through `07e2
 - Unit 527 passed; lint, typecheck and format clean; build passes.
 - e2e and Lighthouse: see the PR (e2e locally with the preinstalled Chromium 1243 and the CI `NEXT_PUBLIC_SITE_URL`).
 - No Stripe request, credential or hosted operation.
+
+**Integration timeout diagnosis under OI-132 (a) (accepted by Main, 2026-11-28; not a STOP).** Before the setup-only restores, `dep18-scope-loader-race` "issuance first: the withdrawal waits for it; the committed issuance stays valid" failed at :210 with `scope_definition_missing`, as (a) requires: no bundle pinned the activated scope version. The test threw before its rollback, leaving that issuance connection `idle in transaction` (`Client/ClientRead`) and holding `advisory ShareLock` on `dep18-scope-eligibility:<pkg>` (objid 2286681138). The three following cases then timed out after 60 s, because each governance call (`record_package_scope_approval`) waited for `advisory ExclusiveLock` on the same key. The `pg_stat_activity` and `pg_locks` sampler, run every 5 s, showed no other wait (no tuple, transactionid or relation lock). That is the documented OD-3 serialization behind an uncleaned transaction, not a cycle. The FD-14-3 setup removes the case-1 failure, and with it the cascade. The sampler log is kept with the session evidence.
+
+**FD-14 record (Main, verbatim; 5,224 bytes, SHA-256 prefix `9129432b6d811879`):**
+
+````markdown
+# FD-14 records: AUTH-022, OI-132 option (a) setup-only restores (Main, 2026-11-28 ~08:08Z)
+
+- **Source:** WP-B branch `claude/wp-b-client-portal-xjftil`, local HEAD `e894b9d`, base main `07e2d37` (merged in as `08ee5d2`). Not pushed.
+- **Authority:**
+  - OD-11(ii), the pre-approved setup-only class;
+  - the Owner's OI-132 decision, option (a), 2026-11-28, with verification of consistent eligibility decisions, the OD-3 lock order, fail-closed behavior and preserved governance guarantees;
+  - verification requirement E;
+  - CLAUDE.md §5 (no invented legal text).
+- **Reproduction** (from the repository root, per hunk):
+  `git diff -U0 07e2d37 HEAD -- <file> | awk -v H='<hunk header>' 'index($0,H)==1{f=1;next} /^@@/{f=0} f' | sed 's/^+//' | sha256sum | cut -c1-16`
+
+| Record | File | Hunk | Added / deleted | Added-text SHA-256 (16) |
+|---|---|---|---|---|
+| FD-14-1 | supabase/tests/310_wps_sales_commercial.test.sql | `@@ -265,0 +266,6 @@` | 6 / 0 | aa888bfa94488bf8 |
+| FD-14-2 | supabase/tests/330_dep18_scope_loader_activation.test.sql | `@@ -400,0 +401,62 @@` | 62 / 0 | 7485d9d7262c6c96 |
+| FD-14-3a | tests/integration/dep18-scope-loader-race.test.ts | `@@ -131,0 +132,2 @@` | 2 / 0 | 1ddd9a3b4397575c |
+| FD-14-3b | tests/integration/dep18-scope-loader-race.test.ts | `@@ -134,0 +137,73 @@` | 73 / 0 | efd5da8d69b80468 |
+
+The exact added text is as WP-B sent it to Main at 08:05Z, verbatim. Main verifies it after the push against these hashes and against WP-B's message.
+
+## Common fields
+1. **Original:** each existing test is unchanged. No existing line is modified or removed in these hunks.
+2. **Replacement:** additions only. No `expect`, pgTAP assertion, plan, description or expected value is added or changed. Setup refusals raise or throw.
+3. **Original guarantees:**
+   - 310:52–54 (with the cascade 73, 94–97): Sales issuance copies a new scope version before acceptance (T-SALES-31, A5).
+   - 330:88–89: the issued summary carries exactly the activated scope.
+   - dep18-scope-loader-race (5 tests): AUTH-018 activation, withdrawal and load serialization.
+4. **Replacement guarantees:** the same assertions, byte-identical. Under OI-132 (a), each now runs against a bundle that pins that scope version, so both the AUTH-018 gate and bundle verification hold.
+5. **Exposure:**
+   - **FD-14-1:** a fixture bundle built by `private.construct_contract_bundle` (the seed constructor, `supabase/seed.sql:103`) with `p_is_test_fixture = true`. The constructor enforces the OD-9 fixture label and the development/test-only fixture guard (`20261128100000`:188–207). It runs inside 310's rolled-back transaction.
+   - **FD-14-2:**
+     - synthetic instruments, a synthetic agreement (heading `PGTAP SYNTHETIC AGREEMENT (330, OI-132)` plus `private.final_payment_clause()` only), sealing, an approval record with the synthetic identifier `PGTAP-330-OI132` and hash `repeat('e', 64)`, and activation;
+     - all through the AUTH-021 and WP-B Owner functions as the Owner with fresh MFA;
+     - inside 330's rolled-back transaction;
+     - never `approved_for_production`; activation is CHECK-limited to development and test.
+   - **FD-14-3:**
+     - the same construction through the file's existing `owner()` helper and `public.*` Owner functions, with the agreement `IT SYNTHETIC AGREEMENT <marker>` plus `private.final_payment_clause()` only (the pwp1-contract-race precedent, effective 2026-11-01, before the seeded fixture agreement);
+     - committed to the local or CI database (append-only), for package `prestige` only;
+     - among integration and e2e tests, only this file uses `prestige`. pgTAP runs first in CI on a fresh reset;
+     - no MFA factors are inserted, so AUTH-025's cleanup at lines 179–189 (shifted) is unaffected;
+     - there is no direct insert into any contractual or financial table.
+6. **Compensating coverage:**
+   - 197_wpb_standardized_issuance;
+   - the OI-132 decision table (bundle state × scope state; to come);
+   - the scope withdrawal and activation races in pwp2-acceptance-race (to come);
+   - 310:215, 330:70 and 330:109 passing unchanged (the AUTH-018 gate preserved).
+7. **Authorization:** OD-11(ii), plus the Owner's OI-132 decision. Main records it here before the push. No individual Owner approval is needed, because no assertion changes.
+8. **Evidence (WP-B, local at `e894b9d`):**
+   - pgTAP 2,629 assertions with 0 files failed: 310 217/217; 330 137/137; 310:215, 330:70 and 330:109 byte-identical.
+   - dep18-scope-loader-race plus pwp1-contract-race 11/11, with pwp1-contract-race unchanged.
+   - **After the push:**
+     - Main re-verifies the hashes, 0 deletions in these files outside the approved B-2 sites, and the assertion lines byte-identical;
+     - WP-I verifies the same independently.
+
+## Conditions
+1. Every synthetic text is exactly the precedent form above. Nothing else may enter an agreement or instrument body.
+2. No assertion change. Any later need for one goes to the Owner individually (OI-105).
+3. The timeout diagnosis (case-1 expected failure leaving a transaction open; the documented OD-3 serialization, not a cycle; pg_locks sampler log) goes in WP-B's CURRENT-STATE record, together with this record verbatim.
+````

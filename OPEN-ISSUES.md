@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Version | 0.48.0 |
+| Version | 0.49.0 |
 | Status | Current (updated with the governance correction, OI-67). Overall status is in [docs/CURRENT-STATE.md](docs/CURRENT-STATE.md). |
-| Next unused issue ID | **OI-130** (OI-124 to OI-129 recorded 2026-11-28 by the PWP investigation; OI-119 and OI-123 are recorded with the AUTH-016 PR or below; OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
+| Next unused issue ID | **OI-130** (OI-125 and OI-126 closed as decided 2026-11-28; OI-124 and OI-129 decided, open until implemented; OI-127 and OI-128 open; OI-124 to OI-129 recorded 2026-11-28 by the PWP investigation; OI-119 and OI-123 are recorded with the AUTH-016 PR or below; OI-56 to OI-62 are allocated in draft PR #6, the AI operations proposal) |
 | Next unused dependency ID | **DEP-21** |
 | ID allocation | **Central (Owner, 2026-11-24).** Only the Main (integration) session allocates OI, DEP, and AUTH IDs. Work-package sessions propose items without IDs; Main assigns them. **One-time exception (Owner, 2026-11-25):** OI-98 to OI-112, DEP-19, DEP-20 and AUTH-011 were allocated by the PWP-0 documentation session under explicit Owner direction (AUTHORIZATIONS AUTH-011). |
 | Decision record | [docs/08-DECISIONS-AND-CHANGELOG.md](docs/08-DECISIONS-AND-CHANGELOG.md) |
@@ -172,7 +172,7 @@ OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in 
 
 **Closed: OI-123 (2026-11-28; AUTH-016, PR #55 `b294d33`; Owner decision 2026-11-28).** *Found in PR #55's exact-head CI, run 46085318711.* With AUTH-016 (OI-115 D1) on top of `main`, AUTH-018's `330_dep18_scope_loader_activation.test.sql` aborts at test 76 of 137: its classification cases change `private.environment_settings` (staging, preview, absent, test) while `private.runtime_environment` stays `development`, and `private.app_environment()` raises on the disagreement. `main` is unaffected (AUTH-016 not merged). **Owner decision (Consolidated Owner Directive, 2026-11-28): approved exactly as reviewed, with the PR #55 allowlist change; dispositions in CURRENT-STATE §25.2.** Proposal: OI-119-option-A-style setup-only additions at four sites (+41 lines; no assertion, expected value, plan or description change; a restoration guard), measured with the 43 → 48 allowlist change: 330 137/137, full pgTAP 2,255, isolated 27/27.
 
-**Open: OI-124 (R1; PWP-1, PWP-2; found 2026-11-28 by Main's read-only PWP investigation; awaiting the Owner).** *Contractual lock order: the implemented order and 04 §4A disagree.*
+**Open, decided 2026-11-28: OI-124 (R1; PWP-1, PWP-2; found 2026-11-28 by Main's read-only PWP investigation).** **Owner decision:** OD-3 (A) and OD-4 (A) adopt the canonical hierarchy, now recorded in 04 §4A v0.11.0, with the per-package key `dep18-scope-eligibility:<pkg>`. **Closes** on the verified merge and post-merge CI of AUTH-022, once its acceptance lock change and T-CON-07 pass, together with verification requirement A of AUTH-021 and AUTH-022. Until then the issue stays open: the decision is made, but the code does not implement it yet. *Contractual lock order: the implemented order and 04 §4A disagree.*
 - **The conflict:** 04 §4A (Concurrency) gives a conceptual order: construction locks held alone; project row; order-summary row; per-package lock; bundle row. The implemented issuance (`20261126120000_wph_oi86_issue_order_summary_lock.sql`) takes a different order: the project row `FOR NO KEY UPDATE` (line 61), then the shared `dep18-scope-eligibility:<pkg>` lock inside `private.current_package_scope` (line 84), then the presented order-summary row `FOR UPDATE` (line 131).
 - **Construction:** the AUTH-018 governance functions take the eligibility lock and then the sealing lock, and construct while holding both. They do not hold construction locks "alone".
 - **Acceptance:** `private.accept_agreement` locks only the order-summary row (`20261124160000_wpb_agreements.sql`, the `for update` in `accept_agreement`). It is therefore not serialized against withdrawal, which T-CON-07 requires.
@@ -183,9 +183,9 @@ OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in 
   4. the order-summary row;
   5. the bundle row.
 - **What PWP-2 would change:** acceptance takes the per-package lock, shared, before the order-summary row. It reads the package key without a lock, then re-checks it under the lock. T-CON-07 proves both commit orders with no 40P01.
-- **Status:** open until the Owner rules. This blocks the PWP-1 and PWP-2 grants.
+- **Status:** decided (see above). The grants are no longer blocked.
 
-**Open: OI-125 (R1 release-candidate verification; found 2026-11-28; awaiting the Owner).** *Fixture bundles cannot be verified in staging.*
+**Closed (decided): OI-125 (2026-11-28; Owner OD-18, option A).** The strict reading applies: staging verification of criterion 18 waits for counsel-approved content. Invariant 13 and T-CON-12 are unchanged. **Recorded consequence (Owner, verification requirement B):** PWP-4 may need separately authorized staging eligibility engineering, and the development/test loader is not assumed to satisfy staging verification. No staging or production eligibility path is authorized. *Original record:* *Fixture bundles cannot be verified in staging.*
 - **The conflict:** R1 release-candidate acceptance runs in staging (01 §9.1, criterion 18). Fixture bundles are rejected outside `development` and `test`, and every component must agree on fixture status (04 §4A, T-CON-12, invariant 13). A non-fixture agreement is not loaded before counsel approves the final text (04 §1). Staging with no `environment_settings` row reads as `production` (D2).
 - **The consequence:** contractual end-to-end verification in staging (PWP-4, R-04) needs counsel-approved content, whichever way OI-126 is decided.
 - **Options:**
@@ -194,10 +194,10 @@ OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in 
   - (C) Contractual end-to-end verification in an isolated hosted project classified `test`.
 - **Main's recommendation:** A, which is the more restrictive reading. B and C are recorded as Owner options.
 
-**Open: OI-126 (R1 release-candidate gate; found 2026-11-28; awaiting the Owner).** *What DEP-03 requires before R1 release-candidate acceptance.*
+**Closed (decided): OI-126 (2026-11-28; Owner OD-19, option A).** The strict reading is confirmed: the R1 instruments need counsel approval (PWP-3, DEP-03 R1 portion) before R1 release-candidate acceptance. *Original record:* *What DEP-03 requires before R1 release-candidate acceptance.*
 - **The conflict:** 01 §9.1 criterion 18 and 08 OI-112 stage 2 require the R1 portion of the DEP-03 evidence to be reconciled before release-candidate eligibility. That means counsel-approved R1 instruments, through PWP-3. OPEN-ISSUES DEP-03 reads "Phase 5 (Prod; before enforcement)", and the earlier CURRENT-STATE §7 wording read only "never presented as legally approved".
 - **Rule applied:** under CLAUDE.md §2 the more restrictive reading applies, so counsel approval of the R1 instruments is required.
-- **Status:** the Owner is asked to confirm. This sets the critical path.
+- **Status:** decided (see above). Counsel is on the release-candidate critical path.
 
 **Open: OI-127 (AUTH-003 execution prerequisites; found 2026-11-28; awaiting the Owner).** The AUTH-003 record and the specifications leave these unresolved:
 - (a) DEP-14 names hosted dev and staging projects; AUTH-003 is staging only.
@@ -216,7 +216,7 @@ OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in 
 - (d) Test refunds are permitted, but no Refunds permission is in the proposed key permissions. This is a provider fact to verify.
 - (e) Whether the Stripe CLI is used, and which hosts it needs.
 
-**Open: OI-129 (R1; PWP-1, PWP-2, PWP-5 specification gaps; found 2026-11-28; awaiting the Owner).** The specifications leave these undecided. Each needs an Owner ruling, recorded with the grant packages:
+**Open, decided 2026-11-28: OI-129 (R1; PWP-1, PWP-2, PWP-5 specification gaps; found 2026-11-28).** **Owner decisions (all option A, or as recommended):** (a) OD-7; (b) OD-8; (c) OD-5; (d) OD-6; (e) OD-10; (f) OD-14; (g) OD-15; (h) OD-16; (i) OD-9; (j) OD-17. **Closes:** each item closes with its implementing grant's verified merge: (a)–(e) and (i) with AUTH-021; (j) is satisfied by AUTH-022's v1-preservation guarantee, with reconciliation deferred to DEP-20; (f) and (g) with AUTH-023; (h) with AUTH-024. The issue closes when all ten are closed. The specifications leave these undecided. Each needs an Owner ruling, recorded with the grant packages:
 - (a) The older-bundle eligibility policy and the meaning of "newest such bundle" (04 §4A).
 - (b) Where the scope fit check applies: the scope version, the bundle or both. Also whether the 300-character item limit applies (04 §4A, 08 OI-99).
 - (c) Whether PWP-1 builds the Owner-controlled loader for instrument content, given that OI-106 says no loading mechanism is chosen.
@@ -228,7 +228,7 @@ OI-92 and OI-93 were decided on 2026-11-25 (AUTH-006 Amendment 1); decisions in 
 - (i) The fixture labels for instruments and bundles.
 - (j) The mechanism for reconciling legacy presented summaries (OI-102 versus DEP-20).
 
-Main's recommendations are in the next-wave execution plan.
+The recommendations were approved as the Owner decisions above (08, "Contractual architecture implementation wave").
 
 **OI-91 proposed architecture (separate work package; proposed AUTH-009):** `private.outbound_request_for_execution` body only: lock `payment_authorizations` before `final_balance_invoices`, matching revocation; detect an obligation whose release was withdrawn after initiation (read-only `preview_releases.withdrawn_at`) and notify the Owner once through `notify_owner` with the key `final_balance.release_withdrawn:<invoice id>` (the obligation stands, OI-92(e)); requests already claimed or in flight keep the existing `charged_after_halt` detection and Owner review, made explicit in tests and the runbook. Acceptance: two-connection outbound execution against revocation in both orders (no deadlock, no automatic charge after revocation, idempotency and single flight kept), one notification per withdrawn obligation under replay, in-flight behaviour documented. One reserved migration. **Design direction (Owner, 2026-11-25; approved, not authorized):** Option B pre-send dispatch confirmation (a set-once `dispatch_confirmed_at`, the narrow `outbound_guard` change); one lock order, payment authorization, then final-balance invoice, then outbound request, applied also in `handle_invoice_failed`, `handle_final_balance_paid`, `record_outbound_result` and `reconcile_outbound_request`; detection of withdrawal and of authoritative supersession of the originating release (WP-C `current_release` semantics) during execution and in the existing project reconciliation, with one deduplicated Owner notification; the obligation stands; claimed, confirmed, dispatched and recorded states are distinct, and confirmation is never proof of external dispatch; duplicate confirmations can never authorize two dispatches; fail-closed confirmation; deterministic hosted-only replacement; the residual interval between confirmation and HTTP dispatch is documented; provider automatic-collection timing stays unverified until authorized sandbox validation. The stale-unconfirmed-request optimization is deferred. Outstanding before authorization: the final inventory, the confirmation scope, and the claim-token mechanism. **Final design (2026-11-25):** recorded as the proposed record AUTHORIZATIONS AUTH-009 (not authorized).
 

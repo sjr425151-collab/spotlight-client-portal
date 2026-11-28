@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.60.0 |
+| Version | 0.61.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,42 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### Contractual architecture implementation wave (Owner, 2026-11-28)
+
+Owner directive "Contractual Architecture Implementation Wave". **All nineteen dispositions are approved exactly as Main recommended.** The full options, rationale, risks and consequences are in the Main review material presented to the Owner on 2026-11-28; the dispositions are summarized here.
+
+| # | Decision | Disposition |
+|---|---|---|
+| OD-1 | Package split and start order | **B.** PWP-5 is split into PWP-5a and PWP-5b. PWP-5a starts in parallel with PWP-1. PWP-2's test-only preparation starts at grant; its core starts after the PWP-1 interface freeze |
+| OD-2 | Implementers and reviewers | **As recommended:** PWP-1, the DEP-18 session (reviews: WP-B, WP-I, Main); PWP-2, WP-B (DEP-18 session, WP-S, WP-I, Main); PWP-5a and PWP-5b, WP-C in sequence (WP-B, WP-I for 5a, Main) |
+| OD-3 | Contractual lock order (OI-124) | **A.** The implemented order is adopted as canonical, and 04 §4A is amended (v0.11.0) |
+| OD-4 | Per-package lock key | **A.** `dep18-scope-eligibility:<pkg>` is the single per-package lock |
+| OD-5 | Instrument loader in PWP-1 | **A.** An Owner-controlled, hash-verified, audited loader on the AUTH-018 pattern, with activation in `development` and `test` only. No real content is loaded; OI-106 is preserved |
+| OD-6 | Production eligibility and activation | **A.** Excluded from PWP-1 and built later under Tier 3 (DEP-20). The resolver returns nothing in production |
+| OD-7 | Older-bundle policy | **A.** No older-bundle selection in R1. "Newest such bundle" means the newest sealed bundle, so a sealed but unactivated newer bundle suspends issuance |
+| OD-8 | Scope fit check | **A.** Checked at both scope-version and bundle sealing, with all three limits |
+| OD-9 | Fixture labels | **A.** "TEST FIXTURE — NOT A CONTRACT INSTRUMENT" and "TEST FIXTURE — NOT A CONTRACT BUNDLE", installed by seed only and shown on every screen |
+| OD-10 | Relation to AUTH-018 approvals | **A.** A scope-version approval stays a component prerequisite. The bundle's legal approval is a separate record bound to the bundle hash |
+| OD-11 | Disposition handling | **B.** Two classes are pre-approved: (i) D-1 lexical exemptions for the exact reserved PWP-1 and PWP-2 filenames; (ii) setup-only test additions, verified by Main and recorded in FD-14 format before the push, with existing assertions, expected values, plans and descriptions byte-identical, and the same verified by the independent reviewers. Every other assertion change stays individual (OI-105) |
+| OD-12 | Migration timestamps | **A.** Reserved: `20261128100000` and `20261128100100` (PWP-1), `20261128110000` (PWP-5a), `20261128120000` (PWP-2), `20261128130000` (PWP-5b) |
+| OD-13 | Freeform scope in R1 | **A.** Freeform scope ends for every R1 catalog order. The RPC signature is kept; scope and notes inputs are rejected and audited |
+| OD-14 | Renewing the acknowledgment | **A.** Any new confirmation version needs renewed acknowledgment |
+| OD-15 | PWP-5 permissions | **A.** Confirmations: Owner and Admin write, the signer acknowledges, client members read. Notes: Owner and Admin. Sales: none |
+| OD-16 | PWP-5b semantics | **All four approved:** days 7 and 14 are staff-recorded outreach in R1; estimate suspension is a recorded state with no financial or contractual effect; notice wording is marked "pending DEP-03"; releases created before the merge keep the day-21 rules |
+| OD-17 | Legacy summary reconciliation | **A.** Built with DEP-20 under Tier 3. PWP-2 only guarantees that v1 rows keep verifying |
+| OD-18 | Fixture bundles and staging (OI-125) | **A.** The strict reading |
+| OD-19 | DEP-03 release-candidate gate (OI-126) | **A.** The strict reading: counsel approval of the R1 instruments (PWP-3) comes before release-candidate acceptance |
+
+**Grants:** AUTH-021 (PWP-1), AUTH-022 (PWP-2), AUTH-023 (PWP-5a) and AUTH-024 (PWP-5b), Tier 1, exactly as presented, with **verification requirements A to F** (AUTHORIZATIONS, "Contractual architecture wave: common conditions"). The work is local and CI only, with synthetic and permitted fixture data. No real or counsel-derived content, hosted operation, staging or production eligibility, production activation or provider execution is authorized.
+
+**Open-issue effect:**
+- OI-124: decided; open until implemented and verified (AUTH-022).
+- OI-125 and OI-126: closed as decided.
+- OI-129: decided item by item; each item closes with its implementing grant.
+- OI-127 and OI-128: open, with no ruling yet.
+
+**Execution (Owner, items 3 and 5):** dispatch happens on the grants' effectiveness, without another Owner acknowledgment.
+
 ### Milestone acceptance and next development wave (Owner, 2026-11-28)
 
 Owner directive "Milestone Acceptance and Next Development Wave". Documentation only; it grants no implementation authority.
@@ -1747,6 +1783,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.61.0 | 2026-11-28 | **Contractual architecture implementation wave** (Owner): OD-1 to OD-19 approved as recommended; AUTH-021 to AUTH-024 granted (Tier 1) with verification requirements A to F; 04 v0.11.0 (§4A canonical lock hierarchy, OD-3); OI-125 and OI-126 closed as decided; OI-124 and OI-129 decided, open until implemented. AUTHORIZATIONS v1.41.0; CURRENT-STATE v1.46.0; OPEN-ISSUES v0.49.0. | Main session | Owner |
 | 0.60.0 | 2026-11-28 | **PWP investigation record** (Main, read-only): OI-124 to OI-129 opened (awaiting the Owner); 04 v0.10.6 and the DEP-18 status corrected (status only). AUTHORIZATIONS unchanged; CURRENT-STATE v1.45.0; OPEN-ISSUES v0.48.0. | Main session | Owner |
 | 0.59.0 | 2026-11-28 | **Milestone acceptance** (Owner): baseline `59b9aac` (CI 46104833504); CURRENT-STATE §3, §6 and §7 corrected (Tier 0); AUTH-020 diff-hash limitation recorded; read-only PWP-1, PWP-2 and PWP-5 package preparation authorized (no implementation). AUTHORIZATIONS v1.40.0; CURRENT-STATE v1.44.0; OPEN-ISSUES v0.47.0. | Main session | Owner |
 | 0.58.0 | 2026-11-28 | **PR #64 merged: AUTH-020 completed; OI-122 closed** (`2ae3639`; exact-head CI 46094951319 7/7; post-merge CI 46103910059). The milestone checkpoint has been reached. AUTHORIZATIONS v1.39.0; CURRENT-STATE v1.43.0; OPEN-ISSUES v0.46.0. | Main session | Owner |

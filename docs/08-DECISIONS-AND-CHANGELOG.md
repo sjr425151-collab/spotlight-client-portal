@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.65.0 |
+| Version | 0.66.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,12 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### OI-132 decision and OI-131 grant preparation (Owner, 2026-11-28)
+
+- **OI-132: option (a) approved.** AUTH-022 issuance keeps the AUTH-018 scope eligibility check (04 §4A "R1 interim scope loading" rule 7) alongside contract bundle verification. It fails closed unless the current scope version resolves and equals the bundle's pinned scope version. Verification requires consistent eligibility decisions, the canonical OD-3 lock order, fail-closed behavior and preservation of the existing contractual governance guarantees. Any assertion change that remains goes to the Owner individually.
+- **OI-131:** preparation of an implementation grant is authorized; implementation is not. The grant must address the root cause, query and application performance, distinct loading, empty, failed and populated states, the misleading "Nothing needs attention." on failed retrieval, regression coverage including T-E2E-07, and the preservation of authorization, tenant isolation and operational visibility.
+- **PR #75:** one bounded CI re-run of the failed jobs, preserving the original failure evidence, with no weakening of Lighthouse budgets, required checks or test assertions.
+
 ### AUTH-024 dispositions and AUTH-025 grant (Owner, 2026-11-28)
 
 - **Day 30 (Q6):** confirmed as administrative suspension or rescheduling eligibility only, consistent with AUTH-024 and OD-16. No automatic financial or contractual consequence is authorized.
@@ -1808,6 +1814,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.66.0 | 2026-11-28 | **OI-132 decided (option (a))**; OI-131 grant preparation authorized (not implementation); PR #75 bounded CI re-run. CURRENT-STATE v1.51.0; OPEN-ISSUES v0.53.0. | Main session | Owner |
 | 0.65.0 | 2026-11-28 | **AUTH-025 active** (PR #73 `c804da5`, post-merge CI 46121106776); **OI-131** (operational queue performance and error display) and **OI-132** (AUTH-022 issuance and the AUTH-018 scope gate; Main provisional ruling (a)) opened, awaiting the Owner. CURRENT-STATE v1.50.0; OPEN-ISSUES v0.52.0. | Main session | Owner |
 | 0.64.0 | 2026-11-28 | **AUTH-024 dispositions and AUTH-025 grant** (Owner): day 30 confirmed (Q6); test 215 option (a) (Q5); B-1d approved; AUTH-025 granted for OI-130 (option A, test-only, WP-I) with four added verification requirements. AUTHORIZATIONS v1.44.0; CURRENT-STATE v1.49.0; OPEN-ISSUES v0.51.0. | Main session | Owner |
 | 0.63.0 | 2026-11-28 | **PRs #69 and #71 merged: AUTH-021 (PWP-1) and AUTH-023 (PWP-5a) completed** (`459e66c`; head `dbf60bd`, base `5c47d16`; exact-head CI 46113700205 7/7; post-merge CI 46114832520. `360e026`; head `6627926`, base `459e66c`; exact-head CI 46116797090 7/7; post-merge CI 46117890947); OI-129 (a)–(g) and (i) closed; 05 v0.5.3 (§3A status labels only); **OI-130** opened (test MFA-factor hygiene; awaiting the Owner); AUTH-023 B-1c wording erratum (Main drafting error; private implementation executable by `authenticated` only). AUTHORIZATIONS v1.43.0; CURRENT-STATE v1.48.0; OPEN-ISSUES v0.50.0. | Main session | Owner |

@@ -263,6 +263,12 @@ select private.create_package_scope_version('essential', array[
 select is((select (scope_items, snapshot_sha256)::text from public.order_summaries where id = pg_temp.id('os1')),
   (select (scope_items, snapshot_sha256)::text from os1_before),
   'T-SALES-31 (A5): a later scope version leaves the issued snapshot and hash unchanged');
+-- AUTH-022 (OI-132 option (a); setup only, OD-11(ii)): a fixture bundle pins the new scope version,
+-- through the seed constructors only, so standardized issuance resolves it.
+select private.construct_contract_bundle('essential', 'TEST FIXTURE — NOT A CONTRACT BUNDLE (essential, scope v2)',
+  b.agreement_version_id, b.package_instrument_id, b.maintenance_instrument_id, b.shared_terms_instrument_id,
+  2, '["FX-P1", "FX-P2"]'::jsonb, true)
+from private.contract_bundles b where b.package_key = 'essential' order by b.bundle_version desc limit 1;
 select pg_temp.use_session('00000000-0000-4000-8000-000000000005', pg_temp.id('s1'), 'aal2', true);
 insert into ids select 'os2', public.issue_order_summary(pg_temp.id('c1'), 'essential', '[]'::jsonb, null, 'Refresh scope') ->> 'order_summary_id';
 reset role;

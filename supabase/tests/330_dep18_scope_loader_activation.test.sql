@@ -398,6 +398,68 @@ select is(pg_temp.audits('package_scope.activated'), 1, 'one activation event');
 select is(pg_temp.rows('professional'), '2:1,2:2,2:3', 'the activated version resolves, in order');
 select is((select string_agg(item_text, '|' order by item_position) from private.current_package_scope('professional')),
   array_to_string(pg_temp.items('p2'), '|'), 'with exactly the loaded items');
+-- AUTH-022 (OI-132 option (a); setup only, OD-11(ii)): a synthetic bundle pins the activated
+-- non-fixture scope version, built only through the AUTH-021 Owner functions in development: an
+-- agreement holding only a synthetic heading and the approved 04 §3.1 clause (the 340, 420 and
+-- pwp1-contract-race precedent; never production-approved), synthetic instruments, sealing, a
+-- legal-approval record with synthetic identifiers, and activation. Any refusal aborts the file.
+create function pg_temp.oi132_bundle(p_pkg text, p_scope_version integer) returns void language plpgsql as $oi132$
+declare
+  v_n integer := (select count(*)::int from private.billing_package_scope s
+                   where s.package_key = p_pkg and s.scope_version = p_scope_version);
+  v_map jsonb := (select jsonb_agg('S' || g) from generate_series(1, v_n) g);
+  v_prov text[] := (select array_agg('S' || g) from generate_series(1, v_n) g);
+  v_text text := 'PGTAP SYNTHETIC AGREEMENT (330, OI-132)' || E'\n\n' || private.final_payment_clause();
+  v_kind text;
+  v_ver integer;
+  v_sha text;
+  v_ids jsonb := '{}';
+  v jsonb;
+begin
+  for v_kind in select unnest(array['package_specification', 'maintenance_specification', 'shared_terms']) loop
+    v_ver := coalesce((select max(i.instrument_version) from private.contract_instrument_versions i
+                        where i.kind = v_kind and i.package_key is not distinct from
+                          case when v_kind = 'package_specification' then p_pkg end), 0) + 1;
+    v_sha := private.contract_instrument_sha256(v_kind, case when v_kind = 'package_specification' then p_pkg end,
+      v_ver, 'PGTAP SYNTHETIC', 'PGTAP SYNTHETIC ' || v_kind || ' (330, OI-132)', v_prov);
+    perform pg_temp.owner();
+    v := public.create_contract_instrument_version(v_kind, case when v_kind = 'package_specification' then p_pkg end,
+      v_ver, 'PGTAP SYNTHETIC', 'PGTAP SYNTHETIC ' || v_kind || ' (330, OI-132)', v_prov, v_sha);
+    reset role;
+    if not coalesce((v ->> 'ok')::boolean, false) then
+      raise exception 'setup: instrument % refused: %', v_kind, v;
+    end if;
+    v_ids := v_ids || jsonb_build_object(v_kind, v ->> 'instrument_id');
+  end loop;
+  perform pg_temp.owner();
+  v := public.create_agreement_version('pgtap-330-oi132', v_text, date '2026-11-01', 'PGTAP-330-AGR');
+  reset role;
+  if not coalesce((v ->> 'ok')::boolean, false) then
+    raise exception 'setup: agreement refused: %', v;
+  end if;
+  v_ids := v_ids || jsonb_build_object('agreement', v ->> 'agreement_version_id');
+  perform pg_temp.owner();
+  v := public.approve_agreement_version((v_ids ->> 'agreement')::uuid);
+  if coalesce((v ->> 'ok')::boolean, false) then
+    v := public.seal_contract_bundle(p_pkg, 'PGTAP SYNTHETIC BUNDLE (330, OI-132)', (v_ids ->> 'agreement')::uuid,
+      (v_ids ->> 'package_specification')::uuid, (v_ids ->> 'maintenance_specification')::uuid,
+      (v_ids ->> 'shared_terms')::uuid, p_scope_version, v_map);
+  end if;
+  if coalesce((v ->> 'ok')::boolean, false) then
+    v_ids := v_ids || jsonb_build_object('bundle', v ->> 'bundle_id', 'bundle_sha', v ->> 'bundle_sha256');
+    v := public.record_contract_bundle_approval((v_ids ->> 'bundle')::uuid, v_ids ->> 'bundle_sha',
+      'PGTAP-330-OI132', repeat('e', 64));
+  end if;
+  if coalesce((v ->> 'ok')::boolean, false) then
+    v := public.activate_contract_bundle((v_ids ->> 'bundle')::uuid);
+  end if;
+  reset role;
+  if not coalesce((v ->> 'ok')::boolean, false) then
+    raise exception 'setup: bundle governance refused: %', v;
+  end if;
+end;
+$oi132$;
+select pg_temp.oi132_bundle('professional', 2);
 select is(pg_temp.issue('professional') ->> 'ok', 'true', 'Sales issuance succeeds for the activated version');
 select is((select scope_items from public.order_summaries where project_id = pg_temp.id('prj') order by issued_at desc limit 1),
   to_jsonb(pg_temp.items('p2')), 'the issued order summary carries exactly the activated scope');

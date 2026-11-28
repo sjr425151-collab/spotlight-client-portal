@@ -289,6 +289,10 @@ async function ambiguous(f: Fixture) {
 
 /** Waits until `pid` waits on a row lock; returns the table whose row it waits for. */
 async function waitsOnRowOf(pid: number): Promise<string | null> {
+  // OI-122: one sample can see the waiter blocked before its tuple lock is visible to the same
+  // query (pg_locks and pg_blocking_pids are read at different instants). Such a sample is not
+  // an answer: keep polling until the table is identified, within the same bounded deadline.
+  let last: string | null = null;
   for (let i = 0; i < 40; i++) {
     const rel = await withDb(async (db) => {
       const { rows } = await db.query(
@@ -299,10 +303,11 @@ async function waitsOnRowOf(pid: number): Promise<string | null> {
       );
       return rows[0].blocked ? ((rows[0].rel as string | null) ?? "unknown") : null;
     });
-    if (rel) return rel;
+    if (rel && rel !== "unknown") return rel;
+    last = rel ?? last;
     await new Promise((r) => setTimeout(r, 50));
   }
-  return null;
+  return last;
 }
 const pidOf = async (c: Client) =>
   (await c.query("select pg_backend_pid() as p")).rows[0].p as number;
@@ -335,6 +340,32 @@ const state = (f: Fixture) =>
   });
 
 /**
+ * OI-122: deterministic cleanup for the two-connection helpers, used only when a step fails. Every
+ * connection still open is rolled back (never committed): the lock holders first, so the call
+ * under test can settle; then, after a bounded wait for it, the connection running it. Every one is
+ * then ended. Only cleanup errors are swallowed; the original error (an assertion, a lock timeout
+ * or a 40P01 deadlock) still propagates from the caller's `finally`.
+ */
+async function abandon(holders: Client[], pending: Promise<unknown> | null, runners: Client[]) {
+  for (const h of holders) await h.query("rollback").catch(() => undefined);
+  let timer: NodeJS.Timeout | undefined;
+  const settled =
+    pending === null ||
+    (await Promise.race([
+      pending.then(
+        () => true,
+        () => true,
+      ),
+      new Promise<boolean>((r) => (timer = setTimeout(() => r(false), 10_000))),
+    ]));
+  clearTimeout(timer);
+  // A runner whose call has not settled is ended without a rollback: ending it closes its socket,
+  // and the server rolls its transaction back.
+  if (settled) for (const c of runners) await c.query("rollback").catch(() => undefined);
+  for (const c of [...holders, ...runners]) await c.end().catch(() => undefined);
+}
+
+/**
  * One commit order: `first` runs and holds its locks; `second` is shown to wait on a payment
  * authorization row (the top of the hierarchy, so it holds nothing below it); `first` commits;
  * `second` completes. Any database error, a deadlock (40P01) included, fails the test.
@@ -344,16 +375,29 @@ async function race<A, B>(
   second: { as: "service" | "owner"; run: (c: Client) => Promise<B> },
 ): Promise<{ a: A; b: B }> {
   const ca = await open(first.as);
-  const a = await first.run(ca);
-  const cb = await open(second.as);
-  const pid = await pidOf(cb);
-  const pending = second.run(cb);
-  pending.catch(() => undefined);
-  expect(await waitsOnRowOf(pid)).toBe("payment_authorizations");
-  await done(ca);
-  const b = await pending;
-  await done(cb);
-  return { a, b };
+  let cb: Client | null = null;
+  let pending: Promise<B> | null = null;
+  let caOpen = true;
+  let cbOpen = false;
+  try {
+    const a = await first.run(ca);
+    cb = await open(second.as);
+    cbOpen = true;
+    const pid = await pidOf(cb);
+    pending = second.run(cb);
+    pending.catch(() => undefined);
+    expect(await waitsOnRowOf(pid)).toBe("payment_authorizations");
+    await done(ca);
+    caOpen = false;
+    const b = await pending;
+    await done(cb);
+    cbOpen = false;
+    return { a, b };
+  } finally {
+    if (caOpen || cbOpen) {
+      await abandon(caOpen ? [ca] : [], pending, cbOpen && cb ? [cb] : []);
+    }
+  }
 }
 
 /**
@@ -368,18 +412,31 @@ async function probe(
   fn: { as: "service" | "owner"; run: (c: Client) => Promise<Json> },
 ): Promise<Json> {
   const holder = await open("raw");
-  await holder.query("set local lock_timeout = '3s'");
-  await holder.query(higher.sql, higher.params);
-  const c = await open(fn.as);
-  const pid = await pidOf(c);
-  const pending = fn.run(c);
-  pending.catch(() => undefined);
-  expect(await waitsOnRowOf(pid)).toBe(higher.table);
-  await holder.query(lower.sql, lower.params);
-  await done(holder);
-  const result = await pending;
-  await done(c);
-  return result;
+  let c: Client | null = null;
+  let pending: Promise<Json> | null = null;
+  let holderOpen = true;
+  let cOpen = false;
+  try {
+    await holder.query("set local lock_timeout = '3s'");
+    await holder.query(higher.sql, higher.params);
+    c = await open(fn.as);
+    cOpen = true;
+    const pid = await pidOf(c);
+    pending = fn.run(c);
+    pending.catch(() => undefined);
+    expect(await waitsOnRowOf(pid)).toBe(higher.table);
+    await holder.query(lower.sql, lower.params);
+    await done(holder);
+    holderOpen = false;
+    const result = await pending;
+    await done(c);
+    cOpen = false;
+    return result;
+  } finally {
+    if (holderOpen || cOpen) {
+      await abandon(holderOpen ? [holder] : [], pending, cOpen && c ? [c] : []);
+    }
+  }
 }
 const lockAuthorizations = (f: Fixture) => ({
   table: "payment_authorizations",

@@ -2620,3 +2620,121 @@ Requirement D: AUTH-022 is not merged, so the combined v2 lifecycle verification
 **Fix (this file only, setup only; no assertion, case or repetition changed).** As the other files that sign in the Owner do (wpc-oi113, wpc-oi114, wpc-uploads, wpc-delivery), `beforeAll` now deletes the Owner's factors before signing in. `afterAll` also deletes this file's own `it-pwp5a` factors.
 
 **Evidence.** Two full integration runs in CI order (Vitest cache cleared, fresh `supabase db reset` before each): 14 files, 159 passed each time.
+
+## 30. WP-C AUTH-024 implementation record (PWP-5b: inactivity reconciliation)
+
+Implemented by WP-C (`session_01RCnsL4zY9edGTBFKQUbXM6`) from `main` at `360e026`, after AUTH-023's verified merge (post-merge CI 46117890947). Grant: AUTH-024 (OD-11, OD-12, OD-16; OI-110, OI-45). Main ruled on Q5 to Q8; the Owner ruled on Q5 (option (a)) and Q6. Numbered §30, the next free section. Local and CI only, synthetic data only. No provider request and no hosted operation.
+
+**Delivered (05 §7.1, §7.2, §9; 02 §13; T-LC-18):**
+- **Migration** `20261128130000_wpc_pwp5b_inactivity.sql`, at the reserved timestamp (OD-12).
+  - **The earlier schedule.** `private.inactivity_legacy_releases` holds the id of every release that exists when the migration runs.
+    - It is populated by the migration only. Every privilege is revoked from public, anon, authenticated and service_role, and no function writes it.
+    - An insert-only trigger protects it.
+    - Those releases keep the implemented day 3/7/14 outreach and the day-21 hold unchanged.
+  - **The revised schedule.** A release created after the merge follows 05 §7.1, counted in America/Detroit calendar days from the current release (02 §13). Staff perform and record each step (R1, OI-68; OD-16, Q8):
+
+    | Day | Step |
+    |---|---|
+    | 3 | Courtesy reminder (non-contractual) |
+    | 7 | Reminder and Admin notification |
+    | 14 | Formal notice and preview-estimate suspension |
+    | 30 | Rescheduling decision |
+    | 60 | Individual review |
+
+    The steps are recorded in `public.inactivity_milestones`, which is insert-only, unique per release and step, and readable by staff only. Writes go through `record_inactivity_milestone`. It refuses a step:
+    - before the step's day;
+    - for a non-current release;
+    - for a release on the earlier schedule;
+    - after a client response stops the schedule;
+    - without the formal notice, for the estimate suspension and the rescheduling decision.
+
+    Each step is audited as `inactivity.<step>_recorded`, without its summary.
+  - **Day 30 (Owner Q6).** Administrative suspension is the existing `approval_nonresponsive_hold`. For a revised-schedule release it is available at day 30 or later, after the recorded formal notice, with every 05 §7.2 and OI-45 protection unchanged. The rescheduling decision is a staff record with no financial, contractual, scheduling or publication effect, and no other code reads it. Nothing is automatic.
+  - **`place_approval_hold`** (create or replace, two hunks): the original lines are byte-identical inside `v1_day21` branches. No lock is added or moved, and the v1 refusal codes are unchanged. The revised path's codes are `suspension_too_early` and `formal_notice_required`.
+  - **`operational_queue`** (create or replace, two hunks): the revised-schedule items are:
+    - `approval_outreach_due`, for the courtesy reminder, the reminder and the Admin notification;
+    - `inactivity_formal_notice_due`;
+    - `inactivity_suspension_eligible`;
+    - `inactivity_review_due`.
+
+    The v1 items are unchanged.
+  - **Privileges** (clarification 3):
+    - public wrapper: SECURITY INVOKER, `search_path=''`, execute by `authenticated` only;
+    - private implementation: SECURITY DEFINER, `search_path=''`, execute by `authenticated` only, re-authorizing with NULL-safe guards;
+    - internal helpers (`detroit_days_between`, `inactivity_schedule`, `inactivity_milestone_day`, `inactivity_milestone_recorded`): no API-role execute.
+- **UI:**
+  - the staff "Inactivity procedure (releases from this update on)" form;
+  - step labels: "(non-contractual)" for day 3, and "(pending DEP-03)" for the day 14, 30 and 60 notice steps;
+  - the earlier-schedule outreach form, kept under its own heading;
+  - three queue labels, each marked "(pending DEP-03)";
+  - messages, and seven audit-action entries.
+- **Not changed:**
+  - approvals, releases created before the merge, the ledger, payments, subscriptions and published sites;
+  - every financial object;
+  - every AUTH-021, AUTH-022 and AUTH-023 object;
+  - dependencies.
+
+  No contractual consequence text was added. T-LC-10 needs no assertion replacement (Main, Q7), and the 05 test-table status is left for Main's record.
+
+**Requirement A (lock hierarchy).** `record_inactivity_milestone` takes the `release:` advisory lock, then the release row `FOR UPDATE`.
+- **Same order:** approval and `place_approval_hold` take `release:` first, then their inserts' foreign-key `FOR KEY SHARE` on the release row.
+- **Row only:** a revision request and `record_outreach` take only the row share, and withdrawal only the row `FOR UPDATE`. None of them takes `release:` afterwards.
+- **Advisory only:** `release_preview` takes `release:` and locks no existing release row.
+
+So no waits-for cycle is possible. Neither replaced function takes a contractual (OD-3) or financial lock.
+
+**Q5 (Owner, option (a)): OD-11(ii) setup-only disposition (recorded by Main before push)**
+
+# FD-14 record: AUTH-024, test 215 §4 earlier-schedule setup (Main, 2026-11-28)
+
+- **Source:** WP-C branch `wp-c/pwp5b-inactivity`, from `360e026`. Draft only; nothing is pushed.
+- **Authority:** the Owner's individual ruling on Q5, 2026-11-28: **"Option a"**. AUTH-024 reserves "the day-21-hold assertion replacements" for individual Owner approval. Option (a) replaces none of them: it keeps every assertion byte-identical. Verification requirement E applies.
+
+## Site
+`supabase/tests/215_wpc_approvals_holds.test.sql`, hunk `-319,0 +320,3`: 3 added lines, 0 removed.
+
+## Exact added lines
+```
+-- AUTH-024 (setup only; Owner Q5 ruling (a), 2026-11-28): this release keeps the earlier day-21 schedule, so the
+-- assertions below continue to prove that path unchanged for releases created before 20261128130000.
+insert into private.inactivity_legacy_releases (release_id) values ('33000000-0000-4000-8000-0000000000b1');
+```
+
+## Eight fields
+1. **Original:** 215 is unchanged. No existing line is modified or removed.
+2. **Replacement:** the three lines above only. No `expect`, pgTAP assertion, plan, description or expected value is added or changed.
+3. **Original guarantee:** 215 §4, at lines 314–417 on release `33…b1` backdated 22 days, proves the day-21 approval hold. It is refused without documented outreach; it is placed after documented outreach including the day-14 personal follow-up; a second placement is refused; and the clear and resumption flow and the queue items work.
+4. **Replacement guarantee:** the same 18 dependent assertions (34, 35, 39, 42–46, 49, 50, 52, 53, 55, 57, 60–63) and the rest of 215, unchanged. They now prove that a release on the earlier schedule keeps the day-21 path exactly. That is direct evidence for OD-16, "releases created before the merge keep the day-21 rules".
+5. **Exposure:**
+   - one direct insert into `private.inactivity_legacy_releases`;
+   - made as the test superuser, inside 215's rolled-back transaction;
+   - no API role can make it (all privileges revoked from public, anon, authenticated and service_role, and no function writes the table);
+   - no financial, contractual or publication table is touched.
+6. **Compensating coverage:** test 260 must prove all of the following:
+   - the v2 schedule (T-LC-18): day 3, 7 and 14 records; the day-30 hold only with day ≥ 30 and a recorded `formal_notice`; `rescheduling_decision` with no effect; day-60 review;
+   - the OI-45 protections;
+   - the legacy-table ACL and its insert-only trigger;
+   - that a release created after the migration is on the v2 schedule.
+   The migration snapshot classifies every release that exists before the merge.
+7. **Authorization:** Owner, 2026-11-28, Q5 option (a). Main recorded it here before the push.
+8. **Evidence (WP-C, scratch copy):** 215 passes 63/63, with every assertion, plan and description byte-identical. **After the push:**
+   - Main re-verifies mechanically: 0 deletions in 215, these exact lines, and no other existing test file touched apart from 050 under B-1d once approved;
+   - WP-B, the independent reviewer, verifies the same.
+
+**B-1d (Owner, 2026-11-28; PR #73 `c804da5`).** Test 050 gains the two approved lines, inserted mid-array immediately after the AUTH-023 group and before `-- WP-B (...)`. They add `record_inactivity_milestone`. No existing line, plan or description changed, and every existing group is kept. 050 passes 24/24.
+
+**Acceptance evidence (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4, synthetic data; fresh `supabase db reset` before the database run; integration in CI order with the Vitest cache cleared):**
+
+| Item | Result |
+|---|---|
+| Lint, typecheck, format | Pass |
+| Unit | 25 files, 527 passed |
+| pgTAP (full) | @@DB@@ |
+| Test 260 (new) | 85/85. It covers:<br>• T-LC-18: every step on days 3, 7, 14, 30 and 60, with an effects fingerprint over approvals, publication, the ledger, payments, subscriptions, terminations, refunds and releases, identical before and after;<br>• the day-30 suspension, only with day ≥ 30 and a recorded formal notice;<br>• the rescheduling decision, with no effect and read by no code;<br>• OI-45: client access, the pause label, an approval during the suspension is a valid G3 input, and a fulfillment hold, never a billing hold;<br>• America/Detroit calendar days across 2027-03-14 and 2026-11-01, plus a release at 23:59 that is day 3 in under 72 hours;<br>• the earlier-schedule path unchanged;<br>• the snapshot: ACL, no writer, insert-only;<br>• refusals for anon, service_role, Sales, a client, staff at aal1, a non-current release, an earlier-schedule release, after a client response, and before the step's day;<br>• isolation (staff only) and the privilege layers |
+| Race test (new, `wpc-pwp5b-inactivity-race`) | 4 tests (cases A to H, both orders, 5 repetitions each, real connections). Every waiter was seen on a heavyweight Lock. No 40P01, timeout or unexpected refusal.<br>• A milestone against an approval, a revision request and a withdrawal.<br>• The day-30 suspension against an approval.<br>Each connection has lock and statement timeouts (WP-I N-1), with `finally` cleanup (N-2). It does no OTP sign-in, removes its own factor and archives its synthetic projects (OI-130) |
+| Integration (full) | 15 files, 163 passed |
+| Build, bundle check, production-check build | Pass |
+| E2E (full) | 62 passed, 1 failed: T-E2E-07. The cause is pre-existing and independent of this change. `operational_queue` took over the `authenticated` 8 s statement timeout on the 256 projects that integration leaves behind: 9.06 s with this change, 9.39 s with the previous definition on the same data. The cost is dominated by repeated `project_financial_status` calls. Reported to Main for an OI |
+| Exact-head CI | Recorded in the PR |
+
+**Effort (OI-67):** AI session about 3 h. Owner review and administrative hours are recorded by Main.

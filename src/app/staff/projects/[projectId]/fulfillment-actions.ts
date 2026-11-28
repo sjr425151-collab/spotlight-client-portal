@@ -186,6 +186,23 @@ export async function recordOutreachAction(formData: FormData) {
   );
 }
 
+// AUTH-024 (05 §7.1; OI-110, OD-16): staff record each revised-schedule milestone. Recording one
+// has no financial, contractual, approval or publication effect.
+export async function recordInactivityMilestoneAction(formData: FormData) {
+  await requireStaff();
+  done(
+    formData,
+    await call("record_inactivity_milestone", {
+      p_release_id: text(formData, "releaseId"),
+      p_milestone: text(formData, "milestone"),
+      p_channel: text(formData, "channel"),
+      p_occurred_on: text(formData, "occurredOn") || null,
+      p_summary: text(formData, "summary").slice(0, 2000),
+    }),
+    "inactivity_milestone_recorded",
+  );
+}
+
 export async function placeApprovalHoldAction(formData: FormData) {
   await requireStaff();
   done(

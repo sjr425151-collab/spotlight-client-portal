@@ -99,6 +99,16 @@ export const MESSAGES = {
   invalid_date: "That date is outside the allowed range.",
   outreach_required: "Record the day-14 personal follow-up before placing a hold.",
   too_early: "A hold can be placed only from day 21 after the release.",
+  // AUTH-024 (05 §7.1; OI-110): the revised inactivity procedure.
+  suspension_too_early:
+    "An administrative suspension can be placed only from day 30 after the release.",
+  formal_notice_required: "Record the day-14 formal notice first.",
+  milestone_too_early: "That step is not due yet for the current release.",
+  milestone_already_recorded: "That step is already recorded for the current release.",
+  schedule_stopped:
+    "The client has responded, so the inactivity procedure has stopped for this release.",
+  earlier_schedule: "This release follows the earlier schedule. Record outreach below instead.",
+  summary_required: "A summary is required.",
   hold_active: "An approval hold is already active.",
   release_approved: "The current release is already approved.",
   no_current_release: "There is no current release.",
@@ -155,6 +165,7 @@ export const MESSAGES = {
     "The deposit has been paid, so this project's total, deposit and balance cannot change.",
   no_usable_agreement_version: "No approved agreement version is available.",
   hold_placed: "Hold placed.",
+  inactivity_milestone_recorded: "Step recorded.",
   hold_cleared: "Hold cleared.",
   hold_type_not_manual: "That hold type cannot be placed manually.",
   // Final-payment authorization (WP-B, OI-74)

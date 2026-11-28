@@ -317,6 +317,9 @@ select ok(not exists (select 1 from pg_extension where extname = 'pg_cron'),
 insert into public.preview_releases (id, project_id, release_number, commit_sha, deployment_id, preview_url, released_by, released_at)
 values ('33000000-0000-4000-8000-0000000000b1', '20000000-0000-4000-8000-0000000000b0', 1, repeat('d', 40), 'dpl_b1',
         'https://preview-b.example.test', '00000000-0000-4000-8000-000000000002', now() - interval '22 days');
+-- AUTH-024 (setup only; Owner Q5 ruling (a), 2026-11-28): this release keeps the earlier day-21 schedule, so the
+-- assertions below continue to prove that path unchanged for releases created before 20261128130000.
+insert into private.inactivity_legacy_releases (release_id) values ('33000000-0000-4000-8000-0000000000b1');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
 select is((select array_agg(q ->> 'queue' || ':' || coalesce(q -> 'detail' ->> 'outreach', '') order by q ->> 'queue', q -> 'detail' ->> 'outreach')
   from public.operational_queue() q where q ->> 'project_id' = '20000000-0000-4000-8000-0000000000b0'),

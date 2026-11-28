@@ -31,6 +31,17 @@ import { createPaidProject } from "../support/wpc-fixtures";
  *      (scope_acknowledgment_required, OD-14).
  *   F. Release first (acknowledged): it succeeds; the new version waits, then is recorded.
  *
+ * Requirement A (lock hierarchy): neither path holds a row lock before the release lock, and
+ * neither the financial nor the contractual row-lock paths take the release lock, so no cycle can
+ * form. The confirmation and acknowledgment inserts take FOR KEY SHARE on the project and
+ * order-summary rows through their foreign keys, after the release lock. Both orders run against
+ * the real paths that hold those rows exclusively:
+ *
+ *   G, H. Payment-method recovery (the project row FOR UPDATE, 04 §4A) against a new version.
+ *   I, J. Payment-method recovery against the acknowledgment.
+ *   K, L. An acceptance replay (the order-summary row FOR UPDATE) against the acknowledgment and a
+ *         new version.
+ *
  * Every waiter is seen on a heavyweight Lock in pg_stat_activity before the holder commits. Each
  * case runs REPETITIONS times on a fresh project paid through the real WP-B workflow, with WP-C's
  * real intake. A deadlock (40P01), a lock timeout or any unexpected refusal fails the test.
@@ -136,6 +147,26 @@ const release = async (c: Client, projectId: string) =>
       [projectId, sha()],
     )
   ).rows[0].r as Result;
+
+const recover = async (c: Client, projectId: string) =>
+  (await c.query("select public.begin_payment_method_recovery($1) as r", [projectId])).rows[0]
+    .r as Result;
+const acceptAgain = async (c: Client, orderSummaryId: string) =>
+  (
+    await c.query(
+      "select public.accept_agreement($1, true, true, 'Alex Client', 'PWP-5a LLC', 'Owner', true) as r",
+      [orderSummaryId],
+    )
+  ).rows[0].r as Result & { acceptance_id?: string; existing?: boolean };
+const effectiveSummary = async (projectId: string) =>
+  withDb(
+    async (db) =>
+      (
+        await db.query("select (private.scope_effective_order_summary($1)).id::text as id", [
+          projectId,
+        ])
+      ).rows[0].id as string,
+  );
 
 /** Each call in its own committed transaction. */
 async function once<T>(
@@ -360,6 +391,125 @@ describe("AUTH-023: the scope-confirmation gate under real concurrency (T-LC-19,
         releases: 1,
         state: "unacknowledged",
       });
+    }
+  }, 600_000);
+
+  it(`G, H. payment-method recovery (project row FOR UPDATE) against a new version, both orders (${REPETITIONS}x)`, async () => {
+    for (let i = 0; i < REPETITIONS; i++) {
+      for (const recoveryFirst of [true, false]) {
+        const { projectId } = await readyProject(`PWP5a GH ${i} ${recoveryFirst}`, true);
+        const alone = await withDb(
+          async (db) =>
+            (
+              await db.query(
+                "select count(*)::int as n from public.recovery_sessions where project_id = $1",
+                [projectId],
+              )
+            ).rows[0].n as number,
+        );
+        const recovery = {
+          user: CLIENT_A_ID,
+          aal: "aal1" as const,
+          run: (c: Client) => recover(c, projectId),
+        };
+        const version = {
+          user: ADMIN_ID,
+          aal: "aal2" as const,
+          run: (c: Client) => record(c, projectId, "Version 2 requirements"),
+        };
+        const { held, waited } = recoveryFirst
+          ? await race(recovery, version)
+          : await race(version, recovery);
+        const [r, v] = recoveryFirst ? [held, waited] : [waited, held];
+        expect(r).toEqual({ ok: false, error: "authorization_active" });
+        expect(v).toMatchObject({ ok: true });
+        expect(await evidence(projectId)).toEqual({
+          versions: 2,
+          acks: 1,
+          releases: 0,
+          state: "unacknowledged",
+        });
+        expect(
+          await withDb(
+            async (db) =>
+              (
+                await db.query(
+                  "select count(*)::int as n from public.recovery_sessions where project_id = $1",
+                  [projectId],
+                )
+              ).rows[0].n as number,
+          ),
+        ).toBe(alone);
+      }
+    }
+  }, 600_000);
+
+  it(`I, J. payment-method recovery against the acknowledgment, both orders (${REPETITIONS}x)`, async () => {
+    for (let i = 0; i < REPETITIONS; i++) {
+      for (const recoveryFirst of [true, false]) {
+        const { projectId, v1 } = await readyProject(`PWP5a IJ ${i} ${recoveryFirst}`, false);
+        const recovery = {
+          user: CLIENT_A_ID,
+          aal: "aal1" as const,
+          run: (c: Client) => recover(c, projectId),
+        };
+        const ack = {
+          user: CLIENT_A_ID,
+          aal: "aal1" as const,
+          run: (c: Client) => acknowledge(c, v1.confirmation_id!, v1.content_sha256!),
+        };
+        const { held, waited } = recoveryFirst
+          ? await race(recovery, ack)
+          : await race(ack, recovery);
+        const [r, a] = recoveryFirst ? [held, waited] : [waited, held];
+        expect(r).toEqual({ ok: false, error: "authorization_active" });
+        expect(a).toMatchObject({ ok: true });
+        expect(await evidence(projectId)).toEqual({
+          versions: 1,
+          acks: 1,
+          releases: 0,
+          state: "acknowledged",
+        });
+      }
+    }
+  }, 600_000);
+
+  it(`K, L. an acceptance replay (order-summary row FOR UPDATE) against the acknowledgment and a new version (${REPETITIONS}x)`, async () => {
+    for (let i = 0; i < REPETITIONS; i++) {
+      for (const acceptFirst of [true, false]) {
+        const { projectId, v1 } = await readyProject(`PWP5a KL ${i} ${acceptFirst}`, false);
+        const os = await effectiveSummary(projectId);
+        const accept = {
+          user: CLIENT_A_ID,
+          aal: "aal1" as const,
+          run: (c: Client) => acceptAgain(c, os),
+        };
+        const ack = {
+          user: CLIENT_A_ID,
+          aal: "aal1" as const,
+          run: (c: Client) => acknowledge(c, v1.confirmation_id!, v1.content_sha256!),
+        };
+        const version = {
+          user: ADMIN_ID,
+          aal: "aal2" as const,
+          run: (c: Client) => record(c, projectId, "Version 2 requirements"),
+        };
+        for (const other of [ack, version]) {
+          const { held, waited } = acceptFirst
+            ? await race(accept, other)
+            : await race(other, accept);
+          const [p, o] = acceptFirst ? [held, waited] : [waited, held];
+          expect(p).toMatchObject({ ok: true, existing: true });
+          expect(o).toMatchObject({ ok: true });
+        }
+        expect(await evidence(projectId)).toEqual({
+          versions: 2,
+          acks: 1,
+          releases: 0,
+          state: "unacknowledged",
+        });
+        expect(await effectiveSummary(projectId)).toBe(os);
+      }
     }
   }, 600_000);
 });

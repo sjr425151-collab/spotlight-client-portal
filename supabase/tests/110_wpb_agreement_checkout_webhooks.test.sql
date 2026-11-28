@@ -103,12 +103,29 @@ select throws_ok($$ update public.agreement_versions set canonical_text = 'chang
   '42501', null, 'agreement text is immutable');
 select throws_ok($$ delete from public.agreement_versions where version_label = 'test-fixture-1' $$,
   '42501', null, 'agreement versions are never deleted');
+-- OI-119 (AUTH-016, option A): setup-only guard. Aborts the file unless both classifications
+-- are back to the seeded single development rows; it adds no pgTAP assertion.
+create function pg_temp.oi119_assert_restored(p_site text) returns void language plpgsql as $oi119$
+begin
+  if (select count(*) from private.runtime_environment) <> 1
+     or (select count(*) from private.environment_settings) <> 1
+     or (select app_env from private.runtime_environment) <> 'development'
+     or (select app_env from private.environment_settings) <> 'development' then
+    raise exception 'OI-119: classifications not restored at %', p_site;
+  end if;
+end;
+$oi119$;
+-- OI-119: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi119_runtime_110 on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
 delete from private.environment_settings;
 select throws_ok($$ select private.install_test_agreement_fixture() $$, '42501', null,
   'T-AGR-08: the fixture cannot be installed in production');
 select ok(not private.agreement_version_usable((select v::uuid from ids where k = 'fixture')),
   'T-AGR-08: in production the fixture is never usable for acceptance');
 insert into private.environment_settings (app_env) values ('development');
+insert into private.runtime_environment select * from oi119_runtime_110;
+select pg_temp.oi119_assert_restored('110');
 
 -- ---------------------------------------------------------------------------
 -- 2. Order summaries (04 §4; 03 §4 "Prepare order summary")

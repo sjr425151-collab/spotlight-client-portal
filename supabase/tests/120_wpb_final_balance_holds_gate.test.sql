@@ -551,12 +551,29 @@ select ok(public.record_termination_notice((select v::uuid from ids where k = 't
 select is(public.record_maintenance_ceased((select v::uuid from ids where k = 'term'), 'M1 passed') ->> 'ok', 'true',
   'maintenance cessation is accepted after M1');
 reset role;
+-- OI-119 (AUTH-016, option A): setup-only guard. Aborts the file unless both classifications
+-- are back to the seeded single development rows; it adds no pgTAP assertion.
+create function pg_temp.oi119_assert_restored(p_site text) returns void language plpgsql as $oi119$
+begin
+  if (select count(*) from private.runtime_environment) <> 1
+     or (select count(*) from private.environment_settings) <> 1
+     or (select app_env from private.runtime_environment) <> 'development'
+     or (select app_env from private.environment_settings) <> 'development' then
+    raise exception 'OI-119: classifications not restored at %', p_site;
+  end if;
+end;
+$oi119$;
+-- OI-119: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi119_runtime_120 on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
 delete from private.environment_settings;
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
 select is(public.record_services_deactivated((select v::uuid from ids where k = 'term'), 'Offboarding') ->> 'error', 'legal_terms_pending',
   '04 §15.1: M2 deactivation is never enforced in production before counsel-approved terms');
 reset role;
 insert into private.environment_settings (app_env) values ('development');
+insert into private.runtime_environment select * from oi119_runtime_120;
+select pg_temp.oi119_assert_restored('120');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
 select is(public.record_services_deactivated((select v::uuid from ids where k = 'term'), 'Offboarding after M2') ->> 'ok', 'true',
   'T-BIL-17: deactivation is accepted after M2 with every notice recorded');

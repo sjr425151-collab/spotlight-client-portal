@@ -48,7 +48,7 @@ export async function startCheckoutAction(formData: FormData) {
   if (!projectIdSchema.safeParse(projectId).success) redirect("/portal");
   let gateway;
   try {
-    gateway = getStripeGateway();
+    gateway = await getStripeGateway();
   } catch (error) {
     if (error instanceof StripeGatewayUnavailableError)
       billingPath(projectId, "error=payments_unavailable");
@@ -82,7 +82,7 @@ export async function beginRecoveryAction(formData: FormData) {
   if (!projectIdSchema.safeParse(projectId).success) redirect("/portal");
   let gateway;
   try {
-    gateway = getStripeGateway();
+    gateway = await getStripeGateway();
   } catch (error) {
     if (error instanceof StripeGatewayUnavailableError)
       billingPath(projectId, "error=payments_unavailable");

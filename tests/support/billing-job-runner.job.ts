@@ -19,6 +19,13 @@ it(`${RUNNER_MARKER}: one pass of runBillingJobs`, async () => {
   const output = process.env.WPI_BILLING_JOB_RUNNER_OUTPUT;
   expect(output, "WPI_BILLING_JOB_RUNNER_OUTPUT").toBeTruthy();
   const { adminClient } = await import("./local-supabase");
+  // OI-115 (AUTH-016): APP_ENV must agree with the local database before the mock gateway.
+  const { createEnvironmentCheck, rpcClassificationReader } =
+    await import("@/server/environment-consistency");
+  await createEnvironmentCheck(
+    process.env.APP_ENV ?? "",
+    rpcClassificationReader(async () => adminClient()),
+  )();
   const { runBillingJobs } = await import("@/server/services/billing");
   const { MockStripeGateway } = await import("@/server/stripe/mock-gateway");
   const gateway = new MockStripeGateway();

@@ -616,6 +616,21 @@ select throws_ok($$ update private.billing_package_scope set item_text = 'Relabe
 alter table private.billing_package_scope enable trigger billing_package_scope_append_only;
 create function pg_temp.scope_rows(p_key text) returns integer language sql as $$ select count(*)::int from private.current_package_scope(p_key) $$;
 -- staging
+-- OI-119 (AUTH-016, option A): setup-only guard. Aborts the file unless both classifications
+-- are back to the seeded single development rows; it adds no pgTAP assertion.
+create function pg_temp.oi119_assert_restored(p_site text) returns void language plpgsql as $oi119$
+begin
+  if (select count(*) from private.runtime_environment) <> 1
+     or (select count(*) from private.environment_settings) <> 1
+     or (select app_env from private.runtime_environment) <> 'development'
+     or (select app_env from private.environment_settings) <> 'development' then
+    raise exception 'OI-119: classifications not restored at %', p_site;
+  end if;
+end;
+$oi119$;
+-- OI-119: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi119_runtime_310a on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
 update private.environment_settings set app_env = 'staging';
 select is(private.app_environment(), 'staging', 'setup: classified staging');
 select throws_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (staging)'], true) $$, '42501', null,
@@ -648,10 +663,14 @@ select private.create_package_scope_version('signature', array['PGTAP SYNTHETIC 
 select is(pg_temp.scope_rows('signature'), 0, 'T-SALES-36: a non-fixture version without activation does not resolve, and never under a missing classification');
 -- development and test
 insert into private.environment_settings (app_env) values ('test');
+insert into private.runtime_environment (app_env) values ('test');
 select is(pg_temp.scope_rows('prestige'), 3, 'T-SALES-36: under test, fixtures resolve');
 select lives_ok($$ select private.create_package_scope_version('prestige', array['TEST FIXTURE — NOT A DELIVERABLE (test)'], true) $$,
   'T-SALES-36: under test, a fixture inserts');
 update private.environment_settings set app_env = 'development';
+delete from private.runtime_environment;
+insert into private.runtime_environment select * from oi119_runtime_310a;
+select pg_temp.oi119_assert_restored('310a');
 select is(pg_temp.scope_rows('prestige'), 1, 'T-SALES-36: under development, the newest fixture version resolves');
 -- API roles cannot read or write the classification.
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
@@ -762,6 +781,9 @@ select is((select max(scope_version) from private.current_package_scope('profess
 select is((select string_agg(item_text, '|') from private.current_package_scope('professional')), 'TEST FIXTURE — NOT A DELIVERABLE (seq b)',
   'WP-D18: and only its items');
 -- Fixture headers keep the development/test allowlist
+-- OI-119: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi119_runtime_310b on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
 update private.environment_settings set app_env = 'staging';
 select set_config('wpd18.scope_construction', 'prestige:40', true);
 select throws_ok($$ insert into private.billing_package_scope_versions (package_key, scope_version, item_count, content_sha256, is_test_fixture)
@@ -769,6 +791,8 @@ select throws_ok($$ insert into private.billing_package_scope_versions (package_
   'package-scope test fixtures are allowed only in development and test databases', 'WP-D18: a fixture header is rejected under staging');
 select set_config('wpd18.scope_construction', '', true);
 update private.environment_settings set app_env = 'development';
+insert into private.runtime_environment select * from oi119_runtime_310b;
+select pg_temp.oi119_assert_restored('310b');
 -- AUTH-007 Amendment 1 (FD-14): the label constraint and the environment guard are still
 -- enforced on the item path itself. A forged construction marker for a new, unsealed version
 -- (prestige:60) lets a direct insert pass the construction guard, so each rejection below comes
@@ -803,6 +827,9 @@ select throws_ok($$ insert into private.billing_package_scope (package_key, scop
 select is(pg_temp.error_source($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
   values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (unflagged, forged marker)', false) $$), '23514 billing_package_scope_fixture_label',
   'FD-14 (D-5): the rejection is raised by billing_package_scope_fixture_label');
+-- OI-119: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi119_runtime_310c on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
 update private.environment_settings set app_env = 'staging';
 select throws_ok($$ insert into private.billing_package_scope (package_key, scope_version, position, item_text, is_test_fixture)
   values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (staging, forged marker)', true) $$, '42501',
@@ -828,6 +855,8 @@ select is(pg_temp.error_source($$ insert into private.billing_package_scope (pac
   values ('prestige', 60, 1, 'TEST FIXTURE — NOT A DELIVERABLE (missing classification, forged marker)', true) $$), '42501 private.billing_package_scope_fixture_guard',
   'FD-14 (D-8): the missing-classification rejection is raised by billing_package_scope_fixture_guard');
 insert into private.environment_settings (app_env) values ('development');
+insert into private.runtime_environment select * from oi119_runtime_310c;
+select pg_temp.oi119_assert_restored('310c');
 select set_config('wpd18.scope_construction', '', true);
 -- Catalog evidence: the label constraint and the fixture guard are present and unchanged.
 select is((select pg_get_constraintdef(c.oid) from pg_constraint c

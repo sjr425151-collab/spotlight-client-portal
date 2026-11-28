@@ -353,6 +353,21 @@ select is(public.activate_package_scope_version('prestige', 2) ->> 'error', 'app
   'an approval whose hash differs from the sealed hash does not activate');
 reset role;
 -- Classifications other than development and test.
+-- OI-123 (setup only): guard that aborts the file unless both classifications are back to the
+-- seeded single development rows; it adds no pgTAP assertion.
+create function pg_temp.oi123_assert_restored(p_site text) returns void language plpgsql as $oi123$
+begin
+  if (select count(*) from private.runtime_environment) <> 1
+     or (select count(*) from private.environment_settings) <> 1
+     or (select app_env from private.runtime_environment) <> 'development'
+     or (select app_env from private.environment_settings) <> 'development' then
+    raise exception 'OI-123: classifications not restored at %', p_site;
+  end if;
+end;
+$oi123$;
+-- OI-123: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi123_runtime_s1 on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
 update private.environment_settings set app_env = 'staging';
 select pg_temp.owner();
 select is(public.activate_package_scope_version('professional', 2) ->> 'error', 'classification_not_allowed', 'no activation under staging');
@@ -367,6 +382,9 @@ select is(public.activate_package_scope_version('professional', 2) ->> 'error', 
   'no activation under a missing classification (production)');
 reset role;
 insert into private.environment_settings (app_env) values ('development');
+delete from private.runtime_environment;
+insert into private.runtime_environment select * from oi123_runtime_s1;
+select pg_temp.oi123_assert_restored('s1');
 select throws_ok($$ insert into private.billing_package_scope_eligibility values ('professional', 2, 'activated', 'production', repeat('a', 64), gen_random_uuid(), now()) $$,
   '23514', null, 'the table itself refuses a production activation, even from the database owner');
 select is((select count(*)::int from private.billing_package_scope_eligibility), 0, 'no refused activation created a record');
@@ -384,30 +402,45 @@ select is(pg_temp.issue('professional') ->> 'ok', 'true', 'Sales issuance succee
 select is((select scope_items from public.order_summaries where project_id = pg_temp.id('prj') order by issued_at desc limit 1),
   to_jsonb(pg_temp.items('p2')), 'the issued order summary carries exactly the activated scope');
 -- Activation is per classification.
+-- OI-123: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi123_runtime_s2 on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
+insert into private.runtime_environment (app_env) values ('test');
 update private.environment_settings set app_env = 'test';
 select is(pg_temp.rows('professional'), '', 'a development activation does not resolve under test');
 select pg_temp.owner();
 select is(public.activate_package_scope_version('professional', 2) ->> 'ok', 'true', 'the Owner activates version 2 for test');
 reset role;
 select is(pg_temp.rows('professional'), '2:1,2:2,2:3', 'it resolves under test');
+delete from private.runtime_environment;
 update private.environment_settings set app_env = 'staging';
 select is(pg_temp.rows('professional'), '', 'an activated version never resolves under staging');
 delete from private.environment_settings;
 select is(private.app_environment(), 'production', 'setup: a missing classification reads as production');
 select is(pg_temp.rows('professional'), '', 'an activated version never resolves under production (missing classification)');
 insert into private.environment_settings (app_env) values ('development');
+delete from private.runtime_environment;
+insert into private.runtime_environment select * from oi123_runtime_s2;
+select pg_temp.oi123_assert_restored('s2');
 -- Tampering with sealed items makes the version fail closed (integrity re-verified at every call).
 set local session_replication_role = replica;
 update private.billing_package_scope set item_text = 'PGTAP SYNTHETIC SCOPE ITEM TAMPERED'
   where package_key = 'professional' and scope_version = 2 and position = 2;
 set local session_replication_role = origin;
 select is(pg_temp.rows('professional'), '', 'a tampered active version resolves nothing (no fallback)');
+-- OI-123: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi123_runtime_s3 on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
+insert into private.runtime_environment (app_env) values ('test');
 update private.environment_settings set app_env = 'test';
 select pg_temp.owner();
 select is(public.activate_package_scope_version('professional', 2) ->> 'error', 'integrity_failure',
   'activation re-verifies the sealed items and refuses a tampered version');
 reset role;
 update private.environment_settings set app_env = 'development';
+delete from private.runtime_environment;
+insert into private.runtime_environment select * from oi123_runtime_s3;
+select pg_temp.oi123_assert_restored('s3');
 set local session_replication_role = replica;
 update private.billing_package_scope set item_text = 'PGTAP SYNTHETIC SCOPE ITEM P2-B'
   where package_key = 'professional' and scope_version = 2 and position = 2;
@@ -439,12 +472,19 @@ select is(public.activate_package_scope_version('professional', 3) ->> 'error', 
 reset role;
 select is(pg_temp.rows('professional'), '', 'a withdrawn newest version resolves nothing: no fallback to version 2');
 select is(pg_temp.issue('professional') ->> 'error', 'scope_definition_missing', 'Sales issuance fails closed after withdrawal');
+-- OI-123: remove the runtime classification with the billing one, so they never disagree.
+create temporary table oi123_runtime_s4 on commit drop as select * from private.runtime_environment;
+delete from private.runtime_environment;
+insert into private.runtime_environment (app_env) values ('test');
 update private.environment_settings set app_env = 'test';
 select pg_temp.owner();
 select is(public.activate_package_scope_version('professional', 3) ->> 'error', 'withdrawn', 'nor under another classification');
 reset role;
 select is(pg_temp.rows('professional'), '', 'the withdrawal applies in every classification');
 update private.environment_settings set app_env = 'development';
+delete from private.runtime_environment;
+insert into private.runtime_environment select * from oi123_runtime_s4;
+select pg_temp.oi123_assert_restored('s4');
 select is((select count(*)::int from private.billing_package_scope_eligibility where event = 'withdrawn'), 1, 'exactly one withdrawal; the replay added none');
 select is(pg_temp.audits('package_scope.withdrawn'), 1, 'one withdrawal event');
 select is(pg_temp.last_reason('package_scope.activation_rejected'), 'withdrawn', 'the reactivation attempt is audited');

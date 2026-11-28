@@ -2220,6 +2220,86 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 
 **Not changed:** `private.is_owner()` and every other existing function and migration outside AUTH-018 (OI-120 is separate); `issue_order_summary`; AUTH-007 sealing objects; `seed.sql`; dependencies; CI workflows and required checks.
 
+## 25. WP-I AUTH-016 implementation record (OI-115 local part; OI-119 dispositions)
+
+Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) on `wp-i/oi-115-env-consistency`, branched from `12601a65d7dd892840a7d74ff9de3a0073bd56ac` (the verified merge of the R1 execution grant record). Local and CI only: no provider, hosted-environment or production access, no dependency or `package.json` change, no change to required checks.
+
+### 25.1 Scope delivered
+
+| Part | Delivered |
+|---|---|
+| Migration `20261127150000_wpd_oi115_environment_consistency.sql` (reserved) | `private.environment_consistent()`: true when `private.runtime_environment` (C2) is absent, or C2 and `private.environment_settings` (C1) hold the same value. **D1:** `private.app_environment()` raises 42501 `environment classification disagreement (OI-115)` otherwise, so every consumer (`is_production`, `stripe_mode`, `expected_livemode`, fixture guards, package-scope resolution, billing evidence stamps, termination paths) fails closed unedited. `private.scanner_permitted()` also requires agreement. `private.environment_classification()` (definer) and a security-invoker `public.environment_classification()` return the raw `{c1, c2}` without raising; execute for `service_role` only (T-TEN-06 holds). No table, trigger or constraint change; the seed and hosted provisioning are unaffected. **D2:** staging keeps no explicit row (both absent reads as `production`) |
+| Application check | `src/server/environment-consistency.ts`: strict parsing of the RPC response; the OI-119 point 1 rule; a per-process memo that caches a pass only (an OM-4 engineering choice; a failure is never cached, so every later use is checked again). Called first in `acceptUpload`, `retryUploadScan` and `verifyLiveDeployment` (`fulfillment.ts`), and in `getStripeGateway()` before the mock exists (point 2). The billing-job test runner checks before its mock |
+| OI-119 option A | Setup and restoration statements only, in the six approved files and sites (25.2) |
+| New tests | pgTAP `410_wpi_oi115_environment_consistency.test.sql` (37); unit `wpi-environment-consistency.test.ts` (123) and `wpi-oi115-seams-fail-closed.test.ts` (10) |
+| Hosted part | Deferred to AUTH-003: record on staging that neither row exists (`public.environment_classification()` returns `{c1: null, c2: null}`) |
+
+### 25.2 OI-119 individual dispositions (FD-14 format; approved by the Owner, 2026-11-27)
+
+**Option A: setup-only restores in six existing pgTAP files.** Line numbers are at the base `12601a6` (insertions only; `git diff` removes no line).
+- *Original:* each site moves C1 away from `development` (to `staging`, `preview`, `test` or absent) while the seeded C2 `development` row stays (210: C2 `test` while C1 stays `development`). Under D1 these are disagreements, so the first environment read raised and the remainder of each file aborted (6 of 33 files, 247 subtests).
+- *Replacement:* at each site the C2 row is saved to a per-site temporary table and removed with the C1 change, and restored from that table after C1's own restoration, followed by `pg_temp.oi119_assert_restored(<site>)`, a setup-only guard that raises unless both tables again hold exactly one `development` row (it adds no pgTAP assertion). Sites and inserted lines:
+  - 100: after l.138 (+15: guard function, save, remove) and after l.143 (+2: restore, guard);
+  - 110: after l.105 (+15) and after l.111 (+2);
+  - 120: after l.553 (+15) and after l.559 (+2);
+  - 210: after l.311 (+2: `update private.environment_settings set app_env = 'test'`, so C1 agrees with the runtime `test` row it inserts; the file never restored C2 and the transaction rolls back);
+  - 310: after l.618 (+15), l.649 (+1: `insert … runtime_environment ('test')` beside C1 `test`), l.653 (+3: remove, restore, guard), l.761 (+3), l.768 (+2), l.802 (+3), l.827 (+2);
+  - 400: after l.298 (+15) and after l.307 (+2).
+- *Original guarantee:* each block's assertions about staging, preview, test, missing (production) and development classifications.
+- *Replacement guarantee:* identical. No assertion, expected value, description or plan count changes (plans 42, 142, 106, 81, 217, 33 unchanged), and the C2 row is absent exactly where C1 says non-development, which is the only state D1 allows.
+- *Exposure:* none. The guard aborts the file if a restore is missing, so no later assertion can run under contaminated state.
+- *Compensating coverage:* pgTAP 410 tests the disagreement cases directly.
+- *Evidence:* each file passes in isolation at its plan count and the full suite passes in sequence (25.3); mutation: deleting the 100 restore line makes the file fail with `OI-119: classifications not restored at 100`.
+
+**Point 1: the application rule.**
+- *Rule (approved):* with `APP_ENV` development or test, both classifications must be present, agree, and be development or test. With staging, preview or production, C2 must be absent and C1 absent or equal to `APP_ENV`. Anything else, an unreadable classification or a malformed response is refused.
+- *Guarantee:* no mock scanner, mock verifier or mock gateway activates on disagreement, and none activates in staging, preview or production. AUTH-003's hosted-staging requirements (migrations only, no seed, no row) are preserved.
+- *Evidence:* `wpi-environment-consistency.test.ts` enumerates all 105 `APP_ENV` × C1 × C2 combinations (9 pass), covering missing, unknown, conflicting and disallowed values, plus strict-parse refusals, read and RPC errors, and pass-only memoization. `wpi-oi115-seams-fail-closed.test.ts` shows that in preview, staging and production the scanner is null, the verifier is the real one, and the environment schema refuses `STRIPE_GATEWAY=mock`.
+
+**Point 2: async gateway acquisition.**
+- *Change (approved):* `getStripeGateway()` becomes `async` and awaits the environment check before the mock is created, with an `await` at the three call sites: `src/app/api/stripe/webhook/route.ts` and `src/app/portal/projects/[projectId]/billing/actions.ts` (×2).
+- *Consumer inventory:*
+  - direct: those three sites only;
+  - indirect (receive the gateway as a parameter, unchanged): `startInitialCheckoutAsCaller`, `beginPaymentMethodRecoveryAsCaller` and `receiveStripeWebhook` → `executeOutboundRequest`, `verifyPrices`, `runPaymentMethodLookups`, `runBillingJobs`, `runReconciliation` (`src/server/services/billing.ts`);
+  - tests and harness construct `MockStripeGateway` directly (`wpb-billing`, `oi91-dispatch-revocation`, `wpb-billing-service`, `wpc-fixtures`, the billing-job runner, which now checks first).
+- *Guarantee:* a failed check rejects inside `getStripeGateway()`. The checkout and recovery actions rethrow before reaching `startInitialCheckoutAsCaller` or `beginPaymentMethodRecoveryAsCaller`, so no outbound row is claimed or confirmed and no provider request starts. The webhook route keeps verifying and storing the event, with a `null` gateway (card lookups wait for the job, as when no gateway is configured). Payment logic, authorization, idempotency, webhook verification and financial state transitions are unchanged (no change to `billing.ts`, `gateway.ts` or `mock-gateway.ts`).
+- *Evidence:* `wpi-oi115-seams-fail-closed.test.ts` shows that on a failed check the mock is never constructed and the global holder stays empty, neither billing service is called, and the webhook service receives `null`; with agreement the same mock is passed on unchanged.
+
+**WP-D18 isolated-copy allowlist, 43 → 48 (approved by the Owner, Consolidated Owner Directive, 2026-11-28).**
+- *Original:* `supabase/tests-isolated/wpd18-restore-allowlist.txt` restores exactly 43 descriptors (`expected_entries=43` in `scripts/wpd18-isolated-commit-test.sh`; fingerprint 84 lines, plan 27). The closure holds `private.app_environment()` and `environment_settings` but not `runtime_environment`.
+- *Replacement (approved):* add exactly `FUNCTION private environment_consistent() postgres`, `ACL private FUNCTION environment_consistent() postgres`, `TABLE private runtime_environment postgres`, `TABLE DATA private runtime_environment postgres` and `CONSTRAINT private runtime_environment runtime_environment_pkey postgres`, and set `expected_entries=48`. Fingerprint (84), state (26 lines) and plan (27) unchanged.
+- *Original guarantee:* the disposable copy restores exactly the package-scope closure, no more and no less.
+- *Replacement guarantee:* the same, for the closure that now includes what the D1 body of `private.app_environment()` reads.
+- *Exposure:* none beyond the two objects `app_environment()` depends on.
+- *Compensating coverage:* the script still requires each line to match exactly one dump entry and the exact count; parity stays byte-identical.
+- *Evidence:* without the change the copy fails with `function private.environment_consistent() does not exist`; with it, "selected 48 of 799", "identical: 84 fingerprint lines and 26 state lines", PASS (27/27).
+
+**OI-123: setup-only restores in `330_dep18_scope_loader_activation.test.sql` (approved by the Owner, Consolidated Owner Directive, 2026-11-28).** Line numbers at `23346ef`; insertions only.
+- *Original:* four sites change `private.environment_settings` while the seeded runtime row stays `development`: S1 l.356–369 (staging, preview, absent, development), S2 l.387–398 (test, staging, absent, development), S3 l.405–410 (test, development), S4 l.442–447 (test, development). Under D1 the file aborted at l.358 after 76 of 137 tests.
+- *Replacement:* a setup-only guard `pg_temp.oi123_assert_restored(site)` (adds no assertion); at each site the runtime row is saved and removed with the change (and set to `test` where the billing row is `test`, so the two agree), then restored from the saved row and the guard runs. +40 lines, none removed.
+- *Original guarantee:* the B-3 and per-classification activation and withdrawal cases.
+- *Replacement guarantee:* identical: no assertion, expected value, description or plan (137) changes.
+- *Exposure:* none; the guard aborts the file if a restore is missing.
+- *Evidence:* 330 137/137; guard mutation (S3 restore removed) fails with `OI-123: classifications not restored at s3`; full suite in 25.3.
+
+### 25.3 Verification (local, fresh reset in CI order; rerun after merging `main` at `df39d14` with a merge commit, with both 25.2 Owner-approved changes applied)
+
+| Suite | Result |
+|---|---|
+| `supabase db reset` (every migration plus the seed) | Pass |
+| `supabase test db` | 38 files, 2,315 tests, all pass (330: 137/137) |
+| `scripts/wpd18-isolated-commit-test.sh` | 48 entries; identical 84 fingerprint lines and 26 state lines; PASS (27/27) |
+| The six edited files in isolation | 42, 142, 106, 81, 217, 33: all pass |
+| pgTAP 410 mutations | M1 (no raise): 9 failures; M2 (scanner without the consistency term): 3; M3 (reader granted to `authenticated`): 3 |
+| `pnpm audit --audit-level=high` | Pass |
+| `pnpm test` | 517 tests, all pass |
+| `pnpm test:integration` | 12 files, 144 tests, all pass |
+| `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Clean |
+| `pnpm build`, `pnpm build:production-check` | Pass |
+| `pnpm test:e2e` | **Not run locally:** the pinned Playwright expects a Chromium build that is not installed in this container (`browserType.launch: Executable doesn't exist`); no test executed. The exact-head CI run is the evidence |
+
+Exact-head CI and the WP-C (security) and Main reviews are recorded in the PR. Merge is Main's under OM-6(b) once every condition holds.
+
 ## 26. OI-120 AUTH-019 implementation record (`private.is_owner()` NULL-safe)
 
 Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84wJPQZT3im`), originally from `main` at `2d5705e` (PR #56, which records AUTH-019), re-applied on `main` at `23346ef` after PR #57 merged. Numbered §26, the next free section (§25 is claimed by WP-I PR #55; OM-2).

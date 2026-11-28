@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   }
   let gateway: StripeGateway | null = null;
   try {
-    gateway = getStripeGateway();
+    gateway = await getStripeGateway();
   } catch {
     // No gateway configured: the event is still stored; card lookups wait for the job.
   }

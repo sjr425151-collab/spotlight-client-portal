@@ -279,6 +279,17 @@ afterAll(async () => {
   await Promise.all([admin?.end(), a?.end(), b?.end()]);
 });
 
+// AUTH-025 (OI-130): remove the MFA factors this file creates, and only those, whatever the outcome.
+afterAll(async () => {
+  const c = new Client({ connectionString: DB_URL });
+  await c.connect();
+  try {
+    await c.query("delete from auth.mfa_factors where friendly_name = 'it-pwp1'");
+  } finally {
+    await c.end();
+  }
+});
+
 /**
  * N-3: per-scenario failure cleanup. Both connections are rolled back concurrently whether the
  * scenario passed or failed, so one failed check cannot leave a transaction (and its advisory

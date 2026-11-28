@@ -43,10 +43,13 @@ language plpgsql stable security definer set search_path = '' as $$
 declare
   v_id uuid;
   v_map jsonb := '{}'::jsonb;
+  v_dep jsonb := '{}'::jsonb;
+  v_comp jsonb := '{}'::jsonb;
+  v_c jsonb;
+  v_deposit_verified boolean;
   v_set_ok boolean := true;
   v_g2 text[];
   v_g4 text[];
-  v_agreement record;
   v_deposit public.deposit_state;
   v_balance public.final_balance_state;
   v_holds public.hold_type[];
@@ -74,6 +77,39 @@ begin
     cleared as materialized (
       select e.id, private.financial_conflict_cleared(e.id) as is_cleared
         from (select id from candidate_events union select id from quarantined_events) e
+    ),
+    -- private.reversal_observations and private.unposted_reversals, for every requested project.
+    reversal_obs as (
+      select w.project_id as pid, x.o ->> 'id' as object_id, x.o ->> 'object' as object_kind, x.o ->> 'status' as status,
+             private.charge_kind_gates(private.object_charge_kinds(w.project_id, array[x.o ->> 'charge', x.o ->> 'payment_intent'], null)) as gates,
+             w.stripe_created_at as observed_at
+        from public.webhook_events w
+        join ids on ids.pid = w.project_id
+       cross join lateral (
+         select w.payload #> '{data,object}' as o where w.payload #>> '{data,object,object}' in ('refund', 'dispute')
+         union all
+         select r || jsonb_build_object('charge', w.payload #>> '{data,object,id}')
+           from jsonb_array_elements(case when w.payload #>> '{data,object,object}' = 'charge'
+                                               and jsonb_typeof(w.payload #> '{data,object,refunds,data}') = 'array'
+                                          then w.payload #> '{data,object,refunds,data}' else '[]'::jsonb end) r) x
+       where w.processing_status <> 'ignored' and x.o ->> 'id' is not null
+      union all
+      select m.project_id, m.stripe_object_id, case when m.kind = 'unmatched_refund' then 'refund' else 'dispute' end, m.observed_status,
+             private.charge_key_gates(m.charge_key), m.detected_at
+        from public.reconciliation_mismatches m
+        join ids on ids.pid = m.project_id
+       where m.kind in ('unmatched_refund', 'unmatched_dispute')
+    ),
+    unposted as (
+      select l.pid, l.object_id, l.gates
+        from (select distinct on (r.pid, r.object_id) r.*
+                from reversal_obs r
+               order by r.pid, r.object_id, r.observed_at desc,
+                        (r.status in ('succeeded', 'needs_response', 'under_review', 'lost')) desc) l
+       where ((l.object_kind = 'refund' and l.status = 'succeeded')
+              or (l.object_kind = 'dispute' and l.status in ('needs_response', 'under_review', 'lost')))
+         and not exists (select 1 from public.ledger_entries e where e.project_id = l.pid
+                           and e.stripe_object_id = l.object_id and e.entry_type in ('refund', 'dispute_opened'))
     ),
     anomalies as (
       -- 1. Quarantined events, attributed through the charge they concern.
@@ -116,8 +152,7 @@ begin
                            and m.charge_key = 'final_balance:' || f.id::text and m.resolved_at is not null)
       union all
       -- 6. Reversals Stripe reports that the ledger has not posted (per project, as before).
-      select ids.pid, 'unposted_reversal', u.gates
-        from ids cross join lateral private.unposted_reversals(ids.pid) u
+      select u.pid, 'unposted_reversal', u.gates from unposted u
       union all
       -- 7. An event with conflicting authoritative projects blocks G2 and G4 for every candidate
       --    project and for the project the event carries, unless a re-verified Owner conflict
@@ -152,6 +187,82 @@ begin
                    coalesce(array_agg(distinct a.kind order by a.kind) filter (where 'G2' = any (a.gates)), '{}') as g2,
                    coalesce(array_agg(distinct a.kind order by a.kind) filter (where 'G4' = any (a.gates)), '{}') as g4
               from anomalies a group by a.pid) g;
+    -- private.project_deposit_state and private.project_deposit_verified, for every requested project.
+    select coalesce(jsonb_object_agg(d.pid::text, jsonb_build_object('state', d.state,
+             'verified', d.state = 'verified' and private.holding_balance_cents(d.charge_key) = 0)), '{}'::jsonb)
+      into v_dep
+      from (select i.pid, ob.charge_key,
+                   case when ob.id is not null then
+                          case when exists (select 1 from public.ledger_entries x
+                                              join public.disputes dd on dd.stripe_dispute_id = x.stripe_object_id
+                                             where x.entry_type = 'dispute_opened'
+                                               and (x.obligation_id = ob.id or x.holding_charge_key = ob.charge_key)
+                                               and (private.dispute_is_open(dd.status) or dd.status = 'lost'))
+                                 then 'disputed'
+                               when ob.original_cents + coalesce((select sum(l.amount_cents) from public.ledger_entries l
+                                                                  where l.obligation_id = ob.id), 0) <= 0
+                                 then 'refunded'
+                               else 'verified' end
+                        else coalesce((select case when cs.status in ('expired', 'failed') or cs.payment_status = 'failed'
+                                                     then 'failed' else 'pending' end
+                                         from public.checkout_sessions cs
+                                        where cs.project_id = i.pid and cs.kind = 'initial'
+                                        order by cs.created_at desc, cs.attempt desc limit 1), 'not_started') end as state
+              from (select distinct u as pid from unnest(p_project_ids) u where u is not null) i
+              left join lateral (select o.* from public.payment_obligations o
+                                  where o.project_id = i.pid and o.kind = 'development_deposit'
+                                  order by o.created_at limit 1) ob on true) d;
+    -- The remaining components, as the per-project functions compute them: project_agreement_state
+    -- (with project_deposit_ever_verified), project_final_balance_state and project_balance_verified,
+    -- project_active_billing_holds, payment_authorization_state, and the ledger digest.
+    select coalesce(jsonb_object_agg(c.pid::text, jsonb_build_object(
+             'ag_state', c.ag_state, 'ag_os', c.os_id, 'ag_acc', c.acc_id,
+             'fbs', c.fbs, 'bv', c.fbs = 'verified' and not c.paid_holding,
+             'holds', to_jsonb(c.holds), 'auth', c.auth, 'digest', c.digest)), '{}'::jsonb)
+      into v_comp
+      from (select i.pid, sp.os_id, sp.acc_id,
+                   case when sp.os_id is null then 'not_presented'
+                        when sp.acc_id is null then
+                          case when ev.ever and exists (select 1 from public.agreement_acceptances a
+                                                          join public.order_summaries os on os.id = a.order_summary_id
+                                                         where os.project_id = i.pid and os.status = 'superseded')
+                               then 'reacceptance_required' else 'presented' end
+                        when ev.ever then 'effective' else 'accepted_pending_payment' end as ag_state,
+                   case when fb.id is null then 'not_due'
+                        when fb.status = 'paid' then
+                          case when fo.id is null then 'pending'
+                               when exists (select 1 from public.ledger_entries x
+                                              join public.disputes dd on dd.stripe_dispute_id = x.stripe_object_id
+                                             where x.entry_type = 'dispute_opened'
+                                               and (x.obligation_id = fo.id or x.holding_charge_key = fo.charge_key)
+                                               and (private.dispute_is_open(dd.status) or dd.status = 'lost'))
+                                 then 'disputed'
+                               when fo.original_cents + coalesce((select sum(l.amount_cents) from public.ledger_entries l
+                                                                  where l.obligation_id = fo.id), 0) < fo.original_cents
+                                 then 'refunded'
+                               else 'verified' end
+                        when fb.status in ('open', 'action_required') then 'pending'
+                        when fb.status = 'payment_failed' then 'failed'
+                        else 'due' end as fbs,
+                   exists (select 1 from public.final_balance_invoices f where f.project_id = i.pid and f.status = 'paid'
+                             and private.holding_balance_cents('final_balance:' || f.id::text) <> 0) as paid_holding,
+                   (select coalesce(array_agg(distinct h.hold_type order by h.hold_type), '{}')
+                      from public.billing_holds h where h.project_id = i.pid and h.cleared_at is null) as holds,
+                   coalesce((select a.status::text from public.payment_authorizations a where a.project_id = i.pid
+                              order by (a.status <> 'revoked') desc, a.created_at desc limit 1), 'none') as auth,
+                   (select private.sha256_hex(coalesce(string_agg(l.entry_id::text, ',' order by l.id), ''))
+                      from public.ledger_entries l where l.project_id = i.pid) as digest
+              from (select distinct u as pid from unnest(p_project_ids) u where u is not null) i
+              left join lateral (select os.id as os_id,
+                                        (select a.id from public.agreement_acceptances a where a.order_summary_id = os.id) as acc_id
+                                   from public.order_summaries os
+                                  where os.project_id = i.pid and os.status = 'presented') sp on true
+              cross join lateral (select exists (select 1 from public.ledger_entries le where le.project_id = i.pid
+                                                   and le.entry_type = 'deposit_charge') as ever) ev
+              left join lateral (select f.* from public.final_balance_invoices f
+                                  where f.project_id = i.pid and f.status <> 'void' order by f.created_at desc limit 1) fb on true
+              left join lateral (select o.* from public.payment_obligations o
+                                  where o.charge_key = 'final_balance:' || fb.id::text and o.kind = 'development_balance') fo on true) c;
   exception when others then
     v_set_ok := false;
   end;
@@ -159,7 +270,7 @@ begin
   -- 2. One row per distinct requested id (null included), each in its own failure scope.
   for v_id in select distinct u from unnest(p_project_ids) u loop
     project_id := v_id;
-    if not v_set_ok then
+    if not v_set_ok or v_id is null then
       -- Fallback: the existing per-project function, with the same per-project handling.
       begin
         status := private.project_financial_status(v_id);
@@ -174,26 +285,27 @@ begin
     begin
       -- The same sub-functions, in the same order, as private.project_financial_status; G2 and G4
       -- are the kinds gate_anomalies returns for this project (empty when it has none).
-      select * into v_agreement from private.project_agreement_state(v_id);
-      v_deposit := private.project_deposit_state(v_id);
-      v_balance := private.project_final_balance_state(v_id);
-      v_holds := private.project_active_billing_holds(v_id);
-      v_auth_state := private.payment_authorization_state(v_id);
+      v_c := v_comp -> v_id::text;
+      v_deposit := (v_dep -> v_id::text ->> 'state')::public.deposit_state;
+      v_deposit_verified := (v_dep -> v_id::text ->> 'verified')::boolean;
+      v_balance := (v_c ->> 'fbs')::public.final_balance_state;
+      v_holds := coalesce((select array_agg(x::public.hold_type order by o) from jsonb_array_elements_text(v_c -> 'holds')
+                             with ordinality t (x, o)), '{}');
+      v_auth_state := v_c ->> 'auth';
       v_g2 := coalesce((select array_agg(x order by o) from jsonb_array_elements_text(v_map -> v_id::text -> 'G2')
                           with ordinality t (x, o)), '{}');
       v_g4 := coalesce((select array_agg(x order by o) from jsonb_array_elements_text(v_map -> v_id::text -> 'G4')
                           with ordinality t (x, o)), '{}');
-      select private.sha256_hex(coalesce(string_agg(l.entry_id::text, ',' order by l.id), ''))
-        into v_digest from public.ledger_entries l where l.project_id = v_id;
+      v_digest := v_c ->> 'digest';
       status := row(
         v_id, 3::smallint, true,
-        v_deposit, private.project_deposit_verified(v_id) and cardinality(v_g2) = 0,
-        v_balance, private.project_balance_verified(v_id) and cardinality(v_g4) = 0, v_balance = 'settled_by_adjustment',
+        v_deposit, v_deposit_verified and cardinality(v_g2) = 0,
+        v_balance, (v_c ->> 'bv')::boolean and cardinality(v_g4) = 0, v_balance = 'settled_by_adjustment',
         v_holds,
-        jsonb_build_object('order_summary_id', v_agreement.order_summary_id, 'acceptance_id', v_agreement.acceptance_id,
+        jsonb_build_object('order_summary_id', (v_c ->> 'ag_os')::uuid, 'acceptance_id', (v_c ->> 'ag_acc')::uuid,
           'ledger_digest', v_digest, 'calendar_version', private.calendar_version(), 'evaluated_at', now(),
           'blocking_anomalies', jsonb_build_object('G2', to_jsonb(v_g2), 'G4', to_jsonb(v_g4))),
-        v_agreement.state, v_agreement.state = 'effective',
+        (v_c ->> 'ag_state')::public.agreement_state, v_c ->> 'ag_state' = 'effective',
         v_auth_state = 'active', v_auth_state
       )::private.project_financial_status;
       failed := false;

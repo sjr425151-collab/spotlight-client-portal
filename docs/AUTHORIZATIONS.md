@@ -2,10 +2,10 @@
 
 | Field | Value |
 |---|---|
-| Version | 1.40.0 |
+| Version | 1.41.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan: reply "APPROVE") |
 | Decision | [OI-67](08-DECISIONS-AND-CHANGELOG.md#oi-67--risk-based-authorization-and-execution-model) (amends OI-01, OI-02) |
-| Next unused ID | **AUTH-021** (AUTH-020 completed 2026-11-28; AUTH-016 completed; AUTH-019 granted 2026-11-27; AUTH-017 completed; AUTH-015 to AUTH-018 granted 2026-11-27 with AUTH-010; AUTH-014 completed) |
+| Next unused ID | **AUTH-025** (AUTH-021 to AUTH-024 granted 2026-11-28, the contractual architecture wave; AUTH-020 completed 2026-11-28; AUTH-016 completed; AUTH-019 granted 2026-11-27; AUTH-017 completed; AUTH-015 to AUTH-018 granted 2026-11-27 with AUTH-010; AUTH-014 completed) |
 
 This file is the single source of truth for **what work is authorized**. It replaces per-phase authorization statements elsewhere. Approving a document or decision never authorizes work by itself; only an active record below does. If this file and any other document disagree about authorization, the more restrictive reading applies and the conflict is escalated (CLAUDE.md §2).
 
@@ -493,6 +493,98 @@ A record in this section **authorizes nothing**. It becomes a grant only when th
 | Merge | **Merge (OM-6(b), pre-authorized by the Owner, 2026-11-28):** Main merges without another Owner round trip once every condition is objectively satisfied: A1 to A7 met; the patched file hashes to `27d324b0…`; exact-head CI passes 7/7 with the full suite; WP-I's review has no unresolved blocking finding; the merge is pinned to the full head and base SHAs; post-merge CI is verified. OI-122 closes on that post-merge verification. Any deviation, unresolved blocking finding or unmet condition goes to the Owner |
 | Expiry | Merge, or 2027-01-31 |
 | Completion | Activated on the verified merge of the grant record (PR #63 `8107841`; post-merge CI 46091035098). PR #64 merged by Main under OM-6(b) at `2ae3639a1135736089384815537c28d91363e5eb` (head `d2b986a`, base `8107841`; tree identical; exact-head CI 46094951319 7/7 with the full suite). The test file on `main` hashes to `27d324b0…` from the base `bd596cff…`, so the change is exactly the approved one. **Diff-hash verification limitation (Owner, 2026-11-28):** the approved diff SHA-256 `3675e8f8…` is as reported by WP-B and was **not independently verified** by Main or WP-I, because it depends on the exact patch formatting and is not reproduced by `git diff` (which gives `492b0423…`). It is not represented as independently verified. The independently verified evidence is the base file SHA-256 `bd596cff…` on `8107841` and the patched file SHA-256 `27d324b0…` on `2ae3639`, which together determine the change exactly. The 70 `expect(` assertions are unchanged; two are re-indented inside `try`, identical apart from leading whitespace. A1 to A7 met (CURRENT-STATE §27). Reviews: WP-I independent review (no blocking); Main final review (no blocking). Post-merge CI 46103910059 with the full suite. **OI-122 closed.** Recorded non-blocking notes: (1) the §27 and PR wording "byte-identical" means identical apart from indentation for the two re-indented assertions; (2) when a foreign connection blocks an unsettled runner, its server backend outlives `end()` until that blocker releases. This cannot arise within the file or in CI, because every in-file blocker is rolled back first and files do not run in parallel. A future option outside AUTH-020 is `pg_terminate_backend` for an unsettled runner, which would need its own authorization |
+
+### Contractual architecture wave: common conditions for AUTH-021 to AUTH-024 (Owner, 2026-11-28)
+
+| Field | Value |
+|---|---|
+| Owner decision | "Owner Directive — Contractual Architecture Implementation Wave", 2026-11-28. It approves OD-1 to OD-19 exactly as recommended (08, "Contractual architecture implementation wave") and the four Tier 1 grants below exactly as presented. Every scope boundary, permitted change, prohibited change, acceptance criterion, stop condition, independent review, OM-6(b) merge condition and expiry is binding |
+| Effective | On the verified merge of this record and its post-merge CI (OM-1) |
+| Environments | Local and CI only, with synthetic data and permitted fixture data only |
+| Not authorized under any of the four grants | Real contractual content; counsel-derived content; real approval evidence; hosted operations; staging or production eligibility; production activation; provider execution; new dependencies |
+| Dispatch order (Owner, item 3) | Once active, these start at once: AUTH-021 (DEP-18 session); the test-only preparation of AUTH-022 (WP-B); AUTH-023 (WP-C). Then: the core of AUTH-022 starts only after Main approves the PWP-1 interface freeze; AUTH-022 merges only after AUTH-021 has merged and its required verification is complete; AUTH-024 starts only after AUTH-023 has merged and its required verification is complete. OM-1 to OM-7 apply to concurrent work and post-merge verification |
+| Verification requirement A: lock hierarchy (binding acceptance; no added scope) | **Hierarchy:** the OD-3 hierarchy, recorded in 04 §4A v0.11.0. **Acceptance's foreign-key lock:** acceptance's project-row lock is the implicit `FOR KEY SHARE` taken when the acceptance row is inserted. It is acquired after the order-summary row lock, not as an explicit first lock, and is documented that way. **Paths to verify:** the complete contractual hierarchy against issuance, acceptance, governance, checkout and payment-method recovery. **Proof:** real-connection concurrency tests that show no conflicting lock cycle across the affected paths. No 40P01, timeout or unexpected refusal counts as a pass. **Preserved:** OI-86, OI-91, OI-92 and OI-93 |
+| Verification requirement B: content loading and staging | The strict `development`/`test` activation boundary is preserved. PWP-4 may need separately authorized staging eligibility engineering, and the development/test loader is not assumed to satisfy staging verification. No staging or production eligibility path is authorized under AUTH-021 |
+| Verification requirement C: migration ordering | The reserved timestamps (OD-12) are preserved. If packages merge out of timestamp order, the implementer verifies both clean database construction and incremental application against the relevant merged baselines. No silent renumbering, rewriting, skipped migration or reset workaround |
+| Verification requirement D: combined lifecycle | The complete v2 browser lifecycle through the PWP-5a acknowledgment gate is required whatever the merge order. If AUTH-022 merges before AUTH-023, the combined verification runs against the integrated baseline when AUTH-023 merges. Until that verification passes, the combined contractual lifecycle requirement is not satisfied |
+| Verification requirement E: disposition controls | OD-11 applies exactly. **Pre-approved class (i):** D-1 lexical exemptions for the exact reserved PWP-1 and PWP-2 migration filenames. **Pre-approved class (ii):** setup-only test additions. Before the affected push, Main verifies and records each one in FD-14 format: existing assertions, expected values, plans and descriptions byte-identical. The independent reviewers verify the same. **Still individual (Owner):** the freeform-scope and day-21-hold assertion replacements, and every other assertion or expected-value change (OI-105) |
+| Verification requirement F: fixture and environment controls | The AUTH-016 and AUTH-019 guarantees are preserved. Fixture prevention and activation restrictions must fail closed under a missing, unknown or inconsistent environment classification. No fixture may become eligible for staging or production by any direct or indirect path |
+| Merge | **OM-6(b), pre-authorized by the Owner, 2026-11-28.** Main merges without another Owner round trip once all of the following hold: every acceptance criterion and the verification requirements met; independent reviews with no unresolved blocking finding; Owner approval of any individually reserved disposition; merge pinned to the full head and base SHAs; exact-head CI 7/7 with the full suite; post-merge CI verified. Any deviation, unresolved blocking finding or unmet condition goes to the Owner |
+| Expiry | Each grant: its merge, or 2027-01-31 |
+
+### AUTH-021 — Tier 1: PWP-1 contractual instruments, bundles, governance events and withdrawal (DEP-18 session) — GRANTED
+
+| Field | Value |
+|---|---|
+| Tier | 1 (local and CI) |
+| Status | **Granted by the Owner, 2026-11-28**, effective on the verified merge of this record (OM-1) |
+| Decisions | OD-1 to OD-12, OD-18; OI-98, OI-99, OI-103, OI-104, OI-106, OI-109; FD-15 |
+| Implementer | DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84wJPQZT3im`) |
+| Requirements | 04 §4A: objects, eligibility, integrity failure (R-05), concurrency (OI-104, R-02), idempotency (R-03), invariants 1 to 17, T-CON-01 to T-CON-12. 03 §4 permission rows. CLAUDE.md §3 and §5 |
+| Dependencies | WP-D18 (PR #27) and AUTH-018 (PR #57), both met |
+| Permitted | **Migrations:** `20261128100000_pwp1_contract_instruments.sql`, and `20261128100100_…` if split (reserved). **New `private` tables:** instrument versions (package specification, maintenance specification, shared terms), sealed on creation, each with a canonicalization version, SHA-256 and fixture flag; contract bundles, each with exactly one agreement version, a package instrument of its own package, a maintenance instrument, a shared-terms instrument and a sealed scope version, a scope-to-provision map and a bundle hash; append-only governance records bound to the bundle hash: legal approval (evidence reference and hash, never text), activation (`development` and `test` only, by CHECK) and irreversible withdrawal. **Functions:** the resolver `private.current_contract_bundle(text)` (newest sealed bundle if eligible, otherwise nothing; OD-7); `contract_bundle_verifies(uuid)`; `contract_bundle_withdrawn(uuid)`; Owner functions (fresh MFA, live session, NULL-safe guards, refusal audit, invoker wrappers) to create instrument versions (fixture and synthetic content only; the OD-5 loader), seal bundles, record approval, activate and withdraw. **Canonicalization:** `spotlight.contract_instrument.v1` and `spotlight.contract_bundle.v1` with golden vectors (OI-109). **Fixtures:** instruments and bundles via `supabase/seed.sql` only, with the OD-9 labels and FD-14-style lexical guards. **Also:** audit-action registry additions, tests, the CURRENT-STATE record |
+| Prohibited | Any change to `issue_order_summary`, `accept_agreement`, checkout, the ledger or webhooks; any change to the AUTH-007 or AUTH-018 objects, `current_package_scope`, the five scope and environment tables or the WP-D18 allowlist; real or counsel-derived text; production eligibility or activation (OD-6); any staging eligibility path; hosted operations; domain events (audit only); new dependencies |
+| Interface freeze | Before the AUTH-022 core starts, Main reviews and approves: the resolver signature and return columns; the verification functions; the lock key (OD-4: `dep18-scope-eligibility:<pkg>`); the component identifiers for snapshot v2. After the freeze, any change goes back through Main |
+| Locks | Per OD-3 and OD-4. Instrument construction locks are held alone. Governance takes the per-package lock exclusively. No payment, invoice, release or Sales lock |
+| Acceptance | **Tests:** T-CON-01 to T-CON-06, T-CON-08, T-CON-11, T-CON-12, and the withdrawal side of T-CON-07; golden vectors. **Races:** real connections, both orders with repetitions; no 40P01, timeout or unexpected refusal passes. Cover version creation, sealing against withdrawal, activation against withdrawal, and resolution against withdrawal. **Fixtures:** refused under staging, preview, production, a missing classification and an inconsistent classification (requirement F). **Unchanged:** the isolated restore (48 / 84 / 27); test 330 at 137/137; T-AGR-08. **Plus:** verification requirements A to F; full pgTAP, integration and e2e; exact-head CI 7/7 |
+| Pre-approved dispositions | The D-1 exemption for the two reserved filenames (OD-11(i)) |
+| Stop conditions | Any prohibited change; any assertion change; a need to change a preserved object; a lock order outside OD-3; any real content, staging or production path. Stop and report to Main, with no workaround |
+| Reviews | WP-B (issuance and acceptance interface); WP-I (test infrastructure, allowlist, races); Main (final) |
+| Merge and expiry | As in the common conditions |
+
+### AUTH-022 — Tier 1: PWP-2 standardized issuance and order snapshot v2 (WP-B) — GRANTED
+
+| Field | Value |
+|---|---|
+| Tier | 1 (local and CI) |
+| Status | **Granted by the Owner, 2026-11-28**, effective on the verified merge of this record (OM-1) |
+| Decisions | OD-1 to OD-4, OD-11 to OD-13, OD-17; OI-98, OI-100, OI-102, OI-103, OI-104 |
+| Implementer | WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) |
+| Requirements | 04 §1 (acceptance), §4 and §4A; invariants 3 to 7 and 9 to 11; T-CON-03, T-CON-07, T-CON-09, T-CON-10; 03 §4.1 |
+| Dependencies | **Met:** WP-H (PR #35). **Test-only preparation:** may start when the grant is active. **Core work:** starts only after Main approves the PWP-1 interface freeze. **Merge:** only after AUTH-021 has merged and its required verification is complete |
+| Permitted | **Test-only preparation:** golden vectors pinning every existing v1 snapshot hash and v1 acceptance; the inventory of freeform-scope tests with draft OI-105 dispositions. **Migration:** reserved `20261128120000_pwp2_standardized_issuance.sql`. **Issuance:** a replacement `private.issue_order_summary`. For every role, standardized orders take scope from `current_contract_bundle`; scope or notes inputs are rejected and audited; the RPC signature is kept (OD-13). **Columns:** new `order_summaries` columns (snapshot format, bundle id, bundle hash), each with an explicit OI-87 column grant. **Snapshot:** `private.order_summary_snapshot_v2`; v1 frozen. **Acceptance:** `accept_agreement` requires a v2 summary's bundle to re-verify and not be withdrawn, takes the per-package lock shared before the summary row, and re-checks the package key under the lock (OD-3). **UI:** the staff billing form drops the scope textarea for standardized orders. **Also:** tests, the CURRENT-STATE record |
+| Prohibited | Any payment, ledger, webhook or checkout financial behavior change; any v1 hash change; backfill, rehash or rewrite; changes to AUTH-021 objects; changes to the OI-81 price lock, the OI-86 project lock or the existing OI-87 grants; relaxing the Sales rules; new dependencies |
+| Acceptance | **Tests:** T-CON-07 (both orders; no 40P01, timeout or unexpected refusal); T-CON-09; T-CON-10; T-CON-03 at issuance, acceptance and display. **Unchanged:** T-SALES-19, 31 and 32; the `T/170` body pins; the `T/310:213` signature pin. **Browser:** the complete v2 lifecycle T-E2E-01 to T-E2E-10, through the PWP-5a gate per requirement D. **Plus:** verification requirements A to F; full suites; exact-head CI 7/7 |
+| Dispositions | **Pre-approved:** the D-1 exemption for the reserved filename (OD-11(i)); setup-only additions (OD-11(ii)). **Individual (Owner approves before merge):** the Owner/Admin freeform-scope assertion replacements in `T/310` (near lines 300 and 493) and `tests/integration/wph-hardening.test.ts` (near line 152), in OI-105 eight-field format |
+| Stop conditions | Any v1 hash change; any financial behavior change; a need to change AUTH-021 objects; an assertion change outside the approved dispositions |
+| Reviews | DEP-18 session (bundle interface); WP-S (Sales issuance rules); WP-I; Main (final) |
+| Merge and expiry | As in the common conditions, after AUTH-021 has merged |
+
+### AUTH-023 — Tier 1: PWP-5a scope confirmation, signer acknowledgment, operational notes and the release gate (WP-C) — GRANTED
+
+| Field | Value |
+|---|---|
+| Tier | 1 (local and CI) |
+| Status | **Granted by the Owner, 2026-11-28**, effective on the verified merge of this record (OM-1) |
+| Decisions | OD-1, OD-2, OD-11, OD-12, OD-14, OD-15; OI-100, OI-111 |
+| Implementer | WP-C (`session_01RCnsL4zY9edGTBFKQUbXM6`) |
+| Requirements | 05 §3A; 03 §4 (lines 96–97); T-LC-19, T-LC-20; T-LC-16 preserved |
+| Dependencies | None on AUTH-021 or AUTH-022 (OD-1). Starts when the grant is active |
+| Permitted | **Migration:** reserved `20261128110000_wpc_pwp5a_scope_confirmation.sql`. **Confirmations:** immutable, hashed scope-confirmation versions. Owner or Admin writes them after intake is `accepted_by_staff`. Each is bound to the effective order summary by id and snapshot hash, and records the client's requirements, the confirmed fulfillment selections and references to separately authorized amendments. **Acknowledgment:** insert-only, by the authorized signer, of the exact current version; unchecked by default, verified email, audited. **Operational notes:** a staff-only, append-only record outside the snapshot. **Release gate:** `private.release_preview` refuses every actor unless the current version is acknowledged. The check runs after the `release:` lock is taken; confirmation and acknowledgment take the same lock. **Also:** `operational_queue` and status updates, UI, WP-C audit actions, tests, the CURRENT-STATE record |
+| Prohibited | Any change to the order summary, its hash, the accepted price or the ledger (T-LC-20); entitlement checks against the package specification (these wait for SLM-CPS-002); any bypass or "approve on behalf of client" path; contractual text; changes to AUTH-021 or AUTH-022 objects |
+| Permissions (OD-15) | Confirmations: Owner and Admin write; the authorized signer acknowledges; client members read the current version. Operational notes: Owner and Admin. Sales: no access to either |
+| Acceptance | **Tests:** T-LC-19 (refused for every actor without the current acknowledgment; renewal after any new version, per OD-14; no override); T-LC-20; T-LC-16 kept. **Races:** real connections, both orders with repetitions, between acknowledgment, new-version creation and release. **Isolation:** tests for every new table. **Plus:** verification requirements A to F (D when combined with AUTH-022); full suites; exact-head CI 7/7 |
+| Dispositions | **Pre-approved (OD-11(ii)):** setup-only additions (create and acknowledge a confirmation) to every existing pgTAP, integration and e2e test that releases a preview. Main records each in FD-14 format before the push. **Individual:** anything else goes to the Owner |
+| Stop conditions | Any financial or snapshot effect; any assertion change; a need for a bypass; a need to touch AUTH-021 or AUTH-022 objects |
+| Reviews | WP-B (no financial effect); WP-I (test infrastructure, races); Main (final) |
+| Merge and expiry | As in the common conditions |
+
+### AUTH-024 — Tier 1: PWP-5b inactivity reconciliation (WP-C) — GRANTED
+
+| Field | Value |
+|---|---|
+| Tier | 1 (local and CI) |
+| Status | **Granted by the Owner, 2026-11-28**, effective on the verified merge of this record (OM-1). Starts only after AUTH-023 has merged and its required verification is complete |
+| Decisions | OD-11, OD-12, OD-16; OI-110, OI-45 |
+| Implementer | WP-C (`session_01RCnsL4zY9edGTBFKQUbXM6`) |
+| Requirements | 05 §5 (lines 194–206); 02 §13 (America/Detroit calendar days); 07 (line 63); T-LC-18 |
+| Permitted | **Migration:** reserved `20261128130000_wpc_pwp5b_inactivity.sql`. **Milestones,** counted from the current released preview: day 3, a non-contractual courtesy reminder; day 7, a staff-recorded reminder; day 14, a staff-recorded formal notice and a recorded estimate suspension with no financial or contractual effect; day 30, administrative suspension or rescheduling eligibility, replacing the day-21 hold for releases created after the merge only; day 60, an individual review record. **Queue:** states revised to match. **Notices:** labels marked "pending DEP-03". **Also:** tests, the CURRENT-STATE record |
+| Prohibited | Any automatic approval, charge, publication, forfeiture, subscription cancellation or effect on a published site (OI-45; 05 §5); contractual consequence text; changes to releases created before the merge; financial objects |
+| Acceptance | **Tests:** T-LC-18; a calendar-day test across a daylight-saving transition; the OI-45 protections proven. **Plus:** verification requirements A to F; full suites; exact-head CI 7/7 |
+| Dispositions | **Individual (Owner approves before merge):** the day-21-hold assertion replacements and T-LC-10, which T-LC-18 replaces. **Pre-approved:** the OD-11(ii) setup-only class applies |
+| Stop conditions | Any automatic consequence; any contractual text; any assertion change outside the approved dispositions |
+| Reviews | WP-B (no financial effect); Main (final) |
+| Merge and expiry | As in the common conditions |
 
 ## 4. Dependency security patch exception (standing, Tier 1)
 

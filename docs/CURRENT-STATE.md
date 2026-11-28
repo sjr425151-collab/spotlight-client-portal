@@ -2620,3 +2620,30 @@ Requirement D: AUTH-022 is not merged, so the combined v2 lifecycle verification
 **Fix (this file only, setup only; no assertion, case or repetition changed).** As the other files that sign in the Owner do (wpc-oi113, wpc-oi114, wpc-uploads, wpc-delivery), `beforeAll` now deletes the Owner's factors before signing in. `afterAll` also deletes this file's own `it-pwp5a` factors.
 
 **Evidence.** Two full integration runs in CI order (Vitest cache cleared, fresh `supabase db reset` before each): 14 files, 159 passed each time.
+
+## 30. WP-B AUTH-022 implementation record (PWP-2: standardized issuance and order snapshot v2)
+
+Implemented by WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) on `main` through `07e2d37` (AUTH-021 at `459e66c`, AUTH-023 at `360e026`, AUTH-025 at `07e2d37`). Numbered §30, the next free section at the time of writing (OM-2: renumbered at merge if taken).
+
+**Migration `20261128120000_pwp2_standardized_issuance.sql`** (reserved; D-1 exemption pre-approved). The replaced functions are derived from their merged bodies by anchored insertions only.
+- **Snapshot v2:** twelve nullable columns on `order_summaries` (`snapshot_version`, the bundle id, sha and canonicalization, each instrument's id and sha, `scope_version`, `scope_content_sha256`), a shape CHECK, explicit OI-87 column grants, and `private.order_summary_snapshot_v2` (`spotlight.order_summary.v2`: every v1 contractual field except the notes, plus every F5 identifier). `private.order_summary_snapshot` keeps the merged v1 expression verbatim and returns v2 only for `snapshot_version = 2`. **v1 is frozen:** no backfill and no rehash (golden vectors 196; requirement C evidence below).
+- **Standardized issuance (OD-13):** the signature is kept. Scope and notes inputs are rejected for every role with the existing codes (`scope_not_allowed`, `notes_not_allowed`; an empty note included) and audited (Sales: `sales.order_summary_rejected`, unchanged; Owner and Admin: `order_summary.input_rejected`). The scope comes from the bundle; the governing agreement version is the bundle's.
+- **Eligibility (OD-7, R-05, OI-132 option (a)):** issuance requires the newest sealed eligible bundle (F1, re-verified under the lock with F2 and F3) **and** the AUTH-018 interim gate: `current_package_scope(pkg)` must resolve at the bundle's pinned scope version. Otherwise `scope_definition_missing`, audited (`order_summary.bundle_unavailable`, or the Sales action), with no fallback.
+- **Acceptance (OD-3):** reads the package key without a lock, takes the per-package lock shared, locks the summary row `FOR UPDATE` and re-checks the key; for v2, the bundle row `FOR SHARE`, then a withdrawn bundle refuses (`bundle_withdrawn`) and an integrity failure refuses (`hash_mismatch`), both audited (`agreement.bundle_rejected`). An existing acceptance is permanent. v1 acceptance is unchanged.
+- **T-CON-11 positive read path:** `public.order_summary_instruments(uuid)` (INVOKER wrapper; the private SECURITY DEFINER implementation is executable by `authenticated` only). A client member reads the instruments of its own project's presented or accepted v2 summary; Owner and Admin at aal2 read the same; Sales, other tenants and anon read nothing.
+
+**Lock order (requirement A, OD-3).** Issuance: project row `FOR NO KEY UPDATE` (OI-86) → the merged agreement-version and price checks (error precedence unchanged) → the per-package lock shared (F1; Sales resolves at the merged Sales-scope position, Owner and Admin after the price checks) → presented summary row `FOR UPDATE` → bundle row `FOR SHARE`. `current_package_scope` re-enters the same shared key (`20261127160000`:437) and adds no lock. Acceptance: per-package lock shared → summary row → bundle row → project row `FOR KEY SHARE`, implicitly, through the acceptance insert's foreign key. No payment, invoice, release or Sales lock is added.
+
+**Dispositions applied:** Owner B-1b (050: `order_summary_instruments`) and B-2 D-1 to D-9, with clarifications 1, 2 and 4 (D-4 through the seed constructors only; D-8 cleared with WP-C). OI-132 (a) setup-only restores (OD-11(ii), Main's FD-14 records): 310 (6 lines), 330 (62 lines), `dep18-scope-loader-race` (75 lines); `pwp1-contract-race` needed no change. Staff UI: the scope textarea is removed and the issued summary's bundle scope is shown read-only; the service sends no scope or notes.
+
+**New tests:** pgTAP 196 (v1 golden vectors, 11), 197 (T-CON-09 per-role scope-only and notes-only refusals, T-CON-10, T-CON-03, T-CON-06, T-CON-11, the OD-3 order, OI-87 and I-1, 43), 198 (the OI-132 decision table, bundle state × scope state, 21); integration `pwp2-acceptance-race` (6 scenarios, each 5 repetitions in both orders: T-CON-07 acceptance against withdrawal, acceptance against replacement issuance and against sealing a newer bundle, issuance against scope withdrawal and against scope activation; every wait observed in `pg_locks`; no 40P01 or timeout).
+
+**Mutations (scratch, all caught):** M1 staff scope re-admitted (197: 14 failures; 310 D-1: 2); M2 acceptance without the withdrawal check (197 #34, #36); M3 without the integrity check (197 #28, #29); M4 the OI-132 gate removed (198: eligible × newer-inactive and eligible × withdrawn).
+
+**Verification (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4; synthetic and fixture data only):**
+- Requirement C: a clean `supabase db reset` passes; incremental application with only `20261128120000` withheld, then `supabase migration up`, passes. A v1 summary issued and accepted before the migration is byte-identical afterwards (row digest, `snapshot_sha256` and the acceptance hash; `snapshot_version` 1; its hash reproduces).
+- pgTAP: 2650 assertions, 0 files failed (310:215, 330:70 and 330:109 byte-identical; 330 at 137/137).
+- Integration: 15 files, 165 passed.
+- Unit 527 passed; lint, typecheck and format clean; build passes.
+- e2e and Lighthouse: see the PR (e2e locally with the preinstalled Chromium 1243 and the CI `NEXT_PUBLIC_SITE_URL`).
+- No Stripe request, credential or hosted operation.

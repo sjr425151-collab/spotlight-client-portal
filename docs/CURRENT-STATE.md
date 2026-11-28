@@ -2250,15 +2250,15 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 - `is_owner()` and `owner_ok(false|true)` are false, never NULL, for every non-Owner, and true for the Owner.
 - The attributes and ACL match the pre-fix values recorded above.
 
-**Mutation test (scratch run):** with the original body restored on the local database, 420 fails 30 of 60, including all three regressions and the no-state-change checks. Because the client's escalation then succeeds first, the later Admin cases fail as a consequence. With the fix, 60 of 60 pass.
+**Mutation test (scratch run, repeated on `main` at `23346ef`):** with the original body restored on the local database, 420 fails 30 of 60, including all three regressions and the no-state-change checks. Because the client's escalation then succeeds first, the later Admin cases fail as a consequence. With the fix, 60 of 60 pass.
 
-**Verification (local stack, Supabase CLI 3.2.0; fresh `supabase db reset`; CI order; `main` at `2d5705e` plus this change only):**
+**Verification (local stack, Supabase CLI 3.2.0; fresh `supabase db reset`; CI order; `main` at `23346ef` plus this change only):**
 - lint, typecheck and format: pass.
-- unit: 22 files, 380 tests, pass.
+- unit: 384 tests, pass.
 - check-migrations: pass.
-- pgTAP: 34 files, 1919 tests, PASS. That is `main`'s existing 1859 unchanged, plus 420's 60. No existing assertion changed.
-- isolated WP-D18: PASS 25/25.
-- integration: 9 files, 122 tests, pass.
+- pgTAP: 37 files, 2278 tests, PASS. That is `main`'s existing 2218 unchanged, plus 420's 60. No existing assertion changed.
+- isolated WP-D18: PASS 27/27.
+- integration: 144 tests, pass.
 - build, check:bundle and build:production-check: pass.
-- e2e: 66 passed. The local run used the preinstalled Chromium 1243, not the 1255 build Playwright 1.65.1 pins.
+- e2e: 67 passed. The local run used the preinstalled Chromium 1243, not the 1255 build Playwright 1.65.1 pins.
 - Not run locally: Lighthouse, the dependency audit and the secret scan.

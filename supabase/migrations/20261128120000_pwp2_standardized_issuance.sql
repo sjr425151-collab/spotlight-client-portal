@@ -209,6 +209,17 @@ begin
     end if;
     p_scope_items := v_bundle.scope_items;
     v_scope_version := v_bundle.scope_version;
+    -- OI-132 (Owner, 2026-11-28, option (a)): the AUTH-018 interim gate (04 §4A, rule 7) also holds. The bundle's
+    -- scope version must be the newest resolvable scope version; a newer loaded, inactive, tampered
+    -- or withdrawn scope version suspends issuance until a bundle is sealed over the newest one.
+    if not exists (select 1 from private.current_package_scope(p_package_key) cs
+                    where cs.scope_version = v_bundle.scope_version) then
+      perform private.record_audit_event(
+        case when v_sales then 'sales.order_summary_rejected' else 'order_summary.bundle_unavailable' end,
+        'project', p_project_id::text, p_project_id, null, jsonb_build_object('reason', 'missing_scope_definition'),
+        'general');
+      return private.fail('scope_definition_missing');
+    end if;
   end if;
   if p_scope_items is null or jsonb_typeof(p_scope_items) <> 'array'
      or exists (select 1 from jsonb_array_elements(p_scope_items) e
@@ -263,6 +274,17 @@ begin
     end if;
     p_scope_items := v_bundle.scope_items;
     v_scope_version := v_bundle.scope_version;
+    -- OI-132 (Owner, 2026-11-28, option (a)): the AUTH-018 interim gate (04 §4A, rule 7) also holds. The bundle's
+    -- scope version must be the newest resolvable scope version; a newer loaded, inactive, tampered
+    -- or withdrawn scope version suspends issuance until a bundle is sealed over the newest one.
+    if not exists (select 1 from private.current_package_scope(p_package_key) cs
+                    where cs.scope_version = v_bundle.scope_version) then
+      perform private.record_audit_event(
+        case when v_sales then 'sales.order_summary_rejected' else 'order_summary.bundle_unavailable' end,
+        'project', p_project_id::text, p_project_id, null, jsonb_build_object('reason', 'missing_scope_definition'),
+        'general');
+      return private.fail('scope_definition_missing');
+    end if;
   end if;
   -- AUTH-022: the governing agreement version is the bundle's (04 §4A), re-checked as usable.
   v_version_id := v_bundle.agreement_version_id;

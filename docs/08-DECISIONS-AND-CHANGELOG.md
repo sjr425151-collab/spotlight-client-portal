@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.58.0 |
+| Version | 0.59.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,18 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### Milestone acceptance and next development wave (Owner, 2026-11-28)
+
+Owner directive "Milestone Acceptance and Next Development Wave". Documentation only; it grants no implementation authority.
+
+- **Milestone:** verified completion of AUTH-016 and AUTH-020 and the closure of OI-122 acknowledged; **`59b9aac` accepted as the milestone baseline** (post-merge CI 46104833504, full suite).
+- **Administrative cleanup:** the Tier 0 corrections to CURRENT-STATE §3, §6 and §7 proceed under existing governance authority, consolidated where practical. The AUTH-020 diff-hash verification limitation is preserved in the completion evidence: the diff hash is not represented as independently verified.
+- **Next-wave architecture:** read-only investigation and preparation of readiness-complete grant packages for PWP-1, PWP-2 and PWP-5 are authorized: dependencies, counsel-independent structural work, decisions that need approved contractual content, safe parallelism, migrations, interfaces, security boundaries, acceptance criteria, Owner decisions, effort and critical-path impact. Engineering is not to be serialized unnecessarily behind external legal dependencies where synthetic-data implementation is demonstrably safe.
+- **Hosted staging and payment validation:** a consolidated, sequential Owner action checklist for AUTH-003, the remaining AUTH-002 stages and the vendor accounts, distinguishing account preparation, credential creation, provider access and execution. No provider operation without the applicable authorization.
+- **Commercial readiness:** a consolidated inventory of counsel, tax, privacy, package scope, Owner runbook and brand asset requirements, separating release-candidate blockers, production-only blockers and non-blocking preparation.
+- **Execution efficiency:** OM-1 to OM-7 apply; minimize administrative overhead and consolidate compatible decisions without weakening security, financial, contractual or verification standards.
+- **Not granted:** implementation authority, real contractual content loading, production activation.
+
 ### AUTH-016 decision and AUTH-020 grant (Owner, 2026-11-28)
 
 Owner decisions "Consolidated Owner Directive" and "Final Owner Authorization — AUTH-020 / OI-122". Documentation only.
@@ -1735,6 +1747,7 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.59.0 | 2026-11-28 | **Milestone acceptance** (Owner): baseline `59b9aac` (CI 46104833504); CURRENT-STATE §3, §6 and §7 corrected (Tier 0); AUTH-020 diff-hash limitation recorded; read-only PWP-1, PWP-2 and PWP-5 package preparation authorized (no implementation). AUTHORIZATIONS v1.40.0; CURRENT-STATE v1.44.0; OPEN-ISSUES v0.47.0. | Main session | Owner |
 | 0.58.0 | 2026-11-28 | **PR #64 merged: AUTH-020 completed; OI-122 closed** (`2ae3639`; exact-head CI 46094951319 7/7; post-merge CI 46103910059). The milestone checkpoint has been reached. AUTHORIZATIONS v1.39.0; CURRENT-STATE v1.43.0; OPEN-ISSUES v0.46.0. | Main session | Owner |
 | 0.57.0 | 2026-11-28 | **PR #55 merged: AUTH-016 completed**; OI-115 (local part), OI-119 and OI-123 closed. **AUTH-020 granted** (OI-122, test-only). AUTHORIZATIONS v1.38.0; CURRENT-STATE v1.42.0; OPEN-ISSUES v0.45.0. | Main session | Owner |
 | 0.56.0 | 2026-11-28 | **PR #57 and PR #61 merged:** AUTH-018 and AUTH-019 completed; **OI-120 closed**. OI-122 and OI-123 opened (awaiting the Owner). AUTH-003 migration-order note. 04 v0.10.5 (status only). AUTHORIZATIONS v1.37.0; CURRENT-STATE v1.41.0; OPEN-ISSUES v0.44.0. | Main session | Owner |

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { Client } from "pg";
 
 import { withDb } from "../support/db";
@@ -29,6 +29,10 @@ const DB_URL =
 if (!["127.0.0.1", "localhost"].includes(new URL(DB_URL).hostname)) throw new Error("local only");
 
 test.describe.configure({ mode: "serial" });
+
+/** The queue's failure notice (Next.js also renders an empty role="alert" route announcer). */
+const queueFailure = (page: Page) =>
+  page.getByRole("alert").filter({ hasText: "The work queue could not be loaded." });
 
 /** A connection holding ACCESS EXCLUSIVE on public.projects until `release` is called. */
 async function holdProjectsLock() {
@@ -70,7 +74,7 @@ test("AUTH-026: loading, then populated", async ({ browser }) => {
   }
   await expect(page.getByRole("heading", { name: "Work queue" })).toBeVisible();
   await expect(page.locator("main section[aria-labelledby^='q-']").first()).toBeVisible();
-  await expect(page.getByText("Nothing needs attention.")).toHaveCount(0);
+  await expect(page.getByText("Nothing needs attention.", { exact: true })).toHaveCount(0);
   await expectAccessible(page);
 });
 
@@ -83,8 +87,8 @@ test("AUTH-026: a failed call is shown as a failure with a retry, never as an em
   try {
     await page.goto("/staff/queue", { timeout: 60_000 });
     await expect(page.getByRole("heading", { name: "Work queue" })).toBeVisible();
-    await expect(page.getByRole("alert")).toContainText("The work queue could not be loaded.");
-    await expect(page.getByText("Nothing needs attention.")).toHaveCount(0);
+    await expect(queueFailure(page)).toBeVisible();
+    await expect(page.getByText("Nothing needs attention.", { exact: true })).toHaveCount(0);
     await expect(page.locator("main section[aria-labelledby^='q-']")).toHaveCount(0);
     await expectAccessible(page);
   } finally {
@@ -92,7 +96,7 @@ test("AUTH-026: a failed call is shown as a failure with a retry, never as an em
   }
   await page.getByRole("link", { name: "Try again" }).click();
   await expect(page.locator("main section[aria-labelledby^='q-']").first()).toBeVisible();
-  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(queueFailure(page)).toHaveCount(0);
 });
 
 test("AUTH-026: a successful, empty result shows Nothing needs attention", async ({ browser }) => {
@@ -122,8 +126,8 @@ test("AUTH-026: a successful, empty result shows Nothing needs attention", async
   try {
     await page.goto("/staff/queue");
     await expect(page.getByRole("heading", { name: "Work queue" })).toBeVisible();
-    await expect(page.getByText("Nothing needs attention.")).toBeVisible();
-    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page.getByText("Nothing needs attention.", { exact: true })).toBeVisible();
+    await expect(queueFailure(page)).toHaveCount(0);
     await expectAccessible(page);
   } finally {
     restored = await withDb(async (db) =>

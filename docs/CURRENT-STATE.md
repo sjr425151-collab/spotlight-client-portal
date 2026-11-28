@@ -2857,6 +2857,186 @@ The exact added text is as WP-B sent it to Main at 08:05Z, verbatim. Main verifi
 3. The timeout diagnosis (case-1 expected failure leaving a transaction open; the documented OD-3 serialization, not a cycle; pg_locks sampler log) goes in WP-B's CURRENT-STATE record, together with this record verbatim.
 ````
 
+## 32. WP-B AUTH-026 implementation record (OI-131 PR 1: set-based financial evaluation)
+
+Implemented by WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) on `main` `285a583` (the AUTH-026 grant, PR #81; post-merge CI 46129200887 verified), with `main` `7d44988` (AUTH-027) merged in. This is PR 1 of 2. WP-C's PR 2 (`20261128140100`) switches `operational_queue` to this helper and adds the page states; the end-to-end queue figures are recorded in §33. Section number assigned by Main.
+
+**Root cause (measured; 295 active projects after the integration suite; `track_functions = all`, `pg_stat_xact_user_functions`).** One `operational_queue` call took 8,660.85 ms:
+
+| Function | Calls | Total |
+|---|---|---|
+| `project_financial_status` | 542 | 8,331 ms |
+| `gate_anomalies` | 1,084 | 7,683 ms |
+| `project_financial_anomalies` | 1,084 | 7,606 ms |
+| `financial_conflict_cleared` | 15,176 | 5,925 ms |
+| `financial_conflict_application_verified` | 7,588 | 5,709 ms |
+| `financial_conflict_scope` | 7,588 | 3,222 ms |
+
+Two effects multiply:
+- Branch 7 of `project_financial_anomalies` tests every candidate conflict event on every evaluation, so the conflict functions run (events × evaluations) times.
+- The queue evaluates each project's anomalies four times: twice through `project_financial_status`, and once more per publication gate.
+
+**Migration `20261128140000_wpb_oi131_financial_evaluation.sql`** (reserved; SHA-256 `a11ed2c68c7545ce5b099392e0a75b1032dfa8d1d6768f04ac3d3f7ba5f1d807`). It creates five indexes and one function, and revokes; it replaces nothing.
+
+`private.financial_evaluation_for_projects(p_project_ids uuid[]) returns table (project_id uuid, status private.project_financial_status, failed boolean)`:
+- STABLE, SECURITY DEFINER, `search_path = ''`. No lock. No execute for PUBLIC, anon, authenticated or service_role.
+- The signature is frozen; Main's FD-14 addendum 1 to 220 depends on it.
+
+One set pass covers every requested project:
+- **The anomaly branches.** All eight branches, with `financial_conflict_cleared` evaluated once per distinct relevant event (it is a STABLE function of the event id). The result is reduced to the G2 and G4 kind arrays `gate_anomalies` returns.
+- **Set-based copies of the components `project_financial_status` reads:**
+  - the reversal observations and unposted reversals;
+  - the deposit state and its verification;
+  - the agreement state, including the ever-verified flag;
+  - the final-balance state and its verification;
+  - active holds;
+  - the payment-authorization state;
+  - the ledger digest.
+
+  Each copies the per-project function's own expression.
+- **Assembly.** Each row is assembled in `project_financial_status`'s field order, one row per distinct input id, null included.
+
+**Failure handling:**
+- If one project's row assembly raises, the helper falls back to `project_financial_status` for that project alone, in its own failure scope (WP-I N-1).
+- If the set pass raises, the helper falls back, for that call, to `project_financial_status` per project.
+- In either fallback, a project gets `failed = true` and a null status only when `project_financial_status` itself raises for it.
+- A null id always takes the per-project path.
+
+**Unchanged.** Every existing function body is byte-identical. The md5 of `prosrc` is the same on `main` and after a clean reset or incremental application:
+
+| Function | md5 |
+|---|---|
+| `project_financial_status` | `ee4e4342…` |
+| `project_financial_anomalies` | `c13caa4d…` |
+| `gate_anomalies` | `9cbf0faf…` |
+| `financial_conflict_cleared` | `23348342…` |
+| `project_agreement_state` | `ea07f771…` |
+| `project_deposit_state` | `c532a027…` |
+| `project_final_balance_state` | `a70633de…` |
+| `project_owner_intervention_required` | `89147dcd…` |
+| `unposted_reversals` | `c8f426a0…` |
+
+Every caller is kept. There is no grant, RLS, role, timeout, queue or app change.
+
+**Indexes.** Main confirmed them in bounds: additive, and they change no result. The evidence is `pg_stat_xact_user_tables` at 1,000 synthetic projects after ANALYZE:
+- `checkout_sessions` was scanned sequentially 1,104 times (717,600 rows) by the deposit-state lookup. The only project index is partial, on open initial sessions. Added `(project_id, kind, created_at desc, attempt desc)`.
+- `reconciliation_mismatches`, `billing_holds`, `payment_authorizations` and `final_balance_invoices` were each scanned once or twice per project. Added `(project_id)` on each.
+
+**Harness (test-only, no dependency).** `tests/perf/oi131_synthetic_projects.sql` sits outside `supabase/tests`, so neither `supabase test db` nor `scripts/run-db-tests.sh` collects it (Main's check).
+- It defines only `pg_temp` functions, and is loaded inside a transaction the caller rolls back.
+- Every state is built through the real functions, in the 190 pattern:
+  - Owner issuance;
+  - client acceptance and Checkout;
+  - claimed, confirmed and recorded mock outbound results;
+  - synthetic events through `ingest_stripe_event` and `process_stripe_event`.
+- There is no Stripe request and no direct financial insert.
+
+**Representative mix** (per 100 active projects; accepted by Main):
+
+| Share | State | Rationale |
+|---|---|---|
+| 20 | lead or intake only | the early pipeline |
+| 15 | order summary presented | proposals awaiting acceptance |
+| 10 | accepted, deposit pending | Checkout started |
+| 45 | deposit verified | the bulk of a running portfolio |
+| 10 | paid, then an attribution conflict | the exceptions an Owner must clear |
+
+**The anomaly path.** The initial invoice is recorded. Then a refund arrives whose payment intent is the project's own and whose invoice belongs to a distinct earlier paid project. Processing quarantines it as an N1(a) attribution conflict, which blocks G2 and G4 for both candidates and runs the conflict functions (the root cause's path). About 16% of active projects are blocked in the representative mix.
+
+**Heavy** (the worst case): all paid; half raise a conflict naming the other half, so every project is blocked.
+
+**Two corrections made during the work** (binding per Main):
+1. **The anomaly path.** The first harness used a mismatched-amount quarantine. That event is not attributed to a project and blocked no gate, so the figures taken with it are withdrawn and superseded by the table below.
+2. **Statistics.** A single-transaction population is never seen by autovacuum, and its plans degraded quadratically at 5,000. The harness now runs ANALYZE every 250 projects, and the measurement runs ANALYZE after population.
+
+**Measurements** (`tests/perf` harness at `fda70d6`, helper unchanged; local stack, PostgreSQL 17.4; local `supabase_admin`; each run one rolled-back transaction, with ANALYZE then `track_functions = all`).
+- **Old queue:** the existing `operational_queue` as the Owner.
+- **Helper:** one call over every active project.
+- **Mismatches:** `to_jsonb(status)` compared byte for byte with `project_financial_status` for every project, with failure parity.
+
+Call counts are in the order `pfs` / anomalies / `gate_anomalies` / `conflict_cleared`.
+
+| Size | Mix | Blocked (G2) | Old queue | Old: calls | Helper (EXPLAIN execution; shared hit) | Helper: calls | Mismatches |
+|---|---|---|---|---|---|---|---|
+| 302 | representative | 48 | 3.00 s | 604 / 1,208 / 1,208 / 36,240 | 40 ms (35 ms; 7,124) | 0 / 0 / 0 / 30 | 0 |
+| 1,002 | representative | 160 | 13.35 s | 2,004 / 4,008 / 4,008 / 400,800 | 73 ms (70 ms; 24,190) | 0 / 0 / 0 / 100 | 0 |
+| 5,002 | representative | 800 | 291.1 s | 10,004 / 20,008 / 20,008 / 10,004,000 | 505–630 ms (603–632 ms; 170,330–170,617) | 0 / 0 / 0 / 500 | 0 |
+| 302 | heavy | 300 | 4.38 s | 604 / 1,208 / 1,208 / 181,200 | 49 ms (34 ms; 12,914) | 0 / 0 / 0 / 150 | 0 |
+| 1,002 | heavy | 1,000 | 30.64 s | 2,004 / 4,008 / 4,008 / 2,004,000 | 211 ms (136 ms; 40,580) | 0 / 0 / 0 / 500 | 0 |
+| 5,002 | heavy | 5,000 | not run | not run | 2.49 s (1.48 s; 249,014, temp 324) | 0 / 0 / 0 / 2,500 | 0 |
+| 295 (after integration) | real suite states | 26 (G2 or G4) | 8.66 s (before) | above | 60 ms | 0 / 0 / 0 / 14 | 0 of 335 |
+
+**Notes on the table:**
+- The helper runs exactly once per call in every row.
+- Each synthetic size includes the 2 seed projects.
+- In the helper, `financial_conflict_cleared` runs once per distinct conflict event.
+- At 5,000 representative, the financial component takes about 0.6 s of the 4 s end-to-end target.
+- The old queue at 5,000 heavy was not run, because 5,000 representative already takes 291 s.
+- The heavy figures are informational (Main's ruling 1). At 5,002 heavy the plan spills 324 temp blocks (2.6 MB at the local default `work_mem` of 4 MB) for the per-event and per-project aggregation. This is a known characteristic of the worst case, not a deviation (WP-C N-3). It does not occur in the representative mix.
+
+**Equivalence.**
+- **The measurements:** the table above, 0 mismatches at every size and mix.
+- **Suite-wide (`tests/perf/oi131_suite_equivalence.sh`):** each of the 46 pgTAP files runs unchanged. Just before its final ROLLBACK, the runner restores the merged `project_financial_status` (210, 215, 220, 225 and 240 replace it with a fixture inside their own transaction), then compares every project the file reached, with failure parity. **Result: 46 files, 0 mismatches.** In 199 the deliberately failed project is failed on both sides.
+- **Anomaly coverage:** the kind × gate pairs the suites reach are every pair the kinds can produce:
+  - `quarantined_event`, `reconciliation_mismatch`, `unposted_reversal` and `ambiguous_request` under both G2 and G4;
+  - `charged_after_halt`, `automatic_stop_failed` and `automatic_stop_unresolved` under G4, their only gate.
+- **pgTAP 199:**
+  - the harness-style states, plus null, unknown, duplicate and empty inputs;
+  - the per-gate kinds;
+  - the forced set-pass raise.
+
+**Fallback parity (Main's ruling 3).** pgTAP 199 wraps `private.holding_balance_cents` inside its rolled-back transaction. The wrapper is installed before any financial call, because a call site that has already resolved a function keeps it for the whole transaction. It raises for one verified deposit's charge key once a transaction setting names it. The set pass, which evaluates every verified deposit, then raises. In the fallback:
+- exactly that project is `failed` with a null status, because the per-project function raises for it too;
+- every other project equals the per-project function exactly.
+
+**Per-project assembly fallback (WP-I N-1).** pgTAP 199 also wraps `private.calendar_version`, which the row assembly calls once per project, in the same way. A counting run gives C calls for P projects: C − P in the set pass, then one per project in the assembly. The next run raises on call C + (C − P) + 1, the first assembly call, so the set pass completes and exactly one project's assembly raises. That project falls back to `project_financial_status` and is evaluated once more, giving 2C + 1 calls in total. No project is failed, and every row equals the per-project function exactly.
+
+Proof that the test bites: against the previous handler, which marked such a project failed, both assertions fail. That run gave 2C calls and one failed project.
+
+**Evaluation counts.** `tests/integration/oi131-evaluation-counts.test.ts` (local `supabase_admin`, localhost guard, rolled back) asserts that one call over every active project returns one row per project with none failed, and the deltas helper 1, `project_financial_status` 0, `project_financial_anomalies` 0, `gate_anomalies` 0. It also checks equivalence over every project the suites left. The queue-level counts belong to WP-C (§33).
+
+**Drift guard (WP-C N-1).** The helper reimplements the bodies of 16 per-project functions set-based:
+- `gate_anomalies`, `obligation_disputed`, `obligation_net_cents`, `payment_authorization_state`;
+- `project_active_billing_holds`, `project_agreement_state`, `project_balance_verified`, `project_deposit_ever_verified`;
+- `project_deposit_obligation`, `project_deposit_state`, `project_deposit_verified`, `project_final_balance_state`;
+- `project_financial_anomalies`, `project_financial_status`, `reversal_observations`, `unposted_reversals`.
+
+pgTAP 199 pins `md5(prosrc)` of each, one assertion per function, each described "if this changes, update private.financial_evaluation_for_projects in the same change". A future change to any of them therefore fails CI until the helper and its equivalence evidence are updated with it. Mutation check (scratch): one mirrored body altered inside the transaction fails exactly its assertion.
+
+The functions the helper calls rather than copies follow any change automatically, so they are not pinned:
+- `financial_conflict_cleared`, `holding_balance_cents`, `dispute_is_open`;
+- `event_charge_kinds`, `object_charge_kinds`, `charge_kind_gates`, `charge_key_gates`;
+- `sha256_hex`, `calendar_version`.
+
+**Which equivalence evidence runs in CI, and which ran once (WP-C N-2).**
+- **In CI, on every change that is not documentation-only:**
+  - pgTAP 199: states, inputs, fallback parity and the drift guard;
+  - `tests/integration/oi131-evaluation-counts.test.ts`: the counts, plus equivalence over every project the suites left;
+  - once PR 2 lands, WP-C's queue-level identity and count tests (§33).
+- **Run once, for this record, and not in CI:**
+  - the harness matrix at 300, 1,000 and 5,000;
+  - the suite-wide runner `tests/perf/oi131_suite_equivalence.sh`.
+
+  Either can be rerun locally with the commands in the files' headers. The drift guard is what keeps the one-off evidence valid: any change to a mirrored function fails CI and requires rerunning it.
+
+**Requirement C (migrations out of timestamp order).** 140000 precedes `main`'s 150000.
+- **Clean reset:** `supabase db reset` passes; the last migrations are 150000, 140000 and 130000.
+- **Incremental:** the reset with 140000 withheld passes, and the helper is absent. Plain `supabase migration up` refuses with `MigrationMissingRemoteError`. `supabase migration up --include-all` applies 140000, and the helper is then owned by `postgres`. On that database, pgTAP passes with 2,815 assertions and 0 files failed (before the drift guard was added), and the md5s above are unchanged. Repeated at the final migration content (`a11ed2c6…`): plain `up` refuses with the same error, `--include-all` applies only 140000, and 199 passes 30/30.
+
+**Verification** (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4; CI order with the CI job's `APP_ENV=test` and `NEXT_PUBLIC_SITE_URL`; synthetic data only):
+
+| Check | Result |
+|---|---|
+| Fresh reset | passes |
+| pgTAP | 2,833 assertions, 0 files failed (199 30/30, with the drift guard and the assembly fallback) |
+| WP-D18 isolated commit | passes |
+| Integration | 17 files, 171 passed |
+| Unit | 527 passed |
+| Lint, typecheck, format, check-migrations | pass |
+| e2e, Lighthouse, dependency audit, secret scan | not run locally; exact-head CI |
+
+There is no Stripe request, credential or hosted operation.
+
 ## 34. PWP-1 AUTH-027 implementation record (OI-133: contract reader integrity, fail-closed)
 
 Implemented by the DEP-18 session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `main` through `285a583` (the AUTH-026 and AUTH-027 grant record). Numbered §34, as assigned by Main (§32 and §33 are reserved for the two AUTH-026 PRs; OM-2). Local and CI only; synthetic and fixture data only.

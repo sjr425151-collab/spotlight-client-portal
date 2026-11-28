@@ -4,7 +4,8 @@
 --
 -- 1. New private variants that take the caller's precomputed financial status (p_fin, the
 --    exact to_jsonb(private.project_financial_status(p)), or null with p_fin_failed where that
---    evaluation raised): wpc_intake_unlocked_from, intake_state_from and
+--    evaluation raised): wpc_intake_unlocked_from, intake_state_from,
+--    project_fulfillment_status_from (whose intake state is the only financial input it reads) and
 --    evaluate_publication_gates_from. Each is the existing helper's body with only its own
 --    financial-status evaluation replaced by the parameter, preserving its exception path. The
 --    existing helpers (wpc_intake_unlocked, intake_state_of, evaluate_publication_gates) keep
@@ -49,6 +50,75 @@ begin
     else 'submitted'::public.intake_state end;
 end;
 $$;
+create function private.project_fulfillment_status_from(p_project_id uuid, p_fin jsonb)
+returns private.project_fulfillment_status
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_release public.preview_releases;
+  v_approval uuid;
+  v_qa public.qa_results;
+  v_sec public.security_check_results;
+  v_domain public.domain_readiness_checks;
+  v_holds public.hold_type[];
+  v_hold_ids uuid[];
+  v_state public.intake_state;
+  v_revoked_assets boolean := false;
+begin
+  if not exists (select 1 from public.projects where id = p_project_id) then
+    return row(p_project_id, 2::smallint, false, 'locked'::public.intake_state, false, null::uuid, false, null::uuid,
+      false, false, '{}'::public.hold_type[], '{}'::jsonb, false, null::uuid, null::timestamptz
+    )::private.project_fulfillment_status;
+  end if;
+  v_state := private.intake_state_from(p_project_id, p_fin);
+  v_release := private.current_release(p_project_id);
+  if v_release.id is not null then
+    -- OI-113: the approval named by the canonical release.approved event, with all six conditions.
+    select a.id into v_approval
+      from public.domain_events e
+      join public.preview_approvals a
+        on a.id::text = e.payload ->> 'approval_id'                    -- (6) the named approval,
+       and a.release_id = v_release.id and a.project_id = p_project_id --     of this release and project
+     where e.dedupe_key = 'release.approved:' || v_release.id::text    -- (1) the canonical key (unique)
+       and e.event_type = 'release.approved'                           -- (2)
+       and e.subject_type = 'preview_release'                          -- (3)
+       and e.subject_id = v_release.id::text                           -- (4)
+       and e.project_id = p_project_id;                                -- (5)
+    select * into v_qa from public.qa_results q where q.release_id = v_release.id
+     order by q.seq desc limit 1;
+    select * into v_sec from public.security_check_results s where s.release_id = v_release.id
+     order by s.seq desc limit 1;
+    v_revoked_assets := exists (select 1 from public.preview_release_assets m
+      join public.asset_uploads u on u.id = m.upload_id
+      where m.release_id = v_release.id and u.status <> 'available');
+  end if;
+  select * into v_domain from public.domain_readiness_checks d where d.project_id = p_project_id
+   order by d.seq desc limit 1;
+  select coalesce(array_agg(h.hold_type), '{}'), coalesce(array_agg(h.id), '{}') into v_holds, v_hold_ids
+    from public.approval_holds h where h.project_id = p_project_id and h.cleared_at is null;
+
+  return row(
+    p_project_id, 2::smallint, true,
+    v_state, v_state = 'accepted_by_staff',
+    v_release.id, v_approval is not null, v_approval,
+    -- 06 §6 "approved assets only": a release whose manifest holds an asset that is no longer
+    -- available (for example revoked after a late malicious verdict) fails G5.
+    v_release.id is not null and private.qa_result_passes(v_qa) and not v_revoked_assets,
+    v_release.id is not null and private.security_result_passes(v_sec),
+    v_holds,
+    jsonb_build_object(
+      'current_release_number', v_release.release_number,
+      'current_release_commit_sha', v_release.commit_sha,
+      'qa_result_id', v_qa.id, 'qa_release_id', v_qa.release_id,
+      'security_result_id', v_sec.id, 'security_release_id', v_sec.release_id,
+      'fulfillment_hold_ids', to_jsonb(v_hold_ids),
+      'release_assets_unavailable', v_revoked_assets),
+    v_domain.id is not null and private.domain_check_passed(v_domain)
+      and v_domain.checked_at > now() - private.domain_freshness_window(),
+    v_domain.id, v_domain.checked_at
+  )::private.project_fulfillment_status;
+end;
+$$;
+
 create function private.evaluate_publication_gates_from(p_project_id uuid, p_release_id uuid, p_fin jsonb,
   p_fin_failed boolean) returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
@@ -73,7 +143,7 @@ begin
     v_fin := p_fin;
   end if;
   begin
-    v_ful := to_jsonb(private.project_fulfillment_status(p_project_id));
+    v_ful := to_jsonb(private.project_fulfillment_status_from(p_project_id, p_fin));
   exception when others then
     v_ful := null; v_ful_error := 'unavailable';
   end;
@@ -419,5 +489,6 @@ $$;
 revoke all on function
   private.wpc_intake_unlocked_from(uuid, jsonb),
   private.intake_state_from(uuid, jsonb),
+  private.project_fulfillment_status_from(uuid, jsonb),
   private.evaluate_publication_gates_from(uuid, uuid, jsonb, boolean)
 from public, anon, authenticated, service_role;

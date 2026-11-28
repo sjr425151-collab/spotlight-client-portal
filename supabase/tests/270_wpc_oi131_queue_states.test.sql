@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(16);
+select plan(18);
 
 -- Fixtures (rolled back): a current release for Project A; a submitted, then accepted intake
 -- for Project B; a third project with a submitted intake awaiting review.
@@ -50,6 +50,9 @@ select is((select array_agg(private.intake_state_from(f.project_id, f.status)::t
      from unnest(array['20000000-0000-4000-8000-0000000000a0', '20000000-0000-4000-8000-0000000000b0',
                        '20000000-0000-4000-8000-0000000000c0']::uuid[]) p),
   'the fixtures reach the locked or open, accepted and submitted branches identically');
+select ok((select bool_and(to_jsonb(private.project_fulfillment_status_from(f.project_id, f.status))
+                           = to_jsonb(private.project_fulfillment_status(f.project_id))) from fin f),
+  'project_fulfillment_status_from equals project_fulfillment_status for every project');
 select ok((select bool_and(private.evaluate_publication_gates_from(f.project_id, (private.current_release(f.project_id)).id,
                              f.status, false)
                            = private.evaluate_publication_gates(f.project_id, (private.current_release(f.project_id)).id))
@@ -65,6 +68,9 @@ select ok(private.evaluate_publication_gates_from('20000000-0000-4000-8000-00000
 -- ---------------------------------------------------------------------------
 select is(private.wpc_intake_unlocked_from('20000000-0000-4000-8000-0000000000a0', null), false,
   'a failed evaluation (null status) keeps intake locked, as the original exception path does');
+select is((private.project_fulfillment_status_from('20000000-0000-4000-8000-0000000000a0', null)).intake_state::text,
+  private.intake_state_from('20000000-0000-4000-8000-0000000000a0', null)::text,
+  'a failed evaluation reaches the fulfillment status only through the intake state, as in the original');
 select is(private.intake_state_from('20000000-0000-4000-8000-0000000000c0', null)::text, 'submitted',
   'a submitted intake is reported whatever the financial evaluation');
 select is((select g ->> 'reason' from jsonb_array_elements(
@@ -80,15 +86,15 @@ select ok(not coalesce((private.evaluate_publication_gates_from('20000000-0000-4
 -- ---------------------------------------------------------------------------
 select ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                        where n.nspname = 'private' and p.proname in ('wpc_intake_unlocked_from', 'intake_state_from',
-                         'evaluate_publication_gates_from')
+                         'evaluate_publication_gates_from', 'project_fulfillment_status_from')
                          and (has_function_privilege('authenticated', p.oid, 'execute')
                            or has_function_privilege('anon', p.oid, 'execute')
                            or has_function_privilege('service_role', p.oid, 'execute'))),
   'the new helpers: no API-role execute');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'private' and p.proname in ('wpc_intake_unlocked_from', 'intake_state_from',
-              'evaluate_publication_gates_from')
-              and p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""']), 3,
+              'evaluate_publication_gates_from', 'project_fulfillment_status_from')
+              and p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""']), 4,
   'the new helpers are SECURITY DEFINER, STABLE, with an empty search_path');
 select ok((select p.prosecdef and p.provolatile = 's' and p.proconfig = array['search_path=""']
              and has_function_privilege('authenticated', p.oid, 'execute')
@@ -105,8 +111,9 @@ select ok((select not p.prosecdef and p.provolatile = 's' and p.proconfig = arra
             where n.nspname = 'public' and p.proname = 'operational_queue'),
   'public.operational_queue is unchanged (SECURITY INVOKER, STABLE, authenticated only)');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-            where n.nspname = 'private' and p.proname in ('wpc_intake_unlocked', 'intake_state_of', 'evaluate_publication_gates')),
-  3, 'the existing helpers still exist with one signature each');
+            where n.nspname = 'private' and p.proname in ('wpc_intake_unlocked', 'intake_state_of', 'evaluate_publication_gates',
+              'project_fulfillment_status')),
+  4, 'the existing helpers still exist with one signature each');
 select ok(not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                        where n.nspname = 'private' and p.proname = 'operational_queue'
                          and (p.prosrc ~* 'project_financial_status|project_financial_anomalies|gate_anomalies'

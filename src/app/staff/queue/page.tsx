@@ -63,7 +63,9 @@ export default async function QueuePage() {
   const ctx = await requireStaff({ returnTo: "/staff/queue" });
   const { data, error } = await (await createUserClient()).rpc("operational_queue");
   const failed = Boolean(error) || !Array.isArray(data);
-  if (failed) console.error("operational_queue failed", error?.code ?? "no_data");
+  // The PostgREST error code only (for example 57014), never parameters, results or tokens.
+  const failure = error ? error.code : "no_data";
+  if (failed) console.error("operational_queue failed", failure);
   const items = (failed ? [] : (data as Item[])).sort((a, b) => a.queue.localeCompare(b.queue));
   const groups = Object.keys(QUEUE_LABELS).filter((q) => items.some((i) => i.queue === q));
 

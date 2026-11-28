@@ -556,6 +556,8 @@ describe("WP-S repository checks", () => {
     "20261126140000_wpd18_scope_version_sealing.sql",
     // B-1 (AUTH-018, Owner disposition 2026-11-27): the loader migration, by exact file name only.
     "20261127160000_dep18_scope_loader_activation.sql",
+    // OD-11(i) (AUTH-021, pre-approved): the PWP-1 migration, by exact file name only.
+    "20261128100000_pwp1_contract_instruments.sql",
   ]);
   function withoutSqlComments(sql: string): string {
     let out = "";
@@ -670,6 +672,10 @@ describe("WP-S repository checks", () => {
     // B-1: a file named like the loader migration is still caught.
     expect(
       stricterScopeViolations("20270101000000_dep18_scope_loader_activation_v2.sql", plainInsert),
+    ).toEqual(["names-scope-table"]);
+    // OD-11(i): a file named like the PWP-1 migration is still caught.
+    expect(
+      stricterScopeViolations("20270101000000_pwp1_contract_instruments_v2.sql", plainInsert),
     ).toEqual(["names-scope-table"]);
     // Not trivially failing: comments alone, and an unrelated table, pass.
     expect(

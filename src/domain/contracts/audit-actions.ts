@@ -207,6 +207,13 @@ export const AUDIT_ACTIONS: readonly AuditAction[] = [
   // AUTH-015 (OI-114): controlled recovery after a failed deployment or live verification.
   c("publication.recovery_opened", "deployment", "06 §8.1"),
   c("publication.recovery_rejected", "deployment", "06 §8.1"),
+  // AUTH-023 (OI-111, OD-14, OD-15): scope confirmation, acknowledgment, notes and the release gate.
+  c("scope_confirmation.recorded", "fulfillment", "05 §3A"),
+  c("scope_confirmation.rejected", "fulfillment", "05 §3A"),
+  c("scope_confirmation.acknowledged", "fulfillment", "05 §3A"),
+  c("scope_confirmation.acknowledgment_rejected", "fulfillment", "05 §3A"),
+  c("operational_note.recorded", "fulfillment", "05 §3A"),
+  c("preview.release_rejected", "approval", "05 §3A"),
 ];
 
 export function auditAction(name: string): AuditAction {

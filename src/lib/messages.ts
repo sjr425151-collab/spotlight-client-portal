@@ -73,6 +73,27 @@ export const MESSAGES = {
   release_superseded: "A newer preview was released. Reload the page to review it.",
   confirmation_required: "Please confirm before continuing.",
   intake_not_accepted: "Accept the client's intake before releasing a preview.",
+  // WP-C: scope confirmation and operational notes (05 §3A; AUTH-023, OI-111)
+  scope_confirmation_recorded:
+    "Scope confirmation recorded. The client signer must acknowledge it before the next preview release.",
+  operational_note_recorded: "Operational note added.",
+  scope_acknowledged: "Thank you. Your acknowledgment of the scope confirmation was recorded.",
+  scope_confirmation_required: "Record a scope confirmation before releasing a preview.",
+  scope_acknowledgment_required:
+    "The client signer has not acknowledged the current scope confirmation, so no preview can be released yet.",
+  scope_confirmation_stale:
+    "The scope confirmation no longer matches the effective order summary. Record a new version.",
+  agreement_not_effective: "A scope confirmation needs the project's agreement to be in effect.",
+  confirmation_unchanged: "That scope confirmation is the same as the current version.",
+  not_authorized_signer:
+    "Only the person who accepted the agreement can acknowledge the scope confirmation.",
+  confirmation_superseded: "A newer scope confirmation was recorded. Reload the page to review it.",
+  confirmation_stale:
+    "This scope confirmation no longer applies. Your project team will send an updated version.",
+  confirmation_changed:
+    "The scope confirmation changed. Reload the page to review the current version.",
+  already_acknowledged: "This scope confirmation was already acknowledged.",
+  explicit_acknowledgment_required: "Please check the box to acknowledge the scope confirmation.",
   asset_not_available: "Only scanned, available assets can be used in a release.",
   not_current_release: "That is not the current release.",
   invalid_date: "That date is outside the allowed range.",

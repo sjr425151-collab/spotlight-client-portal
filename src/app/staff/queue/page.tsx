@@ -15,6 +15,7 @@ const QUEUE_LABELS: Record<string, string> = {
   intake_pending: "Intake pending",
   intake_review: "Intake review",
   in_development: "In development",
+  awaiting_scope_acknowledgment: "Awaiting scope acknowledgment",
   awaiting_client_approval: "Awaiting client approval",
   approval_outreach_due: "Approval outreach due",
   approval_followup_due: "Approval follow-up due",

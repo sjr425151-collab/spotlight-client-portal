@@ -19,8 +19,9 @@
 --    is acknowledged. It runs after the release:<project> lock, which recording and
 --    acknowledging also take, so the three serialize. Any new version needs a new
 --    acknowledgment (OD-14). There is no override, bypass or "on behalf of the client" path.
--- 5. private.operational_queue (one hunk): scope_confirmation_needed (accepted intake, no
---    release yet, no valid current confirmation) and awaiting_scope_acknowledgment.
+-- 5. private.operational_queue (one hunk): awaiting_scope_acknowledgment, for a current version
+--    the authorized signer has not acknowledged yet. (A project with none shows its scope state on
+--    its staff page; the release gate refuses either way.)
 --
 -- Never touched (T-LC-20): order summaries, their hashes, the accepted price, the ledger, any
 -- payment or WP-B object; AUTH-021 and AUTH-022 objects. No entitlement check against a package
@@ -519,13 +520,7 @@ begin
     if v_state = 'accepted_by_staff' and v_release.id is null then
       return next jsonb_build_object('queue', 'in_development', 'project_id', p.id, 'project_name', p.name);
     end if;
-    -- AUTH-023 (05 §3A): a scope confirmation is needed before the first release, and any
-    -- unacknowledged current version awaits the authorized signer.
-    if v_state = 'accepted_by_staff' and v_release.id is null
-       and private.scope_confirmation_state(p.id) in ('none', 'stale') then
-      return next jsonb_build_object('queue', 'scope_confirmation_needed', 'project_id', p.id, 'project_name', p.name,
-        'detail', jsonb_build_object('state', private.scope_confirmation_state(p.id)));
-    end if;
+    -- AUTH-023 (05 §3A): an unacknowledged current scope confirmation awaits the authorized signer.
     if private.scope_confirmation_state(p.id) = 'unacknowledged' then
       return next jsonb_build_object('queue', 'awaiting_scope_acknowledgment', 'project_id', p.id, 'project_name', p.name,
         'subject_id', (private.current_scope_confirmation(p.id)).id,

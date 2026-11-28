@@ -113,6 +113,42 @@ export async function releasePreviewAction(formData: FormData) {
   );
 }
 
+// AUTH-023 (05 §3A; OD-15): Owner or Admin records a scope confirmation version. One selection or
+// amendment reference per line. The database binds it to the effective order summary, hashes it,
+// and refuses it unless intake is accepted and the agreement is effective.
+const lines = (formData: FormData, key: string) =>
+  text(formData, key)
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+export async function recordScopeConfirmationAction(formData: FormData) {
+  await requireStaff();
+  done(
+    formData,
+    await call("record_scope_confirmation", {
+      p_project_id: text(formData, "projectId"),
+      p_client_requirements: text(formData, "clientRequirements").slice(0, 4000),
+      p_fulfillment_selections: lines(formData, "selections").slice(0, 51),
+      p_amendment_references: lines(formData, "amendmentReferences").slice(0, 21),
+    }),
+    "scope_confirmation_recorded",
+  );
+}
+
+// AUTH-023 (OI-100): a staff-only, append-only operational note, outside every snapshot.
+export async function recordOperationalNoteAction(formData: FormData) {
+  await requireStaff();
+  done(
+    formData,
+    await call("record_operational_note", {
+      p_project_id: text(formData, "projectId"),
+      p_note: text(formData, "note").slice(0, 4000),
+    }),
+    "operational_note_recorded",
+  );
+}
+
 export async function withdrawPreviewAction(formData: FormData) {
   await requireStaff();
   done(

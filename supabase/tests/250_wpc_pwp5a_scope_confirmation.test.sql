@@ -298,9 +298,11 @@ select ok((select summary ->> 'reason' = 'intake_not_accepted' from public.audit
 -- ---------------------------------------------------------------------------
 select is(pg_temp.state(pg_temp.id('p')), 'none', 'state: no confirmation yet');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
-select ok(exists (select 1 from public.operational_queue() q where q ->> 'queue' = 'scope_confirmation_needed'
+select ok(exists (select 1 from public.operational_queue() q where q ->> 'queue' = 'in_development'
+                   and q ->> 'project_id' = pg_temp.id('p')::text)
+  and not exists (select 1 from public.operational_queue() q where q ->> 'queue' like '%scope%'
                    and q ->> 'project_id' = pg_temp.id('p')::text),
-  'the queue shows that a scope confirmation is needed');
+  'before any confirmation the project stays in development, with no scope queue item');
 reset role;
 select is(pg_temp.try_release(pg_temp.id('p')) ->> 'error', 'scope_confirmation_required',
   'T-LC-19: the Admin cannot release without a scope confirmation');
@@ -345,8 +347,7 @@ select is(pg_temp.state(pg_temp.id('p')), 'unacknowledged', 'state: unacknowledg
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
 select ok(exists (select 1 from public.operational_queue() q where q ->> 'queue' = 'awaiting_scope_acknowledgment'
                    and q ->> 'project_id' = pg_temp.id('p')::text)
-  and not exists (select 1 from public.operational_queue() q where q ->> 'queue' = 'scope_confirmation_needed'
-                   and q ->> 'project_id' = pg_temp.id('p')::text),
+,
   'the queue now shows the confirmation awaiting acknowledgment');
 reset role;
 select is(pg_temp.try_release(pg_temp.id('p')) ->> 'error', 'scope_acknowledgment_required',

@@ -220,7 +220,9 @@ beforeAll(async () => {
     )
   ).rows[0].id as string;
   await admin.query("commit");
-  // A synthetic approved agreement holding only a heading and the approved 04 §3.1 clause.
+  // A synthetic approved agreement holding only a heading and the approved 04 §3.1 clause. It is
+  // dated before the seeded fixture agreement (2026-11-24) so that issuance, which takes the
+  // usable agreement with the latest effective date, keeps using the fixture in later suites.
   const text = (
     await one<{ t: string }>(
       "select 'IT SYNTHETIC AGREEMENT " +
@@ -228,11 +230,10 @@ beforeAll(async () => {
         "' || E'\\n\\n' || private.final_payment_clause() t",
     )
   ).t;
-  const ag = await owner("select public.create_agreement_version($1, $2, current_date, $3) v", [
-    `it-pwp1-${marker}`,
-    text,
-    "IT-AGR",
-  ]);
+  const ag = await owner(
+    "select public.create_agreement_version($1, $2, date '2026-11-01', $3) v",
+    [`it-pwp1-${marker}`, text, "IT-AGR"],
+  );
   ids.agreement = ag.agreement_version_id as string;
   expect((await owner("select public.approve_agreement_version($1) v", [ids.agreement])).ok).toBe(
     true,

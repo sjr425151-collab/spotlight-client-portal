@@ -21,6 +21,10 @@ const QUEUE_LABELS: Record<string, string> = {
   approval_followup_due: "Approval follow-up due",
   approval_hold_eligible: "Approval hold eligible",
   approval_hold_review: "Approval hold review",
+  inactivity_formal_notice_due: "Formal notice due (pending DEP-03)",
+  inactivity_suspension_eligible:
+    "Administrative suspension or rescheduling eligible (pending DEP-03)",
+  inactivity_review_due: "Individual review due (pending DEP-03)",
   awaiting_final_payment: "Awaiting final payment",
   ready_for_publication_review: "Ready for publication review",
   blocked_by_hold: "Blocked by hold",

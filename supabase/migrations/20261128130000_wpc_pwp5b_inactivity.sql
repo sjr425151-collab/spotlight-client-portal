@@ -131,7 +131,7 @@ begin
     return private.fail('schedule_stopped');
   end if;
   if private.detroit_days_since(v_release.released_at) < v_day then
-    return private.fail('too_early');
+    return private.fail('milestone_too_early');
   end if;
   if p_occurred_on is null or p_occurred_on < (v_release.released_at at time zone 'America/Detroit')::date + v_day
      or p_occurred_on > (now() at time zone 'America/Detroit')::date then
@@ -142,12 +142,17 @@ begin
     return private.fail('formal_notice_required');
   end if;
   if private.inactivity_milestone_recorded(v_release.id, p_milestone) then
-    return private.fail('already_recorded');
+    return private.fail('milestone_already_recorded');
   end if;
   insert into public.inactivity_milestones (project_id, release_id, milestone, channel, occurred_on, summary, recorded_by)
   values (v_release.project_id, v_release.id, p_milestone, p_channel, p_occurred_on, btrim(p_summary), (select auth.uid()))
   returning id into v_id;
-  perform private.record_audit_event('inactivity.' || p_milestone || '_recorded', 'inactivity_milestones', v_id::text,
+  perform private.record_audit_event(case p_milestone
+      when 'courtesy_reminder' then 'inactivity.courtesy_reminder_recorded' when 'reminder' then 'inactivity.reminder_recorded'
+      when 'admin_notified' then 'inactivity.admin_notified_recorded' when 'formal_notice' then 'inactivity.formal_notice_recorded'
+      when 'estimate_suspension' then 'inactivity.estimate_suspension_recorded'
+      when 'rescheduling_decision' then 'inactivity.rescheduling_decision_recorded'
+      else 'inactivity.individual_review_recorded' end, 'inactivity_milestones', v_id::text,
     v_release.project_id, null,
     jsonb_build_object('release_id', v_release.id, 'channel', p_channel, 'occurred_on', p_occurred_on, 'day', v_day));
   return jsonb_build_object('ok', true, 'milestone_id', v_id);
@@ -189,7 +194,7 @@ begin
   else
     -- AUTH-024 (05 §7.1, §7.2; OI-110): day 30, following the recorded day-14 formal notice.
     if private.detroit_days_since(v_release.released_at) < 30 then
-      return private.fail('too_early');
+      return private.fail('suspension_too_early');
     end if;
     if not private.inactivity_milestone_recorded(v_release.id, 'formal_notice') then
       return private.fail('formal_notice_required');

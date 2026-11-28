@@ -93,6 +93,18 @@ function scopeStateLabel(state: string): string {
   }
 }
 
+// AUTH-024 (05 §7.1; OI-110): the revised steps. Contractual consequences of the notice steps
+// await counsel-approved wording (DEP-03), so their labels say so.
+const MILESTONE_LABELS: Record<string, string> = {
+  courtesy_reminder: "Day 3 courtesy reminder (non-contractual)",
+  reminder: "Day 7 reminder",
+  admin_notified: "Day 7 Admin notification",
+  formal_notice: "Day 14 formal notice (pending DEP-03)",
+  estimate_suspension: "Day 14 preview-estimate suspension (pending DEP-03)",
+  rescheduling_decision: "Day 30 rescheduling decision (pending DEP-03)",
+  individual_review: "Day 60 individual review (pending DEP-03)",
+};
+
 /**
  * Staff fulfillment and publication controls (05, 06). Everything shown is read through RLS
  * and the database's derived state; every button calls a server action that the database
@@ -116,6 +128,7 @@ export async function FulfillmentPanel({
     exceptions,
     releases,
     outreach,
+    milestones,
     holds,
     revisions,
     authorizations,
@@ -154,6 +167,12 @@ export async function FulfillmentPanel({
     db
       .from("approval_outreach_records")
       .select("id, release_id, kind, channel, occurred_on")
+      .eq("project_id", projectId)
+      .order("occurred_on", { ascending: false })
+      .limit(20),
+    db
+      .from("inactivity_milestones")
+      .select("id, release_id, milestone, channel, occurred_on")
       .eq("project_id", projectId)
       .order("occurred_on", { ascending: false })
       .limit(20),
@@ -557,6 +576,57 @@ export async function FulfillmentPanel({
 
       {currentReleaseId ? (
         <Section id="outreach" title="Approval outreach and hold">
+          <Card className="flex flex-col gap-3">
+            <h3 className="text-sm font-semibold text-fg">
+              Inactivity procedure (releases from this update on)
+            </h3>
+            <p className="text-sm text-fg-muted">
+              Days are calendar days in America/Detroit from the current release. Staff perform and
+              record each step. No step approves, charges, publishes, forfeits or cancels anything.
+            </p>
+            <ul className="text-sm text-fg">
+              {(milestones.data ?? [])
+                .filter((m) => m.release_id === currentReleaseId)
+                .map((m) => (
+                  <li key={m.id}>
+                    {MILESTONE_LABELS[m.milestone] ?? m.milestone} · {m.channel} · {m.occurred_on}
+                  </li>
+                ))}
+            </ul>
+            <form action={act.recordInactivityMilestoneAction} className="flex flex-col gap-3">
+              <Hidden projectId={projectId} extra={{ releaseId: currentReleaseId }} />
+              <label className="flex flex-col gap-2 text-sm font-medium text-fg">
+                Step
+                <select name="milestone" className={inputClass}>
+                  {Object.entries(MILESTONE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-2 text-sm font-medium text-fg">
+                Channel
+                <select name="channel" className={inputClass}>
+                  {["email", "phone", "sms", "video_call", "in_person", "portal", "other"].map(
+                    (c) => (
+                      <option key={c} value={c}>
+                        {c.replace("_", " ")}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+              <TextField label="Date (America/Detroit)" name="occurredOn" type="date" required />
+              <Area name="summary" label="Summary" required />
+              <Button type="submit" variant="secondary">
+                Record step
+              </Button>
+            </form>
+          </Card>
+          <h3 className="text-sm font-semibold text-fg">
+            Earlier schedule (releases created before this update)
+          </h3>
           <ul className="text-sm text-fg">
             {(outreach.data ?? [])
               .filter((o) => o.release_id === currentReleaseId)
@@ -627,7 +697,7 @@ export async function FulfillmentPanel({
               <form action={act.placeApprovalHoldAction} className="flex flex-col gap-3">
                 <Hidden projectId={projectId} />
                 <TextField
-                  label="Hold reason (day 21+, after documented outreach)"
+                  label="Hold reason (day 30+ after the formal notice; earlier releases: day 21+ after documented outreach)"
                   name="reason"
                   required
                   maxLength={1000}

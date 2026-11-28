@@ -226,7 +226,7 @@ select ok((pg_temp.admin_ms(pg_temp.id('ra1'), 'estimate_suspension', 14) ->> 'o
 select ok((pg_temp.admin_ms(pg_temp.id('ra1'), 'rescheduling_decision', 30) ->> 'ok')::boolean,
   'day-30 rescheduling decision recorded');
 select ok((pg_temp.admin_ms(pg_temp.id('ra1'), 'individual_review', 60) ->> 'ok')::boolean, 'day-60 individual review recorded');
-select is(pg_temp.admin_ms(pg_temp.id('ra1'), 'reminder', 8) ->> 'error', 'already_recorded', 'each milestone is recorded once');
+select is(pg_temp.admin_ms(pg_temp.id('ra1'), 'reminder', 8) ->> 'error', 'milestone_already_recorded', 'each milestone is recorded once');
 select is(pg_temp.queue(pg_temp.id('a')), array['awaiting_client_approval', 'inactivity_suspension_eligible'],
   'every milestone recorded: only the day-30 eligibility remains');
 select is(pg_temp.effects_fingerprint(), (select v from ids where k = 'fp0'),
@@ -266,9 +266,9 @@ select is(pg_temp.admin_ms(pg_temp.id('ra1'), 'reminder', 8) ->> 'error', 'sched
 -- ---------------------------------------------------------------------------
 -- 4. Project B: too early, a revision request stops the schedule, a new release restarts it
 -- ---------------------------------------------------------------------------
-select is(pg_temp.admin_ms(pg_temp.id('rb1'), 'formal_notice', 14) ->> 'error', 'too_early',
+select is(pg_temp.admin_ms(pg_temp.id('rb1'), 'formal_notice', 14) ->> 'error', 'milestone_too_early',
   'a milestone is refused before its day (day 10 < 14)');
-select is(pg_temp.hold(pg_temp.id('b')) ->> 'error', 'too_early', 'the suspension is refused before day 30');
+select is(pg_temp.hold(pg_temp.id('b')) ->> 'error', 'suspension_too_early', 'the suspension is refused before day 30');
 select ok((pg_temp.admin_ms(pg_temp.id('rb1'), 'courtesy_reminder', 3) ->> 'ok')::boolean, 'day-3 courtesy reminder recorded on B');
 select is(pg_temp.queue(pg_temp.id('b')),
   array['approval_outreach_due:admin_notified', 'approval_outreach_due:reminder', 'awaiting_client_approval'],

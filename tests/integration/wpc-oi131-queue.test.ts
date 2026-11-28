@@ -11,8 +11,8 @@ import { describe, expect, it } from "vitest";
  *    exactly, item for item and in order. Both are evaluated in one transaction: the previous
  *    definition (as last created by 20261128130000) is loaded as a pg_temp function from the
  *    migration file itself, so this test cannot drift from what it replaced. It runs over the
- *    database as the earlier suites leave it, plus WP-B's synthetic matrix where available.
- *    Everything is rolled back.
+ *    database as the earlier suites leave it plus a generated matrix from WP-B's test-only
+ *    harness (supabase/tests/perf/oi131_synthetic_projects.sql). Everything is rolled back.
  * 2. Evaluation counts (acceptance 2): one queue call evaluates WP-B's set-based helper once
  *    and the per-project financial functions zero times, read from pg_stat_xact_user_functions.
  *    `track_functions` can be set only by the local stack's superuser, so this connection is
@@ -25,6 +25,14 @@ const DB_URL =
 const host = new URL(DB_URL).hostname;
 if (!["127.0.0.1", "localhost"].includes(host)) throw new Error("local only");
 const SUPERUSER_URL = `postgresql://supabase_admin:postgres@${host}:${new URL(DB_URL).port || "54322"}/postgres`;
+
+/** WP-B's test-only synthetic population harness (pg_temp functions only). */
+function harness(): string {
+  return readFileSync(
+    join(process.cwd(), "supabase/tests/perf/oi131_synthetic_projects.sql"),
+    "utf8",
+  );
+}
 
 /** The previous queue definition, renamed into pg_temp. */
 function previousQueue(): string {
@@ -43,7 +51,14 @@ function previousQueue(): string {
     );
 }
 
+/** The Admin at aal2 in a live session, inside the caller's transaction (rolled back). */
 async function asStaff(c: Client) {
+  await c.query(
+    `insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at)
+     select gen_random_uuid(), $1, 'it-oi131', 'totp', 'verified', now(), now()
+     where not exists (select 1 from auth.mfa_factors where user_id = $1 and status = 'verified')`,
+    [ADMIN_ID],
+  );
   const sid = (
     await c.query(
       `insert into auth.sessions (id, user_id, created_at, updated_at, aal)
@@ -70,6 +85,12 @@ describe("AUTH-026: the staff operational queue (OI-131)", () => {
     const c = await connect(DB_URL);
     try {
       await c.query("begin");
+      // The suites' states plus a generated matrix (WP-B's harness: lead, presented, accepted,
+      // paid and anomaly projects, and a heavy mix), all rolled back.
+      await c.query(harness());
+      await c.query("select pg_temp.oi131_populate(100)");
+      await c.query("select pg_temp.oi131_populate(50, 'heavy')");
+      await c.query("reset role");
       await c.query(previousQueue());
       await asStaff(c);
       const { rows } = await c.query(
@@ -99,10 +120,12 @@ describe("AUTH-026: the staff operational queue (OI-131)", () => {
     try {
       await c.query("begin");
       await c.query("set local track_functions = 'all'");
+      const active = (
+        await c.query("select count(*)::int as n from public.projects where archived_at is null")
+      ).rows[0].n as number;
       await asStaff(c);
       await c.query("set local role authenticated");
-      const items = (await c.query("select count(*)::int as n from public.operational_queue()"))
-        .rows[0].n as number;
+      await c.query("select count(*) from public.operational_queue()");
       await c.query("reset role");
       const { rows } = await c.query(
         `select f.funcname::text as name, f.calls::int as calls from pg_stat_xact_user_functions f
@@ -111,7 +134,7 @@ describe("AUTH-026: the staff operational queue (OI-131)", () => {
                                'project_financial_anomalies', 'gate_anomalies', 'operational_queue')`,
       );
       const calls = Object.fromEntries(rows.map((r) => [r.name as string, r.calls as number]));
-      expect(items).toBeGreaterThan(0);
+      expect(active).toBeGreaterThan(0);
       expect(calls.operational_queue).toBe(1);
       expect(calls.financial_evaluation_for_projects).toBe(1);
       expect(calls.project_financial_anomalies ?? 0).toBe(0);

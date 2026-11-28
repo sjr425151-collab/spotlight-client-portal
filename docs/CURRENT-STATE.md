@@ -3285,3 +3285,61 @@ Both readers are replaced by their merged bodies with only the check inserted be
 - **suite:** lint, typecheck, format and check-migrations pass; unit 527/527; pgTAP 0 files failed, 2,803 assertions (050 24/24, 197 43/43, 340 174/174, 345 68/68); integration 169/169; e2e 67/67 on a fresh reset.
 
 **Pre-existing, not caused by this change:** in CI order (integration, then e2e), the e2e test "the staff work queue renders derived items (05 §9)" fails locally with about 295 active projects. It fails identically on `main` `285a583` without this change (reproduced with the same build). That is OI-131, assigned to AUTH-026.
+
+## 35. WP-I AUTH-028 implementation record (OI-134: staff queue authorization gate refusals)
+
+Implemented by WP-I (`session_01RCnsL7k3rDKjjpTicExTsF`) on `main` at `22eb3fa` (the OI-134 grant record). Test-only, Tier 1, local and CI. Section number assigned by Main.
+
+**Change.** Exactly one new file, `supabase/tests/275_oi134_queue_gate_refusals.test.sql`: one rolled-back transaction with 14 assertions. Nothing else changes: no existing test, assertion, plan, description or expected value; no migration, seed, function, grant, RLS policy, role, configuration, workflow, dependency or application code. Test 050 is unchanged.
+
+**Qualifying dataset.** It is built in the file's transaction, through the seed and the existing Owner functions only:
+- seed Project A (`20000000-0000-4000-8000-0000000000a0`), whose member is seed client A;
+- an `owner_manual_hold` placed through `public.place_billing_hold` by the Owner at aal2;
+- the seed Sales Representative (`…0005`) assigned to Project A through `public.assign_sales_representative`.
+
+Callers get a live session at the requested assurance level, with a verified factor at aal2 (the 220 `act_as` pattern). Every factor and session the file inserts rolls back with it.
+
+**Assertions.**
+
+| # | Caller | Assertion |
+|---|---|---|
+| 1–3 | Owner at aal2 | setup: the hold is placed, the assignment exists, client A is a member, and the hold is active |
+| 4 | Admin at aal2 | (4) sees Project A's items |
+| 5 | Admin at aal2 | (4) OI-72: the billing-hold item's `detail` is exactly `{"hold": "billing_related_operational_hold", "kind": "billing", "owner_intervention_required": true}`, with no hold type |
+| 6 | Owner at aal2 | (4) sees Project A's items |
+| 7 | Owner at aal2 | (4) OI-72: the billing-hold item names the hold type (`owner_manual_hold`) |
+| 8 | Sales Representative (assigned) at aal2 | (1) empty |
+| 9 | Client A at aal1 | (2) empty |
+| 10 | Client A at aal2 | (2) empty |
+| 11 | Owner at aal1 | (3) empty |
+| 12 | Admin at aal1 | (3) empty |
+| 13–14 | Admin and Owner at aal2 | (4) after every refused call, they still see the same items |
+
+On unmutated code every caller in (1) to (3) receives an empty result, so the stop condition did not occur.
+
+**Mutation proof (local only; never committed).** The script captures `pg_get_functiondef('private.operational_queue()'::regprocedure)`. It then replaces the gate block `if not private.wpc_is_staff_aal2() then return; end if;`, which occurs exactly once:
+- **mutant (a):** removed entirely;
+- **mutant (b):** `if not (private.wpc_is_staff_aal2() or private.is_sales()) then return; end if;`.
+
+It installs the mutant with `create or replace` and runs `psql "$SUPABASE_DB_URL" -X -At -f supabase/tests/275_oi134_queue_gate_refusals.test.sql`. It then reinstalls the captured original and compares `md5(prosrc)` before and after. The run was on a fresh `supabase db reset` at `22eb3fa` plus this file.
+
+| | `md5(prosrc)` | 275 result | Failing assertions |
+|---|---|---|---|
+| Original | `aa6781589ed9c0027d90d59dd77c458e` | 14/14 | none |
+| Mutant (a), gate removed | `4411ee45b3448ac445e95d825d2c796d` | 9 passed, 5 failed | `not ok 8` (1) Sales aal2; `not ok 9` (2) client aal1; `not ok 10` (2) client aal2; `not ok 11` (3) Owner aal1; `not ok 12` (3) Admin aal1. All of (4) pass |
+| Restored | `aa6781589ed9c0027d90d59dd77c458e` | | |
+| Mutant (b), gate also admits Sales | `a3e9d13facf4be5eb6642cdd39b91694` | 13 passed, 1 failed | `not ok 8` (1) Sales aal2 |
+| Restored | `aa6781589ed9c0027d90d59dd77c458e` | 14/14 | none |
+
+WP-S reproduces both mutants independently.
+
+**Verification (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4; synthetic data only; CI order on a fresh reset):**
+- lint, typecheck, format and check-migrations pass;
+- unit: 528/528;
+- pgTAP: 48 files, 2,865 assertions, PASS (050 ok; 275 14/14);
+- WP-D18 isolated commit test: pass;
+- integration: 18 files, 173/173;
+- build, client bundle check and production-check build pass;
+- e2e: 70/70.
+
+No hosted, provider or production operation was performed.

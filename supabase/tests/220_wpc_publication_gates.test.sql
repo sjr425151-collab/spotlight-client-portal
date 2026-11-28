@@ -72,6 +72,13 @@ language sql stable security definer set search_path = '' as $$
       'payment_authorization_ready', false, 'active_billing_holds', '[]'::jsonb, 'evidence', '{}'::jsonb)
     || coalesce((select f.data from private.test_financial_fixture f where f.project_id = p_project_id), '{}'::jsonb));
 $$;
+-- AUTH-026 (setup only, OD-11(ii)): the queue now reads the WP-B interface through the set-based
+-- helper; route it through this test's fixture of that interface, as the queue once did.
+create or replace function private.financial_evaluation_for_projects(p_project_ids uuid[])
+returns table (project_id uuid, status private.project_financial_status, failed boolean)
+language sql stable security definer set search_path = '' as $$
+  select i.id, private.project_financial_status(i.id), false from unnest(p_project_ids) as i(id);
+$$;
 create function pg_temp.fin(p jsonb) returns void language sql as $$
   update private.test_financial_fixture set data = data || p where project_id = '20000000-0000-4000-8000-0000000000a0';
 $$;

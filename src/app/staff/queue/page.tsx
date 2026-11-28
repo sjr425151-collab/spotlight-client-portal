@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { PageHeading } from "@/components/app/app-shell";
 import { Card } from "@/components/ui/card";
+import { Notice } from "@/components/ui/notice";
 import { requireStaff } from "@/server/auth/guards";
 import { createUserClient } from "@/server/supabase/clients";
 
@@ -52,11 +53,20 @@ function describe(detail: Record<string, unknown> | undefined): string {
  * Derived operational queue (05 §9). Computed by the database on every request from
  * authoritative records; never maintained by hand. OI-72: the database returns financial
  * inputs only as derived states, and billing hold types to the Owner only.
+ *
+ * AUTH-026 (OI-131): four states. Loading is the route's loading.tsx. A failed call (an
+ * error, or no data) is shown as a failure with a retry link and is never presented as an
+ * empty queue; it is logged server-side with the error code only. "Nothing needs attention."
+ * appears only after a successful, empty result.
  */
 export default async function QueuePage() {
   const ctx = await requireStaff({ returnTo: "/staff/queue" });
-  const { data } = await (await createUserClient()).rpc("operational_queue");
-  const items = ((data ?? []) as Item[]).sort((a, b) => a.queue.localeCompare(b.queue));
+  const { data, error } = await (await createUserClient()).rpc("operational_queue");
+  const failed = Boolean(error) || !Array.isArray(data);
+  // The PostgREST error code only (for example 57014), never parameters, results or tokens.
+  const failure = error ? error.code : "no_data";
+  if (failed) console.error("operational_queue failed", failure);
+  const items = (failed ? [] : (data as Item[])).sort((a, b) => a.queue.localeCompare(b.queue));
   const groups = Object.keys(QUEUE_LABELS).filter((q) => items.some((i) => i.queue === q));
 
   return (
@@ -65,7 +75,21 @@ export default async function QueuePage() {
         title="Work queue"
         intro="Derived from project records. Nothing here is edited by hand."
       />
-      {groups.length === 0 ? <p className="text-fg-muted">Nothing needs attention.</p> : null}
+      {failed ? (
+        <div className="flex flex-col gap-3">
+          <Notice tone="danger">
+            The work queue could not be loaded. Nothing is shown because the result is unknown, not
+            because nothing needs attention.
+          </Notice>
+          <p>
+            <Link href="/staff/queue" className="font-medium text-fg underline">
+              Try again
+            </Link>
+          </p>
+        </div>
+      ) : groups.length === 0 ? (
+        <p className="text-fg-muted">Nothing needs attention.</p>
+      ) : null}
       {groups.map((queue) => (
         <section key={queue} aria-labelledby={`q-${queue}`} className="flex flex-col gap-3">
           <h2 id={`q-${queue}`} className="font-display text-lg font-semibold text-fg">

@@ -72,13 +72,22 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
+      // AUTH-026 (OI-131): the staff work queue's four states. Its test-only mechanisms (a
+      // held lock on public.projects; archiving every active project) affect the whole
+      // database, so it runs after every project that visits the queue (FD-14, Main).
+      name: "queue-states",
+      testMatch: /queue-states\.spec\.ts/,
+      dependencies: ["r1"],
+      use: { ...devices["Desktop Chrome"], launchOptions },
+    },
+    {
       name: "desktop-chromium",
-      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\./,
+      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\.|queue-states\./,
       use: { ...devices["Desktop Chrome"], launchOptions },
     },
     {
       name: "mobile-chromium",
-      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\./,
+      testIgnore: /production-gating|auth\.|wpc\.|wpb\.|wps\.|r1\.|queue-states\./,
       use: { ...devices["Pixel 7"], launchOptions },
     },
     {

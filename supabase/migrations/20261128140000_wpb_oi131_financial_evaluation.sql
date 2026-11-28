@@ -21,9 +21,21 @@
 -- project_financial_anomalies, the financial conflict functions and every other WP-B function. No
 -- financial calculation, classification, authorization boundary, timeout, grant or RLS policy
 -- changes. No API role may execute the helper; WP-C's operational_queue (AUTH-026 PR 2) calls it as
--- a definer. STABLE; it takes no lock. No index is added: every scan in the set pass is driven by
--- an existing index (webhook_events, reconciliation_mismatches, outbound_stripe_requests,
--- final_balance_invoices by project; financial_event_project_candidates by event and by project).
+-- a definer. STABLE; it takes no lock.
+--
+-- Indexes (only where the analysis showed unindexed per-project scans; pg_stat_xact_user_tables at
+-- 1,000 synthetic projects after ANALYZE): checkout_sessions was sequentially scanned 1,104 times
+-- (717,600 rows read) by the deposit-state lookup, which no existing index serves (the only project
+-- index is partial, on open initial sessions); reconciliation_mismatches, billing_holds,
+-- payment_authorizations and final_balance_invoices were scanned once or twice per project for lack
+-- of a full project index. The indexes change no query result, only the access path.
+
+create index checkout_sessions_project_kind_idx
+  on public.checkout_sessions (project_id, kind, created_at desc, attempt desc);
+create index reconciliation_mismatches_project_idx on public.reconciliation_mismatches (project_id);
+create index billing_holds_project_idx on public.billing_holds (project_id);
+create index payment_authorizations_project_idx on public.payment_authorizations (project_id);
+create index final_balance_invoices_project_idx on public.final_balance_invoices (project_id);
 
 create function private.financial_evaluation_for_projects(p_project_ids uuid[])
 returns table (project_id uuid, status private.project_financial_status, failed boolean)

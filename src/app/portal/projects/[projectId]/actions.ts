@@ -69,6 +69,25 @@ export async function approvePreviewAction(formData: FormData) {
   );
 }
 
+// AUTH-023 (05 §3A): the authorized signer acknowledges the exact current scope confirmation
+// version (its id and content hash). The checkbox is unchecked by default and must be checked;
+// the database binds the acknowledgment to the signer, a verified email and that version.
+export async function acknowledgeScopeConfirmationAction(formData: FormData) {
+  await requireClient();
+  if (text(formData, "confirm") !== "yes")
+    back(formData, { ok: false, error: "confirmation_required" }, "");
+  back(
+    formData,
+    await callRpc(await createUserClient(), "acknowledge_scope_confirmation", {
+      p_confirmation_id: text(formData, "confirmationId"),
+      p_content_sha256: text(formData, "contentSha256"),
+      p_acknowledged: true,
+      p_checkbox_unchecked_by_default: true,
+    }),
+    "scope_acknowledged",
+  );
+}
+
 export async function requestRevisionsAction(formData: FormData) {
   await requireClient();
   back(

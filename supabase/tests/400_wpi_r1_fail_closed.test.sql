@@ -152,10 +152,40 @@ begin
 end;
 $$;
 -- WP-C's real release_preview (staff, aal2) and approve_preview (the project's client).
+-- AUTH-023 (setup only, OD-11(ii)): before a release, the project's current scope confirmation,
+-- recorded by the Admin and acknowledged by its authorized signer, unless already acknowledged.
+create function pg_temp.scope_ready(p_project uuid) returns void language plpgsql as $scope$
+declare
+  v jsonb;
+  c public.scope_confirmations;
+  v_signer uuid;
+begin
+  if private.scope_confirmation_state(p_project) = 'acknowledged' then
+    return;
+  end if;
+  if private.scope_confirmation_state(p_project) in ('none', 'stale') then
+    perform pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
+    v := public.record_scope_confirmation(p_project, 'Synthetic client requirements', array['Synthetic selection'], '{}');
+    reset role;
+    if not coalesce((v ->> 'ok')::boolean, false) then
+      raise exception 'fixture: record_scope_confirmation failed: %', v;
+    end if;
+  end if;
+  c := private.current_scope_confirmation(p_project);
+  v_signer := private.scope_authorized_signer(p_project);
+  perform pg_temp.act_as(v_signer);
+  v := public.acknowledge_scope_confirmation(c.id, c.content_sha256, true, true);
+  reset role;
+  if not coalesce((v ->> 'ok')::boolean, false) then
+    raise exception 'fixture: acknowledge_scope_confirmation failed: %', v;
+  end if;
+end;
+$scope$;
 create function pg_temp.release(p_project uuid, p_sha text) returns uuid language plpgsql as $$
 declare
   v jsonb;
 begin
+  perform pg_temp.scope_ready(p_project);
   perform pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
   v := public.release_preview(p_project, p_sha, 'dpl_wph_' || left(p_sha, 8), 'https://preview.example.test/wph', '{}');
   reset role;

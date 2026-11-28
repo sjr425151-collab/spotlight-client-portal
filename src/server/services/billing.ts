@@ -63,8 +63,6 @@ export async function acceptAgreement(db: SupabaseClient, input: unknown): Promi
 export const issueOrderSummarySchema = z.object({
   projectId: uuid,
   packageKey: z.enum(["essential", "professional", "advanced", "signature", "prestige"]),
-  scopeItems: z.array(z.string().trim().min(1).max(300)).max(50),
-  projectNotes: z.string().trim().max(2000).optional(),
   changeReason: z.string().trim().max(1000).optional(),
 });
 
@@ -78,8 +76,10 @@ export async function issueOrderSummary(
   const { data, error } = await db.rpc("issue_order_summary", {
     p_project_id: v.projectId,
     p_package_key: v.packageKey,
-    p_scope_items: v.scopeItems,
-    p_project_notes: v.projectNotes || null,
+    // AUTH-022 (OD-13): standardized issuance. The scope comes from the sealed bundle; the RPC
+    // signature is kept, and the database rejects and audits any supplied scope or notes.
+    p_scope_items: [],
+    p_project_notes: null,
     p_change_reason: v.changeReason || null,
   });
   return rpcResult(data, error);

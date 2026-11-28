@@ -44,7 +44,7 @@ export async function BillingSection({ ctx, projectId }: { ctx: StaffContext; pr
     db
       .from("order_summaries")
       .select(
-        "id, revision, package_key, package_total_cents, deposit_cents, balance_cents, status, agreement_acceptances(id, business_name_matches)",
+        "id, revision, package_key, package_total_cents, deposit_cents, balance_cents, status, scope_items, agreement_acceptances(id, business_name_matches)",
       )
       .eq("project_id", projectId)
       .eq("status", "presented")
@@ -137,6 +137,18 @@ export async function BillingSection({ ctx, projectId }: { ctx: StaffContext; pr
         ) : (
           <p className="text-sm text-fg-muted">No order summary has been issued.</p>
         )}
+        {summary && Array.isArray(summary.scope_items) && summary.scope_items.length > 0 ? (
+          <div className="flex flex-col gap-2">
+            <h4 className="text-sm font-semibold text-fg">
+              Included scope (from the package bundle)
+            </h4>
+            <ul aria-label="Included scope" className="list-disc pl-5 text-sm text-fg-muted">
+              {(summary.scope_items as string[]).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <form action={issueOrderSummaryAction} className="flex max-w-xl flex-col gap-4">
           <input type="hidden" name="projectId" value={projectId} />
           <label className="flex flex-col gap-2 text-sm font-medium text-fg">
@@ -152,15 +164,9 @@ export async function BillingSection({ ctx, projectId }: { ctx: StaffContext; pr
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-2 text-sm font-medium text-fg">
-            Included scope (one item per line)
-            <textarea
-              name="scopeItems"
-              rows={3}
-              maxLength={8000}
-              className="rounded-control border border-line-strong bg-surface p-3 text-fg"
-            />
-          </label>
+          <p className="text-sm text-fg-muted">
+            The scope is set by the package&apos;s sealed bundle; it cannot be entered here.
+          </p>
           {summary ? (
             <TextField
               label="Reason for the new summary (material change)"

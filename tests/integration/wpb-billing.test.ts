@@ -157,7 +157,6 @@ describe("WP-B agreement and initial Checkout through the API", () => {
     const issued = await issueOrderSummary(owner, {
       projectId,
       packageKey: "advanced",
-      scopeItems: ["Website"],
     });
     expect(issued.ok).toBe(true);
   });

@@ -725,6 +725,21 @@ test("T-E2E-05: staff release; a superseded release cannot be approved; a double
     await admin.getByRole("button", { name: "Release preview to client" }).click();
     await expect(status(admin)).toContainText("The preview was released to the client.");
   };
+  // AUTH-023 (setup only, OD-11(ii)): before the first release, the Admin records the scope
+  // confirmation and the client signer (who accepted the agreement) acknowledges it, through the pages.
+  await admin.goto(`/staff/projects/${projectId}`);
+  await admin.getByLabel("Client requirements").fill("Synthetic client requirements");
+  await admin
+    .getByLabel("Confirmed fulfillment selections (one per line)")
+    .fill("Synthetic selection");
+  await admin.getByRole("button", { name: "Record scope confirmation" }).click();
+  await expect(status(admin)).toContainText("Scope confirmation recorded.");
+  await client.goto(`/portal/projects/${projectId}`);
+  await client.getByLabel(/scope confirmation version 1 and acknowledge it/).check();
+  await client.getByRole("button", { name: "Acknowledge scope confirmation" }).click();
+  await expect(status(client)).toContainText(
+    "Your acknowledgment of the scope confirmation was recorded.",
+  );
   await releaseAs(SHA_1, 1);
   await client.goto(`/portal/projects/${projectId}`);
   await expect(client.getByTestId("project-status")).toContainText(

@@ -479,6 +479,17 @@ begin
   reset role;
   perform pg_temp.act_as('${ADMIN_ID}', 'aal2');
   perform public.review_intake(v_sub, 'accepted', 'Accepted');
+  -- AUTH-023 (setup only, OD-11(ii)): the scope confirmation (the Admin) and its acknowledgment by the
+  -- authorized signer (client A, who accepted the agreement), before the release.
+  perform public.record_scope_confirmation(v_project, 'Synthetic client requirements', array['Synthetic selection'], '{}');
+  reset role;
+  perform pg_temp.act_as('${CLIENT_A_ID}', 'aal1');
+  perform public.acknowledge_scope_confirmation(
+    (select c.id from public.scope_confirmations c where c.project_id = v_project order by c.version desc limit 1),
+    (select c.content_sha256 from public.scope_confirmations c where c.project_id = v_project order by c.version desc limit 1),
+    true, true);
+  reset role;
+  perform pg_temp.act_as('${ADMIN_ID}', 'aal2');
   v_release := (public.release_preview(v_project, p_sha, 'dpl_w' || p_tag, 'https://preview.example.test/wph', '{}')
     ->> 'release_id')::uuid;
   reset role;

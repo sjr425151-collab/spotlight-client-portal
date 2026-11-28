@@ -1,3 +1,5 @@
+import { createHmac } from "node:crypto";
+
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 
@@ -291,6 +293,136 @@ test("the staff work queue renders derived items (05 §9)", async () => {
 });
 
 test("staff record a preview release with SHA, deployment ID, and preview URL (T-LC-15)", async () => {
+  // AUTH-023 (setup only, OD-11(ii); Main's Q3 ruling (b)): client A becomes the release
+  // project's member and authorized signer through the real WP-B path (r1's pattern: the Owner
+  // issues the order summary; the client accepts it and begins the initial Checkout; mock outbound
+  // results are recorded; a signed synthetic checkout.session.completed is delivered, OI-63). The
+  // Admin then records the scope confirmation and the client acknowledges it through the pages.
+  // No financial table is written directly.
+  const s5 = await withDb(async (db) => {
+    const as = async (userId: string, aal: string) => {
+      const sid = (
+        await db.query(
+          `insert into auth.sessions (id, user_id, created_at, updated_at, aal)
+           values (gen_random_uuid(), $1, now(), now(), $2::auth.aal_level) returning id::text`,
+          [userId, aal],
+        )
+      ).rows[0].id as string;
+      await db.query(
+        `select set_config('request.jwt.claims', json_build_object('sub', $1::text, 'role', 'authenticated',
+           'aal', $2::text, 'session_id', $3::text)::text, true)`,
+        [userId, aal, sid],
+      );
+    };
+    await db.query("begin");
+    await db.query(
+      `select set_config('request.jwt.claims', json_build_object('sub', $1::text, 'role', 'authenticated')::text, true)`,
+      [OWNER_ID],
+    );
+    await db.query("insert into public.project_memberships (project_id, user_id) values ($1, $2)", [
+      releaseProjectId,
+      CLIENT_A_ID,
+    ]);
+    await db.query("commit");
+    await db.query("begin");
+    await as(OWNER_ID, "aal2");
+    await db.query("set local role authenticated");
+    const os = await db.query(
+      "select public.issue_order_summary($1, 'essential', '[]'::jsonb) as r",
+      [releaseProjectId],
+    );
+    await db.query("commit");
+    await db.query("begin");
+    await as(CLIENT_A_ID, "aal1");
+    await db.query("set local role authenticated");
+    const acc = await db.query(
+      "select public.accept_agreement($1, true, true, 'Alex Client', $2, 'Owner', true) as r",
+      [os.rows[0].r.order_summary_id, `E2E WP-C ${RUN} LLC`],
+    );
+    const cs = await db.query("select public.begin_initial_checkout($1) as r", [releaseProjectId]);
+    await db.query("commit");
+    await db.query("begin");
+    await db.query(`select set_config('request.jwt.claims', '{"role":"service_role"}', true)`);
+    await db.query("set local role service_role");
+    const requests = await db.query(
+      `select id, purpose from public.outbound_stripe_requests where project_id = $1
+        order by (purpose = 'customer_create') desc`,
+      [releaseProjectId],
+    );
+    for (const r of requests.rows) {
+      const claim = await db.query(
+        "select public.outbound_request_for_execution($1) ->> 'claim_token' as token",
+        [r.id],
+      );
+      const token = (claim.rows[0] as { token: string | null }).token;
+      await db.query("select public.confirm_outbound_dispatch($1, $2)", [r.id, token]);
+      await db.query(
+        r.purpose === "customer_create"
+          ? `select public.record_outbound_result($1, $2, 'succeeded', $3, false, 200, null, '{}')`
+          : `select public.record_outbound_result($1, $2, 'succeeded', $3, false, 200, null,
+               jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/' || $3::text))`,
+        [r.id, token, r.purpose === "customer_create" ? `cus_wpc${RUN}` : `cs_test_wpc${RUN}`],
+      );
+    }
+    await db.query("commit");
+    return {
+      os: os.rows[0].r.order_summary_id as string,
+      acceptance: acc.rows[0].r.acceptance_id as string,
+      checkout: cs.rows[0].r.checkout_session_id as string,
+    };
+  });
+  const s5Secret = process.env.E2E_STRIPE_WEBHOOK_SECRET ?? "";
+  expect(s5Secret).toMatch(/^whsec_[A-Za-z0-9]+$/);
+  const s5Now = Math.floor(Date.now() / 1000);
+  const s5Body = JSON.stringify({
+    id: `evt_wpc${RUN}checkout`,
+    object: "event",
+    type: "checkout.session.completed",
+    api_version: "2026-09-30.endive",
+    livemode: false,
+    created: s5Now,
+    data: {
+      object: {
+        id: `cs_test_wpc${RUN}`,
+        object: "checkout.session",
+        mode: "subscription",
+        currency: "usd",
+        amount_total: 25900,
+        payment_status: "paid",
+        customer: `cus_wpc${RUN}`,
+        subscription: `sub_wpc${RUN}`,
+        invoice: `in_wpc${RUN}`,
+        total_details: { amount_discount: 0, amount_tax: 0 },
+        metadata: {
+          project_id: releaseProjectId,
+          order_summary_id: s5.os,
+          acceptance_id: s5.acceptance,
+          checkout_record_id: s5.checkout,
+        },
+      },
+    },
+  });
+  const s5Sig = createHmac("sha256", s5Secret).update(`${s5Now}.${s5Body}`, "utf8").digest("hex");
+  const s5Response = await clientPage.request.post("/api/stripe/webhook", {
+    data: s5Body,
+    headers: { "content-type": "application/json", "stripe-signature": `t=${s5Now},v1=${s5Sig}` },
+  });
+  expect(s5Response.status()).toBe(200);
+  await staffPage.goto(`/staff/projects/${releaseProjectId}`);
+  await staffPage.getByLabel("Client requirements").fill("Synthetic client requirements");
+  await staffPage
+    .getByLabel("Confirmed fulfillment selections (one per line)")
+    .fill("Synthetic selection");
+  await staffPage.getByRole("button", { name: "Record scope confirmation" }).click();
+  await expect(staffPage.locator("main").getByRole("status").first()).toContainText(
+    "Scope confirmation recorded.",
+  );
+  await clientPage.goto(`/portal/projects/${releaseProjectId}`);
+  await clientPage.getByLabel(/scope confirmation version 1 and acknowledge it/).check();
+  await clientPage.getByRole("button", { name: "Acknowledge scope confirmation" }).click();
+  await expect(clientPage.locator("main").getByRole("status").first()).toContainText(
+    "Your acknowledgment of the scope confirmation was recorded.",
+  );
   const before = await lastAuditId();
   await staffPage.goto(`/staff/projects/${releaseProjectId}`);
   await staffPage.getByLabel("Commit SHA (40 characters)").fill("a".repeat(40));

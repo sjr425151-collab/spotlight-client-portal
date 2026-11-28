@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Document | Architecture Decision Register and Change Log |
-| Version | 0.62.0 |
+| Version | 0.64.0 |
 | Status | **Approved** (Owner, 2026-11-23, consolidated execution plan approval). The transcription caveat in §1 still applies to decisions transcribed from Owner-provided material. |
 | Applies to | Spotlight Marketing Client Portal (`portal.spotlight-marketing.co`) |
 | Related | [OPEN-ISSUES.md](../OPEN-ISSUES.md), [CLAUDE.md](../CLAUDE.md), specifications 01–07 |
@@ -1084,6 +1084,14 @@ The CD and INT titles below are the Owner's decision-boundary summaries supplied
 | R-02, R-03, R-05 | OI-104 |
 | R-04 | OI-112 |
 
+### AUTH-024 dispositions and AUTH-025 grant (Owner, 2026-11-28)
+
+- **Day 30 (Q6):** confirmed as administrative suspension or rescheduling eligibility only, consistent with AUTH-024 and OD-16. No automatic financial or contractual consequence is authorized.
+- **Test 215 (Q5):** option (a), the setup-only earlier-schedule marker, approved. No day-21-hold assertion is replaced; the existing assertions prove the day-21 path for releases created before the merge, and test 260 proves the revised schedule.
+- **B-1d:** approved exactly as presented: one test 050 group adding `record_inactivity_milestone`, with the approved permission boundaries and compensating test 260 coverage.
+- **AUTH-025 (OI-130):** granted, Tier 1, option A, with every proposed restriction, acceptance criterion, independent review, stop condition, OM-6(b) merge authority and expiry. Added verification requirements: cleanup runs on success and failure paths through the test lifecycle; it is limited to records created by the same file in the synthetic local and CI environment; unrelated MFA records are shown untouched; the `wph-hardening.test.ts` overlap with AUTH-022 D-7 is coordinated so both changes are preserved. AUTH-025 runs concurrently with AUTH-022 and AUTH-024 and is prioritized to merge before them where practicable.
+- **Preserved:** the test 215 option (a) ruling and the day-30 semantics. No other inactivity semantics are reopened.
+
 ### Test-disposition batch for the contractual wave (Owner, 2026-11-28)
 
 The Owner approved the whole batch exactly as recommended:
@@ -1800,6 +1808,8 @@ Since OI-67, authorization status is recorded only in [AUTHORIZATIONS.md](AUTHOR
 | 0.50.0 | 2026-11-27 | **AUTH-002 Stage A attempt 2 closed:** STOPPED: http_404 after 2 requests; Owner cleanup and Workbench reconciliation recorded, with evidence limitations; **OI-118** opened (the recorded `essential.deposit` test price returned 404). **PR #45 merged** (`eacc8b5`, OM-6(b)); **AUTH-014 completed; OI-116 closed**. Decision 8a recorded as approved in principle. AUTHORIZATIONS v1.31.0; CURRENT-STATE v1.35.0; OPEN-ISSUES v0.39.0. | Main session | Owner |
 | 0.51.0 | 2026-11-27 | **R1 execution grants:** AUTH-010 and AUTH-015 to AUTH-018 granted with OM-6(b) conditional merges; D-a to D-c assertion dispositions; DEP-07 and DEP-12 conditionally selected; WP-I named the AUTH-003 executor with the `spotlight-staging-ops` environment. 04 v0.10.3 (§4A interim loading and activation; §15.2.1 rule 10). AUTHORIZATIONS v1.32.0; CURRENT-STATE v1.36.0; OPEN-ISSUES v0.40.0. | Main session | Owner |
 | 0.52.0 | 2026-11-27 | **OI-118 closed: cause H1** (sandbox mismatch; catalog intact); **AUTH-002 Stage A attempt 3 amendment** (sandbox account-ID binding; not active); attempt 2 evidence limitation (e) recorded. AUTHORIZATIONS v1.33.0; CURRENT-STATE v1.37.0; OPEN-ISSUES v0.41.0. | Main session | Owner |
+| 0.64.0 | 2026-11-28 | **AUTH-024 dispositions and AUTH-025 grant** (Owner): day 30 confirmed (Q6); test 215 option (a) (Q5); B-1d approved; AUTH-025 granted for OI-130 (option A, test-only, WP-I) with four added verification requirements. AUTHORIZATIONS v1.44.0; CURRENT-STATE v1.49.0; OPEN-ISSUES v0.51.0. | Main session | Owner |
+| 0.63.0 | 2026-11-28 | **PRs #69 and #71 merged: AUTH-021 (PWP-1) and AUTH-023 (PWP-5a) completed** (`459e66c`; head `dbf60bd`, base `5c47d16`; exact-head CI 46113700205 7/7; post-merge CI 46114832520. `360e026`; head `6627926`, base `459e66c`; exact-head CI 46116797090 7/7; post-merge CI 46117890947); OI-129 (a)–(g) and (i) closed; 05 v0.5.3 (§3A status labels only); **OI-130** opened (test MFA-factor hygiene; awaiting the Owner); AUTH-023 B-1c wording erratum (Main drafting error; private implementation executable by `authenticated` only). AUTHORIZATIONS v1.43.0; CURRENT-STATE v1.48.0; OPEN-ISSUES v0.50.0. | Main session | Owner |
 | 0.62.0 | 2026-11-28 | **Test-disposition batch** (Owner): B-1a to B-1c (050 additions), B-2 (D-1 to D-9) and B-3 (AUTH-022 T-SALES-31 correction) approved, with four verification clarifications. AUTHORIZATIONS v1.42.0; CURRENT-STATE v1.47.0. | Main session | Owner |
 | 0.61.0 | 2026-11-28 | **Contractual architecture implementation wave** (Owner): OD-1 to OD-19 approved as recommended; AUTH-021 to AUTH-024 granted (Tier 1) with verification requirements A to F; 04 v0.11.0 (§4A canonical lock hierarchy, OD-3); OI-125 and OI-126 closed as decided; OI-124 and OI-129 decided, open until implemented. AUTHORIZATIONS v1.41.0; CURRENT-STATE v1.46.0; OPEN-ISSUES v0.49.0. | Main session | Owner |
 | 0.60.0 | 2026-11-28 | **PWP investigation record** (Main, read-only): OI-124 to OI-129 opened (awaiting the Owner); 04 v0.10.6 and the DEP-18 status corrected (status only). AUTHORIZATIONS unchanged; CURRENT-STATE v1.45.0; OPEN-ISSUES v0.48.0. | Main session | Owner |

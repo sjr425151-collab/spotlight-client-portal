@@ -2851,3 +2851,27 @@ The exact added text is as WP-B sent it to Main at 08:05Z, verbatim. Main verifi
 2. No assertion change. Any later need for one goes to the Owner individually (OI-105).
 3. The timeout diagnosis (case-1 expected failure leaving a transaction open; the documented OD-3 serialization, not a cycle; pg_locks sampler log) goes in WP-B's CURRENT-STATE record, together with this record verbatim.
 ````
+
+## 32. PWP-1 AUTH-027 implementation record (OI-133: contract reader integrity, fail-closed)
+
+Implemented by the DEP-18 session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `main` through `285a583` (the AUTH-026 and AUTH-027 grant record). Numbered §32, the next free section at the time of writing (OM-2: renumbered at merge if taken). Local and CI only; synthetic and fixture data only.
+
+**Delivered:** the reserved migration `20261128150000_pwp1_oi133_reader_integrity.sql` (SHA-256 recorded in the PR) and pgTAP `345_pwp1_oi133_reader_integrity.test.sql` (52 assertions). No existing test, assertion, plan or description is changed, and no setup-only addition is made to an existing file, so no FD-14 record is needed. No new public RPC, so 050 is unchanged.
+
+**The change:** two new private integrity helpers, SECURITY DEFINER with an empty `search_path` and no API-role execute:
+- `private.contract_bundle_content_intact(uuid)`: the bundle hash recomputes from its stored fields, and each of the three instruments exists with the expected kind and package, recomputes to its stored content hash (`contract_instrument_verifies`), equals the component hash sealed into the bundle, and carries the bundle's fixture flag;
+- `private.order_summary_bundle_binding_intact(uuid)`: a v2 summary's snapshot hash recomputes, and every bundle and component identifier and hash it carries (F5) equals the bundle it names.
+
+Both readers are replaced by their merged bodies with only the check inserted before the return, so any failure returns `not_found` for the whole request: no partial bodies, no fallback. Signatures, the SECURITY DEFINER implementations behind the unchanged SECURITY INVOKER wrappers, STABLE volatility, the empty `search_path`, grants and every authorization check are unchanged. The readers write no audit event (they stay STABLE), so no failure path can carry text into an audit row; the grant permits but does not require one.
+
+**Historical access:** the helpers deliberately do not consult withdrawal, activation, the agreement's usability or the scope version's state (so F2 `contract_bundle_verifies`, which does, is not used). A withdrawn bundle's instruments stay readable for an accepted summary, and by staff, exactly as before (T-CON-06).
+
+**Acceptance evidence (local, Supabase CLI 3.2.0, fresh reset):**
+- **positive:** intact staff and client reads return exactly the stored instruments; after withdrawal, both reads are byte-identical to the reads before it; a presented summary reads as before;
+- **negative:** Sales, cross-tenant, aal1 and client-on-staff-reader callers get `not_found`, anon gets 42501, as before;
+- **tampering:** 24 cases, each giving exactly `{"ok": false, "error": "not_found"}` with no audit row. For each reader: a tampered body, title and provision list; a tampered, a self-consistently re-hashed and a missing stored instrument hash; a missing component; a tampered bundle component hash, bundle hash, and a bundle rebound to another package's intact instrument. For the client reader also: a tampered summary bundle hash and snapshot hash, and a summary rebound to another intact instrument or bundle with its snapshot re-hashed;
+- **leakage:** no failure result and no audit row contains any instrument title or body;
+- **mutation:** inside the test, with both helpers replaced by `true`, the same tampering returns text. Separately, with the two merged (pre-AUTH-027) reader bodies installed, all 24 tampering assertions and the leakage assertion fail;
+- **suite:** lint, typecheck, format and check-migrations pass; unit 527/527; pgTAP 0 files failed, 2,787 assertions (050 24/24, 197 43/43, 340 174/174, 345 52/52); integration 169/169; e2e 67/67 on a fresh reset.
+
+**Pre-existing, not caused by this change:** in CI order (integration, then e2e), the e2e test "the staff work queue renders derived items (05 §9)" fails locally with about 295 active projects. It fails identically on `main` `285a583` without this change (reproduced with the same build). That is OI-131, assigned to AUTH-026.

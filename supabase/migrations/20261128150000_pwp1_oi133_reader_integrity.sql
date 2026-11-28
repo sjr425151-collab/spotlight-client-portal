@@ -63,8 +63,8 @@ $$;
 
 -- ---------------------------------------------------------------------------
 -- 2. Order-summary binding integrity (no eligibility): a v2 summary's stored snapshot hash
---    recomputes, and every bundle and component identifier and hash it carries (F5) equals the
---    bundle it names.
+--    recomputes, and the governing agreement and every bundle and component identifier and hash
+--    it carries (F5) equal the bundle it names.
 -- ---------------------------------------------------------------------------
 create function private.order_summary_bundle_binding_intact(p_order_summary_id uuid) returns boolean
 language plpgsql stable security definer set search_path = '' as $$
@@ -83,6 +83,8 @@ begin
   return coalesce(
     s.snapshot_sha256 = private.sha256_hex(private.order_summary_snapshot(s)::text)
     and s.package_key = b.package_key
+    and s.agreement_version_id = b.agreement_version_id
+    and s.agreement_text_sha256 = b.agreement_text_sha256
     and s.contract_bundle_sha256 = b.bundle_sha256
     and s.contract_bundle_canonicalization = b.canonicalization
     and s.package_instrument_id = b.package_instrument_id

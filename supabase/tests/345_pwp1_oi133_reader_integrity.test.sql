@@ -19,7 +19,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(52);
+select plan(55);
 
 create function pg_temp.act_as(p_uid uuid, p_aal text default 'aal1', p_fresh boolean default false)
 returns void language plpgsql as $$
@@ -124,9 +124,17 @@ insert into ids select 'ip', package_instrument_id::text from private.contract_b
 insert into ids select 'im', maintenance_instrument_id::text from private.contract_bundles where id = pg_temp.id('ba');
 insert into ids select 'is', shared_terms_instrument_id::text from private.contract_bundles where id = pg_temp.id('ba');
 insert into ids select 'ipv', package_instrument_id::text from private.contract_bundles where id = pg_temp.id('bv');
+-- A second, synthetic agreement version (a heading and the approved 04 §3.1 clause only; created,
+-- never approved), so a summary can be rebound to an existing agreement id in the tampering cases.
+insert into ids select 'ag2_text', 'PGTAP SYNTHETIC AGREEMENT (345, OI-133)' || E'\n\n' || private.final_payment_clause();
+select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2', true);
+insert into ids select 'ag2', public.create_agreement_version('pgtap-345-oi133',
+  (select v from ids where k = 'ag2_text'), date '2026-11-01', 'PGTAP-345-AGR') ->> 'agreement_version_id';
+reset role;
 select ok(pg_temp.id('osa') is not null and pg_temp.id('osp') is not null and pg_temp.id('acc') is not null
-  and pg_temp.id('ip') is not null and pg_temp.id('ipv') is not null and pg_temp.id('ba') <> pg_temp.id('bv'),
-  'setup: an accepted essential summary, a presented advanced summary and their two bundles');
+  and pg_temp.id('ip') is not null and pg_temp.id('ipv') is not null and pg_temp.id('ba') <> pg_temp.id('bv')
+  and pg_temp.id('ag2') is not null,
+  'setup: an accepted essential summary, a presented advanced summary, their two bundles and a second agreement');
 -- Every instrument title and body in the database, for the leakage checks.
 create temp table texts as select title t from private.contract_instrument_versions
   union select body from private.contract_instrument_versions union select 'PGTAP TAMPERED';
@@ -221,7 +229,14 @@ insert into cases values
   ('summary_other_bundle', format($q$update public.order_summaries set contract_bundle_id = %L where id = %L;
        update public.order_summaries o set snapshot_sha256 = private.sha256_hex(private.order_summary_snapshot(o)::text) where o.id = %L$q$,
      pg_temp.id('bv'), pg_temp.id('osa'), pg_temp.id('osa')), array['client'],
-     'a summary pointed at another intact bundle, snapshot re-hashed');
+     'a summary pointed at another intact bundle, snapshot re-hashed'),
+  ('summary_agreement_id', format($q$update public.order_summaries set agreement_version_id = %L where id = %L;
+       update public.order_summaries o set snapshot_sha256 = private.sha256_hex(private.order_summary_snapshot(o)::text) where o.id = %L$q$,
+     pg_temp.id('ag2'), pg_temp.id('osa'), pg_temp.id('osa')),
+     array['client'], 'a summary rebound to another agreement version, snapshot re-hashed'),
+  ('summary_agreement_hash', format($q$update public.order_summaries set agreement_text_sha256 = repeat('f', 64) where id = %L;
+       update public.order_summaries o set snapshot_sha256 = private.sha256_hex(private.order_summary_snapshot(o)::text) where o.id = %L$q$,
+     pg_temp.id('osa'), pg_temp.id('osa')), array['client'], 'a tampered agreement text hash in the summary, snapshot re-hashed');
 select pg_temp.under(c.case_name, c.sql, rd, case when rd = 'staff' then pg_temp.id('ba') else pg_temp.id('osa') end)
   from cases c, unnest(c.readers) rd order by c.case_name, rd;
 select ok(pg_temp.refused('body', 'staff'), 'staff reader: a tampered instrument body gives not_found');
@@ -250,7 +265,11 @@ select ok(pg_temp.refused('summary_rebound', 'client'),
   'client reader: a summary rebound to another intact instrument (snapshot re-hashed) gives not_found');
 select ok(pg_temp.refused('summary_other_bundle', 'client'),
   'client reader: a summary pointed at another intact bundle (snapshot re-hashed) gives not_found');
-select is((select count(*)::int from results), 24, 'every tampering case ran for each applicable reader');
+select ok(pg_temp.refused('summary_agreement_id', 'client'),
+  'client reader: a summary rebound to another agreement version (snapshot re-hashed) gives not_found');
+select ok(pg_temp.refused('summary_agreement_hash', 'client'),
+  'client reader: a tampered agreement text hash in the summary (snapshot re-hashed) gives not_found');
+select is((select count(*)::int from results), 26, 'every tampering case ran for each applicable reader');
 select is(pg_temp.client_read(pg_temp.id('osa')), (select client from intact),
   'after the rolled-back tampering cases the intact read is unchanged');
 
@@ -274,7 +293,8 @@ insert into mutant values ($m$create or replace function private.contract_bundle
   returns boolean language sql stable set search_path = '' as $b$ select true $b$;$m$);
 select pg_temp.under('mutant_' || c.case_name, (select sql from mutant) || ';' || c.sql, rd,
   case when rd = 'staff' then pg_temp.id('ba') else pg_temp.id('osa') end)
-  from cases c, unnest(c.readers) rd where c.case_name in ('body', 'bundle_hash', 'summary_rebound') order by c.case_name, rd;
+  from cases c, unnest(c.readers) rd where c.case_name in ('body', 'bundle_hash', 'summary_rebound', 'summary_agreement_id', 'summary_agreement_hash')
+  order by c.case_name, rd;
 select ok((select (r ->> 'ok')::boolean and position('PGTAP TAMPERED' in r::text) > 0 from results
             where case_name = 'mutant_body' and reader = 'staff'),
   'mutation: without the re-verification the staff reader returns the tampered body');
@@ -288,6 +308,9 @@ select ok((select (r ->> 'ok')::boolean
              and exists (select 1 from jsonb_array_elements(r -> 'instruments') i where i ->> 'instrument_id' = pg_temp.id('ipv')::text)
            from results where case_name = 'mutant_summary_rebound' and reader = 'client'),
   'mutation: without the binding check the client reader returns another package''s instrument');
+select ok((select (r ->> 'ok')::boolean from results where case_name = 'mutant_summary_agreement_id' and reader = 'client')
+  and (select (r ->> 'ok')::boolean from results where case_name = 'mutant_summary_agreement_hash' and reader = 'client'),
+  'mutation: without the binding check the client reader returns text for an altered agreement id or text hash');
 select ok(private.contract_bundle_content_intact(pg_temp.id('ba')) and private.order_summary_bundle_binding_intact(pg_temp.id('osa'))
   and (select prosecdef from pg_proc where oid = 'private.contract_bundle_content_intact(uuid)'::regprocedure),
   'the mutants were rolled back: the real helpers are in place and pass on intact data');

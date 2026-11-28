@@ -2852,9 +2852,9 @@ The exact added text is as WP-B sent it to Main at 08:05Z, verbatim. Main verifi
 3. The timeout diagnosis (case-1 expected failure leaving a transaction open; the documented OD-3 serialization, not a cycle; pg_locks sampler log) goes in WP-B's CURRENT-STATE record, together with this record verbatim.
 ````
 
-## 32. PWP-1 AUTH-027 implementation record (OI-133: contract reader integrity, fail-closed)
+## 34. PWP-1 AUTH-027 implementation record (OI-133: contract reader integrity, fail-closed)
 
-Implemented by the DEP-18 session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `main` through `285a583` (the AUTH-026 and AUTH-027 grant record). Numbered §32, the next free section at the time of writing (OM-2: renumbered at merge if taken). Local and CI only; synthetic and fixture data only.
+Implemented by the DEP-18 session (`session_01RCnsL6oDLGr84wJPQZT3im`) on `main` through `285a583` (the AUTH-026 and AUTH-027 grant record). Numbered §34, as assigned by Main (§32 and §33 are reserved for the two AUTH-026 PRs; OM-2). Local and CI only; synthetic and fixture data only.
 
 **Delivered:** the reserved migration `20261128150000_pwp1_oi133_reader_integrity.sql` (SHA-256 recorded in the PR) and pgTAP `345_pwp1_oi133_reader_integrity.test.sql` (52 assertions). No existing test, assertion, plan or description is changed, and no setup-only addition is made to an existing file, so no FD-14 record is needed. No new public RPC, so 050 is unchanged.
 

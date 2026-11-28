@@ -127,16 +127,25 @@ describe("AUTH-026: the staff operational queue (OI-131)", () => {
       const { rows } = await c.query(
         `select f.funcname::text as name, f.calls::int as calls from pg_stat_xact_user_functions f
           where f.schemaname = 'private'
-            and f.funcname in ('financial_evaluation_for_projects', 'project_financial_status',
-                               'project_financial_anomalies', 'gate_anomalies', 'operational_queue')`,
+            and f.funcname in ('financial_evaluation_for_projects', 'operational_queue',
+                               'project_financial_status', 'project_financial_anomalies', 'gate_anomalies',
+                               'wpc_intake_unlocked', 'intake_state_of', 'project_fulfillment_status')`,
       );
       const calls = Object.fromEntries(rows.map((r) => [r.name as string, r.calls as number]));
       expect(active).toBeGreaterThan(0);
       expect(calls.operational_queue).toBe(1);
       expect(calls.financial_evaluation_for_projects).toBe(1);
-      expect(calls.project_financial_anomalies ?? 0).toBe(0);
-      expect(calls.project_financial_status ?? 0).toBe(0);
-      expect(calls.gate_anomalies ?? 0).toBe(0);
+      // No per-project financial evaluation, directly or through an existing helper (Main).
+      for (const name of [
+        "project_financial_status",
+        "project_financial_anomalies",
+        "gate_anomalies",
+        "wpc_intake_unlocked",
+        "intake_state_of",
+        "project_fulfillment_status",
+      ]) {
+        expect({ name, calls: calls[name] ?? 0 }).toEqual({ name, calls: 0 });
+      }
     } finally {
       await c.query("rollback").catch(() => undefined);
       await c.end();

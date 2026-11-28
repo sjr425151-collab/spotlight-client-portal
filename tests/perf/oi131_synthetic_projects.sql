@@ -161,6 +161,16 @@ begin
     delete from private.rate_limits;
     perform pg_temp.oi131_project('P' || v_run || lpad(v_i::text, 6, '0'), v_state);
     v_counts := jsonb_set(v_counts, array[v_state], to_jsonb(coalesce((v_counts ->> v_state)::int, 0) + 1));
+    -- The population is one transaction, so autovacuum never sees it: without fresh statistics the
+    -- plans of the real functions, chosen for near-empty tables, degrade quadratically as the
+    -- tables grow. ANALYZE (which sees this transaction's own rows) refreshes them periodically.
+    if v_i % 250 = 0 then
+      analyze public.projects, public.client_businesses, public.project_memberships, public.order_summaries,
+        public.agreement_acceptances, public.checkout_sessions, public.outbound_stripe_requests,
+        public.webhook_events, public.ledger_entries, public.payment_obligations, public.audit_events,
+        private.financial_event_project_candidates;
+      raise notice 'oi131 harness: % of % projects', v_i, p_count;
+    end if;
   end loop;
   return v_counts;
 end;

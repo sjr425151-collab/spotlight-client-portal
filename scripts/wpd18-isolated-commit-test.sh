@@ -33,7 +33,7 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 allowlist="$here/supabase/tests-isolated/wpd18-restore-allowlist.txt"
 parity_sql="$here/supabase/tests-isolated/wpd18_parity.sql"
 race_sql="$here/supabase/tests-isolated/wpd18_commit_race.test.sql"
-expected_entries=43
+expected_entries=48
 expected_fingerprint_lines=84
 expected_plan=27
 

@@ -2265,16 +2265,35 @@ Implemented by WP-I (`https://claude.ai/code/session_01RCnsL7k3rDKjjpTicExTsF`) 
 - *Guarantee:* a failed check rejects inside `getStripeGateway()`. The checkout and recovery actions rethrow before reaching `startInitialCheckoutAsCaller` or `beginPaymentMethodRecoveryAsCaller`, so no outbound row is claimed or confirmed and no provider request starts. The webhook route keeps verifying and storing the event, with a `null` gateway (card lookups wait for the job, as when no gateway is configured). Payment logic, authorization, idempotency, webhook verification and financial state transitions are unchanged (no change to `billing.ts`, `gateway.ts` or `mock-gateway.ts`).
 - *Evidence:* `wpi-oi115-seams-fail-closed.test.ts` shows that on a failed check the mock is never constructed and the global holder stays empty, neither billing service is called, and the webhook service receives `null`; with agreement the same mock is passed on unchanged.
 
-### 25.3 Verification (local; rerun after merging `main` at `8ebcced` with a merge commit)
+**WP-D18 isolated-copy allowlist, 43 → 48 (approved by the Owner, Consolidated Owner Directive, 2026-11-28).**
+- *Original:* `supabase/tests-isolated/wpd18-restore-allowlist.txt` restores exactly 43 descriptors (`expected_entries=43` in `scripts/wpd18-isolated-commit-test.sh`; fingerprint 84 lines, plan 27). The closure holds `private.app_environment()` and `environment_settings` but not `runtime_environment`.
+- *Replacement (approved):* add exactly `FUNCTION private environment_consistent() postgres`, `ACL private FUNCTION environment_consistent() postgres`, `TABLE private runtime_environment postgres`, `TABLE DATA private runtime_environment postgres` and `CONSTRAINT private runtime_environment runtime_environment_pkey postgres`, and set `expected_entries=48`. Fingerprint (84), state (26 lines) and plan (27) unchanged.
+- *Original guarantee:* the disposable copy restores exactly the package-scope closure, no more and no less.
+- *Replacement guarantee:* the same, for the closure that now includes what the D1 body of `private.app_environment()` reads.
+- *Exposure:* none beyond the two objects `app_environment()` depends on.
+- *Compensating coverage:* the script still requires each line to match exactly one dump entry and the exact count; parity stays byte-identical.
+- *Evidence:* without the change the copy fails with `function private.environment_consistent() does not exist`; with it, "selected 48 of 799", "identical: 84 fingerprint lines and 26 state lines", PASS (27/27).
+
+**OI-123: setup-only restores in `330_dep18_scope_loader_activation.test.sql` (approved by the Owner, Consolidated Owner Directive, 2026-11-28).** Line numbers at `23346ef`; insertions only.
+- *Original:* four sites change `private.environment_settings` while the seeded runtime row stays `development`: S1 l.356–369 (staging, preview, absent, development), S2 l.387–398 (test, staging, absent, development), S3 l.405–410 (test, development), S4 l.442–447 (test, development). Under D1 the file aborted at l.358 after 76 of 137 tests.
+- *Replacement:* a setup-only guard `pg_temp.oi123_assert_restored(site)` (adds no assertion); at each site the runtime row is saved and removed with the change (and set to `test` where the billing row is `test`, so the two agree), then restored from the saved row and the guard runs. +40 lines, none removed.
+- *Original guarantee:* the B-3 and per-classification activation and withdrawal cases.
+- *Replacement guarantee:* identical: no assertion, expected value, description or plan (137) changes.
+- *Exposure:* none; the guard aborts the file if a restore is missing.
+- *Evidence:* 330 137/137; guard mutation (S3 restore removed) fails with `OI-123: classifications not restored at s3`; full suite in 25.3.
+
+### 25.3 Verification (local, fresh reset in CI order; rerun after merging `main` at `df39d14` with a merge commit, with both 25.2 Owner-approved changes applied)
 
 | Suite | Result |
 |---|---|
 | `supabase db reset` (every migration plus the seed) | Pass |
-| `supabase test db` | 34 files, 1,896 tests, all pass |
+| `supabase test db` | 38 files, 2,315 tests, all pass (330: 137/137) |
+| `scripts/wpd18-isolated-commit-test.sh` | 48 entries; identical 84 fingerprint lines and 26 state lines; PASS (27/27) |
 | The six edited files in isolation | 42, 142, 106, 81, 217, 33: all pass |
 | pgTAP 410 mutations | M1 (no raise): 9 failures; M2 (scanner without the consistency term): 3; M3 (reader granted to `authenticated`): 3 |
-| `pnpm test` | 24 files, 513 tests, all pass (after merging `main` at `8ebcced`) |
-| `pnpm test:integration` | 9 files, 122 tests, all pass |
+| `pnpm audit --audit-level=high` | Pass |
+| `pnpm test` | 517 tests, all pass |
+| `pnpm test:integration` | 12 files, 144 tests, all pass |
 | `pnpm lint`, `pnpm typecheck`, `pnpm format:check` | Clean |
 | `pnpm build`, `pnpm build:production-check` | Pass |
 | `pnpm test:e2e` | **Not run locally:** the pinned Playwright expects a Chromium build that is not installed in this container (`browserType.launch: Executable doesn't exist`); no test executed. The exact-head CI run is the evidence |

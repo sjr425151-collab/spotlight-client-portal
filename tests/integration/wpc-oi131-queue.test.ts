@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
  *    definition (as last created by 20261128130000) is loaded as a pg_temp function from the
  *    migration file itself, so this test cannot drift from what it replaced. It runs over the
  *    database as the earlier suites leave it plus a generated matrix from WP-B's test-only
- *    harness (supabase/tests/perf/oi131_synthetic_projects.sql). Everything is rolled back.
+ *    harness (tests/perf/oi131_synthetic_projects.sql). Everything is rolled back.
  * 2. Evaluation counts (acceptance 2): one queue call evaluates WP-B's set-based helper once
  *    and the per-project financial functions zero times, read from pg_stat_xact_user_functions.
  *    `track_functions` can be set only by the local stack's superuser, so this connection is
@@ -28,10 +28,7 @@ const SUPERUSER_URL = `postgresql://supabase_admin:postgres@${host}:${new URL(DB
 
 /** WP-B's test-only synthetic population harness (pg_temp functions only). */
 function harness(): string {
-  return readFileSync(
-    join(process.cwd(), "supabase/tests/perf/oi131_synthetic_projects.sql"),
-    "utf8",
-  );
+  return readFileSync(join(process.cwd(), "tests/perf/oi131_synthetic_projects.sql"), "utf8");
 }
 
 /** The previous queue definition, renamed into pg_temp. */

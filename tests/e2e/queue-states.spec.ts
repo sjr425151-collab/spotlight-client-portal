@@ -1,0 +1,113 @@
+import { expect, test } from "@playwright/test";
+import { Client } from "pg";
+
+import { withDb } from "../support/db";
+import { expectAccessible, staffPageAtAal2 } from "../support/e2e";
+
+/**
+ * AUTH-026 (OI-131): the staff work queue's four states, each with the WCAG 2.2 AA checks.
+ * Runs in its own Playwright project after every project that visits the queue, so the
+ * test-only mechanisms below (recorded by Main in FD-14 form) never affect another test:
+ *
+ * - loading: a test transaction holds ACCESS EXCLUSIVE on public.projects, so the queue's
+ *   database call waits and the route-level loading state is shown; releasing it resolves the
+ *   page to its result.
+ * - failed: the same lock is held past the existing 8 s statement timeout of the
+ *   authenticated role (nothing is changed), so the call fails for real; the page shows the
+ *   failure with a retry link, never "Nothing needs attention.".
+ * - empty: every active project is archived in one committed transaction and exactly those
+ *   projects are restored afterwards, so the queue succeeds with no items.
+ * - populated: the existing groups.
+ *
+ * LOCAL Supabase stack and synthetic data only.
+ */
+
+const ADMIN = "admin@example.test";
+const ADMIN_ID = "00000000-0000-4000-8000-000000000002";
+const DB_URL =
+  process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+if (!["127.0.0.1", "localhost"].includes(new URL(DB_URL).hostname)) throw new Error("local only");
+
+test.describe.configure({ mode: "serial" });
+
+/** A connection holding ACCESS EXCLUSIVE on public.projects until `release` is called. */
+async function holdProjectsLock() {
+  const c = new Client({ connectionString: DB_URL });
+  await c.connect();
+  await c.query("begin");
+  await c.query("lock table public.projects in access exclusive mode");
+  return {
+    release: async () => {
+      try {
+        await c.query("rollback");
+      } finally {
+        await c.end();
+      }
+    },
+  };
+}
+
+test("AUTH-026: loading, then populated", async ({ browser }) => {
+  const { page } = await staffPageAtAal2(browser, ADMIN, ADMIN_ID);
+  const lock = await holdProjectsLock();
+  try {
+    const navigation = page.goto("/staff/queue");
+    await expect(
+      page.getByRole("status").filter({ hasText: "Loading the work queue" }),
+    ).toBeVisible();
+    await expectAccessible(page);
+    await lock.release();
+    await navigation;
+  } finally {
+    await lock.release().catch(() => undefined);
+  }
+  await expect(page.getByRole("heading", { name: "Work queue" })).toBeVisible();
+  await expect(page.locator("main section[aria-labelledby^='q-']").first()).toBeVisible();
+  await expect(page.getByText("Nothing needs attention.")).toHaveCount(0);
+  await expectAccessible(page);
+});
+
+test("AUTH-026: a failed call is shown as a failure with a retry, never as an empty queue", async ({
+  browser,
+}) => {
+  test.setTimeout(90_000);
+  const { page } = await staffPageAtAal2(browser, ADMIN, ADMIN_ID);
+  const lock = await holdProjectsLock();
+  try {
+    await page.goto("/staff/queue", { timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: "Work queue" })).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("The work queue could not be loaded.");
+    await expect(page.getByText("Nothing needs attention.")).toHaveCount(0);
+    await expect(page.locator("main section[aria-labelledby^='q-']")).toHaveCount(0);
+    await expectAccessible(page);
+  } finally {
+    await lock.release();
+  }
+  await page.getByRole("link", { name: "Try again" }).click();
+  await expect(page.locator("main section[aria-labelledby^='q-']").first()).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("AUTH-026: a successful, empty result shows Nothing needs attention", async ({ browser }) => {
+  const { page } = await staffPageAtAal2(browser, ADMIN, ADMIN_ID);
+  const archived = await withDb(async (db) =>
+    (
+      await db.query(
+        "update public.projects set archived_at = now() where archived_at is null returning id::text",
+      )
+    ).rows.map((r) => r.id as string),
+  );
+  try {
+    await page.goto("/staff/queue");
+    await expect(page.getByRole("heading", { name: "Work queue" })).toBeVisible();
+    await expect(page.getByText("Nothing needs attention.")).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expectAccessible(page);
+  } finally {
+    await withDb((db) =>
+      db.query("update public.projects set archived_at = null where id = any($1::uuid[])", [
+        archived,
+      ]),
+    );
+  }
+});

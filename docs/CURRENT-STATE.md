@@ -2346,3 +2346,43 @@ Implemented by the DEP-18 Review & Resolution session (`session_01RCnsL6oDLGr84w
 - build, check:bundle and build:production-check: pass.
 - e2e: 67 passed. The local run used the preinstalled Chromium 1243, not the 1255 build Playwright 1.65.1 pins.
 - Not run locally: Lighthouse, the dependency audit and the secret scan.
+
+## 27. WP-B AUTH-020 implementation record (OI-122, test-only)
+
+Implemented by WP-B (`session_01RCnsL4vnvrx7b11HRxeo8T`) from `main` at `8107841` (PR #63). Numbered §27, the next free section.
+
+**Change (one file, exactly the approved diff):** `tests/integration/oi91-dispatch-revocation.test.ts`, base SHA-256 `bd596cff…acbe`, diff SHA-256 `3675e8f8…8c5c`, patched file SHA-256 `27d324b01a9278a99199a2e713dbaf928f3287cf9da0fada6efbf6d948cd77fb` (verified).
+- **R1:** `waitsOnRowOf` keeps polling past an unidentified sample within the same 40 × 50 ms deadline, and still returns `"unknown"` or `null` when the table is never identified.
+- **R2:** an `abandon` helper and `try/finally` in `probe()` and `race()`. On failure only: the holders roll back first, the call under test is awaited for at most 10 s, a runner whose call settled is rolled back, and every connection is ended. Only cleanup errors are swallowed.
+- **Unchanged:** all 70 `expect(` assertions and their expected values (byte-identical), the success path (the same statements in the same commit order), the lock-order guarantees and the 5 s lock-timeout test. No production code, migration, permission, financial behavior, workflow, dependency or other test file changes.
+
+**Acceptance evidence (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4, synthetic data; the local-only copies, runners and logs are kept with the session evidence, never committed):**
+
+| Item | Result |
+|---|---|
+| A1, before the fix (`main`'s file, SHA-256 `bd596cff…`) | Under the reproducing load (6 parallel instances of the describe): **2 of 42 runs failed**, `expected 'unknown' to be 'final_balance_invoices'` and `expected 'unknown' to be 'payment_authorizations'`. A synthetic lock-churn load generator did not reproduce it (0 of 40) and is not used as the A2 load |
+| A2, after the fix | **0 of 40** failed alone; **0 of 42** under the same 6-way parallel load |
+| A3, the counter (diff `fba5c391…`) | Under the same load, 42 of 42 passed; 4 transient `"unknown"` samples occurred (4 distinct waits), each followed by identification of the expected table (the assertion passed). A second local-only variant that also records the resolving sample (diff `839e3927…`): 42 of 42 passed, 3 transient samples, each identified as `payment_authorizations` on the next sample |
+| A4 (i) | `private.confirm_outbound_dispatch` locally redefined to lock the outbound row first: "the confirmation" fails with `deadlock detected` (40P01); the other 5 pass. The original body was restored (source MD5 `248795b3…` and ACL match the pre-control values) |
+| A4 (ii), (iii) | An advisory-lock wait (never a tuple lock) returns `"unknown"` and the probe fails with `expected 'unknown' to be 'payment_authorizations'`; a never-blocked call returns `null` and fails with `expected null to be 'payment_authorizations'` |
+| A5 | A deliberately wrong expected table in `probe()` on a real fixture, and an unidentified wait in `race()`, each fail with the original assertion; afterwards `pg_stat_activity` shows no idle-in-transaction or lock-waiting session and `pg_locks` no advisory or row lock on the tables involved. In that same file run, every later suite (the file's 23 tests) passed with no 55P03 (31 of 31) |
+| A6 | See below |
+
+**A7 (cleanup is bounded, never commits, leaves nothing and never hides the original error):**
+- **Mechanism:**
+  - Every connection in the file runs inside an explicit `begin`; only `done()` commits. `abandon()` issues only `rollback` and `end()`.
+  - Holder rollback: the holder is idle when cleanup starts (each of its queries is awaited), and `ROLLBACK` takes no lock, so it returns in one round trip.
+  - The wait: an explicit 10 s timer raced against the call, then cleared.
+  - Runner rollback: sent only when the call has settled, so the runner is idle.
+  - `end()` (`pg@8.16.3` `Client.end`): with an active query it destroys the socket; otherwise it sends Terminate and resolves on socket close. An already-ended client resolves at once.
+  - The server rolls back the transaction of any session whose client is gone.
+  - In this file the runner can wait only on the holder (or `first`), which cleanup rolls back first; files run without parallelism (`fileParallelism: false`); and the dispatch functions carry `lock_timeout = 5s`.
+  - Outer bound: the integration `testTimeout` and `hookTimeout` of 60 s.
+- **Measured (local-only timing copy, diff `3e66adb9…`):**
+  - Five failed checks whose call settled: complete cleanup in 2.5–12.0 ms. Holder rollback was at most 1.4 ms, and `end()` at most 6.4 ms.
+  - One case where the runner was blocked by a **foreign** connection, so its call never settled: the wait ended at 10.005 s, the runner rollback was skipped, `end()` took 3.3 ms, and cleanup took 10.01 s in total. The failure reached the test 12.6 s after the call started, within the 60 s bound. The runner's backend remained only while the foreign blocker held its lock, and was gone 11 ms after the blocker released.
+  - The runners' inserted rows were absent afterwards in both cases, so nothing committed. `pg_stat_activity` and `pg_locks` were clean after every failure.
+- **The original error is never suppressed:**
+  - Assertions: A4 (ii), A4 (iii) and A5.
+  - A database error raised by the call under test (`division by zero`) propagates unchanged.
+  - The deadlock in A4 (i) is reported as `deadlock detected`.

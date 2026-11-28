@@ -48,19 +48,32 @@ select is(private.sha256_hex(private.order_summary_snapshot(jsonb_populate_recor
   'T-CON-10: v1 golden vector V3, the snapshot hash is unchanged');
 
 -- ---- A real v1 lifecycle: issue, then accept ----
-select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
-insert into ids select 'os', public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'essential',
-  '["Five-page website"]'::jsonb) ->> 'order_summary_id';
-reset role;
+-- AUTH-022 issues v2 only, so the frozen v1 path is pinned on a v1 row inserted as the table owner
+-- with exactly the values v1 issuance wrote (the guard trigger computes its v1 hash).
+with v as (select av.id as version_id, av.text_sha256, p.* from public.agreement_versions av,
+             private.verified_package_prices('essential') p where av.version_label = 'test-fixture-1'),
+     r as (insert into public.order_summaries (project_id, revision, agreement_version_id, agreement_text_sha256,
+             package_key, package_total_cents, deposit_cents, balance_cents, maintenance_monthly_cents,
+             catalog_environment, catalog_version, deposit_price_id, balance_price_id, maintenance_price_id,
+             scope_items, project_notes, business_legal_name, snapshot_sha256, issued_by)
+           select '20000000-0000-4000-8000-0000000000a0', 1, v.version_id, v.text_sha256, 'essential',
+             v.total_cents, v.deposit_cents, v.balance_cents, private.maintenance_monthly_cents(), private.stripe_mode(),
+             v.catalog_version, v.deposit_price_id, v.balance_price_id, v.maintenance_price_id,
+             '["Five-page website"]'::jsonb, null,
+             (select b.legal_name from public.client_businesses b join public.projects pr on pr.client_business_id = b.id
+               where pr.id = '20000000-0000-4000-8000-0000000000a0'),
+             repeat('0', 64), '00000000-0000-4000-8000-000000000002' from v
+           returning id)
+insert into ids select 'os', id::text from r;
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
 insert into ids select 'acc', public.accept_agreement((select v::uuid from ids where k = 'os'), true, true, 'Alex Client',
   'Synthetic Business A LLC', 'Managing Member', true) ->> 'acceptance_id';
 reset role;
-select isnt((select v from ids where k = 'acc'), null, 'T-CON-10: a v1 summary is issued and accepted');
+select isnt((select v from ids where k = 'acc'), null, 'T-CON-10: a v1 summary is accepted through the unchanged v1 acceptance path');
 select is((select snapshot_sha256 from public.order_summaries where id = (select v::uuid from ids where k = 'os')),
   (select private.sha256_hex(private.order_summary_snapshot(s)::text) from public.order_summaries s
     where s.id = (select v::uuid from ids where k = 'os')),
-  'T-CON-10: the issued v1 summary stores the hash of its v1 snapshot');
+  'T-CON-10: the v1 summary stores the hash of its v1 snapshot (snapshot_version 1)');
 select is((select a.order_summary_sha256 from public.agreement_acceptances a where a.id = (select v::uuid from ids where k = 'acc')),
   (select snapshot_sha256 from public.order_summaries where id = (select v::uuid from ids where k = 'os')),
   'T-CON-10: the v1 acceptance records exactly the summary hash it accepted');

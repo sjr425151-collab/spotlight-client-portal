@@ -174,8 +174,8 @@ grant execute on function pg_temp.claim(uuid) to service_role;
 -- 0. Setup: Project A reaches a verified deposit through the real workflow
 -- ---------------------------------------------------------------------------
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
-insert into ids select 'os1', public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'professional',
-  '["Ten-page website"]'::jsonb) ->> 'order_summary_id';
+insert into ids select 'os1', public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'professional')
+  ->> 'order_summary_id';
 reset role;
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
 insert into ids select 'acc1', public.accept_agreement((select v::uuid from ids where k = 'os1'), true, true, 'Alex Client',
@@ -210,8 +210,22 @@ select is(public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'pr
   'price_change_after_deposit', 'OI-81: a summary whose price differs from the accepted one is rejected once the deposit is verified');
 select ok(exists (select 1 from public.audit_events where action = 'order_summary.price_change_rejected'),
   'OI-81: the rejection is audited');
+-- AUTH-022 (Owner disposition D-4, B-2): the non-price material change is a newer sealed fixture
+-- bundle for the same package at the same price, built only by the seed constructors, as setup. No
+-- fixture, eligibility or governance control is weakened: the content carries its OD-9 labels, the
+-- constructors' own checks and the development-only fixture guard apply unchanged.
+reset role;
+select private.construct_contract_instrument('shared_terms', null, 'TEST FIXTURE shared terms (D-4)',
+  'TEST FIXTURE — NOT A CONTRACT INSTRUMENT (shared terms, D-4 material change)', array['FX-S1'], true);
+select private.construct_contract_bundle('professional', 'TEST FIXTURE — NOT A CONTRACT BUNDLE (professional, D-4)',
+  b.agreement_version_id, b.package_instrument_id, b.maintenance_instrument_id,
+  (select i.id from private.contract_instrument_versions i where i.kind = 'shared_terms'
+    order by i.instrument_version desc limit 1),
+  b.scope_version, b.scope_provision_map, true)
+from private.current_contract_bundle('professional') b;
+select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
 insert into ids select 'os2', public.issue_order_summary('20000000-0000-4000-8000-0000000000a0', 'professional',
-  '["Ten-page website", "Blog"]'::jsonb, null, 'Scope adds a blog at the same price') ->> 'order_summary_id';
+  '[]'::jsonb, null, 'Scope adds a blog at the same price') ->> 'order_summary_id';
 reset role;
 select is((select state::text from private.project_agreement_state('20000000-0000-4000-8000-0000000000a0')), 'reacceptance_required',
   'T-AGR-04: a material change moves the agreement to reacceptance_required');

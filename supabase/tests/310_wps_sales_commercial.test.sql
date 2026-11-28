@@ -295,14 +295,19 @@ select throws_ok($$ update private.billing_package_scope set item_text = 'x' $$,
 select throws_ok($$ delete from private.billing_package_scope $$, '42501', null, 'T-SALES-31: service_role cannot delete scope rows');
 select throws_ok($$ truncate private.billing_package_scope $$, '42501', null, 'T-SALES-31: service_role cannot truncate scope rows');
 reset role;
--- Owner and Admin keep scope and notes (T-SALES-31, T-SALES-13).
+-- AUTH-022 (OD-13; Owner disposition D-1, B-2): no role supplies scope or notes; the scope is the
+-- sealed bundle's.
 select pg_temp.act_as('00000000-0000-4000-8000-000000000002', 'aal2');
-select is(public.issue_order_summary('20000000-0000-4000-8000-0000000000b0', 'professional', '["Custom scope"]'::jsonb, 'Staff note') ->> 'ok',
-  'true', 'T-SALES-31: an Admin still enters scope items and project notes');
+select is(public.issue_order_summary('20000000-0000-4000-8000-0000000000b0', 'professional', '["Custom scope"]'::jsonb, 'Staff note') ->> 'error',
+  'scope_not_allowed', 'T-SALES-31 (OD-13): staff freeform scope and notes are rejected and audited; scope comes from the bundle');
+select public.issue_order_summary('20000000-0000-4000-8000-0000000000b0', 'professional');
 reset role;
-select is((select (scope_items, project_notes)::text from public.order_summaries
-  where project_id = '20000000-0000-4000-8000-0000000000b0' and status = 'presented'), '("[""Custom scope""]","Staff note")',
-  'T-SALES-31: the Admin''s scope and note are stored as supplied');
+select ok((select s.scope_items = (select c.scope_items from private.current_contract_bundle('professional') c)
+             and s.project_notes is null from public.order_summaries s
+            where s.project_id = '20000000-0000-4000-8000-0000000000b0' and s.status = 'presented')
+  and exists (select 1 from public.audit_events e where e.action = 'order_summary.input_rejected'
+               and e.project_id = '20000000-0000-4000-8000-0000000000b0' and e.summary ->> 'reason' = 'scope_input'),
+  'T-SALES-31 (OD-13): the Admin''s rejection is audited and the stored scope is the bundle''s, with no notes');
 
 -- ===========================================================================
 -- T-SALES-30 / T-SALES-08 / T-SALES-34: commercial progress view
@@ -435,7 +440,7 @@ select is((select count(*)::int from public.audit_events where id > (select last
 select is((select status::text from public.order_summaries where id = pg_temp.id('os2')), 'presented',
   'T-SALES-32: the accepted summary is untouched');
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
-insert into ids select 'os3', public.issue_order_summary(pg_temp.id('c1'), 'essential', '["Owner scope"]'::jsonb, null, 'Owner correction') ->> 'order_summary_id';
+insert into ids select 'os3', public.issue_order_summary(pg_temp.id('c1'), 'essential', '[]'::jsonb, null, 'Owner correction') ->> 'order_summary_id';
 reset role;
 select isnt(pg_temp.id('os3'), null, 'T-SALES-32: the Owner replacement workflow is unchanged');
 select pg_temp.use_session('00000000-0000-4000-8000-000000000005', pg_temp.id('s1'), 'aal2', true);
@@ -490,7 +495,7 @@ update public.project_memberships set status = 'revoked', revoked_at = now()
 -- Project c3: S1 issues the summary (replace the Owner's) and invites a client; then the
 -- Owner ends S1's assignment while S1's earlier session is still valid.
 select pg_temp.act_as('00000000-0000-4000-8000-000000000001', 'aal2');
-select is(public.issue_order_summary(pg_temp.id('c3'), 'signature', '["Owner scope"]'::jsonb, null, 'Switch package') ->> 'ok', 'true',
+select is(public.issue_order_summary(pg_temp.id('c3'), 'signature', '[]'::jsonb, null, 'Switch package') ->> 'ok', 'true',
   'setup: an Owner summary on c3');
 reset role;
 -- Owner replaced; set up a fresh Sales summary on a new project c4 instead (no acceptance there).

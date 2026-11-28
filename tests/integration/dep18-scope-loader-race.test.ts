@@ -176,6 +176,17 @@ afterAll(async () => {
   await Promise.all([admin?.end(), a?.end(), b?.end()]);
 });
 
+// AUTH-025 (OI-130): remove the MFA factors this file creates, and only those, whatever the outcome.
+afterAll(async () => {
+  const c = new Client({ connectionString: DB_URL });
+  await c.connect();
+  try {
+    await c.query("delete from auth.mfa_factors where friendly_name = 'it-dep18'");
+  } finally {
+    await c.end();
+  }
+});
+
 describe("AUTH-018 serialization (local stack, parallel connections)", () => {
   it("withdrawal first: issuance waits, then sees the withdrawal and fails closed", async () => {
     for (let i = 0; i < REPETITIONS; i += 1) {

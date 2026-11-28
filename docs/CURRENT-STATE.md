@@ -2871,7 +2871,7 @@ Two effects multiply:
 - Branch 7 of `project_financial_anomalies` tests every candidate conflict event on every evaluation, so the conflict functions run (events × evaluations) times.
 - The queue evaluates each project's anomalies four times: twice through `project_financial_status`, and once more per publication gate.
 
-**Migration `20261128140000_wpb_oi131_financial_evaluation.sql`** (reserved; SHA-256 `41f7dd1c4e4047effcf3b45f2015720307a853280589a4d2183188fc676353d5`). It creates five indexes and one function, and revokes; it replaces nothing.
+**Migration `20261128140000_wpb_oi131_financial_evaluation.sql`** (reserved; SHA-256 `a11ed2c68c7545ce5b099392e0a75b1032dfa8d1d6768f04ac3d3f7ba5f1d807`). It creates five indexes and one function, and revokes; it replaces nothing.
 
 `private.financial_evaluation_for_projects(p_project_ids uuid[]) returns table (project_id uuid, status private.project_financial_status, failed boolean)`:
 - STABLE, SECURITY DEFINER, `search_path = ''`. No lock. No execute for PUBLIC, anon, authenticated or service_role.
@@ -2892,8 +2892,9 @@ One set pass covers every requested project:
 - **Assembly.** Each row is assembled in `project_financial_status`'s field order, one row per distinct input id, null included.
 
 **Failure handling:**
-- A per-project raise gives `failed = true` and a null status.
-- If the set pass raises, the helper falls back, for that call, to `project_financial_status` per project, with the same handling.
+- If one project's row assembly raises, the helper falls back to `project_financial_status` for that project alone, in its own failure scope (WP-I N-1).
+- If the set pass raises, the helper falls back, for that call, to `project_financial_status` per project.
+- In either fallback, a project gets `failed = true` and a null status only when `project_financial_status` itself raises for it.
 - A null id always takes the per-project path.
 
 **Unchanged.** Every existing function body is byte-identical. The md5 of `prosrc` is the same on `main` and after a clean reset or incremental application:
@@ -2983,6 +2984,10 @@ Call counts are in the order `pfs` / anomalies / `gate_anomalies` / `conflict_cl
 - exactly that project is `failed` with a null status, because the per-project function raises for it too;
 - every other project equals the per-project function exactly.
 
+**Per-project assembly fallback (WP-I N-1).** pgTAP 199 also wraps `private.calendar_version`, which the row assembly calls once per project, in the same way. A counting run gives C calls for P projects: C − P in the set pass, then one per project in the assembly. The next run raises on call C + (C − P) + 1, the first assembly call, so the set pass completes and exactly one project's assembly raises. That project falls back to `project_financial_status` and is evaluated once more, giving 2C + 1 calls in total. No project is failed, and every row equals the per-project function exactly.
+
+Proof that the test bites: against the previous handler, which marked such a project failed, both assertions fail. That run gave 2C calls and one failed project.
+
 **Evaluation counts.** `tests/integration/oi131-evaluation-counts.test.ts` (local `supabase_admin`, localhost guard, rolled back) asserts that one call over every active project returns one row per project with none failed, and the deltas helper 1, `project_financial_status` 0, `project_financial_anomalies` 0, `gate_anomalies` 0. It also checks equivalence over every project the suites left. The queue-level counts belong to WP-C (§33).
 
 **Drift guard (WP-C N-1).** The helper reimplements the bodies of 16 per-project functions set-based:
@@ -3011,14 +3016,14 @@ The functions the helper calls rather than copies follow any change automaticall
 
 **Requirement C (migrations out of timestamp order).** 140000 precedes `main`'s 150000.
 - **Clean reset:** `supabase db reset` passes; the last migrations are 150000, 140000 and 130000.
-- **Incremental:** the reset with 140000 withheld passes, and the helper is absent. Plain `supabase migration up` refuses with `MigrationMissingRemoteError`. `supabase migration up --include-all` applies 140000, and the helper is then owned by `postgres`. On that database, pgTAP passes with 2,815 assertions and 0 files failed (before the drift guard was added), and the md5s above are unchanged.
+- **Incremental:** the reset with 140000 withheld passes, and the helper is absent. Plain `supabase migration up` refuses with `MigrationMissingRemoteError`. `supabase migration up --include-all` applies 140000, and the helper is then owned by `postgres`. On that database, pgTAP passes with 2,815 assertions and 0 files failed (before the drift guard was added), and the md5s above are unchanged. Repeated at the final migration content (`a11ed2c6…`): plain `up` refuses with the same error, `--include-all` applies only 140000, and 199 passes 30/30.
 
 **Verification** (local stack, Supabase CLI 3.2.0, PostgreSQL 17.4; CI order with the CI job's `APP_ENV=test` and `NEXT_PUBLIC_SITE_URL`; synthetic data only):
 
 | Check | Result |
 |---|---|
 | Fresh reset | passes |
-| pgTAP | 2,831 assertions, 0 files failed (199 28/28, with the drift guard) |
+| pgTAP | 2,833 assertions, 0 files failed (199 30/30, with the drift guard and the assembly fallback) |
 | WP-D18 isolated commit | passes |
 | Integration | 17 files, 171 passed |
 | Unit | 527 passed |

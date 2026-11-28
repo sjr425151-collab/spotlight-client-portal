@@ -17,10 +17,12 @@
 --     their verification, active billing holds, payment authorization state, ledger digest), each a
 --     set-based copy of the per-project function's own expression;
 --   - each project's row is then assembled in the same field order as project_financial_status.
--- Per-project failure never fails the call: a project whose evaluation would raise gets
--- failed = true and a null status. If the set pass itself raises, the helper falls back, for that
--- call, to the existing per-project function with that same per-project handling, so the results
--- and failure flags are those of the per-project function exactly. A null id always takes that path.
+-- Per-project failure never fails the call. If the set pass itself raises, the helper falls back,
+-- for that call, to the existing per-project function for every project; if one project's assembly
+-- raises, it falls back to that function for that project alone. Either way a project is marked
+-- failed = true (with a null status) only when the per-project function itself raises for it, so
+-- the results and failure flags are those of the per-project function exactly. A null id always
+-- takes the per-project path.
 --
 -- Unchanged (byte-identical, keeping every caller): project_financial_status, gate_anomalies,
 -- project_financial_anomalies, the financial conflict functions and every other WP-B function. No
@@ -315,8 +317,16 @@ begin
       )::private.project_financial_status;
       failed := false;
     exception when others then
-      status := null;
-      failed := true;
+      -- The assembly raised for this project: fall back to the existing per-project function for
+      -- it alone (its own failure scope), so the row is exactly what that function gives; only if
+      -- that raises too is the project marked failed.
+      begin
+        status := private.project_financial_status(v_id);
+        failed := false;
+      exception when others then
+        status := null;
+        failed := true;
+      end;
     end;
     return next;
   end loop;

@@ -9,7 +9,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to authenticated, service_role;
 grant execute on all functions in schema extensions to authenticated, service_role;
-select plan(28);
+select plan(30);
 
 -- Test-only, inside this rolled-back transaction, installed before any financial function runs here
 -- (an already-resolved call site keeps the function it first resolved): holding_balance_cents is
@@ -22,6 +22,21 @@ begin
     raise exception 'forced failure (AUTH-026 test)';
   end if;
   return private.holding_balance_cents_oi131(p_charge_key);
+end;
+$$;
+-- Likewise calendar_version, which the per-project row assembly calls once per project. While
+-- oi131.fail_assembly_at is set, every call is counted (a sequence: not rolled back by a failed
+-- subtransaction) and the call with that number raises.
+create sequence pg_temp.oi131_assembly_calls;
+alter function private.calendar_version() rename to calendar_version_oi131;
+create function private.calendar_version() returns text
+language plpgsql volatile set search_path = '' as $$
+begin
+  if nullif(current_setting('oi131.fail_assembly_at', true), '') is not null
+     and nextval('pg_temp.oi131_assembly_calls') = current_setting('oi131.fail_assembly_at')::bigint then
+    raise exception 'forced assembly failure (AUTH-026 test)';
+  end if;
+  return private.calendar_version_oi131();
 end;
 $$;
 
@@ -211,6 +226,29 @@ select is((select to_jsonb(e.status) -> 'evidence' -> 'blocking_anomalies'
              from private.financial_evaluation_for_projects(array[(select v from ids where k = 'anomaly')]) e),
   to_jsonb(private.project_financial_status((select v from ids where k = 'anomaly'))) -> 'evidence' -> 'blocking_anomalies',
   'AUTH-026: the anomaly kinds per gate are those gate_anomalies returns');
+
+-- ---- One project's assembly raises (WP-I N-1): that project falls back to the per-project function ----
+-- A counting run (no call matches 0) gives C calls for P projects: the set pass makes C - P and the
+-- assembly makes one per project, after the set pass. The next run then raises on its first
+-- assembly call, call C + (C - P) + 1, so the set pass completes and exactly one assembly raises.
+create temp table nn as select array_agg(id) a from public.projects;
+do $$ begin perform set_config('oi131.fail_assembly_at', '0', true); end $$;
+create temp table counting_run as select * from private.financial_evaluation_for_projects((select a from nn));
+do $$
+declare
+  c bigint := (select last_value from pg_temp.oi131_assembly_calls);
+  p bigint := (select cardinality(a) from pg_temp.nn);
+begin
+  perform set_config('oi131.calls_before', c::text, true);
+  perform set_config('oi131.fail_assembly_at', (c + (c - p) + 1)::text, true);
+end $$;
+create temp table assembly_run as select * from private.financial_evaluation_for_projects((select a from nn));
+do $$ begin perform set_config('oi131.fail_assembly_at', '', true); end $$;
+select is((select last_value from pg_temp.oi131_assembly_calls), 2 * current_setting('oi131.calls_before')::bigint + 1,
+  'setup: exactly one assembly raised, and that project was evaluated once more by the fallback');
+select is((select count(*)::int from assembly_run e
+            where e.failed or to_jsonb(e.status) is distinct from to_jsonb(private.project_financial_status(e.project_id))), 0,
+  'AUTH-026: a project whose assembly raises falls back to private.project_financial_status for that project alone; no project is failed and every row is exact');
 
 -- ---- Failure parity and the fallback when the set pass raises ----
 -- The wrapper (installed above) now raises for one paid project's deposit charge only. The set pass

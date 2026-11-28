@@ -56,9 +56,9 @@ if i < 0:
 open(dst, "w").write(s[:i] + check + "\n" + s[i:])
 PY
   out="$(psql "$DB_URL" -At -v ON_ERROR_STOP=0 -f "$tmp/$name" 2>/dev/null | grep -E '^OI131_' || true)"
-  eq="$(echo "$out" | grep '^OI131_EQ' | tail -1)"
-  kinds="$(echo "$out" | grep '^OI131_KINDS' | tail -1 | cut -d'|' -f2)"
-  subst="$(echo "$out" | grep '^OI131_SUBST' | tail -1 | cut -d'|' -f2)"
+  eq="$(echo "$out" | grep '^OI131_EQ' | tail -1 || true)"
+  kinds="$(echo "$out" | grep '^OI131_KINDS' | tail -1 | cut -d'|' -f2 || true)"
+  subst="$(echo "$out" | grep '^OI131_SUBST' | tail -1 | cut -d'|' -f2 || true)"
   n="$(echo "$eq" | cut -d'|' -f2)"; m="$(echo "$eq" | cut -d'|' -f3)"; fl="$(echo "$eq" | cut -d'|' -f4)"
   echo "$name projects=${n:-?} mismatches=${m:-?} failed=${fl:-?} pfs_substituted=${subst:-?} kinds=${kinds}"
   total=$((total + 1))

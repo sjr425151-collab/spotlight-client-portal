@@ -22,6 +22,7 @@ import { createUserClient } from "@/server/supabase/clients";
 
 import { signOutAction } from "../../../sign-in/actions";
 import {
+  acknowledgeScopeConfirmationAction,
   approvePreviewAction,
   requestRevisionsAction,
   requestUploadExceptionAction,
@@ -49,31 +50,37 @@ export default async function ClientProjectPage({ params, searchParams }: Props)
   await requireProjectAccess(projectId);
   const db = await createUserClient();
 
-  const [status, { data: project }, { data: draftRows }, { data: uploads }, { data: reviews }] =
-    await Promise.all([
-      callRpc(db, "project_status", { p_project_id: projectId }),
-      db.from("projects").select("id, name").eq("id", projectId).maybeSingle(),
-      db
-        .from("intake_submissions")
-        .select("id, version, status, content")
-        .eq("project_id", projectId)
-        .order("version", { ascending: false })
-        .limit(1),
-      db
-        .from("asset_uploads")
-        .select(
-          "id, asset_id, version, category, original_name, status, rejection_code, created_at",
-        )
-        .eq("project_id", projectId)
-        .not("status", "in", "(uploading,failed_upload)")
-        .order("created_at", { ascending: false }),
-      db
-        .from("intake_reviews")
-        .select("decision, note, reviewed_at")
-        .eq("project_id", projectId)
-        .order("reviewed_at", { ascending: false })
-        .limit(1),
-    ]);
+  const [
+    status,
+    { data: project },
+    { data: draftRows },
+    { data: uploads },
+    { data: reviews },
+    scope,
+  ] = await Promise.all([
+    callRpc(db, "project_status", { p_project_id: projectId }),
+    db.from("projects").select("id, name").eq("id", projectId).maybeSingle(),
+    db
+      .from("intake_submissions")
+      .select("id, version, status, content")
+      .eq("project_id", projectId)
+      .order("version", { ascending: false })
+      .limit(1),
+    db
+      .from("asset_uploads")
+      .select("id, asset_id, version, category, original_name, status, rejection_code, created_at")
+      .eq("project_id", projectId)
+      .not("status", "in", "(uploading,failed_upload)")
+      .order("created_at", { ascending: false }),
+    db
+      .from("intake_reviews")
+      .select("decision, note, reviewed_at")
+      .eq("project_id", projectId)
+      .order("reviewed_at", { ascending: false })
+      .limit(1),
+    // AUTH-023 (05 §3A): the current scope confirmation version (members see the current one only).
+    callRpc(db, "scope_confirmation_status", { p_project_id: projectId }),
+  ]);
   if (!project || !status.ok) notFound();
   const s = status.data as {
     intake_state: string;
@@ -91,6 +98,18 @@ export default async function ClientProjectPage({ params, searchParams }: Props)
   const content = (latest?.content ?? {}) as Record<string, unknown>;
   const editable = s.intake_state === "open" || s.intake_state === "changes_requested";
   const lastReview = reviews?.[0];
+  const scopeState = scope.ok ? String(scope.data.state) : "none";
+  const scopeVersion = scope.ok
+    ? (scope.data.confirmation as {
+        id: string;
+        version: number;
+        content_sha256: string;
+        client_requirements: string;
+        fulfillment_selections: string[];
+        amendment_references: string[];
+      } | null)
+    : null;
+  const isSigner = scope.ok && scope.data.is_authorized_signer === true;
   const notice = messageFor(query.notice);
   const error = messageFor(query.error);
 
@@ -133,6 +152,58 @@ export default async function ClientProjectPage({ params, searchParams }: Props)
           </Card>
         </dl>
       </section>
+
+      {scopeVersion && scopeState !== "stale" ? (
+        <section aria-labelledby="scope-heading" className="flex flex-col gap-4">
+          <h2 id="scope-heading" className="font-display text-xl font-semibold text-fg">
+            Your project scope confirmation
+          </h2>
+          <Card className="flex flex-col gap-4" data-testid="scope-confirmation">
+            <p className="text-fg-muted">
+              Version {scopeVersion.version}.{" "}
+              {scopeState === "acknowledged"
+                ? "Acknowledged by your authorized signer."
+                : "Your preview can be released once your authorized signer acknowledges it."}{" "}
+              It records how we will build what you purchased. It does not change your agreement,
+              your price or any payment.
+            </p>
+            <div className="flex flex-col gap-2 text-sm text-fg">
+              <p>
+                <span className="font-medium">Your requirements:</span>{" "}
+                {scopeVersion.client_requirements}
+              </p>
+              <p className="font-medium">Confirmed selections:</p>
+              <ul className="list-disc pl-5">
+                {scopeVersion.fulfillment_selections.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+              {scopeVersion.amendment_references.length > 0 ? (
+                <p>
+                  <span className="font-medium">Separately authorized amendments:</span>{" "}
+                  {scopeVersion.amendment_references.join(", ")}
+                </p>
+              ) : null}
+            </div>
+            {scopeState === "unacknowledged" && isSigner ? (
+              <form action={acknowledgeScopeConfirmationAction} className="flex flex-col gap-3">
+                <input type="hidden" name="projectId" value={projectId} />
+                <input type="hidden" name="confirmationId" value={scopeVersion.id} />
+                <input type="hidden" name="contentSha256" value={scopeVersion.content_sha256} />
+                <label className="flex items-start gap-2 text-sm text-fg">
+                  <input type="checkbox" name="confirm" value="yes" required />I have reviewed scope
+                  confirmation version {scopeVersion.version} and acknowledge it.
+                </label>
+                <Button type="submit">Acknowledge scope confirmation</Button>
+              </form>
+            ) : scopeState === "unacknowledged" ? (
+              <p className="text-sm text-fg-muted">
+                Only the person who accepted your agreement can acknowledge it.
+              </p>
+            ) : null}
+          </Card>
+        </section>
+      ) : null}
 
       {s.current_release && !s.current_release.approved ? (
         <section aria-labelledby="preview-heading" className="flex flex-col gap-4">

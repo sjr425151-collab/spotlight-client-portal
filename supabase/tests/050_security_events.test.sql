@@ -68,6 +68,8 @@ select is((
         'record_preview_draft', 'record_qa_result', 'record_security_result', 'register_client_site_target',
         'release_preview', 'reopen_failed_publication', 'request_revisions', 'request_upload', 'request_upload_exception', 'resolve_incident',
         'retry_object_deletion', 'review_intake', 'save_intake_draft', 'start_deployment', 'submit_intake', 'withdraw_preview',
+        -- WP-C, AUTH-023 (reviewed in 250_wpc_pwp5a_scope_confirmation.test.sql; each re-authorizes inside its definer function)
+        'acknowledge_scope_confirmation', 'record_operational_note', 'record_scope_confirmation', 'scope_confirmation_status',
         -- WP-B (each re-authorizes the caller inside its definer function; none writes audit rows directly)
         'accept_agreement', 'approve_agreement_version', 'authorize_service_termination', 'begin_initial_checkout',
         'clear_billing_hold', 'confirm_cancellation', 'create_agreement_version', 'decide_billing_hold_review',

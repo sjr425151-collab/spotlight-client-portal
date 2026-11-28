@@ -77,6 +77,22 @@ function PassFail({ name, label }: { name: string; label: string }) {
   );
 }
 
+// AUTH-023: the derived scope confirmation state (the release gate's input).
+function scopeStateLabel(state: string): string {
+  switch (state) {
+    case "acknowledged":
+      return "Acknowledged by the client signer: previews can be released.";
+    case "unacknowledged":
+      return "Awaiting the client signer's acknowledgment: no preview can be released yet.";
+    case "stale":
+      return "No longer matches the effective order summary: record a new version.";
+    case "none":
+      return "No scope confirmation yet: no preview can be released.";
+    default:
+      return "Scope confirmation status unavailable.";
+  }
+}
+
 /**
  * Staff fulfillment and publication controls (05, 06). Everything shown is read through RLS
  * and the database's derived state; every button calls a server action that the database
@@ -107,6 +123,8 @@ export async function FulfillmentPanel({
     incidents,
     target,
     deletions,
+    scope,
+    notes,
   ] = await Promise.all([
     callRpc(db, "project_status", { p_project_id: projectId }),
     callRpc(db, "publication_gate_report", { p_project_id: projectId }),
@@ -178,6 +196,14 @@ export async function FulfillmentPanel({
       .neq("status", "deleted")
       .order("created_at", { ascending: false })
       .limit(20),
+    // AUTH-023 (05 §3A): the current scope confirmation and its derived state; staff notes.
+    callRpc(db, "scope_confirmation_status", { p_project_id: projectId }),
+    db
+      .from("project_operational_notes")
+      .select("id, note, created_at")
+      .eq("project_id", projectId)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   const intakeState = status.ok ? String(status.data.intake_state) : "locked";
@@ -191,6 +217,14 @@ export async function FulfillmentPanel({
   // active authorization, after a failed deployment or a failed live verification. The database
   // re-checks every condition.
   const latestDeployment = (deployments.data ?? [])[0];
+  const scopeConfirmation = scope.ok
+    ? (scope.data.confirmation as {
+        version: number;
+        client_requirements: string;
+        fulfillment_selections: string[];
+        amendment_references: string[];
+      } | null)
+    : null;
   const recoverable =
     isOwner &&
     status.ok &&
@@ -351,6 +385,97 @@ export async function FulfillmentPanel({
             </form>
           </Card>
         ))}
+      </Section>
+
+      <Section id="scope" title="Scope confirmation">
+        <p className="text-sm text-fg-muted" data-testid="scope-state">
+          {scopeStateLabel(scope.ok ? String(scope.data.state) : "unavailable")}
+          {scopeConfirmation ? ` · version ${scopeConfirmation.version}` : ""}
+        </p>
+        {scopeConfirmation ? (
+          <Card>
+            <div className="flex flex-col gap-2 text-sm text-fg">
+              <p>
+                <span className="font-medium">Client requirements:</span>{" "}
+                {scopeConfirmation.client_requirements}
+              </p>
+              <p className="font-medium">Confirmed fulfillment selections:</p>
+              <ul className="list-disc pl-5">
+                {scopeConfirmation.fulfillment_selections.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+              {scopeConfirmation.amendment_references.length > 0 ? (
+                <p>
+                  <span className="font-medium">Amendment references:</span>{" "}
+                  {scopeConfirmation.amendment_references.join(", ")}
+                </p>
+              ) : null}
+            </div>
+          </Card>
+        ) : null}
+        <Card>
+          <form action={act.recordScopeConfirmationAction} className="flex flex-col gap-3">
+            <Hidden projectId={projectId} />
+            <label className="flex flex-col gap-2 text-sm font-medium text-fg">
+              Client requirements
+              <textarea
+                name="clientRequirements"
+                rows={3}
+                maxLength={4000}
+                required
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-fg">
+              Confirmed fulfillment selections (one per line)
+              <textarea
+                name="selections"
+                rows={3}
+                maxLength={25000}
+                required
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-fg">
+              Separately authorized amendment references (optional, one per line)
+              <textarea
+                name="amendmentReferences"
+                rows={2}
+                maxLength={2100}
+                className={inputClass}
+              />
+            </label>
+            <p className="text-sm text-fg-muted">
+              A new version needs the client signer&apos;s acknowledgment before the next preview
+              release. It never changes the order summary, its price or any payment.
+            </p>
+            <Button type="submit">Record scope confirmation</Button>
+          </form>
+        </Card>
+      </Section>
+
+      <Section id="notes" title="Operational notes (staff only)">
+        <ul className="flex flex-col gap-2 text-sm">
+          {(notes.data ?? []).map((n) => (
+            <li key={n.id} className="text-fg">
+              {new Date(n.created_at).toLocaleString("en-US", { timeZone: "America/Detroit" })} ·{" "}
+              {n.note}
+            </li>
+          ))}
+        </ul>
+        <Card>
+          <form action={act.recordOperationalNoteAction} className="flex flex-col gap-3">
+            <Hidden projectId={projectId} />
+            <label className="flex flex-col gap-2 text-sm font-medium text-fg">
+              Operational note
+              <textarea name="note" rows={2} maxLength={4000} required className={inputClass} />
+            </label>
+            <Button type="submit" variant="secondary">
+              Add operational note
+            </Button>
+          </form>
+        </Card>
       </Section>
 
       <Section id="releases" title="Preview releases">

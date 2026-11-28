@@ -380,6 +380,110 @@ select is(pg_temp.authorize() ->> 'error', 'recovery_required', 'D4: and it cann
 -- 3. Only the current release; isolation; catalog
 -- ---------------------------------------------------------------------------
 select is(pg_temp.verify(pg_temp.id('d3'), null) ->> 'verified', 'false', 'a later verification fails');
+-- AUTH-023 (setup only, OD-11(ii); Main's Q3 ruling): before the releases below, the project's
+-- effective agreement through the real WP-B path (the Owner issues the order summary; client A
+-- accepts it and begins the initial Checkout; mock outbound results are recorded; a signed
+-- synthetic checkout.session.completed is delivered), then its scope confirmation, recorded by the
+-- Admin and acknowledged by the authorized signer. No financial table is written directly.
+create function pg_temp.s5_act(p_uid uuid, p_aal text default 'aal1') returns void language plpgsql as $s5$
+declare
+  v_sid uuid := gen_random_uuid();
+begin
+  insert into auth.sessions (id, user_id, created_at, updated_at, aal) values (v_sid, p_uid, now(), now(), p_aal::auth.aal_level);
+  if p_aal = 'aal2' then
+    insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at)
+    select gen_random_uuid(), p_uid, 'pgtap', 'totp', 'verified', now(), now()
+    where not exists (select 1 from auth.mfa_factors where user_id = p_uid and status = 'verified');
+  end if;
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', p_uid, 'role', 'authenticated', 'aal', p_aal,
+    'session_id', v_sid, 'amr', jsonb_build_array(jsonb_build_object('method', 'totp',
+      'timestamp', extract(epoch from now())::bigint)))::text, true);
+  set local role authenticated;
+end;
+$s5$;
+create function pg_temp.s5_effective(p_project uuid, p_tag text) returns void language plpgsql as $s5$
+declare
+  v_legal text;
+  v_os uuid;
+  v_acc uuid;
+  v_cs uuid;
+  v_req record;
+  v_tok uuid;
+  v_ingest jsonb;
+begin
+  if (private.scope_effective_order_summary(p_project)).id is not null then
+    return;
+  end if;
+  select b.legal_name into v_legal from public.projects p join public.client_businesses b on b.id = p.client_business_id
+   where p.id = p_project;
+  perform pg_temp.s5_act('00000000-0000-4000-8000-000000000001', 'aal2');
+  v_os := (public.issue_order_summary(p_project, 'essential', '[]'::jsonb) ->> 'order_summary_id')::uuid;
+  reset role;
+  perform pg_temp.s5_act('00000000-0000-4000-8000-0000000000a1');
+  v_acc := (public.accept_agreement(v_os, true, true, 'Alex Client', v_legal, 'Owner', true) ->> 'acceptance_id')::uuid;
+  v_cs := (public.begin_initial_checkout(p_project) ->> 'checkout_session_id')::uuid;
+  reset role;
+  if v_os is null or v_acc is null or v_cs is null then
+    raise exception 'fixture: the real WP-B path did not reach checkout for %', p_project;
+  end if;
+  perform set_config('request.jwt.claims', '{"role":"service_role"}', true);
+  set local role service_role;
+  for v_req in select id, purpose from public.outbound_stripe_requests where project_id = p_project
+               order by (purpose = 'customer_create') desc loop
+    v_tok := (public.outbound_request_for_execution(v_req.id) ->> 'claim_token')::uuid;
+    perform public.confirm_outbound_dispatch(v_req.id, v_tok);
+    if v_req.purpose = 'customer_create' then
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cus_T' || p_tag || '00000', false, 200, null, '{}');
+    else
+      perform public.record_outbound_result(v_req.id, v_tok, 'succeeded', 'cs_test_' || p_tag || '00000', false, 200, null,
+        jsonb_build_object('url', 'https://checkout.stripe.com/c/pay/cs_test_' || p_tag || '00000'));
+    end if;
+  end loop;
+  v_ingest := public.ingest_stripe_event(jsonb_build_object('id', 'evt_' || p_tag || 'checkout0', 'object', 'event',
+    'type', 'checkout.session.completed', 'api_version', '2026-09-30.endive', 'livemode', false,
+    'created', extract(epoch from now())::bigint, 'data', jsonb_build_object('object', jsonb_build_object(
+      'id', 'cs_test_' || p_tag || '00000', 'object', 'checkout.session', 'mode', 'subscription', 'currency', 'usd',
+      'amount_total', 25900, 'payment_status', 'paid', 'customer', 'cus_T' || p_tag || '00000',
+      'subscription', 'sub_' || p_tag || '00000', 'invoice', 'in_' || p_tag || '00000',
+      'total_details', jsonb_build_object('amount_discount', 0, 'amount_tax', 0),
+      'metadata', jsonb_build_object('project_id', p_project, 'order_summary_id', v_os, 'acceptance_id', v_acc,
+        'checkout_record_id', v_cs)))), repeat('c', 64));
+  perform public.process_stripe_event((v_ingest ->> 'webhook_event_id')::bigint);
+  reset role;
+  if (private.scope_effective_order_summary(p_project)).id is null then
+    raise exception 'fixture: the agreement for % is not effective', p_project;
+  end if;
+end;
+$s5$;
+create function pg_temp.scope_ready(p_project uuid, p_tag text) returns void language plpgsql as $s5$
+declare
+  v jsonb;
+  c public.scope_confirmations;
+  v_signer uuid;
+begin
+  perform pg_temp.s5_effective(p_project, p_tag);
+  if private.scope_confirmation_state(p_project) = 'acknowledged' then
+    return;
+  end if;
+  if private.scope_confirmation_state(p_project) in ('none', 'stale') then
+    perform pg_temp.s5_act('00000000-0000-4000-8000-000000000002', 'aal2');
+    v := public.record_scope_confirmation(p_project, 'Synthetic client requirements', array['Synthetic selection'], '{}');
+    reset role;
+    if not coalesce((v ->> 'ok')::boolean, false) then
+      raise exception 'fixture: record_scope_confirmation failed: %', v;
+    end if;
+  end if;
+  c := private.current_scope_confirmation(p_project);
+  v_signer := private.scope_authorized_signer(p_project);
+  perform pg_temp.s5_act(v_signer);
+  v := public.acknowledge_scope_confirmation(c.id, c.content_sha256, true, true);
+  reset role;
+  if not coalesce((v ->> 'ok')::boolean, false) then
+    raise exception 'fixture: acknowledge_scope_confirmation failed: %', v;
+  end if;
+end;
+$s5$;
+select pg_temp.scope_ready('20000000-0000-4000-8000-0000000000a0', 'S5A240');
 select pg_temp.as_admin();
 select public.release_preview('20000000-0000-4000-8000-0000000000a0', repeat('3', 40), 'dpl_a2', 'https://preview-a2.example.test', '{}') ->> 'ok';
 reset role;

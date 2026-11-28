@@ -255,8 +255,15 @@ async function race<H, W>(
   return { held, waited };
 }
 
+// Supabase Auth cannot load a user whose TOTP factor has no secret ("Database error finding
+// user"), and the act_as-style helpers in this and other files insert such factors. As the other
+// files that sign in the Owner do (wpc-oi113, wpc-oi114, wpc-uploads, wpc-delivery), remove the
+// Owner's factors before signing in, and this file's own factors afterwards.
 beforeAll(async () => {
   await withDb((db) => db.query("delete from private.rate_limits"));
+  await withDb((db) =>
+    db.query("delete from auth.mfa_factors where user_id = '00000000-0000-4000-8000-000000000001'"),
+  );
   clientA = await signInWithCode("client.a@example.test");
   owner = await signInWithCode("owner@example.test");
   await upgradeToAal2(owner, new Map());
@@ -267,6 +274,7 @@ afterAll(async () => {
   await withDb((db) =>
     db.query("delete from auth.mfa_factors where user_id = '00000000-0000-4000-8000-000000000001'"),
   );
+  await withDb((db) => db.query("delete from auth.mfa_factors where friendly_name = 'it-pwp5a'"));
 });
 
 describe("AUTH-023: the scope-confirmation gate under real concurrency (T-LC-19, OD-14)", () => {

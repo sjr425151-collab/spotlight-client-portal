@@ -2588,3 +2588,11 @@ Nothing was renumbered, rewritten or skipped, and no reset workaround was used.
 - e2e: 67 passed.
 
 Requirement D: AUTH-022 is not merged, so the combined v2 lifecycle verification stays with AUTH-022 when it merges (Main, 2026-11-28).
+
+**CI correction after the merge (run 46115533838, `a35c647`).** The race test failed at setup with `signInWithOtp failed: undefined`, so its 9 cases were skipped.
+
+**Root cause.** Supabase Auth returned 500 `Database error finding user` for `owner@example.test`. The Auth log reads `Scan error on column "secret": converting NULL to string is unsupported`. `tests/integration/pwp1-contract-race.test.ts`, merged with AUTH-021, inserts a verified TOTP factor for the Owner without a secret and does not remove it. In CI's file order, this file runs right after that one, and it signed in the Owner without first removing such factors. The local runs passed only because Vitest's cached order ran this file earlier. With the cache cleared, the failure reproduces locally.
+
+**Fix (this file only, setup only; no assertion, case or repetition changed).** As the other files that sign in the Owner do (wpc-oi113, wpc-oi114, wpc-uploads, wpc-delivery), `beforeAll` now deletes the Owner's factors before signing in. `afterAll` also deletes this file's own `it-pwp5a` factors.
+
+**Evidence.** Two full integration runs in CI order (Vitest cache cleared, fresh `supabase db reset` before each): 14 files, 159 passed each time.

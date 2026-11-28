@@ -86,6 +86,9 @@ select is((
         -- WP-S (AUTH-005; reviewed in 300_wps_sales_*.test.sql; each re-authorizes inside its definer function)
         'assign_sales_representative', 'end_sales_assignment', 'sales_create_customer_project',
         'sales_list_customers', 'sales_project_progress',
+        -- DEP-18, AUTH-021 (PWP-1; reviewed in 340_pwp1_contract_instruments.test.sql; each re-authorizes inside its definer function)
+        'activate_contract_bundle', 'contract_bundle_documents', 'create_contract_instrument_version',
+        'record_contract_bundle_approval', 'seal_contract_bundle', 'withdraw_contract_bundle',
         -- DEP-18 (AUTH-018; reviewed in 330_dep18_scope_loader_activation.test.sql; each re-authorizes inside its definer function)
         'activate_package_scope_version', 'load_package_scope_version', 'record_package_scope_approval',
         'withdraw_package_scope_version'

@@ -82,3 +82,33 @@ select private.create_package_scope_version(p.package_key, array[
          'TEST FIXTURE — NOT A DELIVERABLE (' || p.package_key || ' item 3)'], true)
 from private.billing_packages p
 order by p.package_key;
+
+-- PWP-1 (AUTH-021; OD-9): test-only contract instruments and bundles for local and CI only,
+-- created through the internal constructors with the fixture flag, after the development
+-- classification above (the guard admits fixtures only in development and test). Every body and
+-- title carries its OD-9 label. These are NOT contract instruments or bundles: no contractual,
+-- counsel-derived or real content is loaded anywhere (OI-106).
+select private.construct_contract_instrument('maintenance_specification', null,
+  'TEST FIXTURE maintenance specification',
+  'TEST FIXTURE — NOT A CONTRACT INSTRUMENT (maintenance specification)', array['FX-M1'], true);
+select private.construct_contract_instrument('shared_terms', null,
+  'TEST FIXTURE shared terms',
+  'TEST FIXTURE — NOT A CONTRACT INSTRUMENT (shared terms)', array['FX-S1'], true);
+select private.construct_contract_instrument('package_specification', p.package_key,
+  'TEST FIXTURE package specification (' || p.package_key || ')',
+  'TEST FIXTURE — NOT A CONTRACT INSTRUMENT (' || p.package_key || ' package specification)',
+  array['FX-P1', 'FX-P2', 'FX-P3'], true)
+from private.billing_packages p
+order by p.package_key;
+select private.construct_contract_bundle(p.package_key,
+  'TEST FIXTURE — NOT A CONTRACT BUNDLE (' || p.package_key || ')',
+  (select a.id from public.agreement_versions a where a.version_label = 'test-fixture-1'),
+  (select i.id from private.contract_instrument_versions i
+    where i.kind = 'package_specification' and i.package_key = p.package_key and i.instrument_version = 1),
+  (select i.id from private.contract_instrument_versions i
+    where i.kind = 'maintenance_specification' and i.instrument_version = 1),
+  (select i.id from private.contract_instrument_versions i
+    where i.kind = 'shared_terms' and i.instrument_version = 1),
+  1, '["FX-P1", "FX-P2", "FX-P3"]'::jsonb, true)
+from private.billing_packages p
+order by p.package_key;
